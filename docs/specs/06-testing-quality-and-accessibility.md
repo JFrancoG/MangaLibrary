@@ -1,0 +1,150 @@
+# SDD 06: Testing, calidad y accesibilidad
+
+**Estado:** Aprobada
+**Versión:** 1.3
+**Fecha:** 2026-08-18
+
+## Propósito
+
+Definir evidencia proporcional al riesgo para entregar Advanced y Deluxe con cero warnings, sin confundir cantidad de tests con cobertura real.
+
+## Estrategia híbrida
+
+- **Swift Testing** cubrirá tests unitarios y de integración nuevos.
+- **XCTest/XCUITest** se reservará para automatización de interfaz.
+- No se mezclarán aserciones de ambos frameworks dentro del mismo test.
+- El comportamiento nuevo testeable seguirá RED/GREEN. Documentación, configuración y exploración visual registrarán validación proporcional con TDD marcado como no aplicable.
+- Ningún test automatizado llamará al servicio de producción.
+
+## Planes previstos
+
+| Plan | Responsabilidad | Ejecución mínima |
+| --- | --- | --- |
+| `Fast` | Invariantes, transformaciones, estados y lógica determinista | Cada cambio de comportamiento |
+| `Integration` | SwiftData, migraciones, URLProtocol, Keychain aislado y composición de fronteras | Cambios en datos, red o sesión |
+| `UI` | Flujos críticos, adaptación y accesibilidad automatizable | Gate Advanced y cambios de navegación |
+| `ReleaseGate` | Composición aprobada de build, tests, UI y DocC | Candidatas Advanced y Deluxe |
+
+Los ficheros `.xctestplan` se crearán en un issue de configuración posterior. Esta especificación no afirma que existan todavía.
+
+## Cobertura por riesgo
+
+### Unidad
+
+- invariantes de colección y transiciones de edición;
+- composición y reinicio de consultas y filtros;
+- mapeo de errores de transporte, sesión y dominio;
+- máquina de estados de autenticación y sincronización;
+- coalescencia, reintento, cancelación e idempotencia de mutaciones;
+- `Codable & Sendable`, compatibilidad y estados del snapshot Deluxe;
+- `publicationGeneration`, `sessionGeneration`, revisión `UInt64` estrictamente monotónica y persistida sin wrap y rotación de epoch con fence cerrado;
+- `SessionFence` versionado, `fenceRevision`, sesión opcional permitida y decisión del provider mediante doble lectura idéntica alrededor del envelope;
+- selección de eventos, serialización del publicador, distinción entre contenido y sanitización y revalidación de la sesión esperada antes del reemplazo;
+- diferencia entre fallo ordinario y cierre fail-closed, incluido el aborto de logout si no puede persistirse o verificarse el fence;
+- orden write-before-reload, supresión de reload tras fallo inseguro y selección del `kind` de widget afectado;
+- `StaticConfiguration`, `TimelineProvider`, timeline `.never`, proyección común y ausencia de configuración por App Intent;
+- manifest, portada inmutable local o placeholder, retención y limpieza;
+- estados y cancelación de modelos de feature `@Observable @MainActor` cuando sean propietarios reales de ese workflow.
+
+### Integración
+
+- CRUD SwiftData con un `ModelContainer` aislado y verificación desde otro contexto;
+- migración mediante un store temporal en disco creado con el esquema anterior;
+- requests y respuestas mediante un `URLProtocol` limitado a la `URLSession` de test, incluidos códigos y payloads inválidos;
+- ciclo de access/refresh token con un almacén Keychain sustituible y sin credenciales reales;
+- reinicio con outbox pendiente, pérdida de red, bloqueo de autenticación y rechazo permanente;
+- escritura y lectura concurrentes del snapshot y portadas en App Group, fallo de disco, manifest anterior, retención y limpieza, en directorios temporales y después en sandbox o dispositivo autorizado;
+- recuperación tras crash en la secuencia fence cerrado → invalidación/Keychain → envelope redactado → reload;
+- doble lectura con sustitución concurrente del fence; sesión B cuyo envelope precede a la apertura; sanitización tardía de A convertida en no-op tras abrir B;
+- WatchConnectivity no alcanzable y reemplazo del contexto pendiente mediante `WCSession.updateApplicationContext(_:)`, incluidos epoch nuevo y entrega tardía de A sin bootstrap observado;
+- composición del widget sin SwiftData, Keychain, red, polling, ActivityKit, WidgetKit push ni `BGTask`.
+
+### Interfaz
+
+XCUITest cubrirá como mínimo los flujos críticos que puedan automatizarse de forma determinista:
+
+- catálogo a detalle y cambio entre lista y grid;
+- edición de tomos, tomo de lectura y colección completa;
+- alta, login, expiración recuperable y logout;
+- restauración de estado local y representación de error;
+- layout de iPhone en vertical e iPad en sus orientaciones admitidas;
+- cambio entre Catálogo, Colección y Cuenta, conservando durante la misma escena la ruta local de cada tab mediante su propietario de ámbito feature;
+- selección por `Manga.ID` desde catálogo y colección hacia el mismo detalle, sin transportar un modelo SwiftData vivo;
+- navegación lineal de Cuenta y catálogo accesible sin sesión;
+- invalidación de la selección de Colección al completar cambio de usuario, sin inventar todavía un flujo de colección anónima.
+
+Los tests UI no incluirán secretos ni dependerán de datos personales o de producción.
+
+## Determinismo
+
+Reloj, UUID, red, aleatoriedad y almacenamiento se inyectarán cuando afecten al resultado. No se usarán sleeps como sincronización ni se serializará una suite para ocultar estado compartido. Los oráculos procederán de contratos, fixtures controlados o cálculos independientes.
+
+Los tests de frescura de WidgetKit observarán los límites sustituibles de publicación, almacenamiento y recarga. Comprobarán que cada mutación, reconciliación, reversión, restauración, importación o redacción aplicable parte de un commit local completado o transición persistida y solicita una sola vez `reloadTimelines(ofKind:)` con el `kind` esperado únicamente después de dejar el bridge seguro.
+
+Un evento sin cambio visible no publicará ni solicitará reload. Un fallo ordinario conservará el manifest anterior de la misma sesión vigente. Un fallo al cerrar o verificar el `SessionFence` abortará logout y conservará sesión y Keychain; después de un fence seguro, un crash entre invalidación, limpieza de Keychain y envelope redactado se recuperará sin volver a autorizar A. Se probará también que el provider rechaza una lectura si los fences anterior y posterior difieren, que B no es visible antes de abrir su fence y que una sanitización tardía de A no altera B.
+
+Se inyectarán pérdida o corrupción de contador, overflow, disco lleno y carreras A/B para verificar recuperación, rotación de epoch con fence nuevo cerrado y revalidación de sesión. Una revisión reservada que no llegó al envelope quedará consumida; un envelope ya publicado cuyo reload quedó pendiente provocará otra solicitud dirigida sin una publicación nueva. Para watchOS se verificará que una nueva llamada a `updateApplicationContext(_:)` sustituye el contexto pendiente, que un epoch nuevo reemplaza la cache compatible anterior y que un reloj no alcanzable no bloquea logout. Ningún test esperará una actualización real de WidgetKit o WatchConnectivity ni impondrá sleeps o deadlines.
+
+## Previews deterministas
+
+- Una preview estática puede construir directamente un estado representativo sin fingir una petición.
+- Una preview interactiva de red usa `URLSessionConfiguration.ephemeral` y un `URLProtocol` local sin registro global ni handler mutable compartido.
+- Los fixtures de transporte contienen bytes, cabeceras, status o errores; el decoder y los DTO son los de producción.
+- Colección usa un `ModelContainer` en memoria con el esquema real; las interacciones posteriores recorren la capacidad de mutación de producción.
+- Cada escenario significativo posee contexto aislado y no llama a API, Keychain ni almacenamiento live.
+- Loading estable se modela como estado de presentación; no se simula con sleeps.
+- Xcode MCP renderiza las variantes aprobadas como comprobación editorial; una preview no sustituye build, tests UI ni evidencia de accesibilidad.
+
+## Warnings como errores
+
+- Warnings de Swift y Clang bloquearán Debug y Release en todos los targets presentes y futuros.
+- La concurrencia estricta no se silenciará con `@unchecked Sendable`, `nonisolated(unsafe)`, `@preconcurrency` u otros escapes no aprobados.
+- DocC se validará con warnings como errores.
+- Un warning de una dependencia o herramienta se atribuirá a su origen; no se presentará como un defecto corregido del código propio ni se suprimirá sin decisión explícita.
+
+La activación concreta de build settings pertenece al issue técnico posterior.
+
+## Calidad de producto
+
+- Todo texto visible residirá en String Catalog con español e inglés.
+- Las vistas soportarán Dynamic Type sin truncar acciones o datos esenciales.
+- VoiceOver comunicará nombre, valor, estado y acción sin depender de la portada.
+- Se comprobarán contraste, orden de foco, áreas táctiles, estados vacío/carga/error y reducción de movimiento cuando corresponda.
+- Las portadas tendrán placeholder estable y la interfaz conservará significado ante fallo de imagen.
+- Previews deterministas cubrirán estados representativos, pero no contarán como evidencia de UI automation.
+
+## Gates
+
+### Advanced Release Gate
+
+- build limpio y cero warnings;
+- `Fast`, `Integration` y flujos UI críticos aprobados;
+- catálogo, colección local, autenticación y sincronización cumplen sus SDD;
+- accesibilidad y adaptación verificadas en la matriz acordada;
+- documentación y evidencia actualizadas.
+
+### Deluxe Release Gate
+
+- Advanced continúa en verde;
+- widget y watchOS satisfacen la [SDD Deluxe](05-deluxe-watch-and-widget.md);
+- snapshot, configuración estática, generaciones, `SessionFence`, redacción fail-closed, `updateApplicationContext(_:)`, portadas, `.never` y reload dirigido tienen evidencia proporcional;
+- la evidencia valida causalidad y contenido sin sleeps ni afirmaciones de latencia en tiempo real;
+- la integración autorizada prueba App Group, manifest/portadas, crash/reintento y cambio de sesión sin introducir red u otra autoridad en la extensión;
+- el gate DocC produce el archive esperado sin warnings.
+
+Un simulador no sustituye evidencia física cuando la capacidad dependa de hardware, llavero, App Group, WatchConnectivity o una tecnología de asistencia real.
+
+## Fuera de alcance para 1.0
+
+- objetivos porcentuales de cobertura;
+- tests de rendimiento y presupuestos de Instruments;
+- llamadas automatizadas al backend de producción;
+- afirmar cobertura de accesibilidad solo por compilar, renderizar una preview o ejecutar un flujo diferente.
+
+## Decisiones relacionadas
+
+- [ADR 0001: toolchain, plataforma y warnings](../adr/0001-toolchain-platform-and-warning-policy.md)
+- [ADR 0005: estrategia híbrida de testing](../adr/0005-hybrid-testing-strategy.md)
+- [ADR 0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
+- [Documentación y DocC](07-documentation-and-docc.md)
+- [ADR 0009: flujos nativos por fuente y navegación local](../adr/0009-native-source-owned-features-and-local-navigation.md)

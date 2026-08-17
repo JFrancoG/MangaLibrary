@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+
+# Xcode user state and build products
+DerivedData/
+*.xcresult
+*.xcuserstate
+**/xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+
+# Swift and DocC generated artifacts
+.build/
+*.doccarchive
+
+# Obsidian local workspace state
+/.obsidian/
+
+# Local configuration and secrets
+Local.xcconfig
+*.secret.xcconfig
+Secrets/
+.env
+.env.*
+!.env.example
+*.p12
+*.mobileprovision
+*.key
+
+# Public docs keep sources, not generated media
+*.mov
+*.mp4
