@@ -4,9 +4,9 @@ Manga Library es una aplicación SwiftUI local-first para explorar un catálogo 
 
 ## Estado
 
-El repositorio está en su bootstrap documental. La arquitectura y el alcance están aprobados, pero las funcionalidades de catálogo, colección, autenticación, sincronización, widget y watchOS todavía no están implementadas.
+El repositorio está en su bootstrap técnico. La gobernanza, la arquitectura y el alcance están aprobados; la configuración compartida y el gate DocC están materializados en la rama activa, aunque el gate permanece abierto por un warning externo del toolchain. Las funcionalidades de catálogo, colección, autenticación, sincronización, widget y watchOS todavía no están implementadas.
 
-Trabajo activo: [issue #1 — Establecer la gobernanza y definición inicial del proyecto](https://github.com/JFrancoG/MangaLibrary/issues/1).
+Trabajo activo: [issue #3 — Materializar warnings-as-errors y el gate DocC reproducible](https://github.com/JFrancoG/MangaLibrary/issues/3).
 
 ## Objetivo de entrega
 
@@ -35,11 +35,19 @@ Trabajo activo: [issue #1 — Establecer la gobernanza y definición inicial del
 - [Progreso y evidencia](docs/Progress.md)
 - [Fuentes y autoridad](docs/Sources.md)
 
-`docs/` está reservado a documentación humana y normativa. El catálogo DocC vivirá dentro del target; los archives generados no se versionarán.
+`docs/` está reservado a documentación humana y normativa. El catálogo DocC vive dentro del target; los archives generados no se versionan.
 
 ## Desarrollo
 
-El proyecto se abre con `MangaLibrary.xcodeproj` usando Xcode 27. Antes de modificarlo, lee [AGENTS.md](AGENTS.md), el issue activo y las SDD/ADR aplicables. El estado actual aún no constituye una candidata Advanced ni Deluxe y no se afirma un build validado para este bloque documental.
+El proyecto se abre con `MangaLibrary.xcodeproj` usando Xcode 27. Antes de modificarlo, lee [AGENTS.md](AGENTS.md), el issue activo y las SDD/ADR aplicables.
+
+El gate DocC selecciona su propio Xcode sin cambiar `xcode-select`, comprueba la configuración efectiva de los tres targets en Debug y Release y genera un archive ignorado por Git:
+
+```sh
+./Scripts/validate-docc.sh
+```
+
+Si Xcode 27 no está en la ubicación predeterminada del script, se puede indicar su Developer directory mediante `MANGALIBRARY_DEVELOPER_DIR`. El estado actual aún no constituye una candidata Advanced ni Deluxe.
 
 ## Privacidad
 

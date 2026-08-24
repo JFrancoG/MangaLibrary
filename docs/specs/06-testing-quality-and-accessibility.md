@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.3
-**Fecha:** 2026-08-18
+**Versión:** 1.5
+**Fecha:** 2026-08-24
 
 ## Propósito
 
@@ -25,7 +25,7 @@ Definir evidencia proporcional al riesgo para entregar Advanced y Deluxe con cer
 | `UI` | Flujos críticos, adaptación y accesibilidad automatizable | Gate Advanced y cambios de navegación |
 | `ReleaseGate` | Composición aprobada de build, tests, UI y DocC | Candidatas Advanced y Deluxe |
 
-Los ficheros `.xctestplan` se crearán en un issue de configuración posterior. Esta especificación no afirma que existan todavía.
+Los ficheros `.xctestplan` se crearán en un issue posterior dedicado a la estrategia de suites. El scheme compartido puede exponer el plan implícito que Xcode autocrea, pero el gate de warnings y DocC no materializa ni afirma que existan todavía `Fast`, `Integration`, `UI` o `ReleaseGate`.
 
 ## Cobertura por riesgo
 
@@ -102,11 +102,13 @@ Se inyectarán pérdida o corrupción de contador, overflow, disco lleno y carre
 - DocC se validará con warnings como errores.
 - Un warning de una dependencia o herramienta se atribuirá a su origen; no se presentará como un defecto corregido del código propio ni se suprimirá sin decisión explícita.
 
-La activación concreta de build settings pertenece al issue técnico posterior.
+La política común se materializa en `Configuration/Shared.xcconfig`, conectada a Debug y Release a nivel de proyecto para que la hereden todos los targets actuales y futuros. `Scripts/validate-docc.sh` comprueba los valores efectivos de app, unit tests y UI tests en ambas configuraciones antes de construir documentación.
 
 ## Calidad de producto
 
-- Todo texto visible residirá en String Catalog con español e inglés.
+- Todo texto visible residirá en String Catalog con español e inglés, incluso cuando una marca mantenga deliberadamente el mismo valor en ambos idiomas.
+- `InfoPlist.xcstrings` explicita `Manga Library` como nombre visible invariable en inglés y español, y conserva también el nombre técnico de bundle en ambos locales.
+- Las futuras descripciones de permisos se añadirán a `InfoPlist.xcstrings` en los dos idiomas junto a la capacidad real que las necesite. `Localizable.xcstrings` se creará con la primera interfaz de producto y sus textos reales; este gate no anticipa un catálogo vacío ni traducciones ficticias.
 - Las vistas soportarán Dynamic Type sin truncar acciones o datos esenciales.
 - VoiceOver comunicará nombre, valor, estado y acción sin depender de la portada.
 - Se comprobarán contraste, orden de foco, áreas táctiles, estados vacío/carga/error y reducción de movimiento cuando corresponda.

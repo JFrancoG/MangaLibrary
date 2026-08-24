@@ -1,66 +1,90 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-08-18
-**Estado general:** bootstrap documental y refinamientos arquitectónicos completados; entrega trazada mediante GitHub Issue y PR
+**Última actualización:** 2026-08-25
+**Estado general:** gobernanza fusionada; gate Xcode 27/DocC implementado y validado técnicamente en el issue #3, todavía abierto por el warning externo de App Intents
 
-## Entrega de este bloque
+## Gate técnico activo
 
-- Tracker: [GitHub Issue #1 — Establecer la gobernanza y definición inicial del proyecto](https://github.com/JFrancoG/MangaLibrary/issues/1).
-- Estado del plan: implementado y auditado; la entrega autorizada usa una PR con `Closes #1` y GitHub conserva su estado definitivo.
-- Alcance actual: constitución, README, SDD 00–08, ADR 0001–0010, fuentes, progreso y material público inicial.
-- Fuera del alcance actual: configuración Xcode, test plans, catálogo DocC y código de producto.
+- Tracker: [GitHub Issue #3 — Materializar warnings-as-errors y el gate DocC reproducible](https://github.com/JFrancoG/MangaLibrary/issues/3).
+- Estado del plan: implementación y validación local ejecutadas; el propietario decidió mantener abierto el gate mientras el toolchain emita el warning de App Intents. La localización del nombre visible se amplió y materializó. El checkpoint de rama está autorizado para commit y push; PR, merge y cierre siguen sin autorización.
+- Alcance: adopción consciente del baseline Xcode 27 protegido, configuración compartida, scheme compartido, landing DocC, catálogo de Info.plist, script reproducible y actualización documental proporcional.
+- Fuera del alcance: `.xctestplan`, `Localizable.xcstrings`, textos o permisos de producto todavía inexistentes, código o tests de producto, comentarios `///`, artículos, tutoriales, dependencias, publicación, targets y entitlements.
 
-## Baseline verificado
+## Base, alineación y preservación
 
 | Evidencia | Estado |
 | --- | --- |
-| Raíz Git | Checkout de MangaLibrary verificado; la ruta privada local no se versiona |
-| Rama base y entrega | `main` en `bcc4281` (`Initial Commit`); gobernanza en `codex/issue-1-governance` |
-| Repositorio remoto | `JFrancoG/MangaLibrary`, público; `origin` usa SSH |
-| Publicación base | `bcc4281` publicado como `main` antes de crear la rama de gobernanza |
-| Cambio previo protegido | `MangaLibrary.xcodeproj/project.pbxproj`, sin stage |
-| SHA-256 protegido | `375f108b069732d9076090ec39668e07a7892da484b18ac933c07c18e2b8e582` |
-| Diff previo | 34 inserciones, 24 eliminaciones; `git diff --check` limpio antes del bootstrap |
-| Xcode verificado en la propuesta | Xcode 27.0, compilador Swift 6.4, SDK iOS 27.0, scheme `MangaLibrary` |
+| Entrega anterior | Issue #1 cerrado por la PR #2; commit documental `43d52b5`, merge commit `eb340b3` |
+| Base adoptada | `main` y `origin/main` están en `eb340b3`; la rama activa parte de ese merge commit y suma el checkpoint del issue #3, sin pull ni rebase |
+| Rama activa | `codex/3-xcode27-warnings-docc-gate` |
+| Cambio previo protegido | Verificado antes y después de la alineación: 34 inserciones, 24 eliminaciones, `git diff --check` limpio |
+| SHA-256 inicial protegido | `375f108b069732d9076090ec39668e07a7892da484b18ac933c07c18e2b8e582` |
+| Extensión aprobada del proyecto | Frente al snapshot protegido, `project.pbxproj` suma 13 líneas y no elimina ninguna: las 12 de configuración compartida y la región `es`; el contenido previo permanece byte a byte |
+| SHA-256 actual del proyecto | `73d0aa5bf5eff5421d19ba6fbb67f0cb3ecc7c97669ecf0e93e2d130402dea65` |
+| Alcance de entrega | Un único checkpoint con las rutas exactas del issue #3; sin PR, merge ni cierre |
 
-La evidencia de toolchain y proyecto se obtuvo mediante MCP durante la propuesta aprobada. En esta sesión, Xcode MCP respondió pero `XcodeListWindows` no encontró ninguna ventana de proyecto; por tanto no existe una comprobación renovada de scheme, build o tests. `DocumentationSearch` sí confirmó en la documentación del SDK instalado las APIs de tabs tipadas, colapso de `NavigationSplitView`, protocolos personalizados de `URLSessionConfiguration` y `ModelActor`.
+No se usó `stash`, `reset`, `clean`, pull, rebase ni sobrescritura. El snapshot temporal de control permaneció fuera del repositorio.
 
-## Completado localmente en este bloque
+## Configuración materializada
 
-- Repositorio público creado, enlazado como `origin` y con el commit inicial publicado como rama base `main`.
-- Issue #1 creado tras comprobar que no existía un issue equivalente.
-- Constitución y estructura pública de documentación creadas.
-- SDD 00–08 y ADR 0001–0008 redactados conforme a la propuesta aprobada.
-- Arquitectura refinada por fuente de verdad: catálogo remoto observable, colección SwiftData directa, sesión/sync aislados y navegación local SwiftUI; ADR 0009 añadido sin reescribir decisiones aceptadas.
-- Frescura de WidgetKit definida mediante ADR 0010 y SDD relacionadas: publicación tras commit local completado, publicador serializado, envelope ordinario o fence de sesión seguros antes del reload dirigido, timeline `.never` y ausencia de SLA temporal.
-- Auditoría independiente de WidgetKit corregida: `StaticConfiguration + TimelineProvider`, snapshot `Codable & Sendable`, redacción fail-closed, epoch/revisión durable, revalidación de sesión, recuperación de crash y portadas inmutables con retención segura.
-- Reauditoría final independiente de WidgetKit cerrada sin hallazgos tras corregir: `SessionFence` compartido con doble lectura, logout ordenado antes de Keychain, apertura final para sesión nueva, rotación de epoch sin bootstrap observado y `WCSession.updateApplicationContext(_:)` como único canal canónico autocontenido para watchOS.
-- `Widgets-transcripcion-completa-sin-tiempos.md` registrada únicamente por nombre como fuente histórica no normativa, sin ruta ni contenido crudo.
-- Separación entre `/docs`, catálogo DocC y artefactos generados definida.
-- Auditoría iOS inicial cerrada sin hallazgos pendientes tras corregir aislamiento condicional, orden de snapshots, resultado remoto ambiguo y límite de XCTest.
-- Reauditoría del refinamiento arquitectónico ejecutada sobre AGENTS, SDD 00/01/02/04/06 y ADR 0009; sus hallazgos de identidad, ownership, fixtures, Keychain, trazabilidad y retención de navegación se corrigieron antes del cierre local.
-- Auditoría `swift-docc-semantic` cerrada sin hallazgos; catálogo, script y archive quedan correctamente diferidos.
-- Los 29 Markdown tienen enlaces locales resolubles y no contienen rutas privadas, secretos detectables ni whitespace final.
-- `.gitignore` protege Obsidian, artefactos DocC, DerivedData y cualquier `Local.xcconfig` sin excluir schemes compartidos o test plans.
+- `Configuration/Shared.xcconfig` se conecta a las configuraciones Debug y Release del proyecto.
+- App, unit tests y UI tests heredan `GCC_TREAT_WARNINGS_AS_ERRORS = YES`, `SWIFT_TREAT_WARNINGS_AS_ERRORS = YES`, `SWIFT_STRICT_CONCURRENCY = complete`, `SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated` y `OTHER_DOCC_FLAGS = $(inherited) --warnings-as-errors`.
+- `MangaLibrary.xcscheme` queda compartido y versionable; el estado personal de gestión de schemes se retira del control de versiones.
+- El catálogo DocC contiene únicamente `MangaLibrary.md`; no se añadieron comentarios, extensiones, artículos ni tutoriales sin contratos reales.
+- `MangaLibrary/InfoPlist.xcstrings` registra inglés y español. `CFBundleDisplayName` conserva `Manga Library` en ambos idiomas por decisión de producto; `CFBundleName` conserva el valor técnico `MangaLibrary` en ambos.
+- No se creó ningún `.xctestplan`. Xcode muestra su plan implícito autocreado `MangaLibrary`, que no sustituye los futuros planes `Fast`, `Integration`, `UI` y `ReleaseGate`.
 
-Este bloque se entrega exclusivamente mediante la PR vinculada al issue #1; el cambio protegido de Xcode queda fuera de su stage y de su diff.
+## Validación ejecutada
 
-## Siguiente trabajo tras esta entrega
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Xcode MCP — ventanas, scheme, targets, destino y plan | `MangaLibrary.xcodeproj`; scheme compartido `MangaLibrary`; app, unit y UI tests; iPhone 17 Pro / iOS 27.0; plan implícito `MangaLibrary` |
+| Xcode MCP — build settings de los tres targets | Swift 6, iOS 27, iPhone/iPad, concurrencia `complete`, aislamiento `nonisolated` y warnings Swift/Clang como errores |
+| `Scripts/validate-docc.sh` — matriz 3 targets × 2 configuraciones | Los cinco ajustes compartidos evaluaron al valor exigido en Debug y Release |
+| Xcode MCP — `BuildProject(buildForTesting: true)` | Debug con el catálogo final completado en 0,592 s; cero errores y cero warnings estructurados por MCP. El full log conserva tres emisiones del diagnóstico externo descrito debajo, una por target |
+| Producto compilado — localizaciones Info.plist | Xcode compiló el catálogo y copió `en.lproj/InfoPlist.strings` y `es.lproj/InfoPlist.strings`; ambos resuelven `CFBundleDisplayName` a `Manga Library` |
+| Xcode MCP — smoke Swift Testing | `MangaLibraryTests/example()` pasó: 1 ejecutado, 1 aprobado, 0 fallos |
+| Xcode 27 CLI — `build-for-testing`, Release, iPhone 17 Pro / iOS 27.0 | Exit 0; el full log contiene el mismo diagnóstico externo tres veces, una por target; DerivedData temporal eliminado después de validar |
+| Gate DocC — `docbuild`, Release, `generic/platform=iOS` | Xcode 27.0 build `27A5237l`, Apple Swift 6.4; `--warnings-as-errors` visible en la invocación DocC; exit 0 y el mismo diagnóstico externo conservado una vez |
+| Archive | `.build/docc/MangaLibrary.doccarchive` creado y comprobado; permanece ignorado por Git |
+| Auditoría estática | `plutil`, `xmllint`, `bash -n` y `git diff --check` aprobados; 136 enlaces locales comprobados en 30 Markdown, sin roturas; escaneo de rutas privadas y patrones de secretos sin hallazgos |
 
-1. Issue separado para warnings-as-errors, configuración compartida, catálogo DocC y gate reproducible.
-2. Caracterización/versionado del contrato OpenAPI sin secretos.
-3. Implementación y Advanced Release Gate.
-4. Widget, watchOS y Deluxe Release Gate.
-5. Evidencia, presentación, vídeo opcional y mecanismo final de entrega.
+El primer intento del smoke no obtuvo resultado porque el simulador no devolvió un proceso al lanzar la app. Xcode MCP lanzó después la app correctamente y la repetición idéntica del test pasó; no se modificó código para resolverlo.
+
+## Diagnóstico de herramienta observado
+
+Xcode 27 beta emite `Metadata extraction skipped, no AppIntents.framework dependency found` desde `appintentsmetadataprocessor` al procesar cada target en los builds Debug y Release, y una vez durante `docbuild`. Las acciones terminan con exit 0 y MCP no lo devuelve como issue estructurado, pero el texto sí está en sus full logs. No es un warning de Swift, Clang ni DocC; se conserva y atribuye a la herramienta de Xcode. No se añadió un App Intents ficticio, no se activó `LM_FILTER_WARNINGS` —que solo pasaría `--quiet-warnings`— ni se adoptó un ajuste interno para ocultarlo.
+
+Por tanto, la configuración warnings-as-errors y el gate DocC funcionan, pero el criterio literal del issue «Builds Debug y Release finalizan con cero warnings» todavía no está satisfecho con este build de Xcode. El propietario decidió mantener el gate abierto hasta disponer de un toolchain que no emita el diagnóstico; atribuirlo no equivale a declararlo resuelto.
+
+## Revisiones independientes
+
+- La revisión iOS/configuración, incluida la reauditoría del catálogo y la región `es`, terminó sin otros hallazgos, pero considera bloqueante para el criterio de cero warnings el diagnóstico de `appintentsmetadataprocessor`; suprimirlo no sería una corrección válida.
+- La revisión SwiftUI/accesibilidad detectó la ausencia inicial de `InfoPlist.xcstrings`; tras la ampliación autorizada, la reauditoría cerró el P2 sin hallazgos. La comprobación manual del nombre y su pronunciación real con VoiceOver queda diferida a evidencia de interfaz/dispositivo.
+- La revisión DocC independiente terminó sin hallazgos propios del catálogo o del gate; confirmó que el warning de App Intents es externo a DocC y permanece como bloqueo del issue.
+
+## Completado anteriormente
+
+- Constitución, README, SDD 00–08, ADR 0001–0010, fuentes, progreso y material público inicial entregados mediante la PR #2.
+- Arquitectura feature-first, navegación local, contratos de SwiftData, autenticación/sync, WidgetKit/watchOS y DocC selectivo aprobados y auditados.
+- Separación entre `/docs`, catálogo DocC, artefactos generados y memoria privada definida.
+
+## Siguiente trabajo
+
+1. Mantener el issue #3 abierto hasta validar con un Xcode 27 que no emita el warning de App Intents.
+2. Revalidar el gate con el siguiente Xcode 27 disponible y, solo con cero warnings, solicitar autorización separada para PR, merge y cierre.
+3. Caracterizar y versionar el contrato OpenAPI sin secretos.
+4. Implementar producto y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
+5. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
 
 ## Estado técnico aún no alcanzado
 
-- Warnings-as-errors todavía no está materializado en todos los targets.
+- El gate del issue #3 todavía no cumple todos sus criterios de aceptación y no está integrado en `main`.
 - No existen planes `Fast`, `Integration`, `UI` o `ReleaseGate` versionados.
-- No existe catálogo DocC ni archive validado.
 - No hay implementación de catálogo, colección, autenticación, sincronización, widget o watchOS.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
-- No se ha ejecutado build ni suite como evidencia de este cambio documental.
+- No se ha ejecutado evidencia de hardware, accesibilidad física, Keychain, App Group, WatchConnectivity o integración live.
+- No se ha autorizado publicación DocC ni GitHub Pages.
 
 ## Pendiente externo
 
