@@ -1,0 +1,1703 @@
+{
+  "components": {
+    "schemas": {
+      "AuthorDTO": {
+        "description": "MARK: - Author Response DTO\\nAuthor information",
+        "properties": {
+          "firstName": {
+            "description": "Author's first name",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier (UUID)",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "description": "Author's last name",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/AuthorRole"
+          }
+        },
+        "required": [
+          "firstName",
+          "id",
+          "lastName",
+          "role"
+        ],
+        "type": "object"
+      },
+      "AuthorIdsRequest": {
+        "description": "Request body with author IDs",
+        "properties": {
+          "ids": {
+            "description": "Array of author UUIDs to retrieve",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "type": "object"
+      },
+      "AuthorPageDTO": {
+        "description": "MARK: - Paginated Author Response\\nPaginated list of authors",
+        "properties": {
+          "items": {
+            "description": "Array of author items",
+            "items": {
+              "$ref": "#/components/schemas/AuthorDTO"
+            },
+            "type": "array"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/PageMetadataDTO"
+          }
+        },
+        "required": [
+          "items",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "AuthorRole": {
+        "description": "• Art → art\n• Story & Art → storyAndArt\n• Story → story\n• None → none",
+        "enum": [
+          "Art",
+          "Story & Art",
+          "Story",
+          "None"
+        ],
+        "type": "string"
+      },
+      "CustomSearch": {
+        "description": "Advanced manga search with multiple filters (all optional, combined with AND logic)",
+        "properties": {
+          "searchAuthorFirstName": {
+            "description": "Filter by author's first name",
+            "nullable": true,
+            "type": "string"
+          },
+          "searchAuthorLastName": {
+            "description": "Filter by author's last name",
+            "nullable": true,
+            "type": "string"
+          },
+          "searchContains": {
+            "description": "true = CONTAINS search, false = BEGINS WITH search",
+            "type": "boolean"
+          },
+          "searchDemographics": {
+            "description": "Filter by demographic names (exact match)",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "searchGenres": {
+            "description": "Filter by genre names (exact match, e.g., ['Action', 'Romance'])",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "searchThemes": {
+            "description": "Filter by theme names (exact match)",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "searchTitle": {
+            "description": "Filter by manga title",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "searchContains"
+        ],
+        "type": "object"
+      },
+      "DemographicDTO": {
+        "description": "MARK: - Demographic Response DTO\\nTarget demographic",
+        "properties": {
+          "demographic": {
+            "description": "Demographic name (Shounen, Seinen, Shoujo, Josei, Kids)",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier (UUID)",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "demographic",
+          "id"
+        ],
+        "type": "object"
+      },
+      "DualSessionTokenResponse": {
+        "description": "Dual-token JWT response",
+        "properties": {
+          "expiresIn": {
+            "description": "Lifetime in seconds (refresh: 2592000, access: 3600)",
+            "format": "int64",
+            "type": "integer"
+          },
+          "token": {
+            "description": "Signed JWT to send as Bearer credential",
+            "type": "string"
+          },
+          "tokenType": {
+            "description": "Authorization scheme, always 'Bearer'",
+            "type": "string"
+          },
+          "tokenUse": {
+            "description": "Either 'refresh' (login) or 'access' (short-lived)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expiresIn",
+          "token",
+          "tokenType",
+          "tokenUse"
+        ],
+        "type": "object"
+      },
+      "GenreDTO": {
+        "description": "MARK: - Genre Response DTO\\nGenre classification",
+        "properties": {
+          "genre": {
+            "description": "Genre name (e.g., Action, Romance, Comedy)",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier (UUID)",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "genre",
+          "id"
+        ],
+        "type": "object"
+      },
+      "JWTTokenResponse": {
+        "description": "JWT authentication response",
+        "properties": {
+          "expiresIn": {
+            "description": "Token validity in seconds (86400 = 24 hours)",
+            "format": "int64",
+            "type": "integer"
+          },
+          "token": {
+            "description": "JWT token to use as Bearer token in Authorization header",
+            "type": "string"
+          },
+          "tokenType": {
+            "description": "Token type, always 'Bearer'",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expiresIn",
+          "token",
+          "tokenType"
+        ],
+        "type": "object"
+      },
+      "MangaDTO": {
+        "description": "MARK: - Manga Response DTO\\nComplete manga information with related data",
+        "properties": {
+          "authors": {
+            "description": "List of authors and artists",
+            "items": {
+              "$ref": "#/components/schemas/AuthorDTO"
+            },
+            "type": "array"
+          },
+          "background": {
+            "description": "Background information about the manga",
+            "nullable": true,
+            "type": "string"
+          },
+          "chapters": {
+            "description": "Total number of chapters",
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "demographics": {
+            "description": "Target demographics",
+            "items": {
+              "$ref": "#/components/schemas/DemographicDTO"
+            },
+            "type": "array"
+          },
+          "endDate": {
+            "description": "Publication end date (null if ongoing)",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "genres": {
+            "description": "List of genres",
+            "items": {
+              "$ref": "#/components/schemas/GenreDTO"
+            },
+            "type": "array"
+          },
+          "id": {
+            "description": "Unique manga identifier",
+            "format": "int64",
+            "type": "integer"
+          },
+          "mainPicture": {
+            "description": "URL to the main cover image",
+            "nullable": true,
+            "type": "string"
+          },
+          "score": {
+            "description": "Average user score from 0 to 10",
+            "format": "double",
+            "type": "number"
+          },
+          "startDate": {
+            "description": "Publication start date",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MangaStatus"
+          },
+          "sypnosis": {
+            "description": "Plot synopsis/description",
+            "nullable": true,
+            "type": "string"
+          },
+          "themes": {
+            "description": "List of themes",
+            "items": {
+              "$ref": "#/components/schemas/ThemeDTO"
+            },
+            "type": "array"
+          },
+          "title": {
+            "description": "Original manga title",
+            "type": "string"
+          },
+          "titleEnglish": {
+            "description": "English title",
+            "nullable": true,
+            "type": "string"
+          },
+          "titleJapanese": {
+            "description": "Japanese title (日本語)",
+            "nullable": true,
+            "type": "string"
+          },
+          "url": {
+            "description": "URL to the manga information page",
+            "nullable": true,
+            "type": "string"
+          },
+          "volumes": {
+            "description": "Total number of published volumes",
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "authors",
+          "demographics",
+          "genres",
+          "id",
+          "score",
+          "status",
+          "themes",
+          "title"
+        ],
+        "type": "object"
+      },
+      "MangaPageDTO": {
+        "description": "MARK: - Paginated Manga Response\\nPaginated list of manga",
+        "properties": {
+          "items": {
+            "description": "Array of manga items",
+            "items": {
+              "$ref": "#/components/schemas/MangaDTO"
+            },
+            "type": "array"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/PageMetadataDTO"
+          }
+        },
+        "required": [
+          "items",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "MangaStatus": {
+        "description": "• discontinued → discontinued\n• on_hiatus → on_hiatus\n• currently_publishing → publishing\n• finished → finished\n• none → none",
+        "enum": [
+          "discontinued",
+          "on_hiatus",
+          "currently_publishing",
+          "finished",
+          "none"
+        ],
+        "type": "string"
+      },
+      "PageMetadataDTO": {
+        "description": "Pagination metadata",
+        "properties": {
+          "page": {
+            "description": "Current page number (1-indexed)",
+            "format": "int64",
+            "type": "integer"
+          },
+          "per": {
+            "description": "Number of items per page",
+            "format": "int64",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Total number of items across all pages",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page",
+          "per",
+          "total"
+        ],
+        "type": "object"
+      },
+      "ThemeDTO": {
+        "description": "MARK: - Theme Response DTO\\nTheme or setting",
+        "properties": {
+          "id": {
+            "description": "Unique identifier (UUID)",
+            "format": "uuid",
+            "type": "string"
+          },
+          "theme": {
+            "description": "Theme name (e.g., School, Supernatural, Sports)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "theme"
+        ],
+        "type": "object"
+      },
+      "TokenResponse": {
+        "description": "Legacy authentication token",
+        "properties": {
+          "token": {
+            "description": "Bearer token for API authentication (valid for 48 hours)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
+      },
+      "UserMangaCollectionDTO": {
+        "description": "MARK: - User Collection Response DTO\\nUser's manga collection entry",
+        "properties": {
+          "completeCollection": {
+            "description": "Whether the user owns all published volumes",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Unique collection entry identifier (UUID)",
+            "format": "uuid",
+            "type": "string"
+          },
+          "manga": {
+            "$ref": "#/components/schemas/MangaDTO"
+          },
+          "readingVolume": {
+            "description": "Current volume the user is reading",
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "volumesOwned": {
+            "description": "Array of volume numbers the user owns",
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "completeCollection",
+          "id",
+          "manga",
+          "volumesOwned"
+        ],
+        "type": "object"
+      },
+      "UserMangaCollectionRequest": {
+        "description": "Request to add or update manga in collection",
+        "properties": {
+          "completeCollection": {
+            "description": "Set to true if you own all published volumes",
+            "type": "boolean"
+          },
+          "manga": {
+            "description": "Manga ID to add to collection",
+            "format": "int64",
+            "type": "integer"
+          },
+          "readingVolume": {
+            "description": "Volume number you're currently reading (optional)",
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "volumesOwned": {
+            "description": "Array of volume numbers you own (e.g., [1, 2, 3])",
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "completeCollection",
+          "manga",
+          "volumesOwned"
+        ],
+        "type": "object"
+      },
+      "UserResponse": {
+        "description": "Authenticated user information",
+        "properties": {
+          "email": {
+            "description": "User's email address",
+            "type": "string"
+          },
+          "id": {
+            "description": "User's unique identifier (UUID)",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isActive": {
+            "description": "Whether the account is active",
+            "type": "boolean"
+          },
+          "isAdmin": {
+            "description": "Whether the user has admin privileges",
+            "type": "boolean"
+          },
+          "role": {
+            "description": "User's role (e.g., 'user', 'admin')",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "id",
+          "isActive",
+          "isAdmin",
+          "role"
+        ],
+        "type": "object"
+      },
+      "UsersCreate": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "appTokenAuth": {
+        "description": "Application token required for user registration",
+        "in": "header",
+        "name": "App-Token",
+        "type": "apiKey"
+      },
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "description": "Bearer token authentication using legacy token or JWT",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "http_basic": {
+        "scheme": "basic",
+        "type": "http"
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "GitHub Repository",
+    "url": "https://github.com/saotome/manga-api"
+  },
+  "info": {
+    "description": "REST API for managing a manga database. Provides endpoints for:\n- Browsing and searching manga catalog\n- User authentication (legacy tokens and JWT)\n- Managing personal manga collections\n\n## Authentication\n\nThe API supports two authentication methods:\n\n### Legacy Token Authentication\n1. Login with Basic Auth at `POST /users/login`\n2. Use the returned token as Bearer token\n\n### JWT Authentication (Recommended)\n1. Login with Basic Auth at `POST /users/jwt/login`\n2. Use the returned JWT as Bearer token\n\n### Dual-Token JWT Session\n1. Login with Basic Auth at `POST /users/session/login` → long-lived refresh JWT (30 days)\n2. Exchange it at `GET /users/session/access` → short-lived access JWT (1 hour)\n3. Use the access JWT as Bearer token against protected endpoints\n\nThe refresh token cannot access resources directly, and the access token cannot mint new tokens.\n\nAll methods work interchangeably for protected endpoints.",
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "title": "Saotome Manga API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.0.1",
+  "paths": {
+    "/collection/manga": {
+      "get": {
+        "description": "Returns all manga in the authenticated user's collection.\n\nEach entry includes full manga details with authors, genres, themes, and demographics.",
+        "operationId": "getCollectionManga",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserMangaCollectionDTO"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get user's manga collection",
+        "tags": [
+          "Collection"
+        ]
+      },
+      "post": {
+        "description": "Adds a manga to the user's personal collection or updates an existing entry.\n\nIf the manga is already in the collection, it updates the entry with new values.\nRequires Bearer token authentication (legacy or JWT).",
+        "operationId": "postCollectionManga",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserMangaCollectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "format": "int64",
+                  "type": "integer"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Add manga to collection",
+        "tags": [
+          "Collection"
+        ]
+      }
+    },
+    "/collection/manga/{id}": {
+      "delete": {
+        "description": "Removes a manga from the user's collection by manga ID.\n\nReturns 404 if the manga is not in the user's collection.",
+        "operationId": "deleteCollectionMangaById",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "format": "int64",
+                  "type": "integer"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Remove manga from collection",
+        "tags": [
+          "Collection"
+        ]
+      },
+      "get": {
+        "description": "Returns a specific manga from the user's collection by manga ID.\n\nReturns 404 if the manga is not in the user's collection.",
+        "operationId": "getCollectionMangaById",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserMangaCollectionDTO"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get specific manga from collection",
+        "tags": [
+          "Collection"
+        ]
+      }
+    },
+    "/list/authors": {
+      "get": {
+        "description": "Returns a list of all authors in the database.",
+        "operationId": "getListAuthors",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuthorDTO"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List all authors",
+        "tags": [
+          "List"
+        ]
+      }
+    },
+    "/list/authorsByIds": {
+      "post": {
+        "description": "Returns a list of authors matching the provided UUIDs. Authors not found are silently omitted.",
+        "operationId": "postListAuthorsByIds",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorIdsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuthorDTO"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get authors by IDs",
+        "tags": [
+          "List"
+        ]
+      }
+    },
+    "/list/authorsPaged": {
+      "get": {
+        "description": "Returns a paginated list of all authors sorted by ID.",
+        "operationId": "getListAuthorsPaged",
+        "parameters": [
+          {
+            "description": "Page number starting from 1 (default: 1)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of items per page (default: 10, max: 100)",
+            "in": "query",
+            "name": "per",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorPageDTO"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List all authors (paginated)",
+        "tags": [
+          "List"
+        ]
+      }
+    },
+    "/list/bestMangas": {
+      "get": {
+        "description": "Returns a paginated list of manga sorted by score (highest first). Includes authors, genres, themes, and demographics.",
+        "operationId": "getListBestMangas",
+        "parameters": [
+          {
+            "description": "Page number starting from 1 (default: 1)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of items per page (default: 10, max: 100)",
+            "in": "query",
+            "name": "per",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MangaPageDTO"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List best manga",
+        "tags": [
+          "List"
+        ]
+      }
+    },
+    "/list/demographics": {
+      "get": {
+        "description": "Returns a list of all demographic names (e.g., Shounen, Seinen, Shoujo).",
+        "operationId": "getListDemographics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List all demographics",
+        "tags": [
+          "List"
+        ]
+      }
+    },
+    "/list/genres": {
+      "get": {
+        "description": "Returns a list of all genre names (e.g., Action, Romance, Comedy).",
+        "operationId": "getListGenres",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List all genres",
+        "tags": [
+          "List"
+        ]
+      }
+    },
+    "/list/mangaByAuthor/{id}": {
+      "get": {
+        "description": "Returns a paginated list of manga by a specific author ID.",
+        "operationId": "getListMangaByAuthorById",
+        "parameters": [
+          {
+            "description": "Page number starting from 1 (default: 1)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of items per page (default: 10, max: 100)",
+            "in": "query",
+            "name": "per",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MangaPageDTO"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List manga by author",
+        "tags": [
+          "List"
+        ]
+      }
+    },
+    "/list/mangaByDemographic/{demographic}": {
+      "get": {
+        "description": "Returns a paginated list of manga filtered by demographic name (case-insensitive).",
+        "operationId": "getListMangaByDemographicByDemographic",
+        "parameters": [
+          {
+            "description": "Page number starting from 1 (default: 1)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of items per page (default: 10, max: 100)",
+            "in": "query",
+            "name": "per",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "demographic",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MangaPageDTO"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List manga by demographic",
+        "tags": [
+          "List"
+        ]
+      }
+    },
+    "/list/mangaByGenre/{genre}": {
+      "get": {
+        "description": "Returns a paginated list of manga filtered by genre name (case-insensitive).",
+        "operationId": "getListMangaByGenreByGenre",
+        "parameters": [
+          {
+            "description": "Page number starting from 1 (default: 1)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of items per page (default: 10, max: 100)",
+            "in": "query",
+            "name": "per",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "genre",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MangaPageDTO"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List manga by genre",
+        "tags": [
+          "List"
+        ]
+      }
+    },
+    "/list/mangaByTheme/{theme}": {
+      "get": {
+        "description": "Returns a paginated list of manga filtered by theme name (case-insensitive).",
+        "operationId": "getListMangaByThemeByTheme",
+        "parameters": [
+          {
+            "description": "Page number starting from 1 (default: 1)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of items per page (default: 10, max: 100)",
+            "in": "query",
+            "name": "per",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "theme",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MangaPageDTO"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List manga by theme",
+        "tags": [
+          "List"
+        ]
+      }
+    },
+    "/list/mangas": {
+      "get": {
+        "description": "Returns a paginated list of all manga sorted by ID. Includes authors, genres, themes, and demographics.",
+        "operationId": "getListMangas",
+        "parameters": [
+          {
+            "description": "Page number starting from 1 (default: 1)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of items per page (default: 10, max: 100)",
+            "in": "query",
+            "name": "per",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MangaPageDTO"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List all manga",
+        "tags": [
+          "List"
+        ]
+      }
+    },
+    "/list/themes": {
+      "get": {
+        "description": "Returns a list of all theme names (e.g., School, Supernatural, Martial Arts).",
+        "operationId": "getListThemes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List all themes",
+        "tags": [
+          "List"
+        ]
+      }
+    },
+    "/search/author/{search}": {
+      "get": {
+        "description": "Returns authors whose first or last name contains the search term (case-insensitive).",
+        "operationId": "getSearchAuthorBySearch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "search",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuthorDTO"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Search authors by name",
+        "tags": [
+          "Search"
+        ]
+      }
+    },
+    "/search/manga": {
+      "post": {
+        "description": "Performs an advanced search with multiple filters. All filters are optional and combined with AND logic.\n\n- **searchTitle**: Filter by manga title\n- **searchAuthorFirstName/LastName**: Filter by author name\n- **searchGenres**: Filter by exact genre names\n- **searchThemes**: Filter by exact theme names\n- **searchDemographics**: Filter by exact demographic names\n- **searchContains**: If true, uses CONTAINS; if false, uses BEGINS WITH",
+        "operationId": "postSearchManga",
+        "parameters": [
+          {
+            "description": "Page number starting from 1 (default: 1)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of items per page (default: 10, max: 100)",
+            "in": "query",
+            "name": "per",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomSearch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MangaPageDTO"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Advanced manga search",
+        "tags": [
+          "Search"
+        ]
+      }
+    },
+    "/search/manga/{id}": {
+      "get": {
+        "description": "Returns a single manga with all related data (authors, genres, themes, demographics).",
+        "operationId": "getSearchMangaById",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MangaDTO"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get manga by ID",
+        "tags": [
+          "Search"
+        ]
+      }
+    },
+    "/search/mangasBeginsWith/{search}": {
+      "get": {
+        "description": "Returns manga whose title begins with the search term (case-insensitive). Limited results without pagination.",
+        "operationId": "getSearchMangasBeginsWithBySearch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "search",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MangaDTO"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Search manga by title prefix",
+        "tags": [
+          "Search"
+        ]
+      }
+    },
+    "/search/mangasContains/{search}": {
+      "get": {
+        "description": "Returns paginated manga whose title contains the search term (case-insensitive).",
+        "operationId": "getSearchMangasContainsBySearch",
+        "parameters": [
+          {
+            "description": "Page number starting from 1 (default: 1)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of items per page (default: 10, max: 100)",
+            "in": "query",
+            "name": "per",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "nullable": true,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "search",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MangaPageDTO"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Search manga by title (contains)",
+        "tags": [
+          "Search"
+        ]
+      }
+    },
+    "/users": {
+      "post": {
+        "description": "Creates a new user account. Requires App-Token header for authorization.\n\nThe email must be valid and unique. Password must be at least 8 characters.",
+        "operationId": "postUsers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsersCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "format": "int64",
+                  "type": "integer"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "appTokenAuth": []
+          }
+        ],
+        "summary": "Create new user",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/jwt/login": {
+      "post": {
+        "description": "Authenticates user with Basic Auth and returns a JWT token.\n\nThe JWT is valid for 24 hours and contains user information.\nUse this token as Bearer token for protected endpoints.",
+        "operationId": "postUsersJwtLogin",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JWTTokenResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "http_basic": []
+          }
+        ],
+        "summary": "Login with JWT",
+        "tags": [
+          "JWT"
+        ]
+      }
+    },
+    "/users/jwt/me": {
+      "get": {
+        "description": "Returns information about the currently authenticated user based on JWT token.",
+        "operationId": "getUsersJwtMe",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get current user info",
+        "tags": [
+          "JWT"
+        ]
+      }
+    },
+    "/users/jwt/refresh": {
+      "post": {
+        "description": "Generates a new JWT token for the authenticated user.\n\nRequires valid JWT Bearer token. Returns a fresh token with extended expiration.",
+        "operationId": "postUsersJwtRefresh",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JWTTokenResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Refresh JWT token",
+        "tags": [
+          "JWT"
+        ]
+      }
+    },
+    "/users/login": {
+      "post": {
+        "description": "Authenticates user with Basic Auth and returns a legacy token.\n\nUse this token as Bearer token for protected endpoints.\nAny existing tokens for this user will be invalidated.",
+        "operationId": "postUsersLogin",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "http_basic": []
+          }
+        ],
+        "summary": "Login (Legacy)",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/renew": {
+      "post": {
+        "description": "Refreshes the legacy authentication token.\n\nRequires valid Bearer token. Returns a new token and invalidates the old one.",
+        "operationId": "postUsersRenew",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Renew token (Legacy)",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/session/access": {
+      "get": {
+        "description": "Requires a valid **refresh** JWT as Bearer credential.\nReturns a short-lived **access** JWT (1 hour) to use against protected resources.",
+        "operationId": "getUsersSessionAccess",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DualSessionTokenResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Exchange refresh token for access token",
+        "tags": [
+          "Session"
+        ]
+      }
+    },
+    "/users/session/login": {
+      "post": {
+        "description": "Authenticates with Basic Auth and returns a long-lived **refresh** JWT (30 days).\n\nUse this refresh token only against `GET /users/session/access` to obtain a short-lived access token.\nDo not use the refresh token to call resource endpoints.",
+        "operationId": "postUsersSessionLogin",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DualSessionTokenResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "http_basic": []
+          }
+        ],
+        "summary": "Login (dual-token)",
+        "tags": [
+          "Session"
+        ]
+      }
+    },
+    "/users/session/me": {
+      "get": {
+        "description": "Returns information about the user identified by the **access** JWT.",
+        "operationId": "getUsersSessionMe",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Current user info (dual-token)",
+        "tags": [
+          "Session"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Browse manga catalog with pagination and filtering",
+      "name": "List"
+    },
+    {
+      "description": "Search manga and authors",
+      "name": "Search"
+    },
+    {
+      "description": "User management and legacy authentication",
+      "name": "Users"
+    },
+    {
+      "description": "JWT-based authentication",
+      "name": "JWT"
+    },
+    {
+      "description": "Dual-token JWT authentication (refresh + access)",
+      "name": "Session"
+    },
+    {
+      "description": "Manage personal manga collection",
+      "name": "Collection"
+    }
+  ]
+}
