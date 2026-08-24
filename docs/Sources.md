@@ -23,6 +23,19 @@ La autoridad actual de endpoints, métodos, autenticación, parámetros y esquem
 
 La ruta `/openapi.json` no se asumirá. Antes de implementar una operación se vuelve a verificar el contrato y se registra cualquier deriva que afecte a una SDD o fixture.
 
+### Baseline versionada
+
+La [caracterización del 25 de agosto de 2026](api/openapi-contract.md) acompaña un
+[snapshot canónico y sanitizado](../Contracts/OpenAPI/openapi.json) y su
+[checksum SHA-256](../Contracts/OpenAPI/SHA256SUMS). La baseline sirve para
+revisar deriva y derivar código o fixtures posteriores; no reemplaza al documento
+vivo.
+
+El snapshot elimina contacto, los miembros estructurados `example`/`examples`
+y la descripción de Basic Auth que contenía credenciales demostrativas. Conserva
+la superficie de transporte y los mecanismos de seguridad, nunca sus valores. La
+respuesta cruda no se versiona.
+
 ## Autoridad de versión
 
 - El proyecto Xcode real y el toolchain seleccionado determinan targets, flags y disponibilidad efectiva.

@@ -1,8 +1,8 @@
 # API, catálogo, búsqueda e imágenes
 
 - Estado: aprobado
-- Versión: 1.1
-- Última revisión: 2026-08-17
+- Versión: 1.2
+- Última revisión: 2026-08-25
 
 ## Propósito y alcance
 
@@ -19,6 +19,23 @@ Antes de implementar o modificar una llamada:
 3. los fixtures positivos de transporte deben corresponder a respuestas válidas del contrato verificado; los negativos se identifican como mutaciones deliberadamente inválidas para probar error o deriva;
 4. una discrepancia entre material formativo y OpenAPI se resuelve a favor del OpenAPI para transporte, y se registra si cambia comportamiento de producto.
 
+### Baseline caracterizada
+
+La [caracterización del 25 de agosto de 2026](../api/openapi-contract.md) y su
+[snapshot sanitizado](../../Contracts/OpenAPI/openapi.json) registran una
+baseline histórica: OpenAPI 3.0.1, 28 paths, 30 operaciones, 19 schemas y 3
+mecanismos de seguridad. El documento vivo conserva precedencia y debe
+consultarse de nuevo antes de implementar.
+
+La baseline no declara `servers`, ordenación configurable, responses distintos
+de `200`, errores tipados, idempotency key, revocación, rate limits, ETag ni
+versión de recurso. Los schemas de `page` y `per` tampoco codifican
+`default`, `minimum` o `maximum`, aunque sus descripciones indiquen valores
+operativos. La clave de sinopsis es literalmente `sypnosis`. Los paths de
+colección con `{id}` describen un manga ID, pero lo modelan como `string`
+mientras los mangas usan `int64` y la entrada posee además un UUID; esa
+identidad debe resolverse antes de implementar esas llamadas.
+
 ## Flujo técnico del catálogo
 
 La API remota es la única fuente de producto del catálogo. La implementación live usa una `URLSession` configurada en composición, un cliente HTTP concreto y un cliente tipado de catálogo. El modelo observable de catálogo posee consulta, páginas acumuladas, carga, vacío, error, cancelación y protección frente a respuestas tardías. No persiste el catálogo remoto en SwiftData ni introduce un Repository genérico sin una segunda fuente real.
@@ -34,8 +51,8 @@ JSON positivo es un fixture validado contra el OpenAPI, no una fuente de product
 | CAT-001 | El catálogo debe escalar a más de 64.000 referencias sin descarga ni materialización total. |
 | CAT-002 | La primera petición de una consulta usa `per = 20`. |
 | CAT-003 | Ninguna petición generada por la app usa un `per` superior a 100. |
-| CAT-004 | La identidad de una consulta incluye orden, búsqueda y filtros; la siguiente página debe conservar exactamente esa identidad salvo el avance de página. |
-| CAT-005 | Un cambio en búsqueda, filtros u orden reinicia la paginación a su página inicial y descarta resultados pertenecientes a la consulta anterior. |
+| CAT-004 | La identidad de una consulta incluye búsqueda, filtros y cualquier orden que llegue a declarar el contrato; la siguiente página debe conservar exactamente esa identidad salvo el avance de página. El contrato actual no ofrece ordenación configurable. |
+| CAT-005 | Un cambio en búsqueda o filtros reinicia la paginación a su página inicial y descarta resultados pertenecientes a la consulta anterior. Una ordenación futura se incorporará solo después de verificarla. |
 | CAT-006 | Los filtros activos se combinan con semántica AND según el contrato vivo. La app no debe simular OR ni ampliar resultados localmente. |
 | CAT-007 | La ausencia de más páginas debe detener nuevas peticiones para esa consulta. |
 | CAT-008 | Respuestas tardías de una consulta sustituida no deben contaminar la consulta vigente. |
@@ -45,11 +62,17 @@ JSON positivo es un fixture validado contra el OpenAPI, no una fuente de product
 
 El tamaño `20` es la política inicial de la app, no una afirmación sobre el valor predeterminado del servidor. Cualquier optimización posterior debe mantener el máximo `100` y justificarse con evidencia.
 
+Las descripciones del contrato anuncian página inicial/default `1` y `per`
+default `10`/máximo `100`, pero sus schemas no expresan esos límites mediante
+keywords OpenAPI. La app valida su propia política y no depende de que el servidor
+rechace valores fuera de rango.
+
 ## Búsqueda y filtros
 
 - La aplicación ofrece los filtros que el contrato vivo exponga para alcanzar el alcance acumulado de Advanced.
 - La interfaz cubre explícitamente destacados/mejores, autoría, demografía, género y tema; si el OpenAPI modifica o retira una de esas capacidades, la deriva bloquea la aceptación hasta decidir cómo reconciliar el alcance.
 - Un valor de filtro se serializa con la forma y codificación que declare el OpenAPI; no se infieren nombres ni formatos a partir de ejemplos antiguos.
+- La búsqueda principal usa la operación avanzada paginada. El endpoint dedicado a BEGINS WITH devuelve un array sin parámetros de página y no sustituye esa ruta para un catálogo de más de 64.000 referencias.
 - La combinación visual de filtros debe coincidir con la combinación enviada.
 - Quitar todos los filtros produce una consulta nueva sin filtros y reinicia la página.
 - Los estados vacío, cargando, error recuperable y resultados deben distinguirse.
@@ -96,7 +119,7 @@ La carga usa APIs de Apple y no introduce una dependencia externa. La caché HTT
 | --- | --- |
 | Primera consulta | La petición verificada contiene `per = 20`. |
 | Límite | Ningún camino permite emitir `per > 100`. |
-| Página siguiente | Mantiene búsqueda, orden y filtros de la consulta inicial. |
+| Página siguiente | Mantiene búsqueda y filtros de la consulta inicial; no inventa una ordenación ausente. |
 | Cambio de filtro | Reinicia la página y una respuesta anterior tardía se ignora. |
 | Varios filtros | El request construido conserva la semántica AND del contrato. |
 | Cambio lista/cuadrícula | Mantiene resultados, consulta y selección. |
@@ -122,4 +145,5 @@ Las pruebas de construcción de request y decodificación usan el contrato verif
 - [Alcance de producto](00-product-scope-and-levels.md)
 - [Arquitectura y composición](01-architecture-and-composition.md)
 - [Colección local e invariantes](03-local-collection-and-invariants.md)
+- [Caracterización del contrato OpenAPI](../api/openapi-contract.md)
 - [ADR-0009: flujos nativos por fuente y navegación local](../adr/0009-native-source-owned-features-and-local-navigation.md)

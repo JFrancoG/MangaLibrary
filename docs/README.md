@@ -20,6 +20,12 @@ Para resolver discrepancias, consulta [AGENTS.md](../AGENTS.md). En resumen: pet
 - [07 — Documentación y DocC](specs/07-documentation-and-docc.md)
 - [08 — Entrega, presentación y vídeo](specs/08-delivery-presentation-and-video.md)
 
+### Contrato API
+
+- [Caracterización del contrato OpenAPI](api/openapi-contract.md)
+- [Snapshot OpenAPI canónico y sanitizado](../Contracts/OpenAPI/openapi.json)
+- [Checksum SHA-256](../Contracts/OpenAPI/SHA256SUMS)
+
 ### Decisiones y estado
 
 - [Índice de ADR](adr/README.md)
