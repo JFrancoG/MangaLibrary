@@ -1,0 +1,6 @@
+// Shared build policy for every target and configuration.
+GCC_TREAT_WARNINGS_AS_ERRORS = YES
+SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
+SWIFT_STRICT_CONCURRENCY = complete
+SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated
+OTHER_DOCC_FLAGS = $(inherited) --warnings-as-errors

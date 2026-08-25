@@ -19,6 +19,7 @@ sus compromisos.
 | [0008](0008-selective-docc-and-publishing-boundaries.md) | DocC selectivo y límites de publicación | Accepted | 2026-08-17 |
 | [0009](0009-native-source-owned-features-and-local-navigation.md) | Flujos nativos por fuente y navegación local | Accepted | 2026-08-17 |
 | [0010](0010-widgetkit-event-driven-freshness.md) | Frescura dirigida por eventos para WidgetKit | Accepted | 2026-08-18 |
+| [0011](0011-bounded-xcode-app-intents-warning-exception.md) | Excepción acotada para el warning de App Intents de Xcode | Accepted | 2026-08-25 |
 
 ## Inmutabilidad y supersesión
 

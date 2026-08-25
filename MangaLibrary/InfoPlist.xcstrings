@@ -1,0 +1,40 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "The app name shown to the user. Manga Library is a brand name and remains unchanged in every locale.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manga Library"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manga Library"
+          }
+        }
+      }
+    },
+    "CFBundleName" : {
+      "comment" : "The technical fallback bundle name. It remains unchanged in every locale.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MangaLibrary"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MangaLibrary"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

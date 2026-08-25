@@ -99,6 +99,7 @@ Preservar todo trabajo ajeno o previo. No usar `stash`, `reset`, `clean`, cambio
 - SwiftData usa un container aislado por test; migraciones usan un store temporal en disco desde el esquema anterior.
 - Previews usan composición determinista, fixtures locales y `ModelContainer` en memoria cuando corresponda; nunca red, Keychain, cuentas, secretos ni almacenamiento live. Los tests de integración pueden usar Keychain aislado y credenciales sintéticas, nunca servicios o datos de producción.
 - Ningún warning se suprime globalmente para hacer pasar un gate.
+- Un diagnóstico externo del toolchain solo puede aceptarse mediante un ADR `Accepted` que limite productor, severidad, mensaje, cantidad, build y caducidad, con un gate que falle ante cualquier deriva. La excepción no se extiende a warnings de Swift, Clang o DocC ni relaja el Advanced Release Gate.
 - Localizar texto visible en español e inglés y verificar Dynamic Type, VoiceOver, contraste y estados vacío/carga/error en el alcance afectado.
 
 ## DocC selectivo
@@ -133,7 +134,7 @@ Un cambio termina solo cuando:
 
 - cumple el issue y las SDD/ADR aplicables sin ampliar alcance;
 - añade o actualiza tests y documentación proporcionalmente;
-- pasa los gates afectados con cero warnings;
+- pasa los gates afectados con cero warnings de Swift, Clang y DocC; cualquier diagnóstico externo conserva los límites y la caducidad de su ADR aceptado;
 - conserva trabajo previo y el diff contiene solo cambios intencionados;
 - registra limitaciones y evidencia real;
 - recibe las revisiones independientes requeridas;

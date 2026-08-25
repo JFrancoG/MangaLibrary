@@ -1,7 +1,8 @@
 # SDD 07: Documentación y DocC
 
 **Estado:** Aprobada
-**Fecha:** 2026-08-17
+**Versión:** 1.2
+**Fecha:** 2026-08-25
 
 ## Propósito
 
@@ -15,7 +16,7 @@ Cada superficie tiene un único cometido:
 | --- | --- | --- |
 | `/docs` | SDD, ADR, progreso, fuentes y material público de entrega | Sí |
 | Comentarios `///` | Contrato de un símbolo en Quick Help | Sí |
-| `MangaLibrary/Documentation/MangaLibrary.docc/` | Landing, extensiones y artículos seleccionados | Sí, cuando se cree |
+| `MangaLibrary/Documentation/MangaLibrary.docc/` | Landing, extensiones y artículos seleccionados | Sí |
 | `.build/docc/MangaLibrary.doccarchive` | Resultado generado del gate | No |
 | Sitio estático | Artefacto de publicación | No en `/docs` ni en `main` |
 
@@ -47,9 +48,9 @@ No habrá porcentaje mínimo de cobertura. Un comentario que parafrasea la firma
 
 No se crearán tutoriales antes de la entrega del 15 de septiembre de 2026.
 
-## Catálogo previsto
+## Catálogo inicial
 
-El catálogo fuente se incorporará al target de la aplicación en un issue posterior:
+El catálogo fuente inicial forma parte del target de la aplicación:
 
 ```text
 MangaLibrary/Documentation/MangaLibrary.docc/
@@ -63,7 +64,7 @@ Los siguientes artículos son candidatos, no archivos obligatorios ni evidencia 
 - `Articles/CollectionSynchronization.md`
 - `Articles/WidgetAndWatchDataFlow.md`
 
-Cada artículo se añadirá únicamente junto a la funcionalidad real que pueda demostrarlo.
+La landing es deliberadamente el único contenido inicial. Cada artículo se añadirá únicamente junto a la funcionalidad real que pueda demostrarlo.
 
 ## Autoría
 
@@ -76,15 +77,17 @@ Cada artículo se añadirá únicamente junto a la funcionalidad real que pueda 
 
 ## Gate reproducible
 
-Un issue posterior añadirá `Scripts/validate-docc.sh`. El gate deberá:
+`Scripts/validate-docc.sh` implementa el gate reproducible. El script:
 
-- seleccionar explícitamente Xcode 27, proyecto, scheme y destino reales;
-- verificar las opciones contra la ayuda instalada antes de fijarlas;
-- construir la documentación integrada de la app;
-- tratar todos los warnings DocC como errores;
-- escribir en `.build/docc/` y comprobar la existencia de `MangaLibrary.doccarchive`;
-- fallar ante enlaces o símbolos no resueltos, recursos ausentes, directivas inválidas o firmas desalineadas;
-- registrar toolchain, comando, resultado y alcance excluido.
+- selecciona Xcode 27 de forma local al proceso, sin modificar `xcode-select`, y verifica Apple Swift 6.4;
+- fija proyecto, scheme, configuración Release y destino genérico iOS reales;
+- contrasta los argumentos de `xcodebuild`, la acción `docbuild` y `--warnings-as-errors` con la ayuda y el manual instalados;
+- comprueba la configuración efectiva de app, unit tests y UI tests en Debug y Release;
+- construye la documentación integrada de la app con todos los warnings DocC como errores;
+- usa DerivedData temporal, reemplaza solo la salida aprobada y comprueba `.build/docc/MangaLibrary.doccarchive`;
+- falla ante enlaces o símbolos no resueltos, recursos ausentes, directivas inválidas o firmas desalineadas;
+- falla ante cualquier warning o error de herramienta salvo una única emisión que coincida exactamente con productor, severidad, mensaje y build autorizados por ADR 0011; cero diagnósticos pasa sin usar la excepción;
+- registra toolchain, comando, resultado y alcance excluido sin publicar el archive.
 
 Quick Help y Documentation Preview son comprobaciones editoriales; no prueban por sí solas un archive limpio. No se afirmará que el gate pasa hasta ejecutarlo con éxito.
 
@@ -99,13 +102,14 @@ Quick Help y Documentation Preview son comprobaciones editoriales; no prueban po
 
 - La separación `/docs`, catálogo y artefactos está reflejada en gobierno, ADR y `.gitignore`.
 - Los símbolos documentados explican contratos no obvios y los omitidos no se rellenan por cuota.
-- El catálogo y cada artículo se incorporan solo cuando existe código que los respalda.
-- El gate termina sin warnings y produce el archive esperado antes del Deluxe Release Gate.
+- El catálogo inicial contiene solo la landing; cada artículo posterior se incorpora únicamente cuando existe código que lo respalda.
+- El gate termina sin warnings DocC, rechaza diagnósticos ajenos no autorizados y produce el archive esperado. La excepción temporal de ADR 0011 no acredita por sí sola el Advanced ni el Deluxe Release Gate.
 - La documentación no expone secretos, cuentas, rutas privadas ni datos personales.
 - Publicación, tutoriales y contenido diferido no se presentan como terminados.
 
 ## Decisiones relacionadas
 
 - [ADR 0008: DocC selectivo y límites de publicación](../adr/0008-selective-docc-and-publishing-boundaries.md)
+- [ADR 0011: excepción acotada para el warning de App Intents](../adr/0011-bounded-xcode-app-intents-warning-exception.md)
 - [Testing, calidad y accesibilidad](06-testing-quality-and-accessibility.md)
 - [Entrega, presentación y vídeo](08-delivery-presentation-and-video.md)
