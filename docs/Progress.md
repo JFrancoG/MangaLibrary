@@ -1,11 +1,11 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-25
-**Estado general:** G0 fusionado en `main`; Catálogo C1 está implementado en la rama del issue #13 y pendiente de autorización para su entrega
+**Estado general:** G0 y Catálogo C1 fusionados en `main`; no hay una unidad de producto activa
 
 ## Catálogo C1 — primera página pública y detalle por identidad
 
-- Tracker: [GitHub Issue #13 — Catálogo C1: cargar la primera página pública y abrir el detalle por identidad](https://github.com/JFrancoG/MangaLibrary/issues/13), abierto sobre `main@b6909d645a0e28b15a5b19ce935a3139b4598bb0`.
+- Tracker: [GitHub Issue #13 — Catálogo C1: cargar la primera página pública y abrir el detalle por identidad](https://github.com/JFrancoG/MangaLibrary/issues/13), cerrado mediante la PR #14, iniciada sobre `main@b6909d645a0e28b15a5b19ce935a3139b4598bb0`.
 - Rama: `codex/13-catalog-first-page-detail`, creada directamente desde esa base limpia y sincronizada.
 - El OpenAPI vivo descubierto desde `/docs` se revalidó antes de implementar: `/openapi/openapi.json` conserva SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b` y coincide con el snapshot versionado.
 - El shell mantiene tabs estables para Catálogo, Colección y Cuenta. Catálogo carga únicamente `GET /list/mangas?page=1&per=20`, representa carga, contenido, vacío y error recuperable, y abre un detalle desde el elemento ya cargado mediante `Manga.ID == Int64`, sin segunda petición.
@@ -51,7 +51,7 @@
 
 ### Estado de entrega de C1
 
-La implementación, los gates técnicos locales y las revisiones independientes están cerrados sin hallazgos. No se ha realizado commit, push, PR, merge, cierre del issue ni borrado de rama; esas acciones requieren autorización separada del propietario.
+La implementación, los gates técnicos locales y las revisiones independientes están cerrados sin hallazgos. El commit principal `048c7ab` se entregó mediante la PR #14, cuya fusión cerró el issue #13; la rama `codex/13-catalog-first-page-detail` se eliminó local y remotamente como parte del cierre autorizado.
 
 ## Reconciliación G0 posterior a la PR #10
 
@@ -110,7 +110,7 @@ La implementación, los gates técnicos locales y las revisiones independientes 
 | SHA-256 del proyecto tras recursos | `b6f3b006f5693f1580c7dae1cd114beaf4fb6d23ec3769850f21836c84e35543` |
 | Alcance histórico del issue #7 | Copia saneada, ADR 0012 y actualización de gobierno, fuentes, navegación, SDD y evidencia; sin código, configuración Xcode ni material docente adicional |
 | Alcance histórico de G0 | Reconciliación exclusiva de `docs/Progress.md`; sin producto, configuración Xcode, SDD, ADR, DocC o contrato OpenAPI |
-| Base y rama actuales de C1 | `main@b6909d6`; `codex/13-catalog-first-page-detail` para el issue #13 |
+| Base y rama históricas de C1 | `main@b6909d6`; `codex/13-catalog-first-page-detail` para el issue #13 y la PR #14 |
 
 No se usó `stash`, `reset`, `clean`, pull, rebase ni sobrescritura. El snapshot temporal de control permaneció fuera del repositorio.
 
@@ -167,21 +167,22 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 - Icono de Icon Composer y organización de recursos entregados mediante la PR #9.
 - Enunciado saneado y ADR 0012 entregados mediante la PR #10; la privacidad se activó externamente antes del primer push de esa entrega.
 - Reconciliación documental G0 entregada mediante la PR #12; issue #11 cerrado.
+- Primera página pública de Catálogo y detalle local entregados mediante la PR #14; issue #13 cerrado.
 - Arquitectura feature-first, navegación local, contratos de SwiftData, autenticación/sync, WidgetKit/watchOS y DocC selectivo aprobados y auditados.
 - Separación entre `/docs`, catálogo DocC, artefactos generados y memoria privada definida.
 
 ## Siguiente trabajo
 
 1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
-2. Conservar el snapshot validado de Catálogo C1 y, solo tras autorización separada, realizar las acciones de entrega aprobadas.
-3. No iniciar la siguiente unidad de Catálogo hasta cerrar C1 y acordar su alcance.
+2. Definir y aprobar el alcance de la siguiente unidad de Catálogo antes de abrir su issue o rama.
+3. No iniciar esa unidad como efecto lateral del cierre de C1.
 4. Implementar el producto restante y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
 5. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
 
 ## Estado técnico aún no alcanzado
 
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
-- Catálogo C1 es la única unidad de producto activa: issue #13 y rama `codex/13-catalog-first-page-detail`.
+- Catálogo C1 está entregado y no existe otra unidad de producto activa.
 - No existen planes `Fast`, `Integration`, `UI` o `ReleaseGate` versionados.
 - C1 implementa solo la primera página pública y su detalle local; colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
