@@ -7,6 +7,7 @@ import Foundation
 import Testing
 @testable import MangaLibrary
 
+@Suite(.tags(.integration))
 struct CatalogAPIClientTests {
     @Test
     func initialRequestUsesThePublicFirstPageContract() async throws {

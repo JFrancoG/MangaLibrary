@@ -1,7 +1,38 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-25
-**Estado general:** G0, Catálogo C1, el contrato cromático Library Red y D1 entregados
+**Estado general:** G0, Catálogo C1, el contrato cromático Library Red, D1 y Q1 entregados
+
+## Q1 — planes de test versionados
+
+- Tracker: [GitHub Issue #19 — Q1: materializar los planes de test versionados](https://github.com/JFrancoG/MangaLibrary/issues/19), abierto después de comprobar que no existía un issue equivalente.
+- Rama: `codex/19-test-plans`, creada desde `main@b86d2352e83e6aa26bec51bec38233253fa244db`, limpio y sincronizado con `origin/main`.
+- RED de configuración: Xcode MCP encontraba únicamente el plan implícito autocreado `MangaLibrary`; no existían `.xctestplan` versionados.
+- Los planes `Fast`, `Integration`, `UI` y `ReleaseGate` viven en `TestPlans/` y el scheme compartido deja `Fast` como predeterminado.
+- `Fast` incluye el tag Swift Testing `fast`, aplicado a `AppCompositionTests` y `CatalogModelTests`; `Integration` incluye `integration`, aplicado a `CatalogAPIClientTests` y `HTTPClientTests`; `UI` contiene el target XCUITest; `ReleaseGate`, ambos targets completos sin filtros.
+- `ReleaseGate.xctestplan` es el componente completo de tests. Build, DocC y evidencia manual continúan siendo acciones separadas del Release Gate de producto.
+
+### Validación de Q1
+
+| Evidencia | Resultado |
+| --- | --- |
+| Xcode MCP — preflight | Proyecto `MangaLibrary.xcodeproj`, scheme compartido `MangaLibrary`, tres targets, destino original iPhone 11 físico con iOS 27 y cero warnings del navegador |
+| Descubrimiento inicial | 30 tests activos bajo el plan implícito: 29 Swift Testing y 1 XCUITest |
+| RED de ejecución | La selección nominal por nombres mostraba 12 tests habilitados en `Fast`, pero `RunAllTests` ejecutaba los 29 unitarios; se descartó por no constituir un gate real para Swift Testing |
+| GREEN de descubrimiento | Los filtros nativos Include Tags dejan `Fast` con 12 habilitados y 17 excluidos; `Integration`, 17 y 12; `UI`, 1; `ReleaseGate`, 30 |
+| Xcode MCP — ejecución `Fast` | Los 12 identificadores habilitados por el plan, obtenidos con `GetTestList` y ejecutados con `RunSomeTests`, aprobaron 12/12 |
+| Xcode MCP — ejecución `Integration` | Los 17 identificadores habilitados por el plan, obtenidos con `GetTestList` y ejecutados con `RunSomeTests`, aprobaron 17/17 |
+| Xcode MCP — ejecución `UI` | `RunAllTests` aprobó 1/1 XCUITest |
+| Xcode MCP — ejecución `ReleaseGate` | `RunAllTests` aprobó 30/30: 29 Swift Testing y 1 XCUITest |
+| Xcode MCP — build y restauración | `BuildProject(buildForTesting: true)` aprobado en 2,097 s sin errores; cero warnings en el navegador; `Fast` y el iPhone 11 físico con iOS 27 restaurados como plan y destino activos |
+| Validación estática | Los cuatro JSON y el XML del scheme son válidos; `git diff --check`, 196 enlaces locales y el escaneo de patrones sensibles pasan; `project.pbxproj` conserva SHA-256 `b6f3b006f5693f1580c7dae1cd114beaf4fb6d23ec3769850f21836c84e35543` |
+| Revisión iOS independiente | Perfil `greenfield-xcode27`; testing, configuración, concurrencia, alcance y gobernanza revisados sin hallazgos; revisión SwiftUI/accesibilidad no aplicable porque Q1 no modifica UI |
+
+La operación MCP `RunAllTests` ignora los tests deshabilitados por un plan y, por tanto, no sirve como evidencia de cardinalidad para `Fast` o `Integration`; la combinación `GetTestList` + `RunSomeTests` sí conserva y ejecuta exactamente la selección resuelta por cada plan. C2 y cualquier comportamiento nuevo de producto quedan fuera.
+
+### Estado de entrega de Q1
+
+La implementación se versiona en el commit `43424a6` y se entrega mediante la [PR #20](https://github.com/JFrancoG/MangaLibrary/pull/20), cuya fusión cierra el issue #19. La entrega autorizada incluye la eliminación posterior de la rama local y remota. C2 no se inicia como efecto lateral de este cierre.
 
 ## D1 — frontera de logout Advanced y bridge Deluxe
 
@@ -224,16 +255,16 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 ## Siguiente trabajo
 
 1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
-2. Cerrar D1 mediante el issue #17 antes de iniciar autenticación o logout.
-3. Definir y aprobar Q1, la unidad de planes de test, antes de C2; no iniciar ninguna de ambas como efecto lateral de D1.
+2. Definir C2 sobre los planes versionados, sin mezclar su comportamiento de producto con Q1.
+3. Mantener la clasificación de cada suite nueva mediante su target y tag en el mismo cambio que la introduce.
 4. Implementar el producto restante y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
 5. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
 
 ## Estado técnico aún no alcanzado
 
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
-- Catálogo C1 está entregado; D1 es una decisión normativa activa y no una unidad de producto.
-- No existen planes `Fast`, `Integration`, `UI` o `ReleaseGate` versionados.
+- Catálogo C1 y la decisión normativa D1 están entregados.
+- Los planes `Fast`, `Integration`, `UI` y `ReleaseGate` están materializados, ejecutados, revisados y entregados mediante Q1.
 - C1 implementa solo la primera página pública y su detalle local; colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La única evidencia física actual es la instalación y visualización del icono en el iPhone 11 observada por el propietario. No existe todavía evidencia de accesibilidad física, Keychain, App Group, WatchConnectivity o integración live.

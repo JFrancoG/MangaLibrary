@@ -7,7 +7,7 @@ import Foundation
 import Testing
 @testable import MangaLibrary
 
-@Suite("HTTP client")
+@Suite("HTTP client", .tags(.integration))
 struct HTTPClientTests {
     @Test("Rejects a non-HTTP API base URL")
     func rejectsInvalidAPIBaseURL() {

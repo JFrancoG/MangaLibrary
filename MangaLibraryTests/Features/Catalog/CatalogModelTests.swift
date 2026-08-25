@@ -7,6 +7,7 @@ import Foundation
 import Testing
 @testable import MangaLibrary
 
+@Suite(.tags(.fast))
 @MainActor
 struct CatalogModelTests {
     @Test

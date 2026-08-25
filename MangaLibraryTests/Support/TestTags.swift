@@ -1,0 +1,11 @@
+//
+//  TestTags.swift
+//  MangaLibraryTests
+//
+
+import Testing
+
+extension Tag {
+    @Tag static var fast: Self
+    @Tag static var integration: Self
+}

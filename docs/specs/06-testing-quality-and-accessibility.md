@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.8
+**Versión:** 1.9
 **Fecha:** 2026-08-25
 
 ## Propósito
@@ -23,9 +23,25 @@ Definir evidencia proporcional al riesgo para entregar Advanced y Deluxe con cer
 | `Fast` | Invariantes, transformaciones, estados y lógica determinista | Cada cambio de comportamiento |
 | `Integration` | SwiftData, migraciones, URLProtocol, Keychain aislado y composición de fronteras | Cambios en datos, red o sesión |
 | `UI` | Flujos críticos, adaptación y accesibilidad automatizable | Gate Advanced y cambios de navegación |
-| `ReleaseGate` | Composición aprobada de build, tests, UI y DocC | Candidatas Advanced y Deluxe |
+| `ReleaseGate` | Todos los targets de test pertenecientes al producto en el gate actual | Candidatas Advanced y Deluxe |
 
-Los ficheros `.xctestplan` se crearán en un issue posterior dedicado a la estrategia de suites. El scheme compartido puede exponer el plan implícito que Xcode autocrea, pero el gate de warnings y DocC no materializa ni afirma que existan todavía `Fast`, `Integration`, `UI` o `ReleaseGate`.
+Los cuatro ficheros versionados viven en `TestPlans/` y el scheme compartido
+`MangaLibrary` deja `Fast` como plan predeterminado. Los planes unitarios usan
+filtros Include Tags de Swift Testing: `Fast` incluye el tag `fast`, aplicado a
+las suites deterministas `AppCompositionTests` y `CatalogModelTests`, e
+`Integration` incluye el tag `integration`, aplicado a
+`CatalogAPIClientTests` y `HTTPClientTests`, que atraviesan fronteras
+controladas mediante `URLProtocol`. `UI` contiene únicamente
+`MangaLibraryUITests`. Toda suite nueva se clasifica en `Fast`, `Integration` o
+`UI` mediante su target y, cuando corresponda, su tag, en el mismo cambio que la
+introduce. No se filtra por nombres de funciones o suites.
+
+`ReleaseGate.xctestplan` incluye completos los targets `MangaLibraryTests` y
+`MangaLibraryUITests`. Por ello también detecta un test nuevo todavía no
+clasificado en un plan más estrecho. El fichero compone solo la ejecución de
+tests: el Release Gate de producto combina por separado build limpio, este plan,
+DocC y la evidencia no automatizable aplicable. No se atribuyen a un
+`.xctestplan` capacidades de build o documentación que Xcode no ejecuta desde él.
 
 ### Aplicabilidad por gate
 
