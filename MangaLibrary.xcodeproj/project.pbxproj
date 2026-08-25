@@ -67,6 +67,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		D0CC00020000000000000001 /* Configuration */ = {
+			isa = PBXGroup;
+			children = (
+				D0CC00010000000000000001 /* Shared.xcconfig */,
+			);
+			path = Configuration;
+			sourceTree = "<group>";
+		};
 		E092EB8C3030809D0053FBC5 = {
 			isa = PBXGroup;
 			children = (
@@ -86,14 +94,6 @@
 				E092EBAC3030809E0053FBC5 /* MangaLibraryUITests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		D0CC00020000000000000001 /* Configuration */ = {
-			isa = PBXGroup;
-			children = (
-				D0CC00010000000000000001 /* Shared.xcconfig */,
-			);
-			path = Configuration;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -375,7 +375,7 @@
 		E092EBB53030809E0053FBC5 /* Debug configuration for PBXNativeTarget "MangaLibrary" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = MangaLibrary;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -422,7 +422,7 @@
 		E092EBB63030809E0053FBC5 /* Release configuration for PBXNativeTarget "MangaLibrary" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = MangaLibrary;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
