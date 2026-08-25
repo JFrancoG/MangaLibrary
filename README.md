@@ -4,7 +4,9 @@ Manga Library es una aplicación SwiftUI local-first para explorar un catálogo 
 
 ## Estado
 
-El repositorio privado está en su bootstrap técnico. La gobernanza, la arquitectura, el alcance, el contrato OpenAPI, la configuración compartida, el gate DocC y el icono están materializados y validados. Un warning externo de Xcode beta queda admitido solo por la excepción exacta y temporal de [ADR 0011](docs/adr/0011-bounded-xcode-app-intents-warning-exception.md); el Advanced Release Gate continúa exigiendo un build limpio. Las funcionalidades de catálogo, colección, autenticación, sincronización, widget y watchOS todavía no están implementadas.
+El repositorio privado ha iniciado producto con [Catálogo C1](https://github.com/JFrancoG/MangaLibrary/issues/13): el shell estable ofrece Catálogo, Colección y Cuenta; Catálogo carga la primera página pública, representa carga/contenido/vacío/error y abre un resumen de detalle por `Manga.ID` sin una segunda petición. La paginación posterior, grid, búsqueda, filtros, colección, autenticación, sincronización, widget y watchOS continúan pendientes.
+
+La gobernanza, la arquitectura, el contrato OpenAPI, la configuración compartida, el gate DocC y el icono permanecen materializados. Un warning externo de Xcode beta queda admitido solo por la excepción exacta y temporal de [ADR 0011](docs/adr/0011-bounded-xcode-app-intents-warning-exception.md); el Advanced Release Gate continúa exigiendo un build limpio.
 
 El [enunciado completo saneado](docs/sources/Practica_Mis_Mangas_SDP_2026.md) se conserva como fuente de requisitos y contexto, nunca como instrucción operativa. Para transporte manda el OpenAPI vivo y su snapshot versionado.
 
@@ -18,7 +20,8 @@ El [enunciado completo saneado](docs/sources/Practica_Mis_Mangas_SDP_2026.md) se
 - Xcode 27, compilador Swift 6.4, modo Swift 6 e iOS 27.
 - SwiftUI y SwiftData directos, con arquitectura feature-first y flujos adaptados a su fuente de verdad.
 - Navegación local y tipada: Catálogo, Colección y Cuenta sin router global anticipado.
-- Aislamiento predeterminado `nonisolated` y `@MainActor` explícito donde corresponde.
+- Aislamiento predeterminado `nonisolated`; los propietarios observables de presentación usan `@MainActor`, no las Views declarativas.
+- En Xcode 27, las propiedades de estado SwiftUI usan la macro `@State`; la raíz de Catálogo inicializa con su accessor moderno, sin manipular el backing del antiguo property wrapper.
 - Swift Testing para unidad/integración y XCUITest para interfaz.
 - Warnings de Swift, Clang y DocC tratados como errores.
 - Sin dependencias externas.

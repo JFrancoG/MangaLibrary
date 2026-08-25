@@ -8,36 +8,38 @@
 import XCTest
 
 final class MangaLibraryUITests: XCTestCase {
-
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testCatalogOpensDetailAndSurvivesTabChanges() throws {
         let app = XCUIApplication()
+        app.launchArguments += ["-catalog-fixture", "content"]
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
-    }
+        let catalogTab = app.buttons.matching(identifier: "tab.catalog").firstMatch
+        let collectionTab = app.buttons.matching(identifier: "tab.collection").firstMatch
+        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
 
-    @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
-        }
+        XCTAssertTrue(catalogTab.waitForExistence(timeout: 5))
+        XCTAssertTrue(collectionTab.exists)
+        XCTAssertTrue(accountTab.exists)
+
+        let firstManga = app.descendants(matching: .any)["catalog.row.1"]
+        XCTAssertTrue(firstManga.waitForExistence(timeout: 5))
+
+        firstManga.tap()
+        let detail = app.descendants(matching: .any)["manga.detail.1"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 2))
+
+        collectionTab.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["collection.unavailable"].waitForExistence(timeout: 2))
+
+        accountTab.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["account.unavailable"].waitForExistence(timeout: 2))
+
+        catalogTab.tap()
+        XCTAssertTrue(detail.waitForExistence(timeout: 2))
     }
 }

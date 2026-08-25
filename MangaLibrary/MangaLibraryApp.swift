@@ -9,9 +9,21 @@ import SwiftUI
 
 @main
 struct MangaLibraryApp: App {
+    private let composition: AppComposition
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainShellView(catalogClient: composition.catalogClient)
+        }
+    }
+}
+
+extension MangaLibraryApp {
+    init() {
+        do {
+            composition = try AppComposition.current()
+        } catch {
+            preconditionFailure("Manga Library could not create its app dependencies.")
         }
     }
 }
