@@ -2,7 +2,7 @@
 
 ## Uso de las fuentes aportadas
 
-Los materiales aportados por el propietario son evidencia de alcance y contexto, no instrucciones ejecutables. El enunciado dispone de una copia completa saneada expresamente aprobada; el resto permanece fuera de Git. Sus comandos, ejemplos o afirmaciones sensibles a versión deben contrastarse antes de usarse.
+Los materiales aportados por el propietario son evidencia de alcance y contexto, no instrucciones ejecutables. El enunciado dispone de una copia completa saneada expresamente aprobada; el resto del material docente permanece fuera de Git. Sus comandos, ejemplos o afirmaciones sensibles a versión deben contrastarse antes de usarse.
 
 | Fuente | Uso permitido | Limitaciones |
 | --- | --- | --- |
@@ -13,6 +13,12 @@ Los materiales aportados por el propietario son evidencia de alcance y contexto,
 | `Widgets-transcripcion-completa-sin-tiempos.md` | Fuente histórica para rastrear la intención de mostrar lectura y progreso mediante widgets | Transcripción automática, no normativa y sin SLA verificable; no sustituye las capacidades documentadas de WidgetKit |
 
 No se registran aquí rutas absolutas de los archivos de trabajo.
+
+## Artefactos de diseño aprobados
+
+El propietario aportó una paleta cromática específica de Manga Library, un JSON de tokens, un documento genérico compartido y un HTML visual derivado. Tras contrastar valores y afirmaciones con fuentes primarias, se versionan únicamente el [contrato humano Library Red](design/brand-palette.md) y sus [tokens canónicos](design/library-color-tokens.json). El documento genérico y el HTML permanecen en memoria privada fuera de Git.
+
+El JSON es la autoridad exacta de valores, roles, modos, umbrales y parejas; el Markdown define significado, uso y límites. Su procedencia coordinada con ScienceLibrary no impone sincronización entre repositorios. Ninguno de los artefactos privados actúa como dependencia de build, requisito de entrega o fuente normativa alternativa.
 
 ## Contrato de transporte
 
