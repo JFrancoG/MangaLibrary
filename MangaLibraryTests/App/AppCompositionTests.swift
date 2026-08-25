@@ -6,7 +6,7 @@
 import Testing
 @testable import MangaLibrary
 
-@Suite("App composition")
+@Suite("App composition", .tags(.fast))
 struct AppCompositionTests {
     @Test("Reads the scenario immediately after the catalog fixture flag")
     func readsCatalogFixtureScenario() {

@@ -55,6 +55,20 @@ Si Xcode 27 no está en la ubicación predeterminada del script, se puede indica
 
 El gate falla ante cualquier warning o error salvo la única firma externa acotada por ADR 0011 para Xcode build `27A5252f`. Una actualización del toolchain que todavía la emita exige una nueva decisión; si desaparece, el gate pasa sin usar la excepción.
 
+El scheme compartido ofrece cuatro planes versionados en `TestPlans/`:
+
+- `Fast`, predeterminado, incluye el tag Swift Testing `fast` para el ciclo
+  determinista habitual;
+- `Integration` incluye el tag `integration` para fronteras controladas como
+  `URLProtocol`;
+- `UI`, para recorridos XCUITest;
+- `ReleaseGate`, que ejecuta completos los targets unitario y UI.
+
+Cada plan se selecciona desde **Product > Test Plan** en Xcode. El plan
+`ReleaseGate` aporta la ejecución completa de tests, pero una candidata también
+requiere por separado el build limpio, el gate DocC y la evidencia manual que
+corresponda.
+
 ## Privacidad
 
 No se versionan credenciales, tokens utilizables, cuentas reales, rutas privadas, transcripciones completas, notas personales ni binarios de presentación o vídeo. La única fuente docente completa aprobada es el enunciado saneado: su valor demostrativo de `App-Token` contiene 42 `X` y el original exacto permanece fuera de Git. La configuración local sensible continúa ignorada.

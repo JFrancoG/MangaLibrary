@@ -1,0 +1,37 @@
+{
+  "configurations" : [
+    {
+      "id" : "0E9C4B9D-7145-4984-B4C4-2D61BC115319",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:MangaLibrary.xcodeproj",
+      "identifier" : "E092EB943030809D0053FBC5",
+      "name" : "MangaLibrary"
+    },
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "selectedTags" : {
+        "mode" : "or",
+        "tags" : [
+          "integration"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:MangaLibrary.xcodeproj",
+        "identifier" : "E092EBA13030809E0053FBC5",
+        "name" : "MangaLibraryTests"
+      }
+    }
+  ],
+  "version" : 1
+}
