@@ -26,6 +26,11 @@ Para resolver discrepancias, consulta [AGENTS.md](../AGENTS.md). En resumen: pet
 - [Snapshot OpenAPI canónico y sanitizado](../Contracts/OpenAPI/openapi.json)
 - [Checksum SHA-256](../Contracts/OpenAPI/SHA256SUMS)
 
+### Diseño
+
+- [Contrato cromático Library Red](design/brand-palette.md)
+- [Tokens cromáticos canónicos y auditables](design/library-color-tokens.json)
+
 ### Fuentes versionadas
 
 - [Enunciado completo saneado de la práctica](sources/Practica_Mis_Mangas_SDP_2026.md)

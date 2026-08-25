@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.6
+**Versión:** 1.7
 **Fecha:** 2026-08-25
 
 ## Propósito
@@ -125,6 +125,12 @@ La política común se materializa en `Configuration/Shared.xcconfig`, conectada
 - Se comprobarán contraste, orden de foco, áreas táctiles, estados vacío/carga/error y reducción de movimiento cuando corresponda.
 - Las portadas tendrán placeholder estable y la interfaz conservará significado ante fallo de imagen.
 - Previews deterministas cubrirán estados representativos, pero no contarán como evidencia de UI automation.
+
+## Contrato cromático
+
+Library Red es el contrato cromático aprobado para Manga Library. La [especificación humana](../design/brand-palette.md) define significado, política de uso, accesibilidad y límites; el [JSON canónico](../design/library-color-tokens.json) es la autoridad exacta de valores, roles, modos, umbrales y parejas autorizadas.
+
+La incorporación documental no materializa colorsets ni acredita la interfaz. Una unidad posterior implementará Asset Catalog mediante RED/GREEN, comprobará las cuatro combinaciones Light/Dark y Standard/Increased Contrast contra el JSON y auditará los estados renderizados. Que una pareja opaca supere su ratio no demuestra por sí solo contraste tras materiales, transparencia, imágenes, estados nativos o composición dinámica, ni conformidad WCAG de la app o soporte de una etiqueta de accesibilidad de App Store.
 
 ## Gates
 

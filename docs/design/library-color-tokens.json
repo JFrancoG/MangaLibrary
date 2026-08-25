@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 1,
+  "palette": {
+    "name": "Library Red",
+    "version": "1.0.0",
+    "date": "2026-08-25",
+    "apps": [
+      "MangaLibrary"
+    ],
+    "platform": "iOS 27",
+    "designSpace": "OKLCH",
+    "deliverySpace": "sRGB 8-bit opaque",
+    "visualReference": "MangaLibrary/Resources/MangaLibrary.icon",
+    "implementationStatus": "Approved design contract; Asset Catalog implementation deferred",
+    "provenance": "Owner-approved palette derived from the versioned Manga Library icon; generic and visual working artifacts remain outside Git.",
+    "note": "Digital semantic color system; it does not define licensed Pantone Matching System spot colors."
+  },
+  "thresholds": {
+    "standardText": {
+      "ratio": 4.5,
+      "claim": "WCAG 2.2 SC 1.4.3 AA threshold adopted as a product reference for native software"
+    },
+    "standardNonText": {
+      "ratio": 3.0,
+      "claim": "WCAG 2.2 SC 1.4.11 AA threshold adopted as a product reference for native software"
+    },
+    "increasedContrastText": {
+      "ratio": 7.0,
+      "claim": "Internal target using WCAG 2.2 SC 1.4.6 AAA text threshold"
+    },
+    "increasedContrastNonText": {
+      "ratio": 4.5,
+      "claim": "Internal enhanced target; WCAG 2.2 defines no AAA non-text threshold"
+    }
+  },
+  "auditMethod": {
+    "input": "Final opaque 8-bit sRGB HEX values",
+    "relativeLuminance": "0.2126 R + 0.7152 G + 0.0722 B after sRGB linearization at 0.04045",
+    "contrastRatio": "(lighter + 0.05) / (darker + 0.05)",
+    "comparison": "Full precision; rounding is display-only",
+    "semanticPairsPerMode": 56,
+    "semanticPairsTotal": 224
+  },
+  "roles": {
+    "Canvas": "canvas",
+    "BackgroundElevated": "backgroundElevated",
+    "Surface": "surface",
+    "SurfaceStrong": "surfaceStrong",
+    "SeparatorDecorative": "separatorDecorative",
+    "ControlBorder": "controlBorder",
+    "TextPrimary": "textPrimary",
+    "TextSecondary": "textSecondary",
+    "TextTertiary": "textTertiary",
+    "TextDisabled": "textDisabled",
+    "BrandPrimary": "brandPrimary",
+    "BrandPrimaryInk": "brandPrimary",
+    "OnBrandPrimary": "onBrandPrimary",
+    "BrandContainer": "brandContainer",
+    "OnBrandContainer": "onBrandContainer",
+    "Link": "brandPrimary",
+    "FocusRing": "brandPrimary",
+    "SuccessFill": "success",
+    "SuccessInk": "success",
+    "OnSuccess": "onSuccess",
+    "WarningFill": "warning",
+    "WarningInk": "warning",
+    "OnWarning": "onWarning",
+    "DangerFill": "danger",
+    "DangerInk": "danger",
+    "OnDanger": "onDanger",
+    "InformationFill": "information",
+    "InformationInk": "information",
+    "OnInformation": "onInformation"
+  },
+  "modes": {
+    "light": {
+      "label": "Light",
+      "luminosity": "light",
+      "contrast": "standard",
+      "textTarget": 4.5,
+      "nonTextTarget": 3.0,
+      "colors": {
+        "canvas": { "oklch": "oklch(0.985 0.004 65)", "hex": "#FCFAF7" },
+        "backgroundElevated": { "oklch": "oklch(0.997 0.001 65)", "hex": "#FFFEFD" },
+        "surface": { "oklch": "oklch(0.960 0.005 65)", "hex": "#F4F1EE" },
+        "surfaceStrong": { "oklch": "oklch(0.925 0.006 65)", "hex": "#E9E5E2" },
+        "separatorDecorative": { "oklch": "oklch(0.850 0.006 65)", "hex": "#D1CDCA" },
+        "controlBorder": { "oklch": "oklch(0.590 0.010 65)", "hex": "#827C77" },
+        "textPrimary": { "oklch": "oklch(0.180 0.008 65)", "hex": "#14110E" },
+        "textSecondary": { "oklch": "oklch(0.420 0.012 65)", "hex": "#524C46" },
+        "textTertiary": { "oklch": "oklch(0.490 0.012 65)", "hex": "#655F59" },
+        "textDisabled": { "oklch": "oklch(0.490 0.012 65)", "hex": "#655F59" },
+        "brandPrimary": { "oklch": "oklch(0.500 0.180 28)", "hex": "#B3241F" },
+        "onBrandPrimary": { "oklch": "oklch(0.990 0.002 65)", "hex": "#FDFBFA" },
+        "brandContainer": { "oklch": "oklch(0.940 0.025 28)", "hex": "#FCE5E2" },
+        "onBrandContainer": { "oklch": "oklch(0.410 0.145 28)", "hex": "#881B17" },
+        "success": { "oklch": "oklch(0.490 0.115 150)", "hex": "#23723B" },
+        "onSuccess": { "oklch": "oklch(0.990 0.002 65)", "hex": "#FDFBFA" },
+        "warning": { "oklch": "oklch(0.490 0.095 75)", "hex": "#7F5714" },
+        "onWarning": { "oklch": "oklch(0.990 0.002 65)", "hex": "#FDFBFA" },
+        "danger": { "oklch": "oklch(0.490 0.180 22)", "hex": "#B01C2E" },
+        "onDanger": { "oklch": "oklch(0.990 0.002 65)", "hex": "#FDFBFA" },
+        "information": { "oklch": "oklch(0.490 0.115 245)", "hex": "#13659D" },
+        "onInformation": { "oklch": "oklch(0.990 0.002 65)", "hex": "#FDFBFA" }
+      }
+    },
+    "dark": {
+      "label": "Dark",
+      "luminosity": "dark",
+      "contrast": "standard",
+      "textTarget": 4.5,
+      "nonTextTarget": 3.0,
+      "colors": {
+        "canvas": { "oklch": "oklch(0.135 0.008 65)", "hex": "#0A0805" },
+        "backgroundElevated": { "oklch": "oklch(0.175 0.010 65)", "hex": "#14100C" },
+        "surface": { "oklch": "oklch(0.200 0.012 65)", "hex": "#1A1510" },
+        "surfaceStrong": { "oklch": "oklch(0.245 0.013 65)", "hex": "#251F1A" },
+        "separatorDecorative": { "oklch": "oklch(0.300 0.012 65)", "hex": "#322D28" },
+        "controlBorder": { "oklch": "oklch(0.600 0.010 65)", "hex": "#857F7A" },
+        "textPrimary": { "oklch": "oklch(0.970 0.004 65)", "hex": "#F7F5F2" },
+        "textSecondary": { "oklch": "oklch(0.720 0.008 65)", "hex": "#A8A49F" },
+        "textTertiary": { "oklch": "oklch(0.650 0.008 65)", "hex": "#938E8A" },
+        "textDisabled": { "oklch": "oklch(0.650 0.008 65)", "hex": "#938E8A" },
+        "brandPrimary": { "oklch": "oklch(0.740 0.155 32)", "hex": "#FD826A" },
+        "onBrandPrimary": { "oklch": "oklch(0.130 0.008 65)", "hex": "#090705" },
+        "brandContainer": { "oklch": "oklch(0.270 0.060 28)", "hex": "#3F1915" },
+        "onBrandContainer": { "oklch": "oklch(0.830 0.080 32)", "hex": "#F7B5A7" },
+        "success": { "oklch": "oklch(0.780 0.130 150)", "hex": "#76CF8A" },
+        "onSuccess": { "oklch": "oklch(0.130 0.008 65)", "hex": "#090705" },
+        "warning": { "oklch": "oklch(0.820 0.115 80)", "hex": "#EBBC69" },
+        "onWarning": { "oklch": "oklch(0.130 0.008 65)", "hex": "#090705" },
+        "danger": { "oklch": "oklch(0.740 0.150 22)", "hex": "#FB817F" },
+        "onDanger": { "oklch": "oklch(0.130 0.008 65)", "hex": "#090705" },
+        "information": { "oklch": "oklch(0.780 0.115 245)", "hex": "#75BFFC" },
+        "onInformation": { "oklch": "oklch(0.130 0.008 65)", "hex": "#090705" }
+      }
+    },
+    "highContrastLight": {
+      "label": "Increased Contrast Light",
+      "luminosity": "light",
+      "contrast": "high",
+      "textTarget": 7.0,
+      "nonTextTarget": 4.5,
+      "colors": {
+        "canvas": { "oklch": "oklch(1.000 0.000 65)", "hex": "#FFFFFF" },
+        "backgroundElevated": { "oklch": "oklch(1.000 0.000 65)", "hex": "#FFFFFF" },
+        "surface": { "oklch": "oklch(0.955 0.000 65)", "hex": "#F0F0F0" },
+        "surfaceStrong": { "oklch": "oklch(0.910 0.000 65)", "hex": "#E1E1E1" },
+        "separatorDecorative": { "oklch": "oklch(0.680 0.000 65)", "hex": "#989898" },
+        "controlBorder": { "oklch": "oklch(0.000 0.000 65)", "hex": "#000000" },
+        "textPrimary": { "oklch": "oklch(0.000 0.000 65)", "hex": "#000000" },
+        "textSecondary": { "oklch": "oklch(0.220 0.000 65)", "hex": "#1B1B1B" },
+        "textTertiary": { "oklch": "oklch(0.340 0.000 65)", "hex": "#383838" },
+        "textDisabled": { "oklch": "oklch(0.340 0.000 65)", "hex": "#383838" },
+        "brandPrimary": { "oklch": "oklch(0.400 0.145 28)", "hex": "#851713" },
+        "onBrandPrimary": { "oklch": "oklch(1.000 0.000 65)", "hex": "#FFFFFF" },
+        "brandContainer": { "oklch": "oklch(0.940 0.025 28)", "hex": "#FCE5E2" },
+        "onBrandContainer": { "oklch": "oklch(0.360 0.125 28)", "hex": "#711612" },
+        "success": { "oklch": "oklch(0.390 0.090 150)", "hex": "#18522A" },
+        "onSuccess": { "oklch": "oklch(1.000 0.000 65)", "hex": "#FFFFFF" },
+        "warning": { "oklch": "oklch(0.390 0.080 75)", "hex": "#5E3E04" },
+        "onWarning": { "oklch": "oklch(1.000 0.000 65)", "hex": "#FFFFFF" },
+        "danger": { "oklch": "oklch(0.390 0.140 22)", "hex": "#7F1520" },
+        "onDanger": { "oklch": "oklch(1.000 0.000 65)", "hex": "#FFFFFF" },
+        "information": { "oklch": "oklch(0.390 0.090 245)", "hex": "#0D4972" },
+        "onInformation": { "oklch": "oklch(1.000 0.000 65)", "hex": "#FFFFFF" }
+      }
+    },
+    "highContrastDark": {
+      "label": "Increased Contrast Dark",
+      "luminosity": "dark",
+      "contrast": "high",
+      "textTarget": 7.0,
+      "nonTextTarget": 4.5,
+      "colors": {
+        "canvas": { "oklch": "oklch(0.000 0.000 65)", "hex": "#000000" },
+        "backgroundElevated": { "oklch": "oklch(0.000 0.000 65)", "hex": "#000000" },
+        "surface": { "oklch": "oklch(0.180 0.000 65)", "hex": "#121212" },
+        "surfaceStrong": { "oklch": "oklch(0.240 0.000 65)", "hex": "#1F1F1F" },
+        "separatorDecorative": { "oklch": "oklch(0.520 0.000 65)", "hex": "#696969" },
+        "controlBorder": { "oklch": "oklch(1.000 0.000 65)", "hex": "#FFFFFF" },
+        "textPrimary": { "oklch": "oklch(1.000 0.000 65)", "hex": "#FFFFFF" },
+        "textSecondary": { "oklch": "oklch(0.860 0.000 65)", "hex": "#D1D1D1" },
+        "textTertiary": { "oklch": "oklch(0.750 0.000 65)", "hex": "#AEAEAE" },
+        "textDisabled": { "oklch": "oklch(0.750 0.000 65)", "hex": "#AEAEAE" },
+        "brandPrimary": { "oklch": "oklch(0.800 0.110 32)", "hex": "#FCA391" },
+        "onBrandPrimary": { "oklch": "oklch(0.000 0.000 65)", "hex": "#000000" },
+        "brandContainer": { "oklch": "oklch(0.220 0.050 28)", "hex": "#2E100D" },
+        "onBrandContainer": { "oklch": "oklch(0.870 0.050 32)", "hex": "#F3C9C0" },
+        "success": { "oklch": "oklch(0.820 0.105 150)", "hex": "#92D8A0" },
+        "onSuccess": { "oklch": "oklch(0.000 0.000 65)", "hex": "#000000" },
+        "warning": { "oklch": "oklch(0.850 0.090 80)", "hex": "#EDC889" },
+        "onWarning": { "oklch": "oklch(0.000 0.000 65)", "hex": "#000000" },
+        "danger": { "oklch": "oklch(0.800 0.110 22)", "hex": "#FDA19E" },
+        "onDanger": { "oklch": "oklch(0.000 0.000 65)", "hex": "#000000" },
+        "information": { "oklch": "oklch(0.820 0.090 245)", "hex": "#92CBFB" },
+        "onInformation": { "oklch": "oklch(0.000 0.000 65)", "hex": "#000000" }
+      }
+    }
+  },
+  "allowedPairGroups": [
+    {
+      "kind": "text",
+      "foregrounds": [
+        "TextPrimary",
+        "TextSecondary",
+        "TextTertiary",
+        "TextDisabled",
+        "BrandPrimaryInk",
+        "Link",
+        "SuccessInk",
+        "WarningInk",
+        "DangerInk",
+        "InformationInk"
+      ],
+      "backgrounds": [
+        "Canvas",
+        "BackgroundElevated",
+        "Surface",
+        "SurfaceStrong"
+      ]
+    },
+    {
+      "kind": "text",
+      "explicitPairs": [
+        ["OnBrandPrimary", "BrandPrimary"],
+        ["OnBrandContainer", "BrandContainer"],
+        ["OnSuccess", "SuccessFill"],
+        ["OnWarning", "WarningFill"],
+        ["OnDanger", "DangerFill"],
+        ["OnInformation", "InformationFill"]
+      ]
+    },
+    {
+      "kind": "nonText",
+      "foregrounds": [
+        "ControlBorder",
+        "FocusRing"
+      ],
+      "backgrounds": [
+        "Canvas",
+        "BackgroundElevated",
+        "Surface",
+        "SurfaceStrong",
+        "BrandContainer"
+      ]
+    }
+  ],
+  "conditionalRules": [
+    "SeparatorDecorative is decorative only; use ControlBorder when a boundary is necessary to perceive a control, state, or chart element.",
+    "BrandContainer and neutral surfaces are not sufficient as the sole essential control or selection boundary; add ControlBorder or FocusRing plus a non-color cue.",
+    "ControlBorder and FocusRing are validated against BrandContainer, but not against BrandPrimary. When focus touches BrandPrimary, offset the ring onto an audited neutral background or define and audit a separate two-tone treatment.",
+    "Do not lower validated text colors with opacity. WCAG formally exempts inactive controls; TextDisabled deliberately preserves the text threshold as a stricter product policy and must be paired with a disabled control state or label.",
+    "Do not place validated roles over images, gradients, materials, blur, or translucency without re-auditing the final composited pixels.",
+    "Success, warning, danger, information, chart series, selection, and validation states require an icon, label, pattern, line style, or other non-color cue."
+  ]
+}
