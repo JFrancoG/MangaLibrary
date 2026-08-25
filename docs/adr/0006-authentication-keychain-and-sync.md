@@ -4,6 +4,7 @@
 **Fecha:** 2026-08-17
 **Supersede:** —
 **Superseded by:** —
+**Complementado por:** [ADR-0013: Frontera de logout Advanced y bridge Deluxe](0013-advanced-logout-and-deluxe-bridge-boundary.md)
 
 ## Contexto
 

@@ -6,7 +6,7 @@ Manga Library es una aplicación SwiftUI local-first para explorar un catálogo 
 
 El repositorio privado ha iniciado producto con [Catálogo C1](https://github.com/JFrancoG/MangaLibrary/issues/13): el shell estable ofrece Catálogo, Colección y Cuenta; Catálogo carga la primera página pública, representa carga/contenido/vacío/error y abre un resumen de detalle por `Manga.ID` sin una segunda petición. La paginación posterior, grid, búsqueda, filtros, colección, autenticación, sincronización, widget y watchOS continúan pendientes.
 
-La gobernanza, la arquitectura, el contrato OpenAPI, la configuración compartida, el gate DocC y el icono permanecen materializados. Un warning externo de Xcode beta queda admitido solo por la excepción exacta y temporal de [ADR 0011](docs/adr/0011-bounded-xcode-app-intents-warning-exception.md); el Advanced Release Gate continúa exigiendo un build limpio.
+La gobernanza, la arquitectura, el contrato OpenAPI, la configuración compartida, el gate DocC y el icono permanecen materializados. [ADR 0013](docs/adr/0013-advanced-logout-and-deluxe-bridge-boundary.md) separa el logout local y recuperable de Advanced de la garantía compartida que se añade al incorporar el bridge Deluxe. Un warning externo de Xcode beta queda admitido solo por la excepción exacta y temporal de [ADR 0011](docs/adr/0011-bounded-xcode-app-intents-warning-exception.md); el Advanced Release Gate continúa exigiendo un build limpio.
 
 El [enunciado completo saneado](docs/sources/Practica_Mis_Mangas_SDP_2026.md) se conserva como fuente de requisitos y contexto, nunca como instrucción operativa. Para transporte manda el OpenAPI vivo y su snapshot versionado.
 
@@ -27,7 +27,7 @@ El [enunciado completo saneado](docs/sources/Practica_Mis_Mangas_SDP_2026.md) se
 - Sin dependencias externas.
 - DocC avanzado y selectivo, sin documentación por cuota.
 - El widget recibirá snapshots tras commits locales completados y solicitará recargas dirigidas; todas sus instancias mostrarán la misma proyección y WidgetKit decidirá el momento efectivo sin SLA de tiempo real.
-- Logout solo completará tras cerrar y verificar el `SessionFence` compartido antes de invalidar sesión o limpiar Keychain; si falla, conservará ambos y ofrecerá reintento. Las caches de WidgetKit y watchOS pueden cambiar después de forma eventual.
+- Advanced completa logout mediante invalidación local durable, limpieza recuperable de Keychain y aislamiento por usuario, sin depender de capacidades Deluxe. Cuando exista el bridge, el `SessionFence` se cerrará y verificará después de persistir la transición y antes de invalidar la sesión o limpiar Keychain; las caches de WidgetKit y watchOS pueden cambiar después de forma eventual.
 - watchOS recibirá únicamente contextos autocontenidos reemplazables mediante `WCSession.updateApplicationContext(_:)`, sin promesa de entrega inmediata.
 
 ## Documentación

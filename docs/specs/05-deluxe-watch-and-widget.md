@@ -1,8 +1,8 @@
 # SDD 05: Deluxe, watchOS y widget
 
 **Estado:** Aprobada
-**Versión:** 1.3
-**Fecha:** 2026-08-18
+**Versión:** 1.4
+**Fecha:** 2026-08-25
 **Gate de entrada:** Advanced Release Gate superado
 
 ## Propósito
@@ -19,6 +19,29 @@ Deluxe añade dos superficies de solo lectura:
 La aplicación principal continúa siendo la única superficie con autenticación, catálogo, edición de colección y sincronización.
 
 El widget 1.0 usará `StaticConfiguration` con un `TimelineProvider`. Todas sus instancias consumirán la misma proyección del mismo `kind`; no habrá `AppIntentConfiguration`, `AppIntentTimelineProvider`, selección por manga ni personalización por instancia.
+
+## Entrada desde Advanced
+
+Advanced entrega un logout local durable y recuperable sin App Group,
+`SessionFence`, WidgetKit o WatchConnectivity. Esa evidencia no acredita el
+bridge Deluxe. La primera unidad que lo materialice debe inicializar el fence
+cerrado antes de exponer cualquier consumidor y no puede inferir que una sesión
+ya activa esté autorizada para el nuevo bridge.
+
+Ante una sesión Advanced ya activa, el publicador solo puede abrir el bridge tras
+obtener del propietario serializado una autorización ligada a la generación que
+permanece durablemente activa, conserva sus propias credenciales y no tiene un
+logout en curso. Después publica el envelope, revalida esa misma generación y abre
+el fence al final. Si la autorización falta o deja de ser válida, el bridge sigue
+cerrado hasta que el propietario confirme una sesión vigente o el flujo normal de
+autenticación establezca otra; unos tokens aislados no bastan.
+
+Desde que el bridge existe, logout persiste su transición, cierra y verifica el
+`SessionFence` y solo después ejecuta la invalidación local y la limpieza de
+Keychain. El envelope redactado, el reload y la entrega a watchOS quedan como
+eventuales. No se introduce un bridge no-op en Advanced. La frontera completa se
+define en
+[ADR-0013](../adr/0013-advanced-logout-and-deluxe-bridge-boundary.md).
 
 ## Snapshot de lectura
 
@@ -101,6 +124,11 @@ Un fallo anterior al commit no publica. En una publicación ordinaria, un fallo 
 
 Logout debe persistir primero su transición en curso y releer satisfactoriamente un fence cerrado —`allowedSessionGeneration == nil`— antes de invalidar la sesión o borrar Keychain. Si esa escritura o verificación falla, logout no completa: conserva sesión y credenciales y ofrece reintento. La app no sustituye esta garantía por un marcador privado que la extensión no pueda consultar.
 
+La transición puede cancelarse antes de cerrar y verificar el fence si la sesión
+local continúa activa. El fence seguro es su punto de no retorno: después, una
+cancelación se rechaza y la recuperación debe completar invalidación local y
+Keychain.
+
 Después de verificar el fence cerrado, la app invalida la sesión y limpia Keychain. El envelope redactado y la solicitud de reload pueden completarse de forma eventual; cualquier reload se solicita únicamente desde un estado compartido seguro. La app persiste intención suficiente para que un crash entre fence, Keychain y envelope se recupere sin volver a permitir la sesión saliente.
 
 Una sesión B se activa para el bridge en orden inverso al cierre: con el fence cerrado, la app prepara recursos y publica el envelope de B; revalida que B siga activa; abre y verifica el fence para B al final; y solo entonces solicita el reload. Un crash antes de abrirlo mantiene el bridge cerrado. La misma secuencia se usa tras rotar `publicationGeneration`, sin exigir que el provider observe el estado intermedio.
@@ -151,7 +179,9 @@ La fecha informativa puede comunicar la antigüedad del snapshot, pero no se usa
 - `revision` es `UInt64`, estrictamente monotónica y persistida dentro de su epoch, no hace wrap; pérdida, corrupción, reinstalación u overflow rotan `publicationGeneration` y empiezan con un fence nuevo cerrado, sin depender de observar un bootstrap.
 - En una publicación ordinaria, recursos y envelope terminan antes del reload; un fallo conserva el manifest anterior de la misma sesión válida y no solicita reload.
 - Logout cierra y verifica el fence antes de invalidar la sesión o borrar Keychain; un fallo aborta el logout y conserva ambos para reintentar, mientras un crash posterior se recupera sin reabrir A.
+- Cancelar solo es válido antes del fence cerrado y verificado; después de ese punto de no retorno la recuperación completa el cierre local Advanced.
 - Una sesión B publica su envelope con el fence cerrado y solo lo abre al final; una sanitización tardía de A es no-op si B ya posee el fence.
+- La primera incorporación del bridge empieza cerrada; una sesión Advanced activa solo lo abre tras autorización y revalidación explícitas de su generación por el propietario de sesión.
 - El provider usa `.never` y la app invoca `reloadTimelines(ofKind:)` con el `kind` concreto afectado, sin `reloadAllTimelines()`.
 - El widget funciona sin abrir SwiftData o Keychain y sin ejecutar red, polling, ActivityKit, WidgetKit push ni `BGTask`.
 - Las portadas son inmutables, content-addressed o ligadas a revisión, se escriben atómicamente antes del envelope y se retienen mientras un manifest válido pueda referenciarlas; una ausencia produce placeholder sin red.
@@ -181,6 +211,7 @@ App Group y WatchConnectivity requieren entitlements y pruebas de integración e
 
 - [ADR 0007: watchOS, WidgetKit y puentes de datos](../adr/0007-watchos-widgetkit-and-data-bridges.md)
 - [ADR 0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
+- [ADR 0013: frontera de logout Advanced y bridge Deluxe](../adr/0013-advanced-logout-and-deluxe-bridge-boundary.md)
 - [Colección local e invariantes](03-local-collection-and-invariants.md)
 - [Autenticación y sincronización](04-authentication-and-sync.md)
 - [Testing, calidad y accesibilidad](06-testing-quality-and-accessibility.md)

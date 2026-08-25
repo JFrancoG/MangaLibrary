@@ -1,7 +1,32 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-25
-**Estado general:** G0, Catálogo C1 y el contrato cromático Library Red entregados; sin una unidad de producto activa
+**Estado general:** G0, Catálogo C1 y el contrato cromático Library Red entregados; D1 validada y en entrega
+
+## D1 — frontera de logout Advanced y bridge Deluxe
+
+- Tracker: [GitHub Issue #17 — D1: delimitar logout Advanced y su extensión Deluxe](https://github.com/JFrancoG/MangaLibrary/issues/17), abierto después de comprobar que no existía un issue equivalente.
+- Rama: `codex/17-advanced-deluxe-session-boundary`, creada desde `main@2488308b290353b469247e16f73d246aadb37a42`, limpio y sincronizado con `origin/main`.
+- D1 elimina la dependencia circular entre un Advanced que debe cerrar autenticación y sincronización y unas garantías de `SessionFence`, App Group, WidgetKit y WatchConnectivity que solo pueden materializarse después de su Release Gate.
+- Advanced conserva un logout local, durable y recuperable: gate de pendientes, propietario de sesión serializado, invalidación de la generación esperada, revalidación de tareas y limpieza condicionada de Keychain, datos y rutas. Mientras A está en curso no se activa B y un efecto tardío de A no altera una sesión posterior. La cancelación solo es válida antes del commit de invalidación local.
+- Cuando exista el bridge Deluxe, su fence cerrado y verificado se compone entre la transición persistida y la invalidación local y adelanta el punto de no retorno; envelope, reload y contexto watchOS continúan siendo eventuales. El bootstrap empieza cerrado y solo abre tras autorización y revalidación explícitas del propietario de sesión. Advanced no crea un bridge no-op.
+- [ADR 0013](adr/0013-advanced-logout-and-deluxe-bridge-boundary.md) complementa ADR 0006, 0007 y 0010 sin superseder sus decisiones. SDD 00, 04, 05 y 06 atribuyen cada requisito y prueba a su gate real.
+
+### Validación de D1
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Git y GitHub — preflight | Repositorio privado; `main` limpio y sincronizado en `2488308`; cero issues o PR abiertas antes de D1; issue #17 y rama creados desde esa base |
+| Xcode MCP — preflight | `MangaLibrary.xcodeproj`, scheme compartido y plan `MangaLibrary`, app y targets de tests, destino activo iPhone 11 con iOS 27 y cero warnings en Issue Navigator |
+| OpenAPI vivo — comparación canónica | OpenAPI 3.0.1, 28 paths, 30 operaciones, 19 schemas y 3 mecanismos de seguridad; SHA-256 saneado `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`, idéntico al snapshot. No declara logout ni revocación; no se hicieron llamadas funcionales |
+| Matriz antes/después | Antes, SDD 04 y el gate Advanced exigían incondicionalmente capacidades cuya entrada depende de superar Advanced. Después, PROD-013 y los casos con columna `Gate` cierran la sesión local en Advanced y reservan fence, bootstrap y proyecciones para Deluxe |
+| Documentación e integridad | SDD 00/04/05/06 incrementan versión; 13 ADR y 13 entradas de índice conservan estados y fechas coherentes; 36 Markdown y 196 enlaces locales sin roturas; escaneo de privacidad y secretos sin hallazgos; `git diff --check` limpio y `project.pbxproj` intacto en `b6f3b006f5693f1580c7dae1cd114beaf4fb6d23ec3769850f21836c84e35543` |
+| Revisiones independientes | La auditoría iOS detectó y cerró carrera A/B, bootstrap y punto de no retorno; los read-backs finales de arquitectura/seguridad, gobierno ADR y alcance/integridad terminaron sin hallazgos |
+| Alcance ejecutable | TDD, build, tests, previews y DocC no aplican: D1 cambia únicamente contrato humano y no modifica código, Assets, proyecto, configuración o catálogo DocC |
+
+### Estado de entrega de D1
+
+La entrega completa de D1 está autorizada y en curso mediante el issue #17. Incluye commit, push, PR, revisión, merge, cierre del issue y borrado local y remoto de la rama; la PR se registrará aquí antes de fusionar. Código de sesión, Keychain, SwiftData, outbox, App Group, WidgetKit, watchOS, entitlements, OpenAPI, colorsets, Q1 y C2 quedan fuera de D1.
 
 ## Contrato cromático Library Red — issue #15
 
@@ -199,15 +224,15 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 ## Siguiente trabajo
 
 1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
-2. Definir y aprobar el alcance de la siguiente unidad de Catálogo antes de abrir su issue o rama.
-3. No iniciar esa unidad como efecto lateral del cierre de C1.
+2. Cerrar D1 mediante el issue #17 antes de iniciar autenticación o logout.
+3. Definir y aprobar Q1, la unidad de planes de test, antes de C2; no iniciar ninguna de ambas como efecto lateral de D1.
 4. Implementar el producto restante y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
 5. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
 
 ## Estado técnico aún no alcanzado
 
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
-- Catálogo C1 está entregado y no existe otra unidad de producto activa.
+- Catálogo C1 está entregado; D1 es una decisión normativa activa y no una unidad de producto.
 - No existen planes `Fast`, `Integration`, `UI` o `ReleaseGate` versionados.
 - C1 implementa solo la primera página pública y su detalle local; colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
