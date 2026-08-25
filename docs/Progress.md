@@ -1,7 +1,24 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-25
-**Estado general:** bootstrap técnico y recursos fusionados; repositorio privado y enunciado saneado preparados en el issue #7
+**Estado general:** bootstrap técnico, recursos y enunciado saneado fusionados en `main`; repositorio privado y ninguna unidad de producto iniciada
+
+## Reconciliación G0 posterior a la PR #10
+
+- Tracker: [GitHub Issue #11 — Reconciliar Progress tras la PR #10](https://github.com/JFrancoG/MangaLibrary/issues/11).
+- Antes de abrir G0, GitHub no tenía issues ni pull requests abiertas; tampoco existía una unidad de producto activa.
+- `main`, `origin/main` y su merge-base coincidían en `051a03f895ef55b5fe940574a0fcf5521b9a74bb`, merge de la PR #10, con el worktree limpio.
+- La rama de trabajo `codex/11-reconcile-progress-pr-10` se creó directamente desde esa base y el alcance de G0 queda limitado a este documento.
+- El repositorio continúa `PRIVATE` por el cambio de visibilidad realizado antes del primer push del issue #7. Los issues #1, #3, #4, #6 y #7 están cerrados y las PR #2, #5, #8, #9 y #10 fusionadas.
+- G0 no ejecuta ni acredita TDD, build, tests, DocC o una nueva validación Xcode porque no cambia código, configuración ni comportamiento de producto.
+
+### Validación de G0
+
+- Git y GitHub se releyeron antes de editar: base limpia y sincronizada en `051a03f`, repositorio `PRIVATE`, ningún issue o pull request abierto antes de G0 y ausencia de trabajo de producto activo.
+- El diff contiene únicamente `docs/Progress.md`; `git diff --check` termina limpio y `project.pbxproj` conserva SHA-256 `b6f3b006f5693f1580c7dae1cd114beaf4fb6d23ec3769850f21836c84e35543`.
+- Se comprobaron 163 enlaces Markdown locales sin roturas.
+- El escaneo acotado devuelve cero rutas privadas, correos y patrones plausibles de secretos.
+- La reauditoría documental independiente termina sin hallazgos después de corregir cronología, estado posterior a G0 y registro de validación.
 
 ## Fuente docente y privacidad del issue #7
 
@@ -31,14 +48,17 @@
 
 | Evidencia | Estado |
 | --- | --- |
-| Entregas anteriores | Issue #1 por PR #2, merge `eb340b3`; OpenAPI por PR #5, merge `5ebdcb6`; gate Xcode 27/DocC por PR #8, merge `7522977`; icono y recursos por PR #9, merge `0a30fac` |
-| Base adoptada | La rama del issue #7 avanzó de forma fast-forward a `origin/main` en `0a30fac` después de verificar el archive externo, sin pull ni rebase |
-| Rama de entrega | `codex/7-private-practice-statement` |
+| Entregas anteriores | Issue #1 por PR #2, merge `eb340b3`; OpenAPI por PR #5, merge `5ebdcb6`; gate Xcode 27/DocC por PR #8, merge `7522977`; icono y recursos por PR #9, merge `0a30fac`; enunciado saneado y ADR 0012 por PR #10, merge `051a03f` |
+| Base verificada al iniciar G0 | `main`, `origin/main` y merge-base limpios y coincidentes en `051a03f` antes de crear la rama del issue #11 |
+| Rama de trabajo de G0 | `codex/11-reconcile-progress-pr-10`, creada directamente desde `051a03f` |
+| Base histórica del issue #7 | La rama del issue #7 avanzó de forma fast-forward a `origin/main` en `0a30fac` después de verificar el archive externo, sin pull ni rebase |
+| Rama histórica del issue #7 | `codex/7-private-practice-statement` |
 | Cambio previo protegido | Verificado antes y después de la alineación: 34 inserciones, 24 eliminaciones, `git diff --check` limpio |
 | SHA-256 inicial protegido | `375f108b069732d9076090ec39668e07a7892da484b18ac933c07c18e2b8e582` |
 | Extensión aprobada del proyecto | Frente al snapshot protegido, `project.pbxproj` suma 13 líneas y no elimina ninguna: las 12 de configuración compartida y la región `es`; el contenido previo permanece byte a byte |
 | SHA-256 del proyecto tras recursos | `b6f3b006f5693f1580c7dae1cd114beaf4fb6d23ec3769850f21836c84e35543` |
-| Alcance de entrega | Copia saneada, ADR 0012 y actualización de gobierno, fuentes, navegación, SDD y evidencia; sin código, configuración Xcode ni material docente adicional |
+| Alcance histórico del issue #7 | Copia saneada, ADR 0012 y actualización de gobierno, fuentes, navegación, SDD y evidencia; sin código, configuración Xcode ni material docente adicional |
+| Alcance actual de G0 | Reconciliación exclusiva de `docs/Progress.md`; sin producto, configuración Xcode, SDD, ADR, DocC o contrato OpenAPI |
 
 No se usó `stash`, `reset`, `clean`, pull, rebase ni sobrescritura. El snapshot temporal de control permaneció fuera del repositorio.
 
@@ -93,19 +113,21 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 - Contrato OpenAPI saneado, reproducible y enlazado entregado mediante la PR #5.
 - Configuración compartida, gate DocC y ADR 0011 entregados mediante la PR #8.
 - Icono de Icon Composer y organización de recursos entregados mediante la PR #9.
+- Enunciado saneado y ADR 0012 entregados mediante la PR #10; la privacidad se activó externamente antes del primer push de esa entrega.
 - Arquitectura feature-first, navegación local, contratos de SwiftData, autenticación/sync, WidgetKit/watchOS y DocC selectivo aprobados y auditados.
 - Separación entre `/docs`, catálogo DocC, artefactos generados y memoria privada definida.
 
 ## Siguiente trabajo
 
 1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
-2. Abrir la siguiente unidad coherente de producto antes de implementar catálogo, colección o autenticación.
+2. Tras autorización separada, abrir Catálogo C1 como primera unidad coherente de producto.
 3. Implementar producto y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
 4. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
 
 ## Estado técnico aún no alcanzado
 
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
+- No hay issue ni rama de producto activos; G0 pertenece únicamente a documentación.
 - No existen planes `Fast`, `Integration`, `UI` o `ReleaseGate` versionados.
 - No hay implementación de catálogo, colección, autenticación, sincronización, widget o watchOS.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
