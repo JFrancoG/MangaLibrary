@@ -1,7 +1,7 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-25
-**Estado general:** G0, Catálogo C1 y el contrato cromático Library Red entregados; D1 validada y en entrega
+**Estado general:** G0, Catálogo C1, el contrato cromático Library Red y D1 entregados
 
 ## D1 — frontera de logout Advanced y bridge Deluxe
 
@@ -26,7 +26,7 @@
 
 ### Estado de entrega de D1
 
-La entrega completa de D1 está autorizada y en curso mediante el issue #17. Incluye commit, push, PR, revisión, merge, cierre del issue y borrado local y remoto de la rama; la PR se registrará aquí antes de fusionar. Código de sesión, Keychain, SwiftData, outbox, App Group, WidgetKit, watchOS, entitlements, OpenAPI, colorsets, Q1 y C2 quedan fuera de D1.
+La decisión se versiona en el commit `93288f3` y se entrega mediante la [PR #18](https://github.com/JFrancoG/MangaLibrary/pull/18), cuya fusión cierra el issue #17. La entrega autorizada incluye la eliminación posterior de la rama local y remota. Código de sesión, Keychain, SwiftData, outbox, App Group, WidgetKit, watchOS, entitlements, OpenAPI, colorsets, Q1 y C2 quedan fuera de D1.
 
 ## Contrato cromático Library Red — issue #15
 
