@@ -1,7 +1,7 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-25
-**Estado general:** G0, Catálogo C1, el contrato cromático Library Red y D1 entregados; Q1 implementada localmente y pendiente de entrega
+**Estado general:** G0, Catálogo C1, el contrato cromático Library Red, D1 y Q1 entregados
 
 ## Q1 — planes de test versionados
 
@@ -28,7 +28,11 @@
 | Validación estática | Los cuatro JSON y el XML del scheme son válidos; `git diff --check`, 196 enlaces locales y el escaneo de patrones sensibles pasan; `project.pbxproj` conserva SHA-256 `b6f3b006f5693f1580c7dae1cd114beaf4fb6d23ec3769850f21836c84e35543` |
 | Revisión iOS independiente | Perfil `greenfield-xcode27`; testing, configuración, concurrencia, alcance y gobernanza revisados sin hallazgos; revisión SwiftUI/accesibilidad no aplicable porque Q1 no modifica UI |
 
-La operación MCP `RunAllTests` ignora los tests deshabilitados por un plan y, por tanto, no sirve como evidencia de cardinalidad para `Fast` o `Integration`; la combinación `GetTestList` + `RunSomeTests` sí conserva y ejecuta exactamente la selección resuelta por cada plan. Q1 queda implementada y validada localmente, pendiente solo de la entrega que el propietario autorice por separado. C2 y cualquier comportamiento nuevo de producto quedan fuera.
+La operación MCP `RunAllTests` ignora los tests deshabilitados por un plan y, por tanto, no sirve como evidencia de cardinalidad para `Fast` o `Integration`; la combinación `GetTestList` + `RunSomeTests` sí conserva y ejecuta exactamente la selección resuelta por cada plan. C2 y cualquier comportamiento nuevo de producto quedan fuera.
+
+### Estado de entrega de Q1
+
+La implementación se versiona en el commit `43424a6` y se entrega mediante la [PR #20](https://github.com/JFrancoG/MangaLibrary/pull/20), cuya fusión cierra el issue #19. La entrega autorizada incluye la eliminación posterior de la rama local y remota. C2 no se inicia como efecto lateral de este cierre.
 
 ## D1 — frontera de logout Advanced y bridge Deluxe
 
@@ -251,8 +255,8 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 ## Siguiente trabajo
 
 1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
-2. Revisar y entregar Q1 mediante el issue #19 antes de iniciar C2.
-3. Definir C2 sobre los planes versionados, sin mezclar su comportamiento de producto con Q1.
+2. Definir C2 sobre los planes versionados, sin mezclar su comportamiento de producto con Q1.
+3. Mantener la clasificación de cada suite nueva mediante su target y tag en el mismo cambio que la introduce.
 4. Implementar el producto restante y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
 5. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
 
@@ -260,7 +264,7 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
 - Catálogo C1 y la decisión normativa D1 están entregados.
-- Los planes `Fast`, `Integration`, `UI` y `ReleaseGate` están materializados, ejecutados y revisados localmente en Q1; permanecen pendientes de entrega.
+- Los planes `Fast`, `Integration`, `UI` y `ReleaseGate` están materializados, ejecutados, revisados y entregados mediante Q1.
 - C1 implementa solo la primera página pública y su detalle local; colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La única evidencia física actual es la instalación y visualización del icono en el iPhone 11 observada por el propietario. No existe todavía evidencia de accesibilidad física, Keychain, App Group, WatchConnectivity o integración live.
