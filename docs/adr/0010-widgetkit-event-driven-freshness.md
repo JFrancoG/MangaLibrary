@@ -5,6 +5,7 @@
 **Supersede:** —
 **Superseded by:** —
 **Complementa:** [ADR-0007: Puentes de datos para watchOS y WidgetKit](0007-watchos-widgetkit-and-data-bridges.md)
+**Complementado por:** [ADR-0013: Frontera de logout Advanced y bridge Deluxe](0013-advanced-logout-and-deluxe-bridge-boundary.md)
 
 ## Contexto
 

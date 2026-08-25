@@ -1,7 +1,7 @@
 # Alcance de producto y niveles
 
 - Estado: aprobado
-- Versión: 1.5
+- Versión: 1.6
 - Última revisión: 2026-08-25
 
 ## Propósito
@@ -40,6 +40,13 @@ Advanced es la primera puerta de entrega y acumula las capacidades básica, medi
 6. Adaptación funcional para iPhone y iPad.
 7. Cobertura automatizada proporcionada al riesgo mediante la estrategia híbrida del proyecto.
 
+La autenticación y el logout de Advanced se cierran dentro de la app principal:
+transición durable, invalidación local de la generación de sesión, limpieza de
+Keychain, aislamiento por usuario y recuperación. No exigen App Group,
+`SessionFence`, WidgetKit o WatchConnectivity. La [frontera de sesión](../adr/0013-advanced-logout-and-deluxe-bridge-boundary.md)
+añade esas garantías compartidas solo cuando Deluxe materializa consumidores
+externos.
+
 Advanced debe superar su puerta de aceptación antes de que Deluxe pueda considerarse iniciado o entregable.
 
 ### Deluxe
@@ -66,8 +73,9 @@ La fecha objetivo de Deluxe es anterior al 15 de septiembre de 2026. Sus puentes
 | PROD-008 | Los warnings del compilador, tests o validaciones DocC habilitadas para la entrega deben fallar la validación correspondiente. |
 | PROD-009 | DocC debe documentar selectivamente contratos, invariantes, estados, errores y efectos; no cada símbolo del proyecto. |
 | PROD-010 | Catálogo debe permanecer disponible sin sesión; autenticación se representa dentro del shell principal y no sustituye automáticamente su raíz. |
-| PROD-011 | Tras cada commit local completado o transición de sesión persistida que cambie la proyección visible de lectura, la app debe publicar el snapshot nuevo y solicitar la recarga dirigida del widget; WidgetKit decide el momento efectivo de presentación y no existe un SLA de latencia en tiempo real. |
-| PROD-012 | Logout debe cerrar y verificar de forma durable el `SessionFence` compartido antes de invalidar la sesión o borrar Keychain; si no puede hacerlo, no completa y ofrece reintento. La redacción del envelope y su reflejo visual en WidgetKit o watchOS siguen siendo eventuales. |
+| PROD-011 | Cuando exista el bridge Deluxe, tras cada commit local completado o transición de sesión persistida que cambie la proyección visible de lectura, la app debe publicar el snapshot nuevo y solicitar la recarga dirigida del widget; WidgetKit decide el momento efectivo de presentación y no existe un SLA de latencia en tiempo real. |
+| PROD-012 | Cuando exista el bridge Deluxe, logout debe cerrar y verificar de forma durable el `SessionFence` compartido antes de invalidar la sesión o borrar Keychain; si no puede hacerlo, no completa y ofrece reintento. La redacción del envelope y su reflejo visual en WidgetKit o watchOS siguen siendo eventuales. |
+| PROD-013 | Advanced debe completar logout sin red mediante invalidación local durable, activación de sesión serializada, limpieza de Keychain condicionada a la generación esperada, aislamiento por usuario e invalidación de rutas privadas, sin depender de una capacidad Deluxe ausente o ficticia. |
 
 ## Criterios de aceptación
 
@@ -81,6 +89,9 @@ Advanced se considera aceptado solo cuando existe evidencia reproducible de que:
 - la suite híbrida termina sin fallos y cubre al menos invariantes, transformaciones de transporte, autenticación y transiciones de outbox;
 - no hay dependencias externas;
 - catálogo puede abrirse antes de login y después de completar logout sin mostrar datos privados de la cuenta anterior;
+- logout invalida durablemente la generación de sesión dentro de la app, no reutiliza sus tokens tras un crash y completa la limpieza local sin depender de un bridge Deluxe;
+- un logout de A bloquea la activación concurrente de B y ningún efecto tardío de A puede borrar credenciales, rutas, datos u operaciones de una sesión posterior;
+- cancelar logout solo es válido antes de la invalidación local; después de ese punto de no retorno la recuperación completa el cierre sin reactivar la sesión;
 - la documentación DocC seleccionada valida como warnings-as-errors en el alcance que se publique.
 
 ### Puerta Deluxe
@@ -93,6 +104,8 @@ Deluxe se considera aceptado solo cuando Advanced continúa pasando y, además:
 - mutación, reconciliación, reversión, restauración o importación que cambien la proyección publican solo después del commit local completado y solicitan la recarga dirigida después de escribir el envelope; una transición de sesión solo la solicita tras persistir y verificar el fence seguro correspondiente;
 - el provider valida cada lectura mediante `SessionFence → envelope → SessionFence` y solo representa contenido cuyo epoch y sesión estén permitidos por dos lecturas idénticas del fence;
 - logout solo completa después de persistir y verificar un fence cerrado; un fallo conserva sesión y Keychain para poder reintentar, mientras una sesión nueva publica su envelope con el fence cerrado y solo lo abre y verifica al final;
+- un fence cerrado y verificado hace no cancelable la transición y obliga a completar la invalidación local Advanced y Keychain;
+- la primera incorporación del bridge parte de un fence cerrado y solo autoriza una sesión Advanced activa tras confirmación explícita de su propietario y revalidación antes de abrirlo;
 - la rotación de epoch empieza con un fence nuevo cerrado, sin exigir que el provider observe un bootstrap intermedio, y las caches ya presentadas pueden cambiar de forma eventual;
 - watchOS recibe exclusivamente un contexto autocontenido mediante `WCSession.updateApplicationContext(_:)`; cada contexto nuevo sustituye al pendiente anterior y no se promete una latencia de entrega;
 - la ausencia, antigüedad o indisponibilidad del puente de datos produce un estado explícito y no datos inventados;
@@ -124,3 +137,4 @@ Deluxe se considera aceptado solo cuando Advanced continúa pasando y, además:
 - [ADR-0012: repositorio privado y fuente docente saneada](../adr/0012-private-repository-and-sanitized-practice-source.md)
 - [ADR-0009: flujos nativos por fuente y navegación local](../adr/0009-native-source-owned-features-and-local-navigation.md)
 - [ADR-0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
+- [ADR-0013: frontera de logout Advanced y bridge Deluxe](../adr/0013-advanced-logout-and-deluxe-bridge-boundary.md)

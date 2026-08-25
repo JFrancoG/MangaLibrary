@@ -21,6 +21,7 @@ sus compromisos.
 | [0010](0010-widgetkit-event-driven-freshness.md) | Frescura dirigida por eventos para WidgetKit | Accepted | 2026-08-18 |
 | [0011](0011-bounded-xcode-app-intents-warning-exception.md) | Excepción acotada para el warning de App Intents de Xcode | Accepted | 2026-08-25 |
 | [0012](0012-private-repository-and-sanitized-practice-source.md) | Repositorio privado y fuente docente saneada | Accepted | 2026-08-25 |
+| [0013](0013-advanced-logout-and-deluxe-bridge-boundary.md) | Frontera de logout Advanced y bridge Deluxe | Accepted | 2026-08-25 |
 
 ## Inmutabilidad y supersesión
 
