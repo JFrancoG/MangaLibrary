@@ -44,7 +44,7 @@ Para resolver discrepancias, consulta [AGENTS.md](../AGENTS.md). En resumen: pet
 
 ## DocC
 
-El catálogo fuente inicial vive en `MangaLibrary/Documentation/MangaLibrary.docc/` y contiene únicamente la landing del módulo. [El gate reproducible](../Scripts/validate-docc.sh) genera `.build/docc/MangaLibrary.doccarchive`, ignorado por Git. No se genera un sitio dentro de `/docs`.
+El catálogo fuente vive en `MangaLibrary/Documentation/MangaLibrary.docc/`. Conserva una landing breve y extrae documentación selectiva de los contratos de red y carga que ya necesitan explicar validación, errores y cancelación. [El gate reproducible](../Scripts/validate-docc.sh) genera `.build/docc/MangaLibrary.doccarchive`, ignorado por Git. No se genera un sitio dentro de `/docs`.
 
 ## Privacidad
 

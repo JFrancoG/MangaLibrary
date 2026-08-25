@@ -1,16 +1,67 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-25
-**Estado general:** bootstrap técnico, recursos y enunciado saneado fusionados en `main`; repositorio privado y ninguna unidad de producto iniciada
+**Estado general:** G0 y Catálogo C1 fusionados en `main`; no hay una unidad de producto activa
+
+## Catálogo C1 — primera página pública y detalle por identidad
+
+- Tracker: [GitHub Issue #13 — Catálogo C1: cargar la primera página pública y abrir el detalle por identidad](https://github.com/JFrancoG/MangaLibrary/issues/13), cerrado mediante la PR #14, iniciada sobre `main@b6909d645a0e28b15a5b19ce935a3139b4598bb0`.
+- Rama: `codex/13-catalog-first-page-detail`, creada directamente desde esa base limpia y sincronizada.
+- El OpenAPI vivo descubierto desde `/docs` se revalidó antes de implementar: `/openapi/openapi.json` conserva SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b` y coincide con el snapshot versionado.
+- El shell mantiene tabs estables para Catálogo, Colección y Cuenta. Catálogo carga únicamente `GET /list/mangas?page=1&per=20`, representa carga, contenido, vacío y error recuperable, y abre un detalle desde el elemento ya cargado mediante `Manga.ID == Int64`, sin segunda petición.
+- La frontera compartida es un `HTTPClient` concreto, inmutable, de ámbito app e inyectado desde composición. No existe estado mutable compartido que justifique un actor de instancia ni una invariante global que justifique `@globalActor`; la carpeta se denomina `Networking`.
+- `CatalogModel` posee el estado de presentación como `@Observable @MainActor`. Las Views, que son structs declarativas, no llevan `@MainActor` explícito y construyen su `@State` macro mediante asignación directa.
+- `CatalogFixtureScenario` localiza de forma segura el valor posterior a `-catalog-fixture`. Un flag sin valor, inválido o solicitado fuera de Debug falla cerrado y nunca deriva a tráfico live.
+- Portadas, localización española e inglesa, previews y composición de UI tests son deterministas. Tests y previews no contactan producción.
+
+### RED / GREEN de C1
+
+- RED inicial: `BuildProject(buildForTesting: true)` falló por la ausencia de `CatalogPageRequest` y `CatalogPage`, antes de añadir producción.
+- GREEN: transporte HTTP, request exacta, decodificación y mapeo, vocabulario cerrado, cancelación, retry, respuestas tardías, selección y detalle quedaron implementados solo hasta satisfacer las caracterizaciones.
+- RED adicionales reprodujeron y cerraron el rechazo de credenciales embebidas en la URL base, el saneamiento de URL de portada y el comportamiento cerrado de los fixtures de lanzamiento.
+- Una última RED de auditoría demostró que el modelo no conservaba la categoría del fallo. GREEN traduce construcción/transporte a `unavailable`, mantiene decodificación y duplicados como `contractDrift`, propaga cancelación y no retiene body, URL ni error subyacente.
+- La UI smoke recorre shell, contenido, detalle y tabs con una composición local, y comprueba que la ruta de detalle de Catálogo sobrevive al cambio temporal de tab.
+
+### Validación técnica final de C1
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Xcode MCP — proyecto y destino | `MangaLibrary.xcodeproj`, scheme `MangaLibrary`, plan implícito `MangaLibrary`, Xcode 27 build `27A5252f`, Swift 6.4 e iOS 27 |
+| Xcode MCP — `BuildProject(buildForTesting: true)` | Snapshot final aprobado en iPhone 17 en 2,274 s, sin errores; Issue Navigator y build log contienen cero warnings estructurados |
+| Xcode MCP — suite completa en iPhone 17 | 30/30 pruebas aprobadas: 29 Swift Testing y 1 XCUITest; cero fallos, skips, expected failures o tests no ejecutados |
+| Xcode MCP — smoke en iPad Air 11-inch (M4) | 1/1 aprobado sobre el snapshot final, incluido detalle y conservación de ruta entre tabs |
+| Previews Xcode | Inspeccionadas carga, contenido, vacío, error, detalle, shell iPad y portada ausente/fallida; Large, XXX Large, AX5, inglés, español, modo oscuro y contraste aumentado |
+| Localización | `Localizable.xcstrings` válido; 17 claves visibles traducidas en inglés y español, sin estados new, needs review o machine translated |
+| `Scripts/validate-docc.sh` | 8/8 escenarios del clasificador; `docbuild` Release para iOS genérico aprobado y `.doccarchive` regenerado con warnings DocC como errores |
+| ADR 0011 | Exactamente una emisión externa autorizada en `27A5252f`; cero warnings de Swift, Clang o DocC. La excepción no acredita Advanced |
+| Integridad y alcance | `git diff --check` limpio; `project.pbxproj` sin diff y SHA-256 `b6f3b006f5693f1580c7dae1cd114beaf4fb6d23ec3769850f21836c84e35543`; catálogo JSON válido |
+| Enlaces y privacidad | 163 enlaces Markdown locales sin roturas; cero rutas privadas, correos reales o secretos plausibles. Dos credenciales sintéticas bajo `example.test` ejercitan exclusivamente tests negativos |
+| Revisión SwiftUI/accesibilidad independiente | Sin hallazgos tras cerrar headings, contraste y preview de fallo; el recorrido manual con tecnologías de asistencia y restauración real de foco queda pendiente |
+| Revisión iOS independiente | Sin hallazgos tras cerrar composición, seguridad de URL, fixtures fail-closed, persistencia de navegación y taxonomía segura de errores |
+
+### Alcance excluido de C1
+
+- Página 2, paginación incremental, grid, búsqueda, filtros y ordenación.
+- SwiftData, colección, favoritos, outbox, autenticación, Keychain, sesión y sincronización.
+- `/search/manga/{id}`, escrituras o pruebas funcionales contra el backend.
+- Repositories, use cases, stores, protocolos ceremoniales, actor compartido y `@globalActor`.
+- Dependencias externas, cliente OpenAPI generado, `.xctestplan`, WidgetKit, watchOS, App Groups y entitlements.
+- Cambios en `project.pbxproj`, scheme, `Shared.xcconfig`, SDD, ADR o snapshot OpenAPI.
+- Advanced Release Gate completo, presentación, vídeo y siguiente unidad.
+
+### Estado de entrega de C1
+
+La implementación, los gates técnicos locales y las revisiones independientes están cerrados sin hallazgos. El commit principal `048c7ab` se entregó mediante la PR #14, cuya fusión cerró el issue #13; la rama `codex/13-catalog-first-page-detail` se eliminó local y remotamente como parte del cierre autorizado.
 
 ## Reconciliación G0 posterior a la PR #10
 
 - Tracker: [GitHub Issue #11 — Reconciliar Progress tras la PR #10](https://github.com/JFrancoG/MangaLibrary/issues/11).
 - Antes de abrir G0, GitHub no tenía issues ni pull requests abiertas; tampoco existía una unidad de producto activa.
 - `main`, `origin/main` y su merge-base coincidían en `051a03f895ef55b5fe940574a0fcf5521b9a74bb`, merge de la PR #10, con el worktree limpio.
-- La rama de trabajo `codex/11-reconcile-progress-pr-10` se creó directamente desde esa base y el alcance de G0 queda limitado a este documento.
+- La rama de trabajo `codex/11-reconcile-progress-pr-10` se creó directamente desde esa base y el alcance de G0 quedó limitado a este documento.
 - El repositorio continúa `PRIVATE` por el cambio de visibilidad realizado antes del primer push del issue #7. Los issues #1, #3, #4, #6 y #7 están cerrados y las PR #2, #5, #8, #9 y #10 fusionadas.
 - G0 no ejecuta ni acredita TDD, build, tests, DocC o una nueva validación Xcode porque no cambia código, configuración ni comportamiento de producto.
+- G0 se entregó mediante la PR #12, fusionada en `b6909d645a0e28b15a5b19ce935a3139b4598bb0`; el issue #11 está cerrado.
 
 ### Validación de G0
 
@@ -48,7 +99,7 @@
 
 | Evidencia | Estado |
 | --- | --- |
-| Entregas anteriores | Issue #1 por PR #2, merge `eb340b3`; OpenAPI por PR #5, merge `5ebdcb6`; gate Xcode 27/DocC por PR #8, merge `7522977`; icono y recursos por PR #9, merge `0a30fac`; enunciado saneado y ADR 0012 por PR #10, merge `051a03f` |
+| Entregas anteriores | Issue #1 por PR #2, merge `eb340b3`; OpenAPI por PR #5, merge `5ebdcb6`; gate Xcode 27/DocC por PR #8, merge `7522977`; icono y recursos por PR #9, merge `0a30fac`; enunciado saneado y ADR 0012 por PR #10, merge `051a03f`; G0 por PR #12, merge `b6909d6` |
 | Base verificada al iniciar G0 | `main`, `origin/main` y merge-base limpios y coincidentes en `051a03f` antes de crear la rama del issue #11 |
 | Rama de trabajo de G0 | `codex/11-reconcile-progress-pr-10`, creada directamente desde `051a03f` |
 | Base histórica del issue #7 | La rama del issue #7 avanzó de forma fast-forward a `origin/main` en `0a30fac` después de verificar el archive externo, sin pull ni rebase |
@@ -58,7 +109,8 @@
 | Extensión aprobada del proyecto | Frente al snapshot protegido, `project.pbxproj` suma 13 líneas y no elimina ninguna: las 12 de configuración compartida y la región `es`; el contenido previo permanece byte a byte |
 | SHA-256 del proyecto tras recursos | `b6f3b006f5693f1580c7dae1cd114beaf4fb6d23ec3769850f21836c84e35543` |
 | Alcance histórico del issue #7 | Copia saneada, ADR 0012 y actualización de gobierno, fuentes, navegación, SDD y evidencia; sin código, configuración Xcode ni material docente adicional |
-| Alcance actual de G0 | Reconciliación exclusiva de `docs/Progress.md`; sin producto, configuración Xcode, SDD, ADR, DocC o contrato OpenAPI |
+| Alcance histórico de G0 | Reconciliación exclusiva de `docs/Progress.md`; sin producto, configuración Xcode, SDD, ADR, DocC o contrato OpenAPI |
+| Base y rama históricas de C1 | `main@b6909d6`; `codex/13-catalog-first-page-detail` para el issue #13 y la PR #14 |
 
 No se usó `stash`, `reset`, `clean`, pull, rebase ni sobrescritura. El snapshot temporal de control permaneció fuera del repositorio.
 
@@ -71,7 +123,7 @@ No se usó `stash`, `reset`, `clean`, pull, rebase ni sobrescritura. El snapshot
 - `MangaLibrary/Resources/InfoPlist.xcstrings` registra inglés y español. `CFBundleDisplayName` conserva `Manga Library` en ambos idiomas por decisión de producto; `CFBundleName` conserva el valor técnico `MangaLibrary` en ambos.
 - No se creó ningún `.xctestplan`. Xcode muestra su plan implícito autocreado `MangaLibrary`, que no sustituye los futuros planes `Fast`, `Integration`, `UI` y `ReleaseGate`.
 
-## Validación ejecutada
+## Validación histórica acumulada hasta G0
 
 | Herramienta y acción | Resultado |
 | --- | --- |
@@ -79,7 +131,7 @@ No se usó `stash`, `reset`, `clean`, pull, rebase ni sobrescritura. El snapshot
 | Xcode MCP — build settings de los tres targets | Swift 6, iOS 27, iPhone/iPad, concurrencia `complete`, aislamiento `nonisolated` y warnings Swift/Clang como errores |
 | `Scripts/validate-docc.sh` — matriz 3 targets × 2 configuraciones | Los cinco ajustes compartidos evaluaron al valor exigido en Debug y Release |
 | Clasificador de diagnósticos — 8 escenarios sintéticos | Cero y una emisión exacta pasan; dos exactas, warning o error adicional, severidad modificada, dos diagnósticos en una línea y build distinto fallan con la clasificación esperada |
-| Xcode MCP — `BuildProject(buildForTesting: true)` | Debug con el catálogo final completado en 0,592 s; cero errores y cero warnings estructurados por MCP. El full log conserva tres emisiones del diagnóstico externo descrito debajo, una por target |
+| Xcode MCP — `BuildProject(buildForTesting: true)` | Debug con los catálogos DocC y de recursos completado en 0,592 s; cero errores y cero warnings estructurados por MCP. El full log conserva tres emisiones del diagnóstico externo descrito debajo, una por target |
 | Producto compilado — localizaciones Info.plist | Xcode compiló el catálogo y copió `en.lproj/InfoPlist.strings` y `es.lproj/InfoPlist.strings`; ambos resuelven `CFBundleDisplayName` a `Manga Library` |
 | Xcode MCP — smoke Swift Testing | `MangaLibraryTests/example()` pasó: 1 ejecutado, 1 aprobado, 0 fallos |
 | Xcode 27 CLI — `build-for-testing`, Release, iPhone 17 Pro / iOS 27.0 | Exit 0; el full log contiene el mismo diagnóstico externo tres veces, una por target; DerivedData temporal eliminado después de validar |
@@ -114,22 +166,25 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 - Configuración compartida, gate DocC y ADR 0011 entregados mediante la PR #8.
 - Icono de Icon Composer y organización de recursos entregados mediante la PR #9.
 - Enunciado saneado y ADR 0012 entregados mediante la PR #10; la privacidad se activó externamente antes del primer push de esa entrega.
+- Reconciliación documental G0 entregada mediante la PR #12; issue #11 cerrado.
+- Primera página pública de Catálogo y detalle local entregados mediante la PR #14; issue #13 cerrado.
 - Arquitectura feature-first, navegación local, contratos de SwiftData, autenticación/sync, WidgetKit/watchOS y DocC selectivo aprobados y auditados.
 - Separación entre `/docs`, catálogo DocC, artefactos generados y memoria privada definida.
 
 ## Siguiente trabajo
 
 1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
-2. Tras autorización separada, abrir Catálogo C1 como primera unidad coherente de producto.
-3. Implementar producto y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
-4. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
+2. Definir y aprobar el alcance de la siguiente unidad de Catálogo antes de abrir su issue o rama.
+3. No iniciar esa unidad como efecto lateral del cierre de C1.
+4. Implementar el producto restante y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
+5. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
 
 ## Estado técnico aún no alcanzado
 
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
-- No hay issue ni rama de producto activos; G0 pertenece únicamente a documentación.
+- Catálogo C1 está entregado y no existe otra unidad de producto activa.
 - No existen planes `Fast`, `Integration`, `UI` o `ReleaseGate` versionados.
-- No hay implementación de catálogo, colección, autenticación, sincronización, widget o watchOS.
+- C1 implementa solo la primera página pública y su detalle local; colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La única evidencia física actual es la instalación y visualización del icono en el iPhone 11 observada por el propietario. No existe todavía evidencia de accesibilidad física, Keychain, App Group, WatchConnectivity o integración live.
 - No se ha autorizado publicación DocC ni GitHub Pages.

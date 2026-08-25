@@ -1,0 +1,125 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Account" : {
+      "comment" : "Title of the account tab and its navigation destination.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Account" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cuenta" } }
+      }
+    },
+    "Account arrives in a later Advanced unit." : {
+      "comment" : "Explanation shown while the account feature is intentionally unavailable.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Account arrives in a later Advanced unit." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "La cuenta llegará en una unidad posterior de Advanced." } }
+      }
+    },
+    "Account is not available yet" : {
+      "comment" : "Temporary unavailable state title for the account tab.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Account is not available yet" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "La cuenta aún no está disponible" } }
+      }
+    },
+    "Catalog" : {
+      "comment" : "Title of the public manga catalog tab and screen.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Catalog" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Catálogo" } }
+      }
+    },
+    "Check your connection and try again." : {
+      "comment" : "Recovery guidance after the first catalog page fails.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Check your connection and try again." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Comprueba tu conexión e inténtalo de nuevo." } }
+      }
+    },
+    "Choose a manga from the catalog to see its details." : {
+      "comment" : "Guidance in the empty detail column before a catalog selection.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose a manga from the catalog to see its details." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Elige un manga del catálogo para ver sus detalles." } }
+      }
+    },
+    "Collection" : {
+      "comment" : "Title of the collection tab and its navigation destination.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Collection" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Colección" } }
+      }
+    },
+    "Collection arrives in a later Advanced unit." : {
+      "comment" : "Explanation shown while the collection feature is intentionally unavailable.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Collection arrives in a later Advanced unit." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "La colección llegará en una unidad posterior de Advanced." } }
+      }
+    },
+    "Collection is not available yet" : {
+      "comment" : "Temporary unavailable state title for the collection tab.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Collection is not available yet" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "La colección aún no está disponible" } }
+      }
+    },
+    "Couldn't load the catalog" : {
+      "comment" : "Recoverable error title for the initial catalog request.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn't load the catalog" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "No se pudo cargar el catálogo" } }
+      }
+    },
+    "Loading catalog" : {
+      "comment" : "Progress label while the first catalog page loads.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading catalog" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cargando catálogo" } }
+      }
+    },
+    "No manga were returned for this page." : {
+      "comment" : "Explanation for an empty successful first catalog page.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No manga were returned for this page." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "No se devolvió ningún manga para esta página." } }
+      }
+    },
+    "Retry" : {
+      "comment" : "Button that retries the failed first catalog request.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Retry" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Reintentar" } }
+      }
+    },
+    "Score" : {
+      "comment" : "Label for a manga's average user score.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Score" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Puntuación" } }
+      }
+    },
+    "Select a manga" : {
+      "comment" : "Title shown in the detail column before a catalog selection.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Select a manga" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Selecciona un manga" } }
+      }
+    },
+    "Synopsis" : {
+      "comment" : "Heading for the synopsis section on manga detail.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Synopsis" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Sinopsis" } }
+      }
+    },
+    "The catalog is empty" : {
+      "comment" : "Title for a successful first catalog page with no manga.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The catalog is empty" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "El catálogo está vacío" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}
