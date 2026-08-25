@@ -1,7 +1,32 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-25
-**Estado general:** G0 y Catálogo C1 fusionados en `main`; no hay una unidad de producto activa
+**Estado general:** G0, Catálogo C1 y el contrato cromático Library Red entregados; sin una unidad de producto activa
+
+## Contrato cromático Library Red — issue #15
+
+- Tracker: [GitHub Issue #15 — Documentar el contrato cromático Library Red](https://github.com/JFrancoG/MangaLibrary/issues/15), cerrado mediante la [PR #16](https://github.com/JFrancoG/MangaLibrary/pull/16) después de comprobar que no existía un issue duplicado.
+- Rama: `codex/15-brand-palette-contract`, creada desde `main@884dd6c3dfdd98a1b37e5ab66329cad7a8c4615c`, limpio y sincronizado con `origin/main`, y eliminada local y remotamente tras la fusión.
+- [`docs/design/brand-palette.md`](design/brand-palette.md) define significado, política de uso, accesibilidad y límites. [`docs/design/library-color-tokens.json`](design/library-color-tokens.json) es la autoridad exacta de versión, valores, roles, modos, umbrales y parejas.
+- SDD 06 enlaza el contrato y difiere colorsets, código y tests a una unidad RED/GREEN posterior. La procedencia coordinada con ScienceLibrary no se convierte en una invariante entre repositorios.
+- La revisión de fuentes corrigió la atribución normativa: WCAG2ICT es una Group Note informativa y WCAG2Mobile una Group Draft Note; ninguna define conformidad para una app nativa. También distingue los `44 × 44 pt` predeterminados de Apple de su mínimo `28 × 28 pt` y limita lo que demuestra la matriz del indicador de foco.
+- El Markdown genérico y el HTML visual se archivaron en documentación privada fuera de Git. El archive DocC regenerable de 72 MB y el residuo temporal literal de 52 KB se retiraron del workspace y permanecen recuperables en la Papelera hasta que se vacíe.
+
+### Validación del contrato cromático
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Git, GitHub y Xcode MCP — preflight | Repositorio privado; `main` limpio y sincronizado antes de abrir el issue; sin issues ni PR abiertos; Xcode observa `MangaLibrary.xcodeproj`, scheme y plan `MangaLibrary`, destino físico iPhone 11 con iOS 27 |
+| Apple y W3C — fuentes primarias | HIG Color/Accessibility/Dark Mode, Asset Catalog, SwiftUI `ColorSchemeContrast`, WCAG 2.2, WCAG2ICT y WCAG2Mobile contrastados el 25 de agosto de 2026 |
+| JSON y recálculo independiente | JSON válido; 4 modos, 22 colores por modo, 29 roles y 56 parejas por modo, 224 en total; todos los ratios superan sus umbrales sin redondeo previo |
+| Correspondencia humana/máquina | Los 88 pares OKLCH/HEX del Markdown coinciden exactamente con el JSON; la conversión independiente de cada OKLCH reproduce su HEX cuantizado y confirma que todos quedan dentro de sRGB; los cuatro peores casos recalculados reproducen `4.735`, `5.022`, `7.046` y `7.429` para texto |
+| Enlaces y privacidad | 174 enlaces Markdown locales sin roturas; los archivos nuevos no contienen rutas privadas, cuentas, correos, credenciales ni secretos |
+| Integridad | `git diff --check` limpio; `project.pbxproj` sin diff y con SHA-256 `b6f3b006f5693f1580c7dae1cd114beaf4fb6d23ec3769850f21836c84e35543` |
+| TDD y gates Xcode | No aplican: la unidad cambia exclusivamente documentación y datos de diseño; no modifica código, Assets, configuración, proyecto ni comportamiento ejecutable |
+
+### Estado de entrega del issue #15
+
+El contrato queda versionado en el commit `1ab880c` y se entrega mediante la PR #16, cuya fusión cierra el issue #15. La entrega autorizada incluye la eliminación posterior de la rama local y remota. Colorsets, `AccentColor`, tests de assets y cualquier adopción visual quedan fuera de esta unidad.
 
 ## Catálogo C1 — primera página pública y detalle por identidad
 
