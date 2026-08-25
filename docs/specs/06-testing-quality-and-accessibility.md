@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.5
-**Fecha:** 2026-08-24
+**Versión:** 1.6
+**Fecha:** 2026-08-25
 
 ## Propósito
 
@@ -102,6 +102,17 @@ Se inyectarán pérdida o corrupción de contador, overflow, disco lleno y carre
 - DocC se validará con warnings como errores.
 - Un warning de una dependencia o herramienta se atribuirá a su origen; no se presentará como un defecto corregido del código propio ni se suprimirá sin decisión explícita.
 
+ADR 0011 acepta durante el bootstrap una única firma externa de
+`appintentsmetadataprocessor` en Xcode build `27A5252f`. La excepción fija
+productor, severidad, mensaje, cantidad y build; cualquier deriva falla. No
+filtra la salida, no añade App Intents y no permite warnings de Swift, Clang o
+DocC. Cero diagnósticos pasa sin excepción. Si el warning persiste al cambiar de
+beta, RC o versión estable, el gate falla hasta una nueva decisión explícita.
+
+La excepción permite integrar la configuración reproducible, pero no satisface
+por sí sola el Advanced Release Gate: una candidata Advanced mantiene el
+requisito de build limpio y cero warnings.
+
 La política común se materializa en `Configuration/Shared.xcconfig`, conectada a Debug y Release a nivel de proyecto para que la hereden todos los targets actuales y futuros. `Scripts/validate-docc.sh` comprueba los valores efectivos de app, unit tests y UI tests en ambas configuraciones antes de construir documentación.
 
 ## Calidad de producto
@@ -148,5 +159,6 @@ Un simulador no sustituye evidencia física cuando la capacidad dependa de hardw
 - [ADR 0001: toolchain, plataforma y warnings](../adr/0001-toolchain-platform-and-warning-policy.md)
 - [ADR 0005: estrategia híbrida de testing](../adr/0005-hybrid-testing-strategy.md)
 - [ADR 0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
+- [ADR 0011: excepción acotada para el warning de App Intents](../adr/0011-bounded-xcode-app-intents-warning-exception.md)
 - [Documentación y DocC](07-documentation-and-docc.md)
 - [ADR 0009: flujos nativos por fuente y navegación local](../adr/0009-native-source-owned-features-and-local-navigation.md)

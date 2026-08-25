@@ -4,9 +4,9 @@ Manga Library es una aplicación SwiftUI local-first para explorar un catálogo 
 
 ## Estado
 
-El repositorio está en su bootstrap técnico. La gobernanza, la arquitectura y el alcance están aprobados; la configuración compartida y el gate DocC están materializados en la rama activa, aunque el gate permanece abierto por un warning externo del toolchain. Las funcionalidades de catálogo, colección, autenticación, sincronización, widget y watchOS todavía no están implementadas.
+El repositorio está en su bootstrap técnico. La gobernanza, la arquitectura, el alcance y el contrato OpenAPI están aprobados; la configuración compartida y el gate DocC están materializados y validados. Un warning externo de Xcode beta queda admitido solo por la excepción exacta y temporal de [ADR 0011](docs/adr/0011-bounded-xcode-app-intents-warning-exception.md); el Advanced Release Gate continúa exigiendo un build limpio. Las funcionalidades de catálogo, colección, autenticación, sincronización, widget y watchOS todavía no están implementadas.
 
-Trabajo activo: [issue #3 — Materializar warnings-as-errors y el gate DocC reproducible](https://github.com/JFrancoG/MangaLibrary/issues/3).
+Siguiente unidad preparada: [issue #6 — Adoptar el icono de Manga Library y organizar los recursos del target](https://github.com/JFrancoG/MangaLibrary/issues/6).
 
 ## Objetivo de entrega
 
@@ -48,6 +48,8 @@ El gate DocC selecciona su propio Xcode sin cambiar `xcode-select`, comprueba la
 ```
 
 Si Xcode 27 no está en la ubicación predeterminada del script, se puede indicar su Developer directory mediante `MANGALIBRARY_DEVELOPER_DIR`. El estado actual aún no constituye una candidata Advanced ni Deluxe.
+
+El gate falla ante cualquier warning o error salvo la única firma externa acotada por ADR 0011 para Xcode build `27A5252f`. Una actualización del toolchain que todavía la emita exige una nueva decisión; si desaparece, el gate pasa sin usar la excepción.
 
 ## Privacidad
 
