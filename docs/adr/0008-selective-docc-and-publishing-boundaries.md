@@ -1,9 +1,9 @@
 # ADR-0008: DocC selectivo y límites de publicación
 
-**Estado:** Accepted
+**Estado:** Superseded
 **Fecha:** 2026-08-17
 **Supersede:** —
-**Superseded by:** —
+**Superseded by:** [ADR-0012](0012-private-repository-and-sanitized-practice-source.md)
 
 ## Contexto
 

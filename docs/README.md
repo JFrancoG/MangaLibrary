@@ -1,6 +1,6 @@
 # Documentación de Manga Library
 
-Este directorio contiene la documentación humana, pública y versionada. No es la salida de DocC ni un almacén de notas privadas.
+Este directorio contiene la documentación humana versionada dentro del repositorio privado. No es la salida de DocC ni un almacén de notas privadas.
 
 ## Autoridad
 
@@ -26,13 +26,17 @@ Para resolver discrepancias, consulta [AGENTS.md](../AGENTS.md). En resumen: pet
 - [Snapshot OpenAPI canónico y sanitizado](../Contracts/OpenAPI/openapi.json)
 - [Checksum SHA-256](../Contracts/OpenAPI/SHA256SUMS)
 
+### Fuentes versionadas
+
+- [Enunciado completo saneado de la práctica](sources/Practica_Mis_Mangas_SDP_2026.md)
+- [Autoridad, procedencia y límites de uso](Sources.md)
+
 ### Decisiones y estado
 
 - [Índice de ADR](adr/README.md)
 - [Progreso y evidencia](Progress.md)
-- [Fuentes y límites de uso](Sources.md)
 
-### Entrega pública
+### Material de entrega
 
 - [Outline de presentación](presentation/outline.md)
 - [Guía de vídeo](video/README.md)
@@ -44,4 +48,4 @@ El catálogo fuente inicial vive en `MangaLibrary/Documentation/MangaLibrary.doc
 
 ## Privacidad
 
-Notas de orador, ensayos, logs de grabación, rutas locales y material docente permanecen fuera de este repositorio. GitHub Issues es el tracker operativo; este directorio conserva la verdad normativa y la evidencia durable.
+Notas de orador, ensayos, logs de grabación, rutas locales y material docente no aprobado permanecen fuera del repositorio. El enunciado saneado es la única fuente docente completa versionada; el original exacto sigue fuera de Git. GitHub Issues es el tracker operativo y este directorio conserva la verdad normativa y la evidencia durable.

@@ -1,8 +1,8 @@
 # SDD 08: Entrega, presentación y vídeo
 
 **Estado:** Aprobada
-**Versión:** 1.3
-**Fecha:** 2026-08-18
+**Versión:** 1.4
+**Fecha:** 2026-08-25
 **Fecha objetivo de entrega:** 2026-09-15
 
 ## Propósito
@@ -42,7 +42,7 @@ El mecanismo de entrega final —por ejemplo, plataforma docente o carpeta compa
 
 Una desviación actualizará progreso, riesgo y siguiente decisión; no rebajará silenciosamente un criterio de aceptación. Advanced se valida antes de empezar Deluxe.
 
-## Presentación pública
+## Presentación de entrega
 
 `docs/presentation/outline.md` mantendrá el relato versionable:
 
@@ -56,7 +56,7 @@ Una desviación actualizará progreso, riesgo y siguiente decisión; no rebajar�
 
 La presentación final podrá generarse con una herramienta externa, pero el outline y las afirmaciones verificables permanecerán en Git.
 
-## Vídeo público
+## Vídeo de entrega
 
 `docs/video/storyboard.md` describirá una grabación corta y repetible. El vídeo:
 
@@ -71,12 +71,13 @@ La presentación final podrá generarse con una herramienta externa, pero el out
 
 Los binarios de vídeo, proyectos de edición y capturas sin revisar no se versionarán.
 
-## Obsidian público y privado
+## Git versionado y espacio privado
 
-- La raíz Git será el vault público; `/.obsidian/` permanecerá ignorado.
-- Specs, ADR, progreso, outline, storyboard y evidencia publicable vivirán en el repositorio.
+- La raíz Git será el vault versionado dentro del repositorio privado; `/.obsidian/` permanecerá ignorado.
+- Specs, ADR, progreso, fuentes saneadas aprobadas, outline, storyboard y evidencia de entrega vivirán en el repositorio.
 - Notas de orador, ensayos, logs de grabación, inventario de assets, rutas de fuentes y checklist personal vivirán fuera del repositorio en el espacio privado de Obsidian.
 - No se guardarán secretos reales ni siquiera en el vault privado.
+- Cambiar la visibilidad, redistribuir material o ampliar accesos requiere autorización separada.
 
 El espacio privado ayuda a trabajar, pero GitHub Issues y los documentos versionados son la fuente operativa y normativa.
 
@@ -95,9 +96,9 @@ El espacio privado ayuda a trabajar, pero GitHub Issues y los documentos version
 - La demo recorre los niveles Básico, Medio, Avanzado y Deluxe de forma coherente.
 - La demo explica «tiempo real» como publicación por evento sin prometer una latencia máxima ni ocultar que WidgetKit decide la presentación efectiva.
 - La presentación explica configuración estática, epoch/revisión, doble lectura del `SessionFence`, portadas inmutables y recuperación de logout sin fingir una redacción visual instantánea.
-- Todo material público ha pasado una revisión de secretos, privacidad y afirmaciones.
+- Todo material compartido ha pasado una revisión de secretos, privacidad y afirmaciones.
 - El mecanismo de entrega y los enlaces finales quedan registrados una vez confirmados externamente.
-- El repositorio no contiene notas privadas, fuentes docentes completas ni binarios pesados no aprobados.
+- El repositorio no contiene notas privadas, fuentes docentes completas no aprobadas ni binarios pesados no aprobados.
 - La entrega se prepara el 14 de septiembre y conserva el 15 como margen, salvo cambio explícito documentado.
 
 ## Decisiones relacionadas
@@ -106,5 +107,5 @@ El espacio privado ayuda a trabajar, pero GitHub Issues y los documentos version
 - [Deluxe, watchOS y widget](05-deluxe-watch-and-widget.md)
 - [Testing, calidad y accesibilidad](06-testing-quality-and-accessibility.md)
 - [Documentación y DocC](07-documentation-and-docc.md)
-- [ADR 0008](../adr/0008-selective-docc-and-publishing-boundaries.md)
+- [ADR 0012](../adr/0012-private-repository-and-sanitized-practice-source.md)
 - [ADR 0010](../adr/0010-widgetkit-event-driven-freshness.md)

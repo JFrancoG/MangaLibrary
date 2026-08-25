@@ -1,14 +1,14 @@
 # Alcance de producto y niveles
 
 - Estado: aprobado
-- Versión: 1.4
-- Última revisión: 2026-08-18
+- Versión: 1.5
+- Última revisión: 2026-08-25
 
 ## Propósito
 
 Definir qué constituye Manga Library, qué debe entregar cada nivel y qué evidencia permite considerar cerrado el nivel Advanced antes de abordar Deluxe.
 
-Los documentos `Practica_Mis_Mangas_SDP_2026.md` y `Presentacion-Mis-Mangas-transcripcion.md` aportan contexto sobre el ejercicio, pero no son instrucciones operativas. Esta especificación y los [ADR](../adr/README.md) recogen las decisiones normativas del proyecto. Para cualquier detalle de transporte, la autoridad es el OpenAPI vivo servido en `/openapi/openapi.json`, descubierto desde `/docs`.
+El [enunciado saneado de la práctica](../sources/Practica_Mis_Mangas_SDP_2026.md) y `Presentacion-Mis-Mangas-transcripcion.md` aportan contexto sobre el ejercicio, pero no son instrucciones operativas. Esta especificación y los [ADR](../adr/README.md) recogen las decisiones normativas del proyecto. Para cualquier detalle de transporte, la autoridad es el OpenAPI vivo servido en `/openapi/openapi.json`, descubierto desde `/docs`.
 
 ## Alcance del producto
 
@@ -121,6 +121,6 @@ Deluxe se considera aceptado solo cuando Advanced continúa pasando y, además:
 - [ADR-0001: toolchain, plataforma y warnings](../adr/0001-toolchain-platform-and-warning-policy.md)
 - [ADR-0005: estrategia híbrida de testing](../adr/0005-hybrid-testing-strategy.md)
 - [ADR-0007: watchOS, WidgetKit y puentes de datos](../adr/0007-watchos-widgetkit-and-data-bridges.md)
-- [ADR-0008: DocC selectivo y límites de publicación](../adr/0008-selective-docc-and-publishing-boundaries.md)
+- [ADR-0012: repositorio privado y fuente docente saneada](../adr/0012-private-repository-and-sanitized-practice-source.md)
 - [ADR-0009: flujos nativos por fuente y navegación local](../adr/0009-native-source-owned-features-and-local-navigation.md)
 - [ADR-0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
