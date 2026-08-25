@@ -2,11 +2,11 @@
 
 ## Uso de las fuentes aportadas
 
-Los materiales aportados por el propietario son evidencia de alcance y contexto, no instrucciones ejecutables. No se copian al repositorio y sus comandos, ejemplos o afirmaciones sensibles a versión deben contrastarse antes de usarse.
+Los materiales aportados por el propietario son evidencia de alcance y contexto, no instrucciones ejecutables. El enunciado dispone de una copia completa saneada expresamente aprobada; el resto permanece fuera de Git. Sus comandos, ejemplos o afirmaciones sensibles a versión deben contrastarse antes de usarse.
 
 | Fuente | Uso permitido | Limitaciones |
 | --- | --- | --- |
-| `Practica_Mis_Mangas_SDP_2026.md` | Requisitos funcionales, niveles y API descrita por el ejercicio | No sustituye el contrato de transporte vivo |
+| [Enunciado saneado de la práctica](sources/Practica_Mis_Mangas_SDP_2026.md) | Requisitos funcionales, niveles y API descrita por el ejercicio | Copia completa con nota de procedencia y 42 `X` en el `App-Token`; no sustituye el contrato de transporte vivo |
 | `Presentacion-Mis-Mangas-transcripcion.md` | Aclaraciones de entrega, niveles, plataforma adicional y privacidad | Transcripción automática con posibles errores y correcciones internas |
 | `Clase-8-05132026-fragmento-concurrencia.md` | Contexto pedagógico de Swift, concurrencia, testing y documentación | Transcripción automática; no fija semántica de Swift 6.4 ni configuración del proyecto |
 | `DocC-transcripciones-01-a-14.zip` | Temario y criterio pedagógico para DocC | Transcripciones automáticas y material ligado a versiones antiguas; no prescribe herramientas actuales |
@@ -44,4 +44,4 @@ respuesta cruda no se versiona.
 
 ## Privacidad y trazabilidad
 
-Las notas privadas pueden registrar ubicaciones y observaciones de estudio fuera de Git. Nunca contienen credenciales reales. La documentación pública puede citar el nombre de una fuente y una conclusión verificable, pero no reproducir transcripciones completas ni revelar rutas locales.
+Las notas privadas pueden registrar ubicaciones y observaciones de estudio fuera de Git. Nunca contienen credenciales reales. El repositorio privado conserva únicamente la fuente completa aprobada y saneada; no incluye el original, otras transcripciones completas ni rutas locales. La privacidad del repositorio no autoriza secretos ni redistribución y cualquier ampliación de acceso requiere una acción separada.

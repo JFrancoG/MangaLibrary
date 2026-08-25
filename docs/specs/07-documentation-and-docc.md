@@ -1,7 +1,7 @@
 # SDD 07: Documentación y DocC
 
 **Estado:** Aprobada
-**Versión:** 1.2
+**Versión:** 1.3
 **Fecha:** 2026-08-25
 
 ## Propósito
@@ -14,13 +14,26 @@ Cada superficie tiene un único cometido:
 
 | Superficie | Contenido | Versionado en `main` |
 | --- | --- | --- |
-| `/docs` | SDD, ADR, progreso, fuentes y material público de entrega | Sí |
+| `/docs` | SDD, ADR, progreso, fuentes saneadas aprobadas y material de entrega | Sí |
 | Comentarios `///` | Contrato de un símbolo en Quick Help | Sí |
 | `MangaLibrary/Documentation/MangaLibrary.docc/` | Landing, extensiones y artículos seleccionados | Sí |
 | `.build/docc/MangaLibrary.doccarchive` | Resultado generado del gate | No |
 | Sitio estático | Artefacto de publicación | No en `/docs` ni en `main` |
 
 Las SDD y ADR son normativas. DocC explica uso y comportamiento de símbolos; enlaza el conocimiento transversal sin copiar las decisiones completas.
+
+## Fuentes versionadas
+
+`docs/sources/` puede contener una fuente completa solo mediante aprobación
+explícita, saneamiento verificable y una frontera de publicación aceptada. El
+enunciado de la práctica es la única excepción actual: añade una nota de
+procedencia y sustituye los 42 caracteres del valor demostrativo de `App-Token`
+por 42 `X`. El original exacto permanece fuera de Git.
+
+Una fuente docente aporta requisitos o contexto, nunca instrucciones
+operativas. Para transporte HTTP manda el OpenAPI vivo; su snapshot versionado
+sirve para revisar deriva. El repositorio privado no admite secretos y no
+autoriza por sí mismo redistribución ni acceso de terceros.
 
 ## Política de selección
 
@@ -96,6 +109,7 @@ Quick Help y Documentation Preview son comprobaciones editoriales; no prueban po
 - No se añadirá `swift-docc-plugin`: la aplicación usará DocC integrado en Xcode y el proyecto no admite dependencias externas.
 - No se publicará GitHub Pages antes de la entrega.
 - Una publicación futura requerirá autorización separada, base path verificado y un artefacto o rama generada; nunca sobrescribirá `/docs`.
+- El repositorio permanecerá privado; cambiar visibilidad, redistribuir el enunciado o ampliar accesos activa las condiciones de revisión de ADR 0012.
 - `*.doccarchive`, `.build/` y el sitio generado permanecerán fuera de Git.
 
 ## Criterios de aceptación
@@ -104,12 +118,12 @@ Quick Help y Documentation Preview son comprobaciones editoriales; no prueban po
 - Los símbolos documentados explican contratos no obvios y los omitidos no se rellenan por cuota.
 - El catálogo inicial contiene solo la landing; cada artículo posterior se incorpora únicamente cuando existe código que lo respalda.
 - El gate termina sin warnings DocC, rechaza diagnósticos ajenos no autorizados y produce el archive esperado. La excepción temporal de ADR 0011 no acredita por sí sola el Advanced ni el Deluxe Release Gate.
-- La documentación no expone secretos, cuentas, rutas privadas ni datos personales.
+- La documentación no expone secretos, cuentas, rutas privadas ni datos personales; toda fuente completa versionada conserva evidencia de saneamiento.
 - Publicación, tutoriales y contenido diferido no se presentan como terminados.
 
 ## Decisiones relacionadas
 
-- [ADR 0008: DocC selectivo y límites de publicación](../adr/0008-selective-docc-and-publishing-boundaries.md)
+- [ADR 0012: repositorio privado y fuente docente saneada](../adr/0012-private-repository-and-sanitized-practice-source.md)
 - [ADR 0011: excepción acotada para el warning de App Intents](../adr/0011-bounded-xcode-app-intents-warning-exception.md)
 - [Testing, calidad y accesibilidad](06-testing-quality-and-accessibility.md)
 - [Entrega, presentación y vídeo](08-delivery-presentation-and-video.md)

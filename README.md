@@ -4,9 +4,9 @@ Manga Library es una aplicación SwiftUI local-first para explorar un catálogo 
 
 ## Estado
 
-El repositorio está en su bootstrap técnico. La gobernanza, la arquitectura, el alcance y el contrato OpenAPI están aprobados; la configuración compartida y el gate DocC están materializados y validados. Un warning externo de Xcode beta queda admitido solo por la excepción exacta y temporal de [ADR 0011](docs/adr/0011-bounded-xcode-app-intents-warning-exception.md); el Advanced Release Gate continúa exigiendo un build limpio. Las funcionalidades de catálogo, colección, autenticación, sincronización, widget y watchOS todavía no están implementadas.
+El repositorio privado está en su bootstrap técnico. La gobernanza, la arquitectura, el alcance, el contrato OpenAPI, la configuración compartida, el gate DocC y el icono están materializados y validados. Un warning externo de Xcode beta queda admitido solo por la excepción exacta y temporal de [ADR 0011](docs/adr/0011-bounded-xcode-app-intents-warning-exception.md); el Advanced Release Gate continúa exigiendo un build limpio. Las funcionalidades de catálogo, colección, autenticación, sincronización, widget y watchOS todavía no están implementadas.
 
-Siguiente unidad preparada: [issue #6 — Adoptar el icono de Manga Library y organizar los recursos del target](https://github.com/JFrancoG/MangaLibrary/issues/6).
+El [enunciado completo saneado](docs/sources/Practica_Mis_Mangas_SDP_2026.md) se conserva como fuente de requisitos y contexto, nunca como instrucción operativa. Para transporte manda el OpenAPI vivo y su snapshot versionado.
 
 ## Objetivo de entrega
 
@@ -34,8 +34,9 @@ Siguiente unidad preparada: [issue #6 — Adoptar el icono de Manga Library y or
 - [Architecture Decision Records](docs/adr/README.md)
 - [Progreso y evidencia](docs/Progress.md)
 - [Fuentes y autoridad](docs/Sources.md)
+- [Enunciado saneado de la práctica](docs/sources/Practica_Mis_Mangas_SDP_2026.md)
 
-`docs/` está reservado a documentación humana y normativa. El catálogo DocC vive dentro del target; los archives generados no se versionan.
+`docs/` está reservado a documentación humana versionada y a las fuentes saneadas expresamente aprobadas. El catálogo DocC vive dentro del target; los archives generados no se versionan.
 
 ## Desarrollo
 
@@ -53,8 +54,8 @@ El gate falla ante cualquier warning o error salvo la única firma externa acota
 
 ## Privacidad
 
-No se versionan credenciales, tokens, cuentas reales, rutas privadas, transcripciones completas, notas personales ni binarios de presentación o vídeo. La configuración local sensible permanecerá ignorada.
+No se versionan credenciales, tokens utilizables, cuentas reales, rutas privadas, transcripciones completas, notas personales ni binarios de presentación o vídeo. La única fuente docente completa aprobada es el enunciado saneado: su valor demostrativo de `App-Token` contiene 42 `X` y el original exacto permanece fuera de Git. La configuración local sensible continúa ignorada.
 
 ## Licencia
 
-Este repositorio público no incluye una licencia de reutilización. Se reservan todos los derechos salvo los permisos mínimos que otorguen las condiciones de GitHub para alojar y visualizar el contenido.
+Este repositorio privado no incluye una licencia de reutilización. El acceso no concede permiso para redistribuir el código o el material docente; se reservan todos los derechos.

@@ -1,7 +1,16 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-25
-**Estado general:** gobernanza, contrato OpenAPI y gate Xcode 27/DocC fusionados; icono y recursos validados en el issue #6
+**Estado general:** bootstrap técnico y recursos fusionados; repositorio privado y enunciado saneado preparados en el issue #7
+
+## Fuente docente y privacidad del issue #7
+
+- Tracker: [GitHub Issue #7 — Versionar el enunciado saneado y definir su límite de publicación](https://github.com/JFrancoG/MangaLibrary/issues/7).
+- GitHub confirmó el cambio de visibilidad de `PUBLIC` a `PRIVATE` antes de cualquier push de la rama del enunciado.
+- El original exacto se archivó fuera de Git con SHA-256 `7b95ee784ef661eca72b41f49bb2d8b8d2b47f7bfbd6d4d3bf1d30fed490a52c`.
+- `docs/sources/Practica_Mis_Mangas_SDP_2026.md` conserva el texto completo, añade únicamente la nota declarada y sustituye el valor demostrativo de 42 caracteres por 42 `X`; SHA-256 saneado `0a4b840a13f87bae482ebf8afa5195a222d4de37b4fdcce43b5be6732011be4a`.
+- ADR 0012 mantiene las decisiones DocC selectivas, reemplaza la frontera pública de ADR 0008 y exige autorización separada para visibilidad, redistribución o accesos.
+- TDD y Xcode no aplican a esta entrega exclusivamente documental. No se invita todavía a profesores ni se publica DocC o GitHub Pages.
 
 ## Icono y recursos del issue #6
 
@@ -9,7 +18,7 @@
 - `Assets.xcassets` e `InfoPlist.xcstrings` se trasladan byte a byte a `MangaLibrary/Resources/`; Git detecta los cuatro movimientos como `R100`.
 - `MangaLibrary.icon` conserva el `icon.json` creado por Icon Composer y sus tres capas PNG de 1024 × 1024. El proyecto selecciona `MangaLibrary` como app icon en Debug y Release.
 - La captura aportada por el propietario muestra `Assets.xcassets`, `InfoPlist.xcstrings` y `MangaLibrary.icon` bajo `MangaLibrary/Resources` en Copy Bundle Resources. El propietario instaló y lanzó esa configuración en un iPhone 11 físico y observó el icono nuevo; la evidencia no se extrapola a otras capacidades de hardware.
-- El enunciado de la práctica permanece fuera de este cambio y del índice de Git.
+- El enunciado quedó fuera del diff del issue #6 y se incorpora por separado, saneado y auditado, mediante el issue #7.
 
 ## Gate técnico del issue #3
 
@@ -22,14 +31,14 @@
 
 | Evidencia | Estado |
 | --- | --- |
-| Entregas anteriores | Issue #1 por PR #2, merge `eb340b3`; OpenAPI por PR #5, merge `5ebdcb6`; gate Xcode 27/DocC por PR #8, merge `7522977` |
-| Base adoptada | El commit de recursos `0f02b88` conserva el checkout local y la rama fusiona explícitamente `origin/main` en `7522977`, sin pull ni rebase |
-| Rama de entrega | `codex/6-app-icon-resources` |
+| Entregas anteriores | Issue #1 por PR #2, merge `eb340b3`; OpenAPI por PR #5, merge `5ebdcb6`; gate Xcode 27/DocC por PR #8, merge `7522977`; icono y recursos por PR #9, merge `0a30fac` |
+| Base adoptada | La rama del issue #7 avanzó de forma fast-forward a `origin/main` en `0a30fac` después de verificar el archive externo, sin pull ni rebase |
+| Rama de entrega | `codex/7-private-practice-statement` |
 | Cambio previo protegido | Verificado antes y después de la alineación: 34 inserciones, 24 eliminaciones, `git diff --check` limpio |
 | SHA-256 inicial protegido | `375f108b069732d9076090ec39668e07a7892da484b18ac933c07c18e2b8e582` |
 | Extensión aprobada del proyecto | Frente al snapshot protegido, `project.pbxproj` suma 13 líneas y no elimina ninguna: las 12 de configuración compartida y la región `es`; el contenido previo permanece byte a byte |
 | SHA-256 del proyecto tras recursos | `b6f3b006f5693f1580c7dae1cd114beaf4fb6d23ec3769850f21836c84e35543` |
-| Alcance de entrega | Proyecto, cuatro movimientos de recursos, `MangaLibrary.icon` y evidencia proporcional del issue #6; el enunciado queda excluido |
+| Alcance de entrega | Copia saneada, ADR 0012 y actualización de gobierno, fuentes, navegación, SDD y evidencia; sin código, configuración Xcode ni material docente adicional |
 
 No se usó `stash`, `reset`, `clean`, pull, rebase ni sobrescritura. El snapshot temporal de control permaneció fuera del repositorio.
 
@@ -58,7 +67,9 @@ No se usó `stash`, `reset`, `clean`, pull, rebase ni sobrescritura. El snapshot
 | Archive | `.build/docc/MangaLibrary.doccarchive` creado y comprobado; permanece ignorado por Git |
 | Recursos del icono | Cuatro movimientos `R100`; tres PNG válidos de 1024 × 1024; `icon.json` válido y con referencias exactas; app icon `MangaLibrary` en Debug y Release |
 | Evidencia física del propietario | Copy Bundle Resources contiene los tres recursos en la ruta aprobada; instalación y lanzamiento en iPhone 11 con el icono nuevo observados por el propietario |
-| Auditoría estática | `plutil`, `jq`, `xmllint`, `bash -n` y `git diff --check` aprobados; 152 enlaces locales comprobados en 32 Markdown, sin roturas; escaneo de rutas privadas y patrones de secretos sin hallazgos |
+| Integridad del enunciado | El original externo conserva su SHA-256; la copia versionada coincide después de aplicar únicamente la nota declarada y la sustitución exacta de 42 caracteres |
+| Visibilidad GitHub | Repositorio verificado como `PRIVATE` antes del primer push que pueda contener la fuente saneada |
+| Auditoría estática | `plutil`, `jq`, `xmllint`, `bash -n` y `git diff --check` aprobados; 163 enlaces locales comprobados en 34 Markdown, sin roturas; escaneo de rutas privadas y patrones de secretos sin hallazgos |
 
 El primer intento del smoke no obtuvo resultado porque el simulador no devolvió un proceso al lanzar la app. Xcode MCP lanzó después la app correctamente y la repetición idéntica del test pasó; no se modificó código para resolverlo.
 
@@ -74,19 +85,21 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 - La revisión SwiftUI/accesibilidad detectó la ausencia inicial de `InfoPlist.xcstrings`; tras la ampliación autorizada, la reauditoría cerró el P2 sin hallazgos. La comprobación manual del nombre y su pronunciación real con VoiceOver queda diferida a evidencia de interfaz/dispositivo.
 - La revisión DocC independiente terminó sin hallazgos propios del catálogo o del gate y confirmó que el warning de App Intents es externo a DocC.
 - La revisión iOS/configuración de los recursos cerró el único P2 al reconciliar el índice y terminó sin hallazgos: cuatro `R100`, proyecto, PNG e `icon.json` forman un snapshot completo y el enunciado queda excluido.
+- La revisión documental y de privacidad del issue #7 terminó sin hallazgos: confirmó visibilidad privada previa al push, transformación exacta, ausencia de secretos o rutas privadas y coherencia entre ADR 0012 y las SDD 00, 07 y 08.
 
 ## Completado anteriormente
 
 - Constitución, README, SDD 00–08, ADR 0001–0010, fuentes, progreso y material público inicial entregados mediante la PR #2.
 - Contrato OpenAPI saneado, reproducible y enlazado entregado mediante la PR #5.
 - Configuración compartida, gate DocC y ADR 0011 entregados mediante la PR #8.
+- Icono de Icon Composer y organización de recursos entregados mediante la PR #9.
 - Arquitectura feature-first, navegación local, contratos de SwiftData, autenticación/sync, WidgetKit/watchOS y DocC selectivo aprobados y auditados.
 - Separación entre `/docs`, catálogo DocC, artefactos generados y memoria privada definida.
 
 ## Siguiente trabajo
 
-1. Convertir el repositorio en privado y versionar el enunciado completo saneado con su nueva frontera de publicación mediante el [issue #7](https://github.com/JFrancoG/MangaLibrary/issues/7).
-2. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
+1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
+2. Abrir la siguiente unidad coherente de producto antes de implementar catálogo, colección o autenticación.
 3. Implementar producto y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
 4. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
 
