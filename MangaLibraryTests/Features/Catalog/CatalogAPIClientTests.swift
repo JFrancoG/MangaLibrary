@@ -39,6 +39,30 @@ struct CatalogAPIClientTests {
     }
 
     @Test
+    func secondPageRequestUsesTheRequestedCursor() async throws {
+        let (client, session) = try makeClient(host: "page-two.catalog.test")
+        defer { session.invalidateAndCancel() }
+
+        let page = try await client.fetch(CatalogPageRequest(page: 2))
+
+        #expect(page.metadata.page == 2)
+        #expect(page.metadata.per == 20)
+        #expect(page.metadata.total == 40)
+    }
+
+    @Test
+    func mismatchedResponseMetadataIsRejectedAsContractDrift() async throws {
+        let (client, session) = try makeClient(
+            host: "metadata-mismatch.catalog.test"
+        )
+        defer { session.invalidateAndCancel() }
+
+        await #expect(throws: CatalogAPIClientError.contractDrift) {
+            try await client.fetch(CatalogPageRequest())
+        }
+    }
+
+    @Test
     func validCompleteContractFixtureMapsCatalogValues() async throws {
         let (client, session) = try makeClient(host: "valid.catalog.test")
         defer { session.invalidateAndCancel() }
@@ -154,9 +178,10 @@ private final class DeterministicCatalogURLProtocol: URLProtocol {
             return
         }
 
+        let expectedPage = url.host() == "page-two.catalog.test" ? 2 : 1
         let isExpectedRequest = request.httpMethod == "GET"
             && url.path() == "/list/mangas"
-            && url.query() == "page=1&per=20"
+            && url.query() == "page=\(expectedPage)&per=20"
             && request.value(forHTTPHeaderField: "Authorization") == nil
             && request.value(forHTTPHeaderField: "App-Token") == nil
 
@@ -196,6 +221,10 @@ private final class DeterministicCatalogURLProtocol: URLProtocol {
         switch host {
         case "valid.catalog.test":
             return Self.pageFixture(items: [validItem], total: 1)
+        case "page-two.catalog.test":
+            return Self.pageFixture(page: 2, items: [validItem], total: 40)
+        case "metadata-mismatch.catalog.test":
+            return Self.pageFixture(page: 2, items: [validItem], total: 1)
         case "missing.catalog.test":
             return Self.pageFixture(
                 items: [Self.mangaFixture(id: 42, includesTitle: false)],
@@ -238,9 +267,13 @@ private final class DeterministicCatalogURLProtocol: URLProtocol {
         }
     }
 
-    private static func pageFixture(items: [String], total: Int64) -> Data {
+    private static func pageFixture(
+        page: Int64 = 1,
+        items: [String],
+        total: Int64
+    ) -> Data {
         Data(
-            #"{"items":[\#(items.joined(separator: ","))],"metadata":{"page":1,"per":20,"total":\#(total)}}"#.utf8
+            #"{"items":[\#(items.joined(separator: ","))],"metadata":{"page":\#(page),"per":20,"total":\#(total)}}"#.utf8
         )
     }
 

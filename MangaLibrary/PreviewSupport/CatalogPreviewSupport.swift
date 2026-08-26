@@ -44,6 +44,24 @@ enum CatalogPreviewSupport {
             synopsis: nil,
             score: 8.4,
             coverURL: nil
+        ),
+        Manga(
+            id: 3,
+            title: "Monster",
+            titleEnglish: nil,
+            titleJapanese: "MONSTER",
+            synopsis: "A doctor confronts the consequences of saving one life.",
+            score: 9.15,
+            coverURL: nil
+        ),
+        Manga(
+            id: 4,
+            title: "Nausicaä of the Valley of the Wind",
+            titleEnglish: "Nausicaä of the Valley of the Wind",
+            titleJapanese: "風の谷のナウシカ",
+            synopsis: nil,
+            score: 8.85,
+            coverURL: nil
         )
     ]
 

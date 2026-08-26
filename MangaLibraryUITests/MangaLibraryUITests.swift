@@ -13,7 +13,7 @@ final class MangaLibraryUITests: XCTestCase {
     }
 
     @MainActor
-    func testCatalogOpensDetailAndSurvivesTabChanges() throws {
+    func testCatalogChangesLayoutOpensDetailAndSurvivesTabChanges() throws {
         let app = XCUIApplication()
         app.launchArguments += ["-catalog-fixture", "content"]
         app.launch()
@@ -29,7 +29,21 @@ final class MangaLibraryUITests: XCTestCase {
         let firstManga = app.descendants(matching: .any)["catalog.row.1"]
         XCTAssertTrue(firstManga.waitForExistence(timeout: 5))
 
-        firstManga.tap()
+        let gridLayout = app.descendants(matching: .any)["catalog.layout.grid"]
+        let listLayout = app.descendants(matching: .any)["catalog.layout.list"]
+        XCTAssertTrue(gridLayout.waitForExistence(timeout: 2))
+        XCTAssertTrue(listLayout.exists)
+
+        gridLayout.tap()
+        let firstGridItem = app.descendants(matching: .any)["catalog.grid.item.1"]
+        XCTAssertTrue(firstGridItem.waitForExistence(timeout: 2))
+
+        listLayout.tap()
+        XCTAssertTrue(firstManga.waitForExistence(timeout: 2))
+
+        gridLayout.tap()
+        XCTAssertTrue(firstGridItem.waitForExistence(timeout: 2))
+        firstGridItem.tap()
         let detail = app.descendants(matching: .any)["manga.detail.1"]
         XCTAssertTrue(detail.waitForExistence(timeout: 2))
 

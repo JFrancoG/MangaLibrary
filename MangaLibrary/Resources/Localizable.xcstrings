@@ -29,6 +29,13 @@
         "es" : { "stringUnit" : { "state" : "translated", "value" : "Catálogo" } }
       }
     },
+    "Catalog layout" : {
+      "comment" : "Accessibility label for the control that changes the catalog between list and grid.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Catalog layout" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Diseño del catálogo" } }
+      }
+    },
     "Check your connection and try again." : {
       "comment" : "Recovery guidance after the first catalog page fails.",
       "localizations" : {
@@ -71,11 +78,46 @@
         "es" : { "stringUnit" : { "state" : "translated", "value" : "No se pudo cargar el catálogo" } }
       }
     },
+    "Couldn't load more manga" : {
+      "comment" : "Recoverable error title when an additional catalog page fails.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn't load more manga" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "No se pudieron cargar más mangas" } }
+      }
+    },
+    "End of catalog" : {
+      "comment" : "Footer confirming that the current catalog query has no more pages.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "End of catalog" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Fin del catálogo" } }
+      }
+    },
+    "Grid" : {
+      "comment" : "Catalog layout option that presents manga in a grid.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Grid" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cuadrícula" } }
+      }
+    },
+    "List" : {
+      "comment" : "Catalog layout option that presents manga in a list.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "List" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Lista" } }
+      }
+    },
     "Loading catalog" : {
       "comment" : "Progress label while the first catalog page loads.",
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading catalog" } },
         "es" : { "stringUnit" : { "state" : "translated", "value" : "Cargando catálogo" } }
+      }
+    },
+    "Loading more manga" : {
+      "comment" : "Progress label while an additional catalog page loads.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading more manga" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cargando más mangas" } }
       }
     },
     "No manga were returned for this page." : {
@@ -86,7 +128,7 @@
       }
     },
     "Retry" : {
-      "comment" : "Button that retries the failed first catalog request.",
+      "comment" : "Button that retries a failed initial or additional catalog request.",
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Retry" } },
         "es" : { "stringUnit" : { "state" : "translated", "value" : "Reintentar" } }
@@ -118,6 +160,13 @@
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "The catalog is empty" } },
         "es" : { "stringUnit" : { "state" : "translated", "value" : "El catálogo está vacío" } }
+      }
+    },
+    "Your existing results are still available." : {
+      "comment" : "Explanation shown after an additional page fails without removing existing catalog items.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Your existing results are still available." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Tus resultados existentes siguen disponibles." } }
       }
     }
   },

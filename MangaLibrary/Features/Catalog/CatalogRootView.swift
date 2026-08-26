@@ -5,14 +5,26 @@
 
 import SwiftUI
 
+enum CatalogLayout: Hashable {
+    case list
+    case grid
+}
+
 struct CatalogRootView: View {
     @State private var model: CatalogModel
     @State private var retryRequest: Bool?
+    @State private var layout: CatalogLayout
+    @State private var preferredCompactColumn = NavigationSplitViewColumn.sidebar
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(preferredCompactColumn: $preferredCompactColumn) {
             sidebar
                 .navigationTitle("Catalog")
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        layoutPicker
+                    }
+                }
         } detail: {
             detail
         }
@@ -26,6 +38,9 @@ struct CatalogRootView: View {
 
             await model.retry()
         }
+        .task(id: model.requestedNextPage) {
+            await model.loadRequestedNextPage()
+        }
     }
 
     @ViewBuilder
@@ -35,11 +50,22 @@ struct CatalogRootView: View {
             ProgressView("Loading catalog")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityIdentifier("catalog.loading")
-        case let .content(items):
-            CatalogListView(
-                items: items,
-                selection: $model.selectedMangaID
-            )
+        case let .content(content):
+            switch layout {
+            case .list:
+                CatalogListView(
+                    content: content,
+                    model: model,
+                    selection: $model.selectedMangaID
+                )
+            case .grid:
+                CatalogGridView(
+                    content: content,
+                    model: model,
+                    selection: $model.selectedMangaID,
+                    preferredCompactColumn: $preferredCompactColumn
+                )
+            }
         case .empty:
             ContentUnavailableView(
                 "The catalog is empty",
@@ -77,6 +103,23 @@ struct CatalogRootView: View {
     private func requestRetry() {
         retryRequest = !(retryRequest ?? false)
     }
+
+    private var layoutPicker: some View {
+        Picker("Catalog layout", selection: $layout) {
+            Label("List", systemImage: "list.bullet")
+                .labelStyle(.iconOnly)
+                .tag(CatalogLayout.list)
+                .accessibilityIdentifier("catalog.layout.list")
+
+            Label("Grid", systemImage: "square.grid.2x2")
+                .labelStyle(.iconOnly)
+                .tag(CatalogLayout.grid)
+                .accessibilityIdentifier("catalog.layout.grid")
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 128)
+        .accessibilityIdentifier("catalog.layout")
+    }
 }
 
 extension CatalogRootView {
@@ -84,23 +127,47 @@ extension CatalogRootView {
         model = CatalogModel { request in
             try await client.fetch(request)
         }
+        layout = .list
     }
 
-    init(model: CatalogModel) {
+    init(
+        model: CatalogModel,
+        initialLayout: CatalogLayout = .list
+    ) {
         self.model = model
+        layout = initialLayout
     }
 }
 
 #Preview("Catalog content") {
     CatalogRootView(
         model: CatalogPreviewSupport.model(
-            state: .content(CatalogPreviewSupport.mangas)
+            state: .content(
+                .init(
+                    items: CatalogPreviewSupport.mangas,
+                    pagination: .end
+                )
+            )
         )
     )
 }
 
 #Preview("Catalog loading") {
     CatalogRootView(model: CatalogPreviewSupport.model(state: .loading))
+}
+
+#Preview("Catalog grid") {
+    CatalogRootView(
+        model: CatalogPreviewSupport.model(
+            state: .content(
+                .init(
+                    items: CatalogPreviewSupport.mangas,
+                    pagination: .end
+                )
+            )
+        ),
+        initialLayout: .grid
+    )
 }
 
 #Preview("Catalog empty") {
@@ -110,5 +177,18 @@ extension CatalogRootView {
 #Preview("Catalog error") {
     CatalogRootView(
         model: CatalogPreviewSupport.model(state: .failure(.unavailable))
+    )
+}
+
+#Preview("Catalog additional page error") {
+    CatalogRootView(
+        model: CatalogPreviewSupport.model(
+            state: .content(
+                .init(
+                    items: CatalogPreviewSupport.mangas,
+                    pagination: .failure(page: 2, reason: .unavailable)
+                )
+            )
+        )
     )
 }
