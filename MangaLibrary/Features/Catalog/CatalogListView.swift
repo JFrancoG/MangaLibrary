@@ -6,15 +6,27 @@
 import SwiftUI
 
 struct CatalogListView: View {
-    let items: [Manga]
+    let content: CatalogModel.Content
+    let model: CatalogModel
     @Binding var selection: Manga.ID?
 
     var body: some View {
-        List(items, selection: $selection) { manga in
-            NavigationLink(value: manga.id) {
-                MangaRowView(manga: manga)
+        List(selection: $selection) {
+            ForEach(content.items) { manga in
+                NavigationLink(value: manga.id) {
+                    MangaRowView(manga: manga)
+                }
+                .accessibilityIdentifier("catalog.row.\(manga.id)")
+                .onAppear {
+                    model.requestNextPageIfNeeded(after: manga.id)
+                }
             }
-            .accessibilityIdentifier("catalog.row.\(manga.id)")
+
+            CatalogPaginationView(
+                pagination: content.pagination,
+                model: model
+            )
+            .listRowSeparator(.hidden)
         }
         .accessibilityIdentifier("catalog.content")
     }
@@ -22,10 +34,16 @@ struct CatalogListView: View {
 
 #Preview("Catalog list") {
     @Previewable @State var selection: Manga.ID?
+    let content = CatalogModel.Content(
+        items: CatalogPreviewSupport.mangas,
+        pagination: .end
+    )
+    let model = CatalogPreviewSupport.model(state: .content(content))
 
     NavigationStack {
         CatalogListView(
-            items: CatalogPreviewSupport.mangas,
+            content: content,
+            model: model,
             selection: $selection
         )
     }

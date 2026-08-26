@@ -1,7 +1,46 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-08-25
-**Estado general:** G0, Catálogo C1, el contrato cromático Library Red, D1 y Q1 entregados
+**Última actualización:** 2026-08-26
+**Estado general:** G0, Catálogo C1 y C2, el contrato cromático Library Red, D1 y Q1 entregados
+
+## Catálogo C2 — paginación incremental y lista/cuadrícula
+
+- Tracker: [GitHub Issue #21 — Catálogo C2: añadir paginación incremental y lista/cuadrícula](https://github.com/JFrancoG/MangaLibrary/issues/21), abierto después de comprobar que no existía un issue equivalente.
+- Rama: `codex/21-catalog-pagination-layout`, creada desde `main@d62bc9348ae7da842b41e99e1ef8976e8fbe6a60`, limpio y sincronizado con `origin/main`.
+- El OpenAPI vivo descubierto desde `/docs` conserva OpenAPI 3.0.1, 28 paths, 30 operaciones, 19 schemas y 3 mecanismos de seguridad. Su forma canónica saneada coincide byte a byte con el snapshot y mantiene SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`; no se hicieron llamadas funcionales.
+- `CatalogModel` sigue siendo el único propietario `@Observable @MainActor` de consulta, acumulación, cursor, carga adicional, error, retry, cancelación y protección frente a respuestas tardías. Las Views permanecen como structs declarativas sin `@MainActor`.
+- Lista y cuadrícula consumen el mismo contenido acumulado y la misma selección por `Manga.ID`. La cuadrícula adapta sus columnas a Dynamic Type y a la anchura disponible; en presentación compacta abre el detalle mediante la columna preferida de `NavigationSplitView`.
+- Una página adicional conserva el orden y el primer valor ya visible de cada identidad. El fin por total o página vacía cierra el cursor; un fallo mantiene contenido y selección y reintenta exactamente la misma página.
+- `CatalogAPIClient` rechaza como deriva contractual la metadata de página o tamaño que no corresponde a la petición. `HTTPClient` continúa concreto, inmutable, app-scoped e inyectado; no se añaden actor compartido, `@globalActor`, Repository, UseCase o Store.
+
+### RED / GREEN de C2
+
+- RED: el primer build-for-testing falló por la ausencia de `CatalogModel.Content`, `CatalogModel.Pagination` y las intenciones de página adicional después de añadir las caracterizaciones.
+- GREEN: página 2 exacta, acumulación, deduplicación, fin, error adicional, retry, cancelación y respuesta invalidada quedaron implementados solo hasta satisfacer esas pruebas.
+- La inspección visual posterior detectó que el valor inline de la macro `@State` impedía arrancar la preview en cuadrícula. La asignación directa desde ambos inicializadores corrige el estado moderno de iOS 27 sin manipular un backing wrapper.
+- La primera auditoría iPad detectó una única columna y el título de navegación truncado. El ancho adaptativo de tarjeta, la portada escalable y el ancho acotado del selector se ajustaron antes de repetir las previews.
+
+### Validación técnica de C2
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Xcode MCP — `ReleaseGate` | 38/38 pruebas aprobadas: 37 Swift Testing y 1 XCUITest; cero fallos, skips, expected failures o pruebas no ejecutadas |
+| Xcode MCP — smoke UI | 1/1 aprobado tanto en iPhone 17 como en iPad Air 11-inch (M4): alterna lista/cuadrícula, abre el mismo detalle por `Manga.ID` y conserva la ruta tras cambiar de tab |
+| Xcode MCP — build y diagnósticos | Build-for-testing aprobado; los 12 archivos Swift afectados muestran cero diagnósticos y el Issue Navigator y el build log contienen cero warnings estructurados |
+| Previews Xcode | Lista y cuadrícula inspeccionadas en iPhone e iPad; Large, XXX Large y AX5; inglés y español; modo oscuro y contraste aumentado. La cuadrícula usa dos columnas cuando el ancho y Dynamic Type lo permiten y refluye a una en AX5 |
+| Localización | `Localizable.xcstrings` válido; 24 claves traducidas manualmente en inglés y español, sin estados new, needs review o machine translated |
+| `Scripts/validate-docc.sh` | 8/8 escenarios del clasificador; `docbuild` Release para iOS genérico aprobado y `.doccarchive` regenerado con warnings DocC como errores |
+| ADR 0011 | Exactamente una emisión externa autorizada en `27A5252f`; cero warnings de Swift, Clang o DocC. La excepción no acredita Advanced |
+
+`GetTestList` no proyecta actualmente los tags heredados de `@Suite` y deja 0/37 tests habilitados tanto en `Fast` como en `Integration`; `UI` descubre 1/1 y `ReleaseGate`, 38/38. Una prueba diagnóstica reversible confirmó que un tag directo sí aparece en el inventario, pero el filtro continúa deshabilitándolo. La prueba se retiró y `TestPlans/`, el scheme y el proyecto permanecen fuera del diff. C2 no repara Q1 silenciosamente y no puede acreditar todavía esos dos planes.
+
+Después de recibir esta limitación y la recomendación de resolverla antes de entregar, el propietario autorizó expresamente el cierre completo de C2 mediante commit, push, PR, merge, cierre del issue y eliminación de rama. La autorización no convierte `Fast` o `Integration` en gates aprobados, no amplía C2 a una reparación de Q1 y no acredita el Advanced Release Gate.
+
+### Alcance excluido y estado de entrega de C2
+
+- Búsqueda, filtros y ordenación pertenecen a C3. También quedan fuera SwiftData, colección, autenticación, sincronización, Library Red ejecutable, WidgetKit, watchOS, App Group, entitlements y llamadas funcionales al backend.
+- No se modifican SDD, ADR, OpenAPI, configuración, scheme, planes ni `project.pbxproj`.
+- La implementación, los gates técnicos aplicables y las revisiones especializadas quedan cerrados. La entrega autorizada vincula la rama `codex/21-catalog-pagination-layout` con el issue #21 mediante su PR de cierre y elimina después la rama local y remota. C3 no se inicia como efecto lateral.
 
 ## Q1 — planes de test versionados
 
@@ -255,17 +294,18 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 ## Siguiente trabajo
 
 1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
-2. Definir C2 sobre los planes versionados, sin mezclar su comportamiento de producto con Q1.
-3. Mantener la clasificación de cada suite nueva mediante su target y tag en el mismo cambio que la introduce.
-4. Implementar el producto restante y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
-5. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
+2. Resolver de forma separada la regresión de descubrimiento de tags de `Fast` e `Integration`, sin mezclarla con el comportamiento C2.
+3. Entregar C2 cuando se autoricen commit, push y PR; C3 continúa sin iniciar.
+4. Mantener la clasificación de cada suite nueva mediante su target y tag en el mismo cambio que la introduce.
+5. Implementar el producto restante y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
+6. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
 
 ## Estado técnico aún no alcanzado
 
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
 - Catálogo C1 y la decisión normativa D1 están entregados.
 - Los planes `Fast`, `Integration`, `UI` y `ReleaseGate` están materializados, ejecutados, revisados y entregados mediante Q1.
-- C1 implementa solo la primera página pública y su detalle local; colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
+- C2 amplía localmente Catálogo con paginación y lista/cuadrícula; búsqueda, filtros, colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La única evidencia física actual es la instalación y visualización del icono en el iPhone 11 observada por el propietario. No existe todavía evidencia de accesibilidad física, Keychain, App Group, WatchConnectivity o integración live.
 - No se ha autorizado publicación DocC ni GitHub Pages.
