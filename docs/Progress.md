@@ -1,7 +1,38 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-08-26
-**Estado general:** G0, Catálogo C1 y C2, el contrato cromático Library Red, D1 y Q1 entregados
+**Última actualización:** 2026-08-27
+**Estado general:** G0, Catálogo C1 y C2, el contrato cromático Library Red, D1, Q1 y P1 entregados
+
+## P1 — composición live, red y pruebas directas
+
+- Tracker: [GitHub Issue #23 — P1: simplificar composición, red y pruebas del catálogo](https://github.com/JFrancoG/MangaLibrary/issues/23), abierto después de comprobar que no existía un issue equivalente.
+- Rama: `codex/23-simplify-catalog-flow`, creada desde `main@e6dbfdae6655c48aac73834812c6fa594882b919`, limpio y sincronizado con `origin/main`.
+- Xcode MCP oficial se conectó a Xcode-beta y confirmó `MangaLibrary.xcodeproj`, scheme `MangaLibrary`, los cuatro planes, iOS 27, concurrencia estricta y cero diagnósticos antes de editar.
+- [ADR 0014](adr/0014-native-flows-live-composition-and-direct-doubles.md) supersede ADR 0009 sin cambiar su navegación local: `AppComposition` crea únicamente dependencias live; previews y el único bootstrap Debug de UI tests inyectan un loader de dominio directo y fail-closed.
+- `HTTPClient` conserva `URLSession` inyectada, valida respuesta HTTP y status y devuelve bytes. `NetworkError` retiene categorías seguras y descripciones localizables; cancelar sigue siendo `CancellationError`.
+- `CatalogAPIClient` recibe `@Sendable (URLRequest) async throws -> Data`, decodifica solo los campos consumidos y valida metadata e identidades. Sus tests inyectan JSON crudo y registran la request; `FixtureURLProtocol` queda exclusivamente en `HTTPClientTests`.
+- No se introduce `ResultRequest<T>`, decoding genérico en transporte, catálogo global de endpoints, Repository, UseCase, Store, protocolo o builder anticipado. La construcción tipada permanece en `CatalogPageRequest` hasta que una segunda operación real demuestre duplicación.
+
+### RED / GREEN de P1
+
+- RED: `BuildProject(buildForTesting: true)` falló por la ausencia de `NetworkError` y de la costura directa del cliente tipado después de añadir las nuevas caracterizaciones.
+- GREEN: el transporte mapea respuesta no HTTP, status, fallo de URL loading y cancelación; el cliente de Catálogo construye página 1/2, decodifica un payload mínimo con campos remotos desconocidos, preserva categorías de red y detecta metadata, identidad y campos consumidos inválidos.
+- `AppCompositionTests`, el test de vocabulario remoto no consumido y el getter aislado de selección se eliminan. La garantía de no recargar se integra en la transición inicial; los tests restantes conservan estado, retry, paginación, cancelación y carreras de C2.
+- El XCUITest se reduce al recorrido determinista `-ui-testing` → primera fila → detalle de la misma `Manga.ID`; no prueba tabs placeholder, alternancia visual ni wiring garantizado por compilación.
+
+### Validación local de P1
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Xcode MCP — build y diagnósticos | Build-for-testing aprobado; build log e Issue Navigator con cero warnings estructurados |
+| Xcode MCP — `ReleaseGate` | 42/42 casos aprobados: 41 Swift Testing y 1 XCUITest; cero fallos, skips, expected failures o casos no ejecutados |
+| Xcode MCP — previews | Shell y contenido renderizados; error inicial y fallo de página adicional inspeccionados en Large, XXX Large y AX 5. El truncado español detectado en AX 5 se corrigió y ambos estados conservan título, descripción y acción completas |
+| `Scripts/validate-docc.sh` | 8/8 escenarios del clasificador; archive Release generado con warnings DocC como errores y una única emisión externa acotada por ADR 0011 |
+| Localización | `Localizable.xcstrings` válido; 29/29 claves traducidas manualmente en inglés y español, sin entradas stale o incompletas |
+| Revisiones independientes | Arquitectura/concurrencia/testing y SwiftUI/accesibilidad terminaron sin hallazgos abiertos tras corregir request, fixture OpenAPI, conformidades redundantes, reflow AX 5 e iconografía semántica |
+| Límite Q1 | `Fast` continúa descubriendo 0 tests habilitados por la regresión conocida de tags; P1 no modifica planes, scheme ni `TestTags.swift` |
+
+Las previews y el smoke UI no acreditan un recorrido manual con VoiceOver, Voice Control, Switch Control, Full Keyboard Access o Accessibility Inspector. No se realizaron llamadas funcionales a producción. Después de validar estas limitaciones, el propietario autorizó expresamente commit, push, PR, merge, cierre del issue y borrado de las ramas local y remota. La autorización no repara Q1 ni inicia C3 como efecto lateral.
 
 ## Catálogo C2 — paginación incremental y lista/cuadrícula
 
@@ -295,7 +326,7 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 
 1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
 2. Resolver de forma separada la regresión de descubrimiento de tags de `Fast` e `Integration`, sin mezclarla con el comportamiento C2.
-3. Entregar C2 cuando se autoricen commit, push y PR; C3 continúa sin iniciar.
+3. Iniciar C3 únicamente mediante una nueva autorización y sin mezclar la reparación separada de Q1.
 4. Mantener la clasificación de cada suite nueva mediante su target y tag en el mismo cambio que la introduce.
 5. Implementar el producto restante y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
 6. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
@@ -305,7 +336,7 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
 - Catálogo C1 y la decisión normativa D1 están entregados.
 - Los planes `Fast`, `Integration`, `UI` y `ReleaseGate` están materializados, ejecutados, revisados y entregados mediante Q1.
-- C2 amplía localmente Catálogo con paginación y lista/cuadrícula; búsqueda, filtros, colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
+- C2 y P1 están entregados sin iniciar C3; búsqueda, filtros, colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La única evidencia física actual es la instalación y visualización del icono en el iPhone 11 observada por el propietario. No existe todavía evidencia de accesibilidad física, Keychain, App Group, WatchConnectivity o integración live.
 - No se ha autorizado publicación DocC ni GitHub Pages.

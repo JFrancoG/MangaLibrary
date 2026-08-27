@@ -1,6 +1,13 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "A network connection error occurred." : {
+      "comment" : "Safe description for a transport failure without a more specific recovery category.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A network connection error occurred." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Se ha producido un error de conexión de red." } }
+      }
+    },
     "Account" : {
       "comment" : "Title of the account tab and its navigation destination.",
       "localizations" : {
@@ -36,11 +43,11 @@
         "es" : { "stringUnit" : { "state" : "translated", "value" : "Diseño del catálogo" } }
       }
     },
-    "Check your connection and try again." : {
-      "comment" : "Recovery guidance after the first catalog page fails.",
+    "Catalog unavailable" : {
+      "comment" : "Recoverable error title for the initial catalog request.",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Check your connection and try again." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Comprueba tu conexión e inténtalo de nuevo." } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Catalog unavailable" } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Catálogo no disponible" } }
       }
     },
     "Choose a manga from the catalog to see its details." : {
@@ -69,13 +76,6 @@
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Collection is not available yet" } },
         "es" : { "stringUnit" : { "state" : "translated", "value" : "La colección aún no está disponible" } }
-      }
-    },
-    "Couldn't load the catalog" : {
-      "comment" : "Recoverable error title for the initial catalog request.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn't load the catalog" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "No se pudo cargar el catálogo" } }
       }
     },
     "Couldn't load more manga" : {
@@ -162,11 +162,46 @@
         "es" : { "stringUnit" : { "state" : "translated", "value" : "El catálogo está vacío" } }
       }
     },
-    "Your existing results are still available." : {
-      "comment" : "Explanation shown after an additional page fails without removing existing catalog items.",
+    "The catalog is temporarily unavailable." : {
+      "comment" : "Safe description when a catalog failure has no more specific category.",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Your existing results are still available." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Tus resultados existentes siguen disponibles." } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The catalog is temporarily unavailable." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "El catálogo no está disponible temporalmente." } }
+      }
+    },
+    "The network request timed out." : {
+      "comment" : "Safe description for a network timeout.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The network request timed out." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "La solicitud de red ha agotado el tiempo de espera." } }
+      }
+    },
+    "The server response has an unexpected format." : {
+      "comment" : "Safe description when required catalog fields or metadata do not match the contract.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The server response has an unexpected format." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "La respuesta del servidor tiene un formato inesperado." } }
+      }
+    },
+    "The server returned an invalid response." : {
+      "comment" : "Safe description when URL loading does not return an HTTP response.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The server returned an invalid response." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "El servidor ha devuelto una respuesta no válida." } }
+      }
+    },
+    "The server returned status code %lld." : {
+      "comment" : "Safe description for an unexpected HTTP status code.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The server returned status code %lld." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "El servidor ha respondido con el código %lld." } }
+      }
+    },
+    "There is no internet connection." : {
+      "comment" : "Safe description when URL loading reports no internet connection.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "There is no internet connection." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "No hay conexión a internet." } }
       }
     }
   },

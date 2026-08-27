@@ -29,20 +29,19 @@ struct CatalogModelTests {
         await loadTask.value
 
         #expect(model.state == terminalContent(expectedPage.items))
+
+        await model.loadIfNeeded()
+
+        #expect(await loader.requests().count == 1)
+        #expect(model.state == terminalContent(expectedPage.items))
     }
 
     @Test
     func emptyInitialPageProducesEmptyState() async {
-        let loader = ControlledCatalogLoader()
-        let model = makeModel(loader: loader)
         let emptyPage = page(items: [])
+        let model = CatalogModel { _ in emptyPage }
 
-        let loadTask = Task {
-            await model.loadIfNeeded()
-        }
-        await loader.waitForRequestCount(1)
-        await loader.succeed(emptyPage, at: 0)
-        await loadTask.value
+        await model.loadIfNeeded()
 
         #expect(model.state == .empty)
     }
@@ -58,10 +57,16 @@ struct CatalogModelTests {
             await model.loadIfNeeded()
         }
         await loader.waitForRequestCount(1)
-        await loader.fail(TestFailure.offline, at: 0)
+        await loader.fail(
+            CatalogAPIClientError.network(.transport(.notConnectedToInternet)),
+            at: 0
+        )
         await initialTask.value
 
-        #expect(model.state == .failure(.unavailable))
+        #expect(
+            model.state
+                == .failure(.network(.transport(.notConnectedToInternet)))
+        )
 
         let retryTask = Task {
             await model.retry()
@@ -78,15 +83,11 @@ struct CatalogModelTests {
 
     @Test
     func contractDriftRemainsObservableInFailureState() async {
-        let loader = ControlledCatalogLoader()
-        let model = makeModel(loader: loader)
-
-        let loadTask = Task {
-            await model.loadIfNeeded()
+        let model = CatalogModel { _ in
+            throw CatalogAPIClientError.contractDrift
         }
-        await loader.waitForRequestCount(1)
-        await loader.fail(CatalogAPIClientError.contractDrift, at: 0)
-        await loadTask.value
+
+        await model.loadIfNeeded()
 
         #expect(model.state == .failure(.contractDrift))
     }
@@ -156,54 +157,13 @@ struct CatalogModelTests {
         await currentTask.value
         #expect(model.state == terminalContent(currentPage.items))
 
-        await loader.fail(TestFailure.offline, at: 0)
+        await loader.fail(
+            CatalogAPIClientError.network(.transport(.timedOut)),
+            at: 0
+        )
         await staleTask.value
 
         #expect(model.state == terminalContent(currentPage.items))
-    }
-
-    @Test
-    func loadIfNeededDoesNotReloadExistingContent() async {
-        let loader = ControlledCatalogLoader()
-        let model = makeModel(loader: loader)
-        let firstPage = page(items: [manga(id: 5, title: "Pluto")])
-
-        let initialTask = Task {
-            await model.loadIfNeeded()
-        }
-        await loader.waitForRequestCount(1)
-        await loader.succeed(firstPage, at: 0)
-        await initialTask.value
-
-        await model.loadIfNeeded()
-
-        #expect(await loader.requests().count == 1)
-        #expect(model.state == terminalContent(firstPage.items))
-    }
-
-    @Test
-    func detailSelectionResolvesFromTheLoadedIdentity() async {
-        let loader = ControlledCatalogLoader()
-        let model = makeModel(loader: loader)
-        let firstManga = manga(id: 6, title: "20th Century Boys")
-        let secondManga = manga(id: 7, title: "Billy Bat")
-        let loadedPage = page(items: [firstManga, secondManga])
-
-        let loadTask = Task {
-            await model.loadIfNeeded()
-        }
-        await loader.waitForRequestCount(1)
-        await loader.succeed(loadedPage, at: 0)
-        await loadTask.value
-
-        model.selectedMangaID = secondManga.id
-
-        #expect(model.selectedManga == secondManga)
-
-        model.selectedMangaID = 999
-
-        #expect(model.selectedManga == nil)
-        #expect(await loader.requests().count == 1)
     }
 
     @Test
@@ -352,14 +312,20 @@ struct CatalogModelTests {
             await model.loadRequestedNextPage()
         }
         await loader.waitForRequestCount(2)
-        await loader.fail(TestFailure.offline, at: 1)
+        await loader.fail(
+            CatalogAPIClientError.network(.transport(.notConnectedToInternet)),
+            at: 1
+        )
         await failedTask.value
 
         #expect(
             model.state == .content(
                 .init(
                     items: [firstManga],
-                    pagination: .failure(page: 2, reason: .unavailable)
+                    pagination: .failure(
+                        page: 2,
+                        reason: .network(.transport(.notConnectedToInternet))
+                    )
                 )
             )
         )
@@ -516,8 +482,4 @@ struct CatalogModelTests {
             coverURL: nil
         )
     }
-}
-
-private enum TestFailure: Error {
-    case offline
 }

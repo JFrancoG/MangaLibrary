@@ -7,73 +7,71 @@ import Foundation
 import Testing
 @testable import MangaLibrary
 
-@Suite(.tags(.integration))
+@Suite("Catalog API client", .tags(.fast))
 struct CatalogAPIClientTests {
-    @Test
-    func initialRequestUsesThePublicFirstPageContract() async throws {
-        let (client, session) = try makeClient(host: "valid.catalog.test")
-        defer { session.invalidateAndCancel() }
-
-        _ = try await client.fetch(CatalogPageRequest())
-    }
-
-    @Test
-    func pageRequestDefaultsToPageOneAndTwentyItems() throws {
+    @Test("A page request defaults to the first twenty items")
+    func pageRequestDefaultsToFirstPage() throws {
         let request = try CatalogPageRequest()
 
         #expect(request.page == 1)
         #expect(request.per == 20)
     }
 
-    @Test
-    func pageRequestRejectsValuesOutsideTheApplicationPolicy() {
+    @Test("A page request rejects an invalid page", arguments: [Int64(-1), 0])
+    func pageRequestRejectsInvalidPage(_ page: Int64) {
         #expect(throws: CatalogPageRequest.ValidationError.invalidPage) {
-            try CatalogPageRequest(page: 0, per: 20)
-        }
-        #expect(throws: CatalogPageRequest.ValidationError.invalidItemsPerPage) {
-            try CatalogPageRequest(page: 1, per: 0)
-        }
-        #expect(throws: CatalogPageRequest.ValidationError.invalidItemsPerPage) {
-            try CatalogPageRequest(page: 1, per: 101)
+            try CatalogPageRequest(page: page)
         }
     }
 
-    @Test
-    func secondPageRequestUsesTheRequestedCursor() async throws {
-        let (client, session) = try makeClient(host: "page-two.catalog.test")
-        defer { session.invalidateAndCancel() }
-
-        let page = try await client.fetch(CatalogPageRequest(page: 2))
-
-        #expect(page.metadata.page == 2)
-        #expect(page.metadata.per == 20)
-        #expect(page.metadata.total == 40)
+    @Test("A page request rejects an invalid page size", arguments: [Int64(0), 101])
+    func pageRequestRejectsInvalidPageSize(_ per: Int64) {
+        #expect(throws: CatalogPageRequest.ValidationError.invalidItemsPerPage) {
+            try CatalogPageRequest(per: per)
+        }
     }
 
-    @Test
-    func mismatchedResponseMetadataIsRejectedAsContractDrift() async throws {
-        let (client, session) = try makeClient(
-            host: "metadata-mismatch.catalog.test"
+    @Test("Fetch builds the exact public request", arguments: [Int64(1), 2])
+    func fetchBuildsExactPublicRequest(page: Int64) async throws {
+        let recorder = RecordedDataLoader(
+            data: CatalogJSONFixtures.page(page: page, total: 40)
         )
-        defer { session.invalidateAndCancel() }
-
-        await #expect(throws: CatalogAPIClientError.contractDrift) {
-            try await client.fetch(CatalogPageRequest())
+        let client = try makeClient { request in
+            await recorder.load(request)
         }
+
+        _ = try await client.fetch(CatalogPageRequest(page: page))
+
+        let request = try #require(await recorder.requests().first)
+        let url = try #require(request.url)
+        let components = try #require(
+            URLComponents(url: url, resolvingAgainstBaseURL: false)
+        )
+        #expect(request.httpMethod == "GET")
+        #expect(components.scheme == "https")
+        #expect(components.host == "catalog.example.test")
+        #expect(components.port == nil)
+        #expect(components.path == "/list/mangas")
+        #expect(
+            components.queryItems == [
+                URLQueryItem(name: "page", value: String(page)),
+                URLQueryItem(name: "per", value: "20")
+            ]
+        )
+        #expect(request.httpBody == nil)
+        #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+        #expect(request.value(forHTTPHeaderField: "App-Token") == nil)
     }
 
-    @Test
-    func validCompleteContractFixtureMapsCatalogValues() async throws {
-        let (client, session) = try makeClient(host: "valid.catalog.test")
-        defer { session.invalidateAndCancel() }
+    @Test("A contract-valid payload maps every product field and ignores remote additions")
+    func validMinimalPayloadMapsCatalogValues() async throws {
+        let client = try makeClient(returning: CatalogJSONFixtures.page())
 
         let page = try await client.fetch(CatalogPageRequest())
         let manga = try #require(page.items.first)
 
         #expect(page.items.count == 1)
-        #expect(page.metadata.page == 1)
-        #expect(page.metadata.per == 20)
-        #expect(page.metadata.total == 1)
+        #expect(page.metadata == .init(page: 1, per: 20, total: 1))
         #expect(manga.id == 42)
         #expect(manga.title == "Fullmetal Alchemist")
         #expect(manga.titleEnglish == "Fullmetal Alchemist")
@@ -86,242 +84,146 @@ struct CatalogAPIClientTests {
         )
     }
 
-    @Test
-    func missingRequiredFieldIsRejectedAsContractDrift() async throws {
-        let (client, session) = try makeClient(host: "missing.catalog.test")
-        defer { session.invalidateAndCancel() }
+    @Test("Incoherent metadata is contract drift", arguments: MetadataMismatch.allCases)
+    func rejectsIncoherentMetadata(_ mismatch: MetadataMismatch) async throws {
+        let metadata = mismatch.values
+        let client = try makeClient(
+            returning: CatalogJSONFixtures.page(
+                page: metadata.page,
+                per: metadata.per,
+                total: metadata.total
+            )
+        )
 
         await #expect(throws: CatalogAPIClientError.contractDrift) {
             try await client.fetch(CatalogPageRequest())
         }
     }
 
-    @Test
-    func unknownClosedVocabularyIsRejectedAsContractDrift() async throws {
-        let (client, session) = try makeClient(host: "unknown-status.catalog.test")
-        defer { session.invalidateAndCancel() }
+    @Test("A missing product field is contract drift")
+    func missingConsumedFieldIsContractDrift() async throws {
+        let item = CatalogJSONFixtures.manga(includesTitle: false)
+        let client = try makeClient(
+            returning: CatalogJSONFixtures.page(items: [item])
+        )
 
         await #expect(throws: CatalogAPIClientError.contractDrift) {
             try await client.fetch(CatalogPageRequest())
         }
     }
 
-    @Test
-    func transportFailureMapsToUnavailableCatalogFailure() async throws {
-        let (client, session) = try makeClient(host: "unavailable.catalog.test")
-        defer { session.invalidateAndCancel() }
+    @Test(
+        "Network failures preserve their safe category",
+        arguments: [
+            NetworkError.invalidResponse,
+            .statusCode(503),
+            .transport(.timedOut)
+        ]
+    )
+    func mapsNetworkFailure(_ error: NetworkError) async throws {
+        let client = try makeClient { _ in
+            throw error
+        }
 
-        await #expect(throws: CatalogAPIClientError.unavailable) {
+        await #expect(throws: CatalogAPIClientError.network(error)) {
             try await client.fetch(CatalogPageRequest())
         }
     }
 
-    @Test
-    func duplicateMangaIdentityRejectsTheWholePage() async throws {
-        let (client, session) = try makeClient(host: "duplicate.catalog.test")
-        defer { session.invalidateAndCancel() }
+    @Test("Cancellation crosses the typed client unchanged")
+    func propagatesCancellation() async throws {
+        let client = try makeClient { _ in
+            throw CancellationError()
+        }
+
+        await #expect(throws: CancellationError.self) {
+            try await client.fetch(CatalogPageRequest())
+        }
+    }
+
+    @Test("A duplicate identity rejects the whole page")
+    func rejectsDuplicateMangaIdentity() async throws {
+        let item = CatalogJSONFixtures.manga()
+        let client = try makeClient(
+            returning: CatalogJSONFixtures.page(total: 2, items: [item, item])
+        )
 
         await #expect(throws: CatalogAPIClientError.duplicateMangaID(42)) {
             try await client.fetch(CatalogPageRequest())
         }
     }
 
-    @Test
-    func invalidCoverStringMapsToUnavailableCover() async throws {
-        let (client, session) = try makeClient(host: "invalid-cover.catalog.test")
-        defer { session.invalidateAndCancel() }
+    @Test(
+        "An unsafe cover is unavailable",
+        arguments: [
+            "not a URL",
+            "https://reader:secret@images.example.test/cover.jpg",
+            "ftp://images.example.test/cover.jpg"
+        ]
+    )
+    func rejectsUnsafeCover(_ cover: String) async throws {
+        let item = CatalogJSONFixtures.manga(cover: cover)
+        let client = try makeClient(
+            returning: CatalogJSONFixtures.page(items: [item])
+        )
 
         let page = try await client.fetch(CatalogPageRequest())
-        let manga = try #require(page.items.first)
 
-        #expect(manga.coverURL == nil)
+        #expect(page.items.first?.coverURL == nil)
     }
 
-    @Test
-    func embeddedCredentialsInCoverURLMapToUnavailableCover() async throws {
-        let (client, session) = try makeClient(host: "credential-cover.catalog.test")
-        defer { session.invalidateAndCancel() }
-
-        let page = try await client.fetch(CatalogPageRequest())
-        let manga = try #require(page.items.first)
-
-        #expect(manga.coverURL == nil)
+    private func makeClient(returning data: Data) throws -> CatalogAPIClient {
+        try makeClient { _ in data }
     }
 
-    private func makeClient(host: String) throws -> (client: CatalogAPIClient, session: URLSession) {
-        let baseURL = try #require(URL(string: "https://\(host)"))
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [DeterministicCatalogURLProtocol.self]
-        let session = URLSession(configuration: configuration)
+    private func makeClient(
+        loadData: @escaping CatalogAPIClient.DataLoader
+    ) throws -> CatalogAPIClient {
+        let baseURL = try #require(URL(string: "https://catalog.example.test"))
 
-        return (
-            CatalogAPIClient(
-                httpClient: HTTPClient(session: session),
-                configuration: try APIConfiguration(baseURL: baseURL)
-            ),
-            session
+        return CatalogAPIClient(
+            configuration: try APIConfiguration(baseURL: baseURL),
+            loadData: loadData
         )
     }
 }
 
-private final class DeterministicCatalogURLProtocol: URLProtocol {
-    override class func canInit(with request: URLRequest) -> Bool {
-        request.url?.host()?.hasSuffix(".catalog.test") == true
+private actor RecordedDataLoader {
+    private let data: Data
+    private var recordedRequests: [URLRequest] = []
+
+    init(data: Data) {
+        self.data = data
     }
 
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
-        request
+    func load(_ request: URLRequest) -> Data {
+        recordedRequests.append(request)
+        return data
     }
 
-    override func startLoading() {
-        guard let client, let url = request.url else {
-            return
-        }
-
-        let expectedPage = url.host() == "page-two.catalog.test" ? 2 : 1
-        let isExpectedRequest = request.httpMethod == "GET"
-            && url.path() == "/list/mangas"
-            && url.query() == "page=\(expectedPage)&per=20"
-            && request.value(forHTTPHeaderField: "Authorization") == nil
-            && request.value(forHTTPHeaderField: "App-Token") == nil
-
-        let statusCode: Int
-        if !isExpectedRequest {
-            statusCode = 418
-        } else if url.host() == "unavailable.catalog.test" {
-            statusCode = 503
-        } else {
-            statusCode = 200
-        }
-        let body = isExpectedRequest ? fixture(for: url.host()) : Data()
-        guard let response = HTTPURLResponse(
-            url: url,
-            statusCode: statusCode,
-            httpVersion: "HTTP/1.1",
-            headerFields: ["Content-Type": "application/json"]
-        ) else {
-            client.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
-            return
-        }
-
-        client.urlProtocol(
-            self,
-            didReceive: response,
-            cacheStoragePolicy: .notAllowed
-        )
-        client.urlProtocol(self, didLoad: body)
-        client.urlProtocolDidFinishLoading(self)
+    func requests() -> [URLRequest] {
+        recordedRequests
     }
+}
 
-    override func stopLoading() {}
+enum MetadataMismatch: CaseIterable, CustomTestStringConvertible {
+    case page
+    case per
+    case total
 
-    private func fixture(for host: String?) -> Data {
-        let validItem = Self.mangaFixture(id: 42, includesTitle: true)
-
-        switch host {
-        case "valid.catalog.test":
-            return Self.pageFixture(items: [validItem], total: 1)
-        case "page-two.catalog.test":
-            return Self.pageFixture(page: 2, items: [validItem], total: 40)
-        case "metadata-mismatch.catalog.test":
-            return Self.pageFixture(page: 2, items: [validItem], total: 1)
-        case "missing.catalog.test":
-            return Self.pageFixture(
-                items: [Self.mangaFixture(id: 42, includesTitle: false)],
-                total: 1
-            )
-        case "unknown-status.catalog.test":
-            return Self.pageFixture(
-                items: [
-                    validItem.replacingOccurrences(
-                        of: #""status": "finished""#,
-                        with: #""status": "future_status""#
-                    )
-                ],
-                total: 1
-            )
-        case "duplicate.catalog.test":
-            return Self.pageFixture(items: [validItem, validItem], total: 2)
-        case "invalid-cover.catalog.test":
-            return Self.pageFixture(
-                items: [
-                    validItem.replacingOccurrences(
-                        of: "https://images.example.test/fullmetal-alchemist.jpg",
-                        with: "not a URL"
-                    )
-                ],
-                total: 1
-            )
-        case "credential-cover.catalog.test":
-            return Self.pageFixture(
-                items: [
-                    validItem.replacingOccurrences(
-                        of: "https://images.example.test/fullmetal-alchemist.jpg",
-                        with: "https://reader:secret@images.example.test/cover.jpg"
-                    )
-                ],
-                total: 1
-            )
-        default:
-            return Data()
+    var testDescription: String {
+        switch self {
+        case .page: "page"
+        case .per: "per"
+        case .total: "total"
         }
     }
 
-    private static func pageFixture(
-        page: Int64 = 1,
-        items: [String],
-        total: Int64
-    ) -> Data {
-        Data(
-            #"{"items":[\#(items.joined(separator: ","))],"metadata":{"page":\#(page),"per":20,"total":\#(total)}}"#.utf8
-        )
-    }
-
-    private static func mangaFixture(id: Int64, includesTitle: Bool) -> String {
-        let title = includesTitle ? #", "title": "Fullmetal Alchemist""# : ""
-
-        return #"""
-        {
-          "authors": [
-            {
-              "firstName": "Hiromu",
-              "id": "19bcb3f8-f755-4dc9-b55b-fc86d206af1f",
-              "lastName": "Arakawa",
-              "role": "Story & Art"
-            }
-          ],
-          "background": null,
-          "chapters": 116,
-          "demographics": [
-            {
-              "demographic": "Shounen",
-              "id": "8f237731-f5de-4ca4-9ad8-721f0285026e"
-            }
-          ],
-          "endDate": "2010-07-12T00:00:00Z",
-          "genres": [
-            {
-              "genre": "Adventure",
-              "id": "fb743fc5-288c-473a-89ee-73bc4c8a1e53"
-            }
-          ],
-          "id": \#(id),
-          "mainPicture": "https://images.example.test/fullmetal-alchemist.jpg",
-          "score": 9.12,
-          "startDate": "2001-07-12T00:00:00Z",
-          "status": "finished",
-          "sypnosis": "Two brothers search for the Philosopher's Stone.",
-          "themes": [
-            {
-              "id": "3eca0fd4-c771-4e5e-bd7d-71f61ae2f47c",
-              "theme": "Military"
-            }
-          ],
-          "titleEnglish": "Fullmetal Alchemist",
-          "titleJapanese": "鋼の錬金術師",
-          "url": "https://example.test/manga/42",
-          "volumes": 27\#(title)
+    var values: (page: Int64, per: Int64, total: Int64) {
+        switch self {
+        case .page: (page: 2, per: 20, total: 1)
+        case .per: (page: 1, per: 10, total: 1)
+        case .total: (page: 1, per: 20, total: 0)
         }
-        """#
     }
 }

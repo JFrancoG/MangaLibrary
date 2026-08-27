@@ -7,21 +7,23 @@ import Foundation
 
 enum CatalogAPIClientError: Error, Equatable {
     case unavailable
+    case network(NetworkError)
     case contractDrift
     case duplicateMangaID(Manga.ID)
 }
 
 struct CatalogAPIClient {
-    let httpClient: HTTPClient
+    typealias DataLoader = @Sendable (URLRequest) async throws -> Data
+
     let configuration: APIConfiguration
+    let loadData: DataLoader
 
     /// Fetches and maps one catalog page outside the caller's actor isolation.
     ///
-    /// Cancellation propagates unchanged. Request and transport failures become
-    /// a safe unavailable failure. Invalid JSON, unknown closed vocabulary
-    /// values, missing required fields, and pagination metadata that does not
-    /// correspond to the request become a safe contract-drift failure; response
-    /// bodies and underlying errors are never retained.
+    /// Cancellation and safe network categories propagate without losing their
+    /// meaning. Missing product fields and pagination metadata that does not
+    /// correspond to the request become contract drift; response bodies and
+    /// underlying errors are never retained.
     @concurrent
     func fetch(_ pageRequest: CatalogPageRequest) async throws -> CatalogPage {
         let request: URLRequest
@@ -33,9 +35,11 @@ struct CatalogAPIClient {
 
         let data: Data
         do {
-            data = try await httpClient.data(for: request)
+            data = try await loadData(request)
         } catch is CancellationError {
             throw CancellationError()
+        } catch let error as NetworkError {
+            throw CatalogAPIClientError.network(error)
         } catch {
             throw CatalogAPIClientError.unavailable
         }
@@ -56,6 +60,15 @@ struct CatalogAPIClient {
             throw error
         } catch {
             throw CatalogAPIClientError.contractDrift
+        }
+    }
+}
+
+extension CatalogAPIClient {
+    /// Adapts the production HTTP transport without exposing it to previews or feature tests.
+    init(httpClient: HTTPClient, configuration: APIConfiguration) {
+        self.init(configuration: configuration) { request in
+            try await httpClient.data(for: request)
         }
     }
 }

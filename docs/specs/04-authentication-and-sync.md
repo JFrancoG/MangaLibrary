@@ -1,8 +1,8 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.5
-- Última revisión: 2026-08-25
+- Versión: 1.6
+- Última revisión: 2026-08-27
 
 ## Propósito y alcance
 
@@ -311,6 +311,6 @@ WatchOS y WidgetKit consumen proyecciones y no abren nuevos escritores autoritat
 - [ADR-0003: concurrencia y aislamiento](../adr/0003-concurrency-and-default-isolation.md)
 - [ADR-0004: SwiftData local-first y model actors](../adr/0004-swiftdata-local-first-and-model-actors.md)
 - [ADR-0006: autenticación, Keychain y sincronización](../adr/0006-authentication-keychain-and-sync.md)
-- [ADR-0009: flujos nativos por fuente y navegación local](../adr/0009-native-source-owned-features-and-local-navigation.md)
+- [ADR-0014: flujos nativos, composición live y dobles directos](../adr/0014-native-flows-live-composition-and-direct-doubles.md)
 - [ADR-0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
 - [ADR-0013: frontera de logout Advanced y bridge Deluxe](../adr/0013-advanced-logout-and-deluxe-bridge-boundary.md)

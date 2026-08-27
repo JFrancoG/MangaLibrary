@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.9
-**Fecha:** 2026-08-25
+**Versión:** 1.10
+**Fecha:** 2026-08-27
 
 ## Propósito
 
@@ -15,6 +15,7 @@ Definir evidencia proporcional al riesgo para entregar Advanced y Deluxe con cer
 - No se mezclarán aserciones de ambos frameworks dentro del mismo test.
 - El comportamiento nuevo testeable seguirá RED/GREEN. Documentación, configuración y exploración visual registrarán validación proporcional con TDD marcado como no aplicable.
 - Ningún test automatizado llamará al servicio de producción.
+- No se probarán conformidades exigidas por el compilador, inicializadores triviales ni wiring sin ramas solo para aumentar la cantidad de tests.
 
 ## Planes previstos
 
@@ -28,10 +29,10 @@ Definir evidencia proporcional al riesgo para entregar Advanced y Deluxe con cer
 Los cuatro ficheros versionados viven en `TestPlans/` y el scheme compartido
 `MangaLibrary` deja `Fast` como plan predeterminado. Los planes unitarios usan
 filtros Include Tags de Swift Testing: `Fast` incluye el tag `fast`, aplicado a
-las suites deterministas `AppCompositionTests` y `CatalogModelTests`, e
-`Integration` incluye el tag `integration`, aplicado a
-`CatalogAPIClientTests` y `HTTPClientTests`, que atraviesan fronteras
-controladas mediante `URLProtocol`. `UI` contiene únicamente
+`APIConfigurationTests`, `CatalogAPIClientTests` y `CatalogModelTests` porque
+usan valores y bytes directos deterministas. `Integration` incluye el tag
+`integration`, aplicado a `HTTPClientTests`, que atraviesa la frontera real de
+`URLSession` mediante un `URLProtocol` limitado a su sesión. `UI` contiene únicamente
 `MangaLibraryUITests`. Toda suite nueva se clasifica en `Fast`, `Integration` o
 `UI` mediante su target y, cuando corresponda, su tag, en el mismo cambio que la
 introduce. No se filtra por nombres de funciones o suites.
@@ -82,7 +83,7 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 
 - CRUD SwiftData con un `ModelContainer` aislado y verificación desde otro contexto;
 - migración mediante un store temporal en disco creado con el esquema anterior;
-- requests y respuestas mediante un `URLProtocol` limitado a la `URLSession` de test, incluidos códigos y payloads inválidos;
+- transporte HTTP mediante un `URLProtocol` limitado a la `URLSession` de test: bytes exactos, respuesta no HTTP, status inesperado, fallo de transporte y cancelación;
 - ciclo de access/refresh token con un almacén Keychain sustituible y sin credenciales reales;
 - crash y recuperación del logout de A, bloqueo de una activación B concurrente y
   efectos tardíos de A convertidos en no-op después de activar B;
@@ -98,19 +99,17 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 
 ### Interfaz
 
-XCUITest cubrirá como mínimo los flujos críticos que puedan automatizarse de forma determinista:
+XCUITest se limita al menor smoke determinista que demuestre wiring crítico no
+cubierto con Swift Testing. En el alcance actual ejecuta un único recorrido:
+bootstrap mock Debug → primera fila de Catálogo → detalle de la misma
+`Manga.ID`.
 
-- catálogo a detalle y cambio entre lista y grid;
-- edición de tomos, tomo de lectura y colección completa;
-- alta, login, expiración recuperable y logout;
-- restauración de estado local y representación de error;
-- layout de iPhone en vertical e iPad en sus orientaciones admitidas;
-- cambio entre Catálogo, Colección y Cuenta, conservando durante la misma escena la ruta local de cada tab mediante su propietario de ámbito feature;
-- selección por `Manga.ID` desde catálogo y colección hacia el mismo detalle, sin transportar un modelo SwiftData vivo;
-- navegación lineal de Cuenta y catálogo accesible sin sesión;
-- invalidación de la selección de Colección al completar cambio de usuario, sin inventar todavía un flujo de colección anónima.
-
-Los tests UI no incluirán secretos ni dependerán de datos personales o de producción.
+Un flujo UI adicional solo se incorpora cuando exista un riesgo observable que
+no pueda caracterizarse con estado, modelo, integración o preview, y se elimina
+cuando otra evidencia más rápida y estable lo cubra. Los tests UI no prueban
+tabs placeholder, getters, persistencia local de un `@State` ya cubierta ni
+variantes visuales editoriales. Nunca incluyen secretos ni dependen de datos
+personales o de producción.
 
 ## Determinismo
 
@@ -125,8 +124,8 @@ Se inyectarán pérdida o corrupción de contador, overflow, disco lleno y carre
 ## Previews deterministas
 
 - Una preview estática puede construir directamente un estado representativo sin fingir una petición.
-- Una preview interactiva de red usa `URLSessionConfiguration.ephemeral` y un `URLProtocol` local sin registro global ni handler mutable compartido.
-- Los fixtures de transporte contienen bytes, cabeceras, status o errores; el decoder y los DTO son los de producción.
+- Una preview interactiva de Catálogo usa un loader de dominio directo; no construye `URLSession`, `HTTPClient`, DTO, `URLProtocol` o JSON.
+- Los fixtures JSON se reservan a tests del cliente tipado y `URLProtocol` a tests de `HTTPClient`; ninguna preview pretende demostrar por sí sola el pipeline completo.
 - Colección usa un `ModelContainer` en memoria con el esquema real; las interacciones posteriores recorren la capacidad de mutación de producción.
 - Cada escenario significativo posee contexto aislado y no llama a API, Keychain ni almacenamiento live.
 - Loading estable se modela como estado de presentación; no se simula con sleeps.
@@ -155,6 +154,7 @@ La política común se materializa en `Configuration/Shared.xcconfig`, conectada
 ## Calidad de producto
 
 - Todo texto visible residirá en String Catalog con español e inglés, incluso cuando una marca mantenga deliberadamente el mismo valor en ambos idiomas.
+- Los errores visibles conservan categorías tipadas y recursos localizables; los tests validan la categoría y el String Catalog valida idiomas y formato, no se acoplan a frases traducidas exactas.
 - `InfoPlist.xcstrings` explicita `Manga Library` como nombre visible invariable en inglés y español, y conserva también el nombre técnico de bundle en ambos locales.
 - Las futuras descripciones de permisos se añadirán a `InfoPlist.xcstrings` en los dos idiomas junto a la capacidad real que las necesite. `Localizable.xcstrings` se creará con la primera interfaz de producto y sus textos reales; este gate no anticipa un catálogo vacío ni traducciones ficticias.
 - Las vistas soportarán Dynamic Type sin truncar acciones o datos esenciales.
@@ -207,5 +207,5 @@ Un simulador no sustituye evidencia física cuando la capacidad dependa de hardw
 - [ADR 0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
 - [ADR 0011: excepción acotada para el warning de App Intents](../adr/0011-bounded-xcode-app-intents-warning-exception.md)
 - [Documentación y DocC](07-documentation-and-docc.md)
-- [ADR 0009: flujos nativos por fuente y navegación local](../adr/0009-native-source-owned-features-and-local-navigation.md)
+- [ADR 0014: flujos nativos, composición live y dobles directos](../adr/0014-native-flows-live-composition-and-direct-doubles.md)
 - [ADR 0013: frontera de logout Advanced y bridge Deluxe](../adr/0013-advanced-logout-and-deluxe-bridge-boundary.md)

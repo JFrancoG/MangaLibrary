@@ -73,11 +73,11 @@ struct CatalogRootView: View {
                 description: Text("No manga were returned for this page.")
             )
             .accessibilityIdentifier("catalog.empty")
-        case .failure:
+        case let .failure(reason):
             ContentUnavailableView {
-                Label("Couldn't load the catalog", systemImage: "wifi.exclamationmark")
+                Label("Catalog unavailable", systemImage: "exclamationmark.triangle")
             } description: {
-                Text("Check your connection and try again.")
+                Text(reason.errorDescriptionResource)
             } actions: {
                 Button("Retry") {
                     requestRetry()
@@ -123,10 +123,8 @@ struct CatalogRootView: View {
 }
 
 extension CatalogRootView {
-    init(client: CatalogAPIClient) {
-        model = CatalogModel { request in
-            try await client.fetch(request)
-        }
+    init(loadPage: @escaping CatalogModel.PageLoader) {
+        model = CatalogModel(loadPage: loadPage)
         layout = .list
     }
 
