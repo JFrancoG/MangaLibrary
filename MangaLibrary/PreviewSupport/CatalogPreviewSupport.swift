@@ -4,6 +4,12 @@
 //
 
 enum CatalogPreviewSupport {
+    static let filterOptions = CatalogFilterOptions(
+        demographics: ["Josei", "Seinen", "Shounen"],
+        genres: ["Action", "Adventure", "Drama", "Mystery"],
+        themes: ["Adult Cast", "Military", "Psychological", "Space"]
+    )
+
     static let mangas = [
         Manga(
             id: 1,
@@ -60,8 +66,22 @@ enum CatalogPreviewSupport {
         )
     }
 
+    static let filterOptionsLoader: CatalogModel.FilterOptionsLoader = {
+        filterOptions
+    }
+
     @MainActor
-    static func model(state: CatalogModel.State) -> CatalogModel {
-        CatalogModel(initialState: state, loadPage: pageLoader)
+    static func model(
+        state: CatalogModel.State,
+        query: CatalogQuery = .catalog,
+        filterOptionsState: CatalogModel.FilterOptionsState = .idle
+    ) -> CatalogModel {
+        CatalogModel(
+            initialState: state,
+            initialQuery: query,
+            initialFilterOptionsState: filterOptionsState,
+            loadFilterOptions: filterOptionsLoader,
+            loadPage: pageLoader
+        )
     }
 }

@@ -62,6 +62,55 @@ struct CatalogAPIClient {
             throw CatalogAPIClientError.contractDrift
         }
     }
+
+    /// Loads the exact taxonomies accepted by advanced catalog search.
+    ///
+    /// The three independent public operations run as structured child tasks.
+    /// Parent cancellation propagates through every child and safe transport
+    /// categories are preserved; malformed arrays become contract drift.
+    @concurrent
+    func fetchFilterOptions() async throws -> CatalogFilterOptions {
+        async let demographics = fetchFilterValues(
+            path: "list/demographics"
+        )
+        async let genres = fetchFilterValues(path: "list/genres")
+        async let themes = fetchFilterValues(path: "list/themes")
+
+        let (
+            demographicValues,
+            genreValues,
+            themeValues
+        ) = try await (demographics, genres, themes)
+        return CatalogFilterOptions(
+            demographics: demographicValues,
+            genres: genreValues,
+            themes: themeValues
+        )
+    }
+
+    @concurrent
+    private func fetchFilterValues(path: String) async throws -> [String] {
+        let endpoint = configuration.baseURL.appending(path: path)
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "GET"
+
+        let data: Data
+        do {
+            data = try await loadData(request)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as NetworkError {
+            throw CatalogAPIClientError.network(error)
+        } catch {
+            throw CatalogAPIClientError.unavailable
+        }
+
+        do {
+            return try JSONDecoder().decode([String].self, from: data)
+        } catch {
+            throw CatalogAPIClientError.contractDrift
+        }
+    }
 }
 
 extension CatalogAPIClient {

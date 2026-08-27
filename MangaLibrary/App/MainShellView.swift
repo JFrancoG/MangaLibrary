@@ -13,13 +13,17 @@ enum AppTab: Hashable {
 
 struct MainShellView: View {
     let loadCatalogPage: CatalogModel.PageLoader
+    let loadCatalogFilterOptions: CatalogModel.FilterOptionsLoader
 
     @State private var selectedTab: AppTab = .catalog
 
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Catalog", systemImage: "books.vertical", value: .catalog) {
-                CatalogRootView(loadPage: loadCatalogPage)
+                CatalogRootView(
+                    loadPage: loadCatalogPage,
+                    loadFilterOptions: loadCatalogFilterOptions
+                )
             }
             .accessibilityIdentifier("tab.catalog")
 
@@ -58,5 +62,8 @@ struct MainShellView: View {
 }
 
 #Preview("Shell") {
-    MainShellView(loadCatalogPage: CatalogPreviewSupport.pageLoader)
+    MainShellView(
+        loadCatalogPage: CatalogPreviewSupport.pageLoader,
+        loadCatalogFilterOptions: CatalogPreviewSupport.filterOptionsLoader
+    )
 }

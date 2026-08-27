@@ -1,7 +1,7 @@
 # API, catálogo, búsqueda e imágenes
 
 - Estado: aprobado
-- Versión: 1.3
+- Versión: 1.4
 - Última revisión: 2026-08-27
 
 ## Propósito y alcance
@@ -27,6 +27,11 @@ baseline histórica: OpenAPI 3.0.1, 28 paths, 30 operaciones, 19 schemas y 3
 mecanismos de seguridad. El documento vivo conserva precedencia y debe
 consultarse de nuevo antes de implementar.
 
+La revalidación del 27 de agosto de 2026 no detectó deriva: el documento vivo
+canonizado coincide byte a byte con el snapshot saneado y conserva SHA-256
+`9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`.
+No se realizaron llamadas funcionales al servicio.
+
 La baseline no declara `servers`, ordenación configurable, responses distintos
 de `200`, errores tipados, idempotency key, revocación, rate limits, ETag ni
 versión de recurso. Los schemas de `page` y `per` tampoco codifican
@@ -51,14 +56,14 @@ Los JSON mock pertenecen exclusivamente a tests del cliente tipado: un fixture p
 | CAT-001 | El catálogo debe escalar a más de 64.000 referencias sin descarga ni materialización total. |
 | CAT-002 | La primera petición de una consulta usa `per = 20`. |
 | CAT-003 | Ninguna petición generada por la app usa un `per` superior a 100. |
-| CAT-004 | La identidad de una consulta incluye búsqueda, filtros y cualquier orden que llegue a declarar el contrato; la siguiente página debe conservar exactamente esa identidad salvo el avance de página. El contrato actual no ofrece ordenación configurable. |
-| CAT-005 | Un cambio en búsqueda o filtros reinicia la paginación a su página inicial y descarta resultados pertenecientes a la consulta anterior. Una ordenación futura se incorporará solo después de verificarla. |
+| CAT-004 | La identidad de una consulta incluye el conjunto de resultados, el modo de coincidencia, el texto, la autoría y las selecciones de demografía, género y tema. La siguiente página debe conservar exactamente esa identidad salvo el avance de página. El contrato actual no ofrece ordenación configurable. |
+| CAT-005 | Un cambio en cualquier componente de la identidad reinicia la paginación a su página inicial, limpia la selección anterior y descarta resultados pertenecientes a la consulta sustituida. Una ordenación futura se incorporará solo después de verificarla. |
 | CAT-006 | Los filtros activos se combinan con semántica AND según el contrato vivo. La app no debe simular OR ni ampliar resultados localmente. |
 | CAT-007 | La ausencia de más páginas debe detener nuevas peticiones para esa consulta. |
 | CAT-008 | Respuestas tardías de una consulta sustituida no deben contaminar la consulta vigente. |
 | CAT-009 | Lista y cuadrícula deben representar el mismo conjunto, búsqueda, filtros y progreso de paginación. |
 | CAT-010 | El detalle debe abrir la misma identidad de manga seleccionada en lista o cuadrícula. |
-| CAT-011 | Advanced debe permitir explorar o filtrar por destacados/mejores, autoría, demografía, género y tema cuando cada operación y valor hayan sido verificados en el contrato vivo. |
+| CAT-011 | Advanced debe permitir buscar por autoría, demografía, género y tema mediante la operación avanzada paginada y explorar «Mejores» mediante su conjunto paginado exclusivo. El contrato actual no expone «Destacados». |
 
 El tamaño `20` es la política inicial de la app, no una afirmación sobre el valor predeterminado del servidor. Cualquier optimización posterior debe mantener el máximo `100` y justificarse con evidencia.
 
@@ -69,11 +74,27 @@ rechace valores fuera de rango.
 
 ## Búsqueda y filtros
 
-- La aplicación ofrece los filtros que el contrato vivo exponga para alcanzar el alcance acumulado de Advanced.
-- La interfaz cubre explícitamente destacados/mejores, autoría, demografía, género y tema; si el OpenAPI modifica o retira una de esas capacidades, la deriva bloquea la aceptación hasta decidir cómo reconciliar el alcance.
-- Un valor de filtro se serializa con la forma y codificación que declare el OpenAPI; no se infieren nombres ni formatos a partir de ejemplos antiguos.
-- La búsqueda principal usa la operación avanzada paginada. El endpoint dedicado a BEGINS WITH devuelve un array sin parámetros de página y no sustituye esa ruta para un catálogo de más de 64.000 referencias.
-- La combinación visual de filtros debe coincidir con la combinación enviada.
+- La búsqueda principal usa `POST /search/manga` con `page` y `per`. Su body
+  `CustomSearch` conserva `searchContains` y solo incluye, cuando proceda,
+  `searchTitle`, `searchAuthorFirstName`, `searchAuthorLastName`,
+  `searchDemographics`, `searchGenres` y `searchThemes`.
+- El modo «Contiene» serializa `searchContains = true`; «Empieza por»,
+  `false`. El endpoint dedicado a BEGINS WITH devuelve un array sin parámetros
+  de página y no sustituye la operación avanzada para un catálogo de más de
+  64.000 referencias.
+- Los valores disponibles se obtienen de las operaciones públicas
+  `GET /list/demographics`, `GET /list/genres` y `GET /list/themes`. Su carga
+  perezosa posee estados independientes de carga, vacío, error recuperable y
+  contenido; tests y previews usan un loader de dominio directo.
+- «Mejores» corresponde a `GET /list/bestMangas` con `page` y `per`. Es un
+  conjunto paginado ordenado por puntuación por el servidor, no una ordenación
+  configurable de la búsqueda, y no puede combinarse con texto u otros filtros
+  porque el contrato no declara una operación que admita esa combinación.
+- No existe una operación de «Destacados» en el contrato verificado. La app no
+  inventa ese conjunto ni lo sustituye por «Mejores» sin hacerlo explícito.
+- La combinación visual conserva las dimensiones enviadas. El servidor aplica
+  AND entre las dimensiones presentes; la app no atribuye una semántica no
+  declarada a varios valores dentro de una misma lista.
 - Quitar todos los filtros produce una consulta nueva sin filtros y reinicia la página.
 - Los estados vacío, cargando, error recuperable y resultados deben distinguirse.
 - Reintentar conserva la identidad de la consulta fallida; modificar la consulta cancela lógicamente ese reintento.
@@ -121,8 +142,11 @@ La carga usa APIs de Apple y no introduce una dependencia externa. La caché HTT
 | Primera consulta | La petición verificada contiene `per = 20`. |
 | Límite | Ningún camino permite emitir `per > 100`. |
 | Página siguiente | Mantiene búsqueda y filtros de la consulta inicial; no inventa una ordenación ausente. |
-| Cambio de filtro | Reinicia la página y una respuesta anterior tardía se ignora. |
-| Varios filtros | El request construido conserva la semántica AND del contrato. |
+| Cambio de consulta | Reinicia la página, limpia la selección anterior y una respuesta tardía de la consulta sustituida se ignora. |
+| Búsqueda avanzada | Construye el `POST` paginado exacto y omite del body las dimensiones sin valor. |
+| Varios filtros | El request construido conserva todas las dimensiones que el servidor combina con semántica AND. |
+| Mejores | Usa su `GET` paginado exclusivo y no presenta texto, filtros u ordenación configurable como combinables. |
+| Vocabularios | Demografía, género y tema cargan de sus operaciones verificadas con estados de carga, vacío, error recuperable y contenido. |
 | Cambio lista/cuadrícula | Mantiene resultados, consulta y selección. |
 | Detalle | La identidad corresponde al elemento seleccionado y solo muestra datos disponibles. |
 | Portada válida | Lista, cuadrícula y detalle muestran la portada. |
@@ -137,7 +161,7 @@ Las pruebas de construcción de request y decodificación inyectan bytes y regis
 
 - No se implementa búsqueda de texto completa local sobre las más de 64.000 referencias.
 - No se descargan por anticipado todas las portadas.
-- No se fijan en esta SDD endpoints ni estructuras que todavía no se hayan confirmado en OpenAPI.
+- No se fijan en esta SDD endpoints ni estructuras que todavía no se hayan confirmado en OpenAPI. Las operaciones de C3 documentadas arriba deben revalidarse antes de una modificación posterior.
 - El orden estable entre páginas depende del contrato remoto; si el servidor no lo garantiza, la limitación debe hacerse visible y decidirse antes de compensarla en cliente.
 - URLs externas de imágenes pueden caducar o fallar independientemente de la respuesta de catálogo.
 
