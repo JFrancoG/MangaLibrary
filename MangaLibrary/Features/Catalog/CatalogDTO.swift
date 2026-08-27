@@ -40,24 +40,15 @@ private struct PageMetadataDTO: Decodable {
 }
 
 private struct MangaDTO: Decodable {
-    let authors: [AuthorDTO]
-    let background: String?
-    let chapters: Int64?
-    let demographics: [DemographicDTO]
-    let endDate: String?
-    let genres: [GenreDTO]
+    // Decode only values the product currently presents. Unknown remote fields
+    // can then evolve without becoming false contract drift in this feature.
     let id: Int64
     let mainPicture: String?
     let score: Double
-    let startDate: String?
-    let status: MangaStatusDTO
     let sypnosis: String?
-    let themes: [ThemeDTO]
     let title: String
     let titleEnglish: String?
     let titleJapanese: String?
-    let url: String?
-    let volumes: Int64?
 
     func manga() -> Manga {
         Manga(
@@ -88,41 +79,4 @@ private struct MangaDTO: Decodable {
 
         return url
     }
-}
-
-private struct AuthorDTO: Decodable {
-    let firstName: String
-    let id: UUID
-    let lastName: String
-    let role: AuthorRoleDTO
-}
-
-private enum AuthorRoleDTO: String, Decodable {
-    case art = "Art"
-    case storyAndArt = "Story & Art"
-    case story = "Story"
-    case none = "None"
-}
-
-private struct DemographicDTO: Decodable {
-    let demographic: String
-    let id: UUID
-}
-
-private struct GenreDTO: Decodable {
-    let genre: String
-    let id: UUID
-}
-
-private struct ThemeDTO: Decodable {
-    let id: UUID
-    let theme: String
-}
-
-private enum MangaStatusDTO: String, Decodable {
-    case discontinued
-    case onHiatus = "on_hiatus"
-    case currentlyPublishing = "currently_publishing"
-    case finished
-    case none
 }

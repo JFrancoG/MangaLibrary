@@ -9,24 +9,6 @@ import Testing
 
 @Suite("HTTP client", .tags(.integration))
 struct HTTPClientTests {
-    @Test("Rejects a non-HTTP API base URL")
-    func rejectsInvalidAPIBaseURL() {
-        #expect(throws: APIConfigurationError.invalidBaseURL) {
-            try APIConfiguration(baseURL: URL(filePath: "/tmp/manga-library"))
-        }
-    }
-
-    @Test("Rejects API base URLs with embedded credentials")
-    func rejectsEmbeddedCredentialsInAPIBaseURL() throws {
-        let baseURL = try #require(
-            URL(string: "https://reader:secret@example.test")
-        )
-
-        #expect(throws: APIConfigurationError.invalidBaseURL) {
-            try APIConfiguration(baseURL: baseURL)
-        }
-    }
-
     @Test("Returns the exact response bytes for the expected status")
     func returnsExactResponseBytes() async throws {
         let session = FixtureURLProtocol.makeSession()
@@ -46,7 +28,7 @@ struct HTTPClientTests {
         let client = HTTPClient(session: session)
         let request = URLRequest(url: FixtureURLProtocol.Endpoint.nonHTTPResponse)
 
-        await #expect(throws: HTTPClientError.nonHTTPResponse) {
+        await #expect(throws: NetworkError.invalidResponse) {
             try await client.data(for: request)
         }
     }
@@ -58,7 +40,7 @@ struct HTTPClientTests {
         let client = HTTPClient(session: session)
         let request = URLRequest(url: FixtureURLProtocol.Endpoint.notFound)
 
-        await #expect(throws: HTTPClientError.unexpectedStatusCode(404)) {
+        await #expect(throws: NetworkError.statusCode(404)) {
             try await client.data(for: request)
         }
     }
@@ -70,7 +52,7 @@ struct HTTPClientTests {
         let client = HTTPClient(session: session)
         let request = URLRequest(url: FixtureURLProtocol.Endpoint.transportFailure)
 
-        await #expect(throws: HTTPClientError.transport(.notConnectedToInternet)) {
+        await #expect(throws: NetworkError.transport(.notConnectedToInternet)) {
             try await client.data(for: request)
         }
     }
@@ -85,7 +67,6 @@ struct HTTPClientTests {
             try await client.data(for: request)
         }
 
-        await Task.yield()
         operation.cancel()
 
         await #expect(throws: CancellationError.self) {

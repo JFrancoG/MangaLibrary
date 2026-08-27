@@ -1,8 +1,8 @@
 # API, catálogo, búsqueda e imágenes
 
 - Estado: aprobado
-- Versión: 1.2
-- Última revisión: 2026-08-25
+- Versión: 1.3
+- Última revisión: 2026-08-27
 
 ## Propósito y alcance
 
@@ -38,11 +38,11 @@ identidad debe resolverse antes de implementar esas llamadas.
 
 ## Flujo técnico del catálogo
 
-La API remota es la única fuente de producto del catálogo. La implementación live usa una `URLSession` configurada en composición, un cliente HTTP concreto y un cliente tipado de catálogo. El modelo observable de catálogo posee consulta, páginas acumuladas, carga, vacío, error, cancelación y protección frente a respuestas tardías. No persiste el catálogo remoto en SwiftData ni introduce un Repository genérico sin una segunda fuente real.
+La API remota es la única fuente de producto del catálogo. La implementación live usa una `URLSession` configurada en composición, un cliente HTTP concreto y un cliente tipado de catálogo. `HTTPClient` valida transporte, respuesta HTTP y status antes de devolver bytes no opcionales; `CatalogAPIClient` construye el request, decodifica únicamente los campos consumidos, valida metadata e identidades y traduce el resultado a valores de producto. El modelo observable de catálogo posee consulta, páginas acumuladas, carga, vacío, error, cancelación y protección frente a respuestas tardías. No persiste el catálogo remoto en SwiftData ni introduce un Repository genérico sin una segunda fuente real.
 
-Una preview estática puede partir de un estado ya preparado. Una preview interactiva de carga, error, reintento o paginación debe servir fixtures JSON mediante un `URLProtocol` registrado solo en su sesión efímera. Así conserva el mismo request, validación HTTP, decoder, DTO, traducción y modelo de feature que producción sin acceder a red real ni mantener una implementación paralela del catálogo.
+Una preview parte de un estado preparado o de un `CatalogModel.PageLoader` determinista que devuelve valores de dominio. No construye `URLSession`, `HTTPClient`, DTO, `URLProtocol` o JSON. El bootstrap de UI tests usa la misma capacidad directa en un único modo Debug fail-closed y nunca puede caer a red live.
 
-JSON positivo es un fixture validado contra el OpenAPI, no una fuente de producto; un fixture negativo queda marcado como inválido de forma deliberada. SwiftData contiene la colección y se consulta en paralelo cuando la UI necesita relacionarla con resultados remotos mediante `Manga.ID`; no implementa un catálogo local intercambiable. Métodos como cargar, buscar o pedir la siguiente página pertenecen al modelo de catálogo mientras un UseCase separado solo reenviaría una llamada.
+Los JSON mock pertenecen exclusivamente a tests del cliente tipado: un fixture positivo conserva los campos consumidos y puede incluir ampliaciones remotas desconocidas; uno negativo omite o corrompe deliberadamente un requisito para probar deriva. SwiftData contiene la colección y se consulta en paralelo cuando la UI necesita relacionarla con resultados remotos mediante `Manga.ID`; no implementa un catálogo local intercambiable. Métodos como cargar, buscar o pedir la siguiente página pertenecen al modelo de catálogo mientras un UseCase separado solo reenviaría una llamada.
 
 ## Requisitos de catálogo y paginación
 
@@ -110,7 +110,8 @@ La carga usa APIs de Apple y no introduce una dependencia externa. La caché HTT
 - Cancelar o sustituir una consulta no se presenta como error al usuario.
 - Un fallo de una página adicional conserva los resultados ya visibles y ofrece reintento de esa página.
 - Un fallo de la página inicial muestra un estado recuperable sin fabricar resultados.
-- Un error de decodificación identifica deriva de contrato y debe quedar observable en diagnóstico sin exponer datos sensibles.
+- `NetworkError` conserva una categoría segura y una descripción localizable; nunca retiene body, URL, credenciales o error subyacente.
+- Un error de decodificación de un campo consumido identifica deriva de contrato y debe quedar observable en diagnóstico sin exponer datos sensibles. Un campo remoto desconocido que la app no consume no es por sí solo deriva.
 - Los contratos públicos o internamente relevantes de carga deben documentar efectos, cancelación y errores con DocC selectivo.
 
 ## Criterios de aceptación
@@ -127,10 +128,10 @@ La carga usa APIs de Apple y no introduce una dependencia externa. La caché HTT
 | Portada válida | Lista, cuadrícula y detalle muestran la portada. |
 | Portada fallida | Los tres contextos mantienen placeholder o ausencia explícita sin saltos de identidad. |
 | Fin de páginas | El desplazamiento posterior no genera más requests. |
-| Preview interactiva | Usa una sesión local determinista y recorre el mismo pipeline tipado que live sin emitir tráfico real. |
+| Preview interactiva | Usa estado o un loader de dominio determinista sin transporte, credenciales ni almacenamiento live. |
 | Fuente de producto | No existe un catálogo SwiftData o JSON que sustituya silenciosamente la autoridad remota. |
 
-Las pruebas de construcción de request y decodificación usan el contrato verificado; las pruebas de interfaz validan los estados visuales sin depender de la red real.
+Las pruebas de construcción de request y decodificación inyectan bytes y registran el `URLRequest` real. Las pruebas de `HTTPClient` usan un `URLProtocol` limitado a su sesión; las pruebas de interfaz validan el smoke crítico con un loader de dominio y sin red real.
 
 ## Fuera de alcance y riesgos
 
@@ -146,4 +147,4 @@ Las pruebas de construcción de request y decodificación usan el contrato verif
 - [Arquitectura y composición](01-architecture-and-composition.md)
 - [Colección local e invariantes](03-local-collection-and-invariants.md)
 - [Caracterización del contrato OpenAPI](../api/openapi-contract.md)
-- [ADR-0009: flujos nativos por fuente y navegación local](../adr/0009-native-source-owned-features-and-local-navigation.md)
+- [ADR-0014: flujos nativos, composición live y dobles directos](../adr/0014-native-flows-live-composition-and-direct-doubles.md)

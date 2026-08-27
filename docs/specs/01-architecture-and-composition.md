@@ -1,8 +1,8 @@
 # Arquitectura y composición
 
 - Estado: aprobado
-- Versión: 1.1
-- Última revisión: 2026-08-17
+- Versión: 1.2
+- Última revisión: 2026-08-27
 
 ## Propósito y alcance
 
@@ -22,7 +22,7 @@ Definir la organización arquitectónica de Manga Library, sus límites de aisla
 - Swift Testing es la base de la estrategia híbrida; XCTest se reserva para capacidades que lo requieran.
 - La navegación principal usa componentes SwiftUI nativos, rutas tipadas y estado propiedad de la feature que presenta el destino.
 
-Estas decisiones se desarrollan en [ADR-0002](../adr/0002-feature-first-and-composition-root.md), [ADR-0003](../adr/0003-concurrency-and-default-isolation.md), [ADR-0004](../adr/0004-swiftdata-local-first-and-model-actors.md) y [ADR-0009](../adr/0009-native-source-owned-features-and-local-navigation.md).
+Estas decisiones se desarrollan en [ADR-0002](../adr/0002-feature-first-and-composition-root.md), [ADR-0003](../adr/0003-concurrency-and-default-isolation.md), [ADR-0004](../adr/0004-swiftdata-local-first-and-model-actors.md) y [ADR-0014](../adr/0014-native-flows-live-composition-and-direct-doubles.md).
 
 ## Organización lógica
 
@@ -59,7 +59,7 @@ Las dependencias locales obligatorias se pasan por inicializador o factory. Envi
 | ID | Requisito |
 | --- | --- |
 | ARCH-001 | El código específico de una feature debe permanecer dentro de esa feature hasta que exista reutilización real. |
-| ARCH-002 | El composition root debe ser el único lugar que seleccione implementaciones live y factories; cada recurso se crea en ámbito app, sesión, feature u operación según su propietario real. |
+| ARCH-002 | El composition root debe seleccionar exclusivamente implementaciones live y factories; no interpreta argumentos de proceso ni elige fixtures. Cada recurso se crea en ámbito app, sesión, feature u operación según su propietario real. |
 | ARCH-003 | Ninguna View debe crear clientes HTTP, almacenes de tokens, contenedores SwiftData ni coordinadores de sincronización. |
 | ARCH-004 | Las Views pueden leer modelos mediante `@Query`, pero no deben modificar directamente estado persistente sujeto a invariantes. |
 | ARCH-005 | Toda mutación de colección y outbox debe atravesar el mismo límite `@ModelActor` o una especialización explícitamente justificada. |
@@ -88,13 +88,13 @@ Las dependencias locales obligatorias se pasan por inicializador o factory. Envi
 | Cuenta | Sesión segura | actor de sesión y estado de presentación seguro | actor → modelo de cuenta → View |
 | Sincronización | outbox SwiftData y confirmación remota | coordinador actor | outbox → red → reconciliación → SwiftData → `@Query` |
 
-La API, SwiftData y un JSON de preview no son implementaciones equivalentes de un `MangaRepository`: representan autoridades y grados de completitud diferentes. Los JSON de preview sustituyen respuestas de transporte; no convierten una colección local parcial en un catálogo remoto paginado.
+La API, SwiftData y los datos de preview no son implementaciones equivalentes de un `MangaRepository`: representan autoridades y grados de completitud diferentes. Una preview construye directamente el estado o la capacidad mínima que necesita; no convierte una colección local parcial ni un fixture en la fuente del catálogo remoto paginado.
 
 Un UseCase separado solo se justifica cuando expresa una política u operación semántica compuesta y reutilizable. Cargar una página delegando inmediatamente en un único cliente, o envolver una mutación ya expresada por una capacidad semántica, no basta para crear otro tipo.
 
 ## Composición e inyección
 
-El composition root selecciona las implementaciones live y construye cada una con el ámbito correcto. Como mínimo conoce el `ModelContainer`, la `URLSession` configurada, el cliente HTTP y las factories de sesión, persistencia y sincronización.
+El composition root selecciona únicamente las implementaciones live y construye cada una con el ámbito correcto. Como mínimo conoce el `ModelContainer`, la `URLSession` configurada, el cliente HTTP y las factories de sesión, persistencia y sincronización. Previews, Swift Testing y el bootstrap Debug de UI tests componen sus dobles fuera de `AppComposition`.
 
 - Las capacidades compartidas llegan mediante valores tipados de Environment.
 - El modelo observable de una feature recibe por inicializador o factory solo las capacidades que necesita.
@@ -102,7 +102,7 @@ El composition root selecciona las implementaciones live y construye cada una co
 - Una dependencia de preview o test nunca usa configuración live por defecto.
 - Navigation y selección permanecen como estado local de presentación; no se inyectan como servicios.
 
-La composición inicial puede cambiar la configuración concreta sin cambiar las funciones públicas de la feature. En previews interactivas, una `URLSession` efímera con un `URLProtocol` local alimenta JSON determinista al mismo cliente, decoder y modelo usados en producción. Para SwiftData, el reemplazo es un `ModelContainer` en memoria con el mismo esquema.
+La composición live puede cambiar la configuración concreta sin cambiar las funciones públicas de la feature, pero nunca selecciona datos mock. Catálogo recibe un loader de página directo en previews y UI tests; sus pruebas de cliente inyectan bytes en la frontera tipada y las del transporte reservan `URLProtocol` para `HTTPClient`. Para SwiftData, el reemplazo continúa siendo un `ModelContainer` en memoria con el mismo esquema.
 
 ## Navegación
 
@@ -154,9 +154,9 @@ La red nunca escribe directamente en estado de View. El detalle operativo está 
 ## Criterios de aceptación
 
 - Una inspección del árbol permite asignar cada archivo de producto a una feature o a una dependencia verdaderamente compartida.
-- Las pruebas pueden construir una composición controlada sin alterar singletons globales.
+- Las pruebas pueden inyectar capacidades controladas sin alterar singletons globales ni la composición live.
 - No existe creación de infraestructura dentro de una View.
-- Catálogo live y una preview interactiva recorren el mismo constructor de request, validación HTTP, decoder, cliente y modelo; solo cambia la sesión configurada.
+- La evidencia combinada cubre transporte HTTP, request, decoding, mapping, modelo, preview y smoke UI sin exigir que una preview atraviese el pipeline live.
 - Una búsqueda estática y la revisión de código no encuentran escrituras directas a propiedades de colección desde Views.
 - Una búsqueda estática no encuentra una copia observable de la colección completa ni un Repository/UseCase de una sola implementación sin frontera demostrada.
 - Las mutaciones concurrentes de una misma entrada se serializan en el actor de modelo y dejan colección y outbox en un estado válido.
@@ -185,4 +185,4 @@ La red nunca escribe directamente en estado de View. El detalle operativo está 
 - [ADR-0002: feature-first y composition root](../adr/0002-feature-first-and-composition-root.md)
 - [ADR-0003: concurrencia y aislamiento predeterminado](../adr/0003-concurrency-and-default-isolation.md)
 - [ADR-0004: SwiftData local-first y model actors](../adr/0004-swiftdata-local-first-and-model-actors.md)
-- [ADR-0009: flujos nativos por fuente y navegación local](../adr/0009-native-source-owned-features-and-local-navigation.md)
+- [ADR-0014: flujos nativos, composición live y dobles directos](../adr/0014-native-flows-live-composition-and-direct-doubles.md)

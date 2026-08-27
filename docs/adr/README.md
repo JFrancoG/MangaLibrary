@@ -17,11 +17,12 @@ sus compromisos.
 | [0006](0006-authentication-keychain-and-sync.md) | Autenticación, Keychain y sincronización | Accepted | 2026-08-17 |
 | [0007](0007-watchos-widgetkit-and-data-bridges.md) | Puentes de datos para watchOS y WidgetKit | Accepted | 2026-08-17 |
 | [0008](0008-selective-docc-and-publishing-boundaries.md) | DocC selectivo y límites de publicación | Superseded | 2026-08-17 |
-| [0009](0009-native-source-owned-features-and-local-navigation.md) | Flujos nativos por fuente y navegación local | Accepted | 2026-08-17 |
+| [0009](0009-native-source-owned-features-and-local-navigation.md) | Flujos nativos por fuente y navegación local | Superseded | 2026-08-17 |
 | [0010](0010-widgetkit-event-driven-freshness.md) | Frescura dirigida por eventos para WidgetKit | Accepted | 2026-08-18 |
 | [0011](0011-bounded-xcode-app-intents-warning-exception.md) | Excepción acotada para el warning de App Intents de Xcode | Accepted | 2026-08-25 |
 | [0012](0012-private-repository-and-sanitized-practice-source.md) | Repositorio privado y fuente docente saneada | Accepted | 2026-08-25 |
 | [0013](0013-advanced-logout-and-deluxe-bridge-boundary.md) | Frontera de logout Advanced y bridge Deluxe | Accepted | 2026-08-25 |
+| [0014](0014-native-flows-live-composition-and-direct-doubles.md) | Flujos nativos, composición live y dobles directos | Accepted | 2026-08-27 |
 
 ## Inmutabilidad y supersesión
 

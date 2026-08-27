@@ -1,8 +1,8 @@
 # Alcance de producto y niveles
 
 - Estado: aprobado
-- Versión: 1.6
-- Última revisión: 2026-08-25
+- Versión: 1.7
+- Última revisión: 2026-08-27
 
 ## Propósito
 
@@ -135,6 +135,6 @@ Deluxe se considera aceptado solo cuando Advanced continúa pasando y, además:
 - [ADR-0005: estrategia híbrida de testing](../adr/0005-hybrid-testing-strategy.md)
 - [ADR-0007: watchOS, WidgetKit y puentes de datos](../adr/0007-watchos-widgetkit-and-data-bridges.md)
 - [ADR-0012: repositorio privado y fuente docente saneada](../adr/0012-private-repository-and-sanitized-practice-source.md)
-- [ADR-0009: flujos nativos por fuente y navegación local](../adr/0009-native-source-owned-features-and-local-navigation.md)
+- [ADR-0014: flujos nativos, composición live y dobles directos](../adr/0014-native-flows-live-composition-and-direct-doubles.md)
 - [ADR-0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
 - [ADR-0013: frontera de logout Advanced y bridge Deluxe](../adr/0013-advanced-logout-and-deluxe-bridge-boundary.md)

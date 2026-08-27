@@ -5,21 +5,6 @@
 
 import Foundation
 
-/// Failures produced at the shared HTTP transport boundary.
-///
-/// Transport failures retain only `URLError.Code`; response bodies, headers and
-/// underlying errors never cross this boundary.
-enum HTTPClientError: Error, Equatable {
-    /// URL loading completed with a response that was not HTTP.
-    case nonHTTPResponse
-
-    /// The server returned a status other than the one required by the caller.
-    case unexpectedStatusCode(Int)
-
-    /// URL loading failed without exposing its underlying error payload.
-    case transport(URLError.Code)
-}
-
 /// An immutable, app-scoped boundary around an injected `URLSession`.
 ///
 /// The client performs transport and HTTP validation only. Decoding, retries,
@@ -37,7 +22,7 @@ struct HTTPClient {
     ///   - request: The fully composed request to load.
     ///   - statusCode: The single HTTP status accepted by the caller.
     /// - Returns: The response bytes without decoding them.
-    /// - Throws: `CancellationError`, `HTTPClientError`, or
+    /// - Throws: `CancellationError`, ``NetworkError``, or
     ///   `.transport(.unknown)` when URL loading produces a non-URL error.
     @concurrent
     func data(for request: URLRequest, expecting statusCode: Int = 200) async throws -> Data {
@@ -52,19 +37,19 @@ struct HTTPClient {
                 throw CancellationError()
             }
 
-            throw HTTPClientError.transport(error.code)
+            throw NetworkError.transport(error.code)
         } catch {
-            throw HTTPClientError.transport(.unknown)
+            throw NetworkError.transport(.unknown)
         }
 
         try Task.checkCancellation()
 
         guard let response = result.response as? HTTPURLResponse else {
-            throw HTTPClientError.nonHTTPResponse
+            throw NetworkError.invalidResponse
         }
 
         guard response.statusCode == statusCode else {
-            throw HTTPClientError.unexpectedStatusCode(response.statusCode)
+            throw NetworkError.statusCode(response.statusCode)
         }
 
         return result.data

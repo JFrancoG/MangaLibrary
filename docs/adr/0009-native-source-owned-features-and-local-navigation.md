@@ -1,9 +1,9 @@
 # ADR-0009: Flujos nativos por fuente y navegación local
 
-**Estado:** Accepted
+**Estado:** Superseded
 **Fecha:** 2026-08-17
 **Supersede:** —
-**Superseded by:** —
+**Superseded by:** [ADR-0014](0014-native-flows-live-composition-and-direct-doubles.md)
 
 ## Contexto
 

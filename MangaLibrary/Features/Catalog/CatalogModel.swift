@@ -3,6 +3,7 @@
 //  MangaLibrary
 //
 
+import Foundation
 import Observation
 
 @Observable @MainActor
@@ -11,7 +12,20 @@ final class CatalogModel {
 
     enum FailureReason: Equatable {
         case unavailable
+        case network(NetworkError)
         case contractDrift
+
+        /// A safe, deferred description for the current SwiftUI locale.
+        var errorDescriptionResource: LocalizedStringResource {
+            switch self {
+            case .unavailable:
+                "The catalog is temporarily unavailable."
+            case let .network(error):
+                error.errorDescriptionResource
+            case .contractDrift:
+                "The server response has an unexpected format."
+            }
+        }
     }
 
     enum Pagination: Equatable {
@@ -235,6 +249,8 @@ final class CatalogModel {
         switch clientError {
         case .unavailable:
             return .unavailable
+        case let .network(error):
+            return .network(error)
         case .contractDrift, .duplicateMangaID:
             return .contractDrift
         }

@@ -6,34 +6,13 @@
 import Foundation
 
 struct AppComposition {
-    enum CreationError: Error, Equatable {
-        case invalidCatalogFixture
-        case catalogFixtureUnavailable
-    }
-
     let catalogClient: CatalogAPIClient
 
-    static func current(arguments: [String] = ProcessInfo.processInfo.arguments) throws -> AppComposition {
-        if arguments.contains(CatalogFixtureScenario.launchArgument) {
-#if DEBUG
-            guard let scenario = CatalogFixtureScenario(arguments: arguments) else {
-                throw CreationError.invalidCatalogFixture
-            }
-
-            return AppComposition(
-                catalogClient: try CatalogPreviewSupport.catalogClient(
-                    for: scenario
-                )
-            )
-#else
-            throw CreationError.catalogFixtureUnavailable
-#endif
-        }
-
-        return try live()
-    }
-
-    private static func live() throws -> AppComposition {
+    /// Builds only the dependencies used by a production launch.
+    ///
+    /// Previews and tests compose their deterministic loaders outside this root,
+    /// so a fixture can never replace the live transport here.
+    static func live() throws -> AppComposition {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.waitsForConnectivity = true
         configuration.timeoutIntervalForRequest = 30

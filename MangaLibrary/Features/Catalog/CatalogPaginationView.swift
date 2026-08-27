@@ -17,15 +17,15 @@ struct CatalogPaginationView: View {
             ProgressView("Loading more manga")
                 .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("catalog.pagination.loading")
-        case .failure:
+        case let .failure(_, reason):
             VStack(spacing: 10) {
                 Label(
                     "Couldn't load more manga",
-                    systemImage: "wifi.exclamationmark"
+                    systemImage: "exclamationmark.triangle"
                 )
                 .font(.headline)
 
-                Text("Your existing results are still available.")
+                Text(reason.errorDescriptionResource)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
