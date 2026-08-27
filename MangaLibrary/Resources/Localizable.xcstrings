@@ -1,209 +1,958 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "A network connection error occurred." : {
-      "comment" : "Safe description for a transport failure without a more specific recovery category.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "A network connection error occurred." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Se ha producido un error de conexión de red." } }
+  "sourceLanguage": "en",
+  "strings": {
+    "A network connection error occurred.": {
+      "comment": "Safe description for a transport failure without a more specific recovery category.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A network connection error occurred."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se ha producido un error de conexión de red."
+          }
+        }
       }
     },
-    "Account" : {
-      "comment" : "Title of the account tab and its navigation destination.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Account" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cuenta" } }
+    "Account": {
+      "comment": "Title of the account tab and its navigation destination.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuenta"
+          }
+        }
       }
     },
-    "Account arrives in a later Advanced unit." : {
-      "comment" : "Explanation shown while the account feature is intentionally unavailable.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Account arrives in a later Advanced unit." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "La cuenta llegará en una unidad posterior de Advanced." } }
+    "Account arrives in a later Advanced unit.": {
+      "comment": "Explanation shown while the account feature is intentionally unavailable.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account arrives in a later Advanced unit."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La cuenta llegará en una unidad posterior de Advanced."
+          }
+        }
       }
     },
-    "Account is not available yet" : {
-      "comment" : "Temporary unavailable state title for the account tab.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Account is not available yet" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "La cuenta aún no está disponible" } }
+    "Account is not available yet": {
+      "comment": "Temporary unavailable state title for the account tab.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account is not available yet"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La cuenta aún no está disponible"
+          }
+        }
       }
     },
-    "Catalog" : {
-      "comment" : "Title of the public manga catalog tab and screen.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Catalog" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Catálogo" } }
+    "Active filters: %lld": {
+      "comment": "Number of active non-title filter dimensions announced for the filters button.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active filters: %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filtros activos: %lld"
+          }
+        }
       }
     },
-    "Catalog layout" : {
-      "comment" : "Accessibility label for the control that changes the catalog between list and grid.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Catalog layout" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Diseño del catálogo" } }
+    "All manga": {
+      "comment": "Result-set option that uses the full public manga catalog.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All manga"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos los mangas"
+          }
+        }
       }
     },
-    "Catalog unavailable" : {
-      "comment" : "Recoverable error title for the initial catalog request.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Catalog unavailable" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Catálogo no disponible" } }
+    "Apply filters": {
+      "comment": "Button that applies the staged catalog filters.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply filters"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aplicar filtros"
+          }
+        }
       }
     },
-    "Choose a manga from the catalog to see its details." : {
-      "comment" : "Guidance in the empty detail column before a catalog selection.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose a manga from the catalog to see its details." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Elige un manga del catálogo para ver sus detalles." } }
+    "Author": {
+      "comment": "Section containing author-name filters.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Author"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoría"
+          }
+        }
       }
     },
-    "Collection" : {
-      "comment" : "Title of the collection tab and its navigation destination.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Collection" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Colección" } }
+    "Begins with": {
+      "comment": "Search match mode that compares the beginning of text fields.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Begins with"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empieza por"
+          }
+        }
       }
     },
-    "Collection arrives in a later Advanced unit." : {
-      "comment" : "Explanation shown while the collection feature is intentionally unavailable.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Collection arrives in a later Advanced unit." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "La colección llegará en una unidad posterior de Advanced." } }
+    "Best manga": {
+      "comment": "Exclusive result-set option backed by the server's best-manga operation.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Best manga"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mejores mangas"
+          }
+        }
       }
     },
-    "Collection is not available yet" : {
-      "comment" : "Temporary unavailable state title for the collection tab.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Collection is not available yet" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "La colección aún no está disponible" } }
+    "Best manga is a separate server result set and cannot be combined with other filters.": {
+      "comment": "Explanation for the mutually exclusive best-manga result set.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Best manga is a separate server result set and cannot be combined with other filters."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los mejores mangas son un conjunto de resultados independiente del servidor y no se pueden combinar con otros filtros."
+          }
+        }
       }
     },
-    "Couldn't load more manga" : {
-      "comment" : "Recoverable error title when an additional catalog page fails.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Couldn't load more manga" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "No se pudieron cargar más mangas" } }
+    "Cancel": {
+      "comment": "Toolbar button that dismisses staged filter edits.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelar"
+          }
+        }
       }
     },
-    "End of catalog" : {
-      "comment" : "Footer confirming that the current catalog query has no more pages.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "End of catalog" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Fin del catálogo" } }
+    "Catalog": {
+      "comment": "Title of the public manga catalog tab and screen.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catalog"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catálogo"
+          }
+        }
       }
     },
-    "Grid" : {
-      "comment" : "Catalog layout option that presents manga in a grid.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Grid" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cuadrícula" } }
+    "Catalog layout": {
+      "comment": "Accessibility label for the control that changes the catalog between list and grid.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catalog layout"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diseño del catálogo"
+          }
+        }
       }
     },
-    "List" : {
-      "comment" : "Catalog layout option that presents manga in a list.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "List" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Lista" } }
+    "Choose a manga from the catalog to see its details.": {
+      "comment": "Guidance in the empty detail column before a catalog selection.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a manga from the catalog to see its details."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elige un manga del catálogo para ver sus detalles."
+          }
+        }
       }
     },
-    "Loading catalog" : {
-      "comment" : "Progress label while the first catalog page loads.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading catalog" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cargando catálogo" } }
+    "Collection": {
+      "comment": "Title of the collection tab and its navigation destination.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collection"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Colección"
+          }
+        }
       }
     },
-    "Loading more manga" : {
-      "comment" : "Progress label while an additional catalog page loads.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading more manga" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Cargando más mangas" } }
+    "Collection arrives in a later Advanced unit.": {
+      "comment": "Explanation shown while the collection feature is intentionally unavailable.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collection arrives in a later Advanced unit."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La colección llegará en una unidad posterior de Advanced."
+          }
+        }
       }
     },
-    "No manga were returned for this page." : {
-      "comment" : "Explanation for an empty successful first catalog page.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No manga were returned for this page." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "No se devolvió ningún manga para esta página." } }
+    "Collection is not available yet": {
+      "comment": "Temporary unavailable state title for the collection tab.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collection is not available yet"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La colección aún no está disponible"
+          }
+        }
       }
     },
-    "Retry" : {
-      "comment" : "Button that retries a failed initial or additional catalog request.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Retry" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Reintentar" } }
+    "Contains": {
+      "comment": "Search match mode that finds text anywhere in searchable fields.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contains"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contiene"
+          }
+        }
       }
     },
-    "Score" : {
-      "comment" : "Label for a manga's average user score.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Score" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Puntuación" } }
+    "Couldn't load more results": {
+      "comment": "Recoverable error title when an additional results page fails.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't load more results"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudieron cargar más resultados"
+          }
+        }
       }
     },
-    "Select a manga" : {
-      "comment" : "Title shown in the detail column before a catalog selection.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Select a manga" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Selecciona un manga" } }
+    "Demographics": {
+      "comment": "Heading for exact demographic-name filter options.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demographics"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demografías"
+          }
+        }
       }
     },
-    "Synopsis" : {
-      "comment" : "Heading for the synopsis section on manga detail.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Synopsis" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "Sinopsis" } }
+    "End of results": {
+      "comment": "Footer confirming that the current query has no more pages.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End of results"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fin de los resultados"
+          }
+        }
       }
     },
-    "The catalog is empty" : {
-      "comment" : "Title for a successful first catalog page with no manga.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "The catalog is empty" } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "El catálogo está vacío" } }
+    "Filters": {
+      "comment": "Toolbar button and inspector title for catalog filters.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filters"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filtros"
+          }
+        }
       }
     },
-    "The catalog is temporarily unavailable." : {
-      "comment" : "Safe description when a catalog failure has no more specific category.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "The catalog is temporarily unavailable." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "El catálogo no está disponible temporalmente." } }
+    "Filters unavailable": {
+      "comment": "Recoverable error title when taxonomy options cannot load.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filters unavailable"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filtros no disponibles"
+          }
+        }
       }
     },
-    "The network request timed out." : {
-      "comment" : "Safe description for a network timeout.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "The network request timed out." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "La solicitud de red ha agotado el tiempo de espera." } }
+    "First name": {
+      "comment": "Text field label for an author's first name.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First name"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre"
+          }
+        }
       }
     },
-    "The server response has an unexpected format." : {
-      "comment" : "Safe description when required catalog fields or metadata do not match the contract.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "The server response has an unexpected format." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "La respuesta del servidor tiene un formato inesperado." } }
+    "Genres": {
+      "comment": "Heading for exact genre-name filter options.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genres"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Géneros"
+          }
+        }
       }
     },
-    "The server returned an invalid response." : {
-      "comment" : "Safe description when URL loading does not return an HTTP response.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "The server returned an invalid response." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "El servidor ha devuelto una respuesta no válida." } }
+    "Grid": {
+      "comment": "Catalog layout option that presents manga in a grid.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuadrícula"
+          }
+        }
       }
     },
-    "The server returned status code %lld." : {
-      "comment" : "Safe description for an unexpected HTTP status code.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "The server returned status code %lld." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "El servidor ha respondido con el código %lld." } }
+    "Last name": {
+      "comment": "Text field label for an author's last name.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last name"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apellidos"
+          }
+        }
       }
     },
-    "There is no internet connection." : {
-      "comment" : "Safe description when URL loading reports no internet connection.",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "There is no internet connection." } },
-        "es" : { "stringUnit" : { "state" : "translated", "value" : "No hay conexión a internet." } }
+    "List": {
+      "comment": "Catalog layout option that presents manga in a list.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "List"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lista"
+          }
+        }
+      }
+    },
+    "Loading filters": {
+      "comment": "Progress label while taxonomy filter options load.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading filters"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cargando filtros"
+          }
+        }
+      }
+    },
+    "Loading more results": {
+      "comment": "Progress label while an additional results page loads.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading more results"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cargando más resultados"
+          }
+        }
+      }
+    },
+    "Loading results": {
+      "comment": "Progress label while the first page for a query loads.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading results"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cargando resultados"
+          }
+        }
+      }
+    },
+    "Match": {
+      "comment": "Accessibility label for the text-match mode picker.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Match"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coincidencia"
+          }
+        }
+      }
+    },
+    "No filter options are available": {
+      "comment": "Empty state shown when the server returns no taxonomy values.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No filter options are available"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hay opciones de filtro disponibles"
+          }
+        }
+      }
+    },
+    "No manga were returned for this page.": {
+      "comment": "Explanation for an empty successful first catalog page.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No manga were returned for this page."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se devolvió ningún manga para esta página."
+          }
+        }
+      }
+    },
+    "No results": {
+      "comment": "Empty state title for a search or best-manga query.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No results"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin resultados"
+          }
+        }
+      }
+    },
+    "Reset filters": {
+      "comment": "Button that restores the full catalog query.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset filters"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restablecer filtros"
+          }
+        }
+      }
+    },
+    "Result set": {
+      "comment": "Accessibility label for the full-catalog versus best-manga picker.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Result set"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conjunto de resultados"
+          }
+        }
+      }
+    },
+    "Results": {
+      "comment": "Section heading for the result-set picker.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Results"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultados"
+          }
+        }
+      }
+    },
+    "Results unavailable": {
+      "comment": "Recoverable error title for the current catalog query.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Results unavailable"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultados no disponibles"
+          }
+        }
+      }
+    },
+    "Retry": {
+      "comment": "Button that retries a failed initial or additional catalog request.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reintentar"
+          }
+        }
+      }
+    },
+    "Score": {
+      "comment": "Label for a manga's average user score.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Score"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puntuación"
+          }
+        }
+      }
+    },
+    "Search manga": {
+      "comment": "Prompt for the manga-title search field.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search manga"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar manga"
+          }
+        }
+      }
+    },
+    "Select a manga": {
+      "comment": "Title shown in the detail column before a catalog selection.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a manga"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selecciona un manga"
+          }
+        }
+      }
+    },
+    "Selected: %lld": {
+      "comment": "Number of selected values in a taxonomy disclosure group.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected: %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seleccionados: %lld"
+          }
+        }
+      }
+    },
+    "Synopsis": {
+      "comment": "Heading for the synopsis section on manga detail.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synopsis"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sinopsis"
+          }
+        }
+      }
+    },
+    "Text matching": {
+      "comment": "Section heading for the server text-match policy.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text matching"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coincidencia de texto"
+          }
+        }
+      }
+    },
+    "The catalog is empty": {
+      "comment": "Title for a successful first catalog page with no manga.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The catalog is empty"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El catálogo está vacío"
+          }
+        }
+      }
+    },
+    "The catalog is temporarily unavailable.": {
+      "comment": "Safe description when a catalog failure has no more specific category.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The catalog is temporarily unavailable."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El catálogo no está disponible temporalmente."
+          }
+        }
+      }
+    },
+    "The network request timed out.": {
+      "comment": "Safe description for a network timeout.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The network request timed out."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La solicitud de red ha agotado el tiempo de espera."
+          }
+        }
+      }
+    },
+    "The server response has an unexpected format.": {
+      "comment": "Safe description when required catalog fields or metadata do not match the contract.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server response has an unexpected format."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La respuesta del servidor tiene un formato inesperado."
+          }
+        }
+      }
+    },
+    "The server returned an invalid response.": {
+      "comment": "Safe description when URL loading does not return an HTTP response.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server returned an invalid response."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El servidor ha devuelto una respuesta no válida."
+          }
+        }
+      }
+    },
+    "The server returned status code %lld.": {
+      "comment": "Safe description for an unexpected HTTP status code.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server returned status code %lld."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El servidor ha respondido con el código %lld."
+          }
+        }
+      }
+    },
+    "Themes": {
+      "comment": "Heading for exact theme-name filter options.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Themes"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temas"
+          }
+        }
+      }
+    },
+    "There is no internet connection.": {
+      "comment": "Safe description when URL loading reports no internet connection.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is no internet connection."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hay conexión a internet."
+          }
+        }
+      }
+    },
+    "Try changing your search or filters.": {
+      "comment": "Recovery guidance for an empty filtered result set.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try changing your search or filters."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prueba a cambiar la búsqueda o los filtros."
+          }
+        }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.1"
 }

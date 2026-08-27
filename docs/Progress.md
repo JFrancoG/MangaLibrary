@@ -1,7 +1,43 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-27
-**Estado general:** G0, Catálogo C1 y C2, el contrato cromático Library Red, D1, Q1 y P1 entregados
+**Estado general:** G0, Catálogo C1, C2 y C3, el contrato cromático Library Red, D1, Q1 y P1 entregados
+
+## Catálogo C3 — búsqueda avanzada y filtros
+
+- Tracker: [GitHub Issue #25 — Catálogo C3: añadir búsqueda avanzada paginada y filtros](https://github.com/JFrancoG/MangaLibrary/issues/25), abierto después de comprobar que no existía un issue o una PR equivalente.
+- Rama local: `codex/25-catalog-search-filters`, creada desde `main@1d91d1026bedea25367b4f78eb8917cfb89395ca`, limpio y sincronizado con `origin/main`.
+- El OpenAPI vivo se descubrió de nuevo desde `/docs` hacia `/openapi/openapi.json`. Su forma canónica coincide byte a byte con el snapshot saneado y conserva SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`; no se hicieron llamadas funcionales.
+- La consulta distingue catálogo, «Mejores» y búsqueda avanzada. Texto, modo contiene/empieza por, nombre y apellidos de autoría y selecciones de demografía, género y tema forman una identidad canónica; cambiarla reinicia la página, limpia la selección e invalida respuestas tardías.
+- `POST /search/manga` conserva la paginación y omite dimensiones vacías del body. `GET /list/bestMangas` es un conjunto paginado exclusivo ordenado por puntuación por el servidor: no es una ordenación configurable ni se combina con texto o filtros. El contrato no expone «Destacados».
+- Demografías, géneros y temas cargan perezosamente desde sus tres operaciones públicas mediante un estado independiente con carga, vacío, error recuperable y contenido. La UI representa la combinación AND que recibe el servidor sin atribuir una semántica local no declarada a varios valores de una lista.
+- Lista y cuadrícula continúan consumiendo el mismo `CatalogModel`, resultados, consulta, selección y cursor. El inspector edita una copia y solo cambia la consulta al aplicar o restablecer; la barra de búsqueda envía la misma identidad avanzada.
+- `AppComposition` sigue siendo exclusivamente live. `HTTPClient` continúa validando transporte y devolviendo `Data`; `CatalogAPIClient` construye y decodifica las operaciones verificadas. Previews y tests inyectan loaders de dominio directos y deterministas. No se añade Repository, UseCase, Store, protocolo de transporte, catálogo global de endpoints ni ordenación anticipada.
+
+### RED / GREEN de C3
+
+- RED: después de añadir primero las caracterizaciones de request, identidad y propietario de estado, `BuildProject(buildForTesting: true)` falló por la ausencia de `CatalogSearch` y `CatalogQuery`.
+- GREEN: los requests exactos de búsqueda, «Mejores» y vocabularios, la canonicalización, el reset de página y selección, la preservación en retry/página adicional, las carreras entre consultas y el estado independiente de filtros quedaron implementados solo hasta satisfacer esas pruebas.
+- RED de revisión: una carrera determinista reprodujo que reentrar en filtros mientras la carga anterior se cancelaba podía dejar el vocabulario en reposo sin iniciar una petición nueva; el caso falló 0/1 antes de corregir la identidad de la carga activa.
+- RED de presentación: la prueba que conserva selecciones ausentes de un vocabulario refrescado no compiló hasta mover esa unión canónica desde la View a `CatalogFilterOptions`.
+- RED de reauditoría: dos caracterizaciones nuevas demostraron 0/2 que mover el algoritmo no bastaba mientras el builder siguiera ejecutándolo; cubren tanto recibir vocabularios como cambiar la consulta.
+- GREEN de revisión: las selecciones se incorporan ahora en `CatalogModel` solo al recibir vocabularios o cambiar la consulta, sin acumular valores exclusivos de identidades anteriores; las dos últimas pruebas pasan 2/2 y la carga preparada de previews permanece estable sin confundirse con una petición cancelable en curso.
+- La inspección iPad en XXX Large detectó que el nuevo botón de filtros volvía a truncar el título de Catálogo. En anchura regular, el selector lista/cuadrícula pasa a una franja propia; la repetición en iPhone e iPad conserva título y controles completos.
+
+### Validación local de C3
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Xcode MCP — build y diagnósticos | Build-for-testing tras el último cambio de producción aprobado en 2,153 s y comprobación incremental final en 0,193 s; Issue Navigator y build log con cero warnings estructurados |
+| Xcode MCP — `ReleaseGate` | 63/63 casos aprobados: 62 Swift Testing y 1 XCUITest; cero fallos, skips, expected failures o casos no ejecutados |
+| Xcode MCP — previews | Resultados, vacío, carga, error, filtros activos y «Mejores» inspeccionados en iPhone e iPad; Large, XXX Large y AX5; inglés y español; modo oscuro con contraste aumentado |
+| `Scripts/validate-docc.sh` | 8/8 escenarios del clasificador; archive Release generado con warnings DocC como errores y una única emisión externa acotada por ADR 0011 |
+| Localización | `Localizable.xcstrings` válido; 56/56 claves traducidas manualmente en inglés y español, sin entradas stale o incompletas |
+| Integridad | `git diff --check` limpio; snapshot OpenAPI y `project.pbxproj` conservan sus SHA-256 esperados; sin configuración, scheme, planes o fixture contractual en el diff |
+| Revisiones independientes | Reauditorías iOS, SwiftUI/accesibilidad y contrato/gobernanza cerradas sin hallazgos después de las correcciones; la evidencia manual de tecnologías de asistencia permanece excluida |
+| Restauración Xcode | Plan activo `Fast` y destino físico `iPhone 11` con iOS 27 restaurados y verificados mediante Xcode MCP |
+
+Las previews y el smoke UI no acreditan un recorrido manual con VoiceOver, Voice Control, Switch Control, Full Keyboard Access o Accessibility Inspector. Después de validar esta limitación y la regresión Q1 separada, el propietario autorizó expresamente commit, push, PR, merge, cierre del issue y borrado de las ramas local y remota. La autorización no repara Q1 ni inicia SwiftData, colección, autenticación, sincronización, Library Red ejecutable, WidgetKit, watchOS, App Group, entitlements o el Advanced Release Gate.
 
 ## P1 — composición live, red y pruebas directas
 
@@ -326,7 +362,7 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 
 1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
 2. Resolver de forma separada la regresión de descubrimiento de tags de `Fast` e `Integration`, sin mezclarla con el comportamiento C2.
-3. Iniciar C3 únicamente mediante una nueva autorización y sin mezclar la reparación separada de Q1.
+3. Iniciar la siguiente unidad de producto únicamente mediante autorización separada y sin mezclar la reparación de Q1.
 4. Mantener la clasificación de cada suite nueva mediante su target y tag en el mismo cambio que la introduce.
 5. Implementar el producto restante y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
 6. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
@@ -336,7 +372,7 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
 - Catálogo C1 y la decisión normativa D1 están entregados.
 - Los planes `Fast`, `Integration`, `UI` y `ReleaseGate` están materializados, ejecutados, revisados y entregados mediante Q1.
-- C2 y P1 están entregados sin iniciar C3; búsqueda, filtros, colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
+- C2, C3 y P1 están entregados; colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La única evidencia física actual es la instalación y visualización del icono en el iPhone 11 observada por el propietario. No existe todavía evidencia de accesibilidad física, Keychain, App Group, WatchConnectivity o integración live.
 - No se ha autorizado publicación DocC ni GitHub Pages.

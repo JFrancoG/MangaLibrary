@@ -14,13 +14,13 @@ struct CatalogPaginationView: View {
         case .ready:
             EmptyView()
         case .loading:
-            ProgressView("Loading more manga")
+            ProgressView("Loading more results")
                 .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("catalog.pagination.loading")
         case let .failure(_, reason):
             VStack(spacing: 10) {
                 Label(
-                    "Couldn't load more manga",
+                    "Couldn't load more results",
                     systemImage: "exclamationmark.triangle"
                 )
                 .font(.headline)
@@ -37,7 +37,7 @@ struct CatalogPaginationView: View {
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier("catalog.pagination.error")
         case .end:
-            Label("End of catalog", systemImage: "checkmark.circle")
+            Label("End of results", systemImage: "checkmark.circle")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)

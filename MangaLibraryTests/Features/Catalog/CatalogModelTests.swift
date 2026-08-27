@@ -445,6 +445,422 @@ struct CatalogModelTests {
         #expect(model.requestedNextPage == nil)
     }
 
+    @Test
+    func applyingDifferentQueryClearsPresentationAndStartsAtFirstPage() async throws {
+        let loader = ControlledCatalogLoader()
+        let model = makeModel(loader: loader)
+        let selectedManga = manga(id: 70, title: "Selected")
+        let replacementManga = manga(id: 71, title: "Replacement")
+        let replacementQuery = advancedQuery()
+
+        let initialTask = Task {
+            await model.loadIfNeeded()
+        }
+        await loader.waitForRequestCount(1)
+        await loader.succeed(
+            page(number: 1, total: 41, items: [selectedManga]),
+            at: 0
+        )
+        await initialTask.value
+        model.selectedMangaID = selectedManga.id
+        model.requestNextPageIfNeeded(after: selectedManga.id)
+
+        #expect(model.requestedNextPage == 2)
+
+        model.apply(query: replacementQuery)
+
+        #expect(model.query == replacementQuery)
+        #expect(model.state == .idle)
+        #expect(model.requestedNextPage == nil)
+        #expect(model.selectedMangaID == nil)
+
+        let replacementTask = Task {
+            await model.loadIfNeeded()
+        }
+        await loader.waitForRequestCount(2)
+        #expect(
+            await loader.requests() == [
+                try CatalogPageRequest(),
+                try CatalogPageRequest(
+                    query: replacementQuery,
+                    page: 1,
+                    per: 20
+                )
+            ]
+        )
+        await loader.succeed(
+            page(items: [replacementManga]),
+            at: 1
+        )
+        await replacementTask.value
+
+        #expect(model.state == terminalContent([replacementManga]))
+    }
+
+    @Test
+    func applyingSameQueryPreservesPresentationWithoutLoading() async {
+        let loader = ControlledCatalogLoader()
+        let model = makeModel(loader: loader)
+        let selectedManga = manga(id: 80, title: "Selected")
+
+        let initialTask = Task {
+            await model.loadIfNeeded()
+        }
+        await loader.waitForRequestCount(1)
+        await loader.succeed(
+            page(number: 1, total: 41, items: [selectedManga]),
+            at: 0
+        )
+        await initialTask.value
+        model.selectedMangaID = selectedManga.id
+        model.requestNextPageIfNeeded(after: selectedManga.id)
+        let stateBeforeApplying = model.state
+
+        model.apply(query: .catalog)
+
+        #expect(model.query == .catalog)
+        #expect(model.state == stateBeforeApplying)
+        #expect(model.requestedNextPage == 2)
+        #expect(model.selectedMangaID == selectedManga.id)
+        #expect(await loader.requests().count == 1)
+    }
+
+    @Test
+    func responseFromPreviousQueryCannotReplaceBestResults() async throws {
+        let loader = ControlledCatalogLoader()
+        let model = makeModel(loader: loader)
+        let staleManga = manga(id: 90, title: "Stale catalog")
+        let bestManga = manga(id: 91, title: "Best manga")
+
+        let staleTask = Task {
+            await model.loadIfNeeded()
+        }
+        await loader.waitForRequestCount(1)
+
+        model.apply(query: .best)
+        let bestTask = Task {
+            await model.loadIfNeeded()
+        }
+        await loader.waitForRequestCount(2)
+
+        #expect(
+            await loader.requests() == [
+                try CatalogPageRequest(),
+                try CatalogPageRequest(query: .best, page: 1, per: 20)
+            ]
+        )
+
+        await loader.succeed(page(items: [bestManga]), at: 1)
+        await bestTask.value
+        #expect(model.state == terminalContent([bestManga]))
+
+        await loader.succeed(page(items: [staleManga]), at: 0)
+        await staleTask.value
+
+        #expect(model.query == .best)
+        #expect(model.state == terminalContent([bestManga]))
+    }
+
+    @Test
+    func additionalPageAndRetryPreserveAdvancedQueryIdentity() async throws {
+        let loader = ControlledCatalogLoader()
+        let model = makeModel(loader: loader)
+        let query = advancedQuery()
+        let firstManga = manga(id: 100, title: "First")
+        let secondManga = manga(id: 101, title: "Second")
+        let firstRequest = try CatalogPageRequest(
+            query: query,
+            page: 1,
+            per: 20
+        )
+        let secondRequest = try CatalogPageRequest(
+            query: query,
+            page: 2,
+            per: 20
+        )
+
+        model.apply(query: query)
+        let initialTask = Task {
+            await model.loadIfNeeded()
+        }
+        await loader.waitForRequestCount(1)
+        await loader.succeed(
+            page(number: 1, total: 41, items: [firstManga]),
+            at: 0
+        )
+        await initialTask.value
+
+        model.requestNextPageIfNeeded(after: firstManga.id)
+        let failedTask = Task {
+            await model.loadRequestedNextPage()
+        }
+        await loader.waitForRequestCount(2)
+        await loader.fail(
+            CatalogAPIClientError.network(.transport(.notConnectedToInternet)),
+            at: 1
+        )
+        await failedTask.value
+
+        model.requestNextPageRetry()
+        let retryTask = Task {
+            await model.loadRequestedNextPage()
+        }
+        await loader.waitForRequestCount(3)
+
+        #expect(
+            await loader.requests() == [
+                firstRequest,
+                secondRequest,
+                secondRequest
+            ]
+        )
+
+        await loader.succeed(
+            page(number: 2, total: 41, items: [secondManga]),
+            at: 2
+        )
+        await retryTask.value
+
+        #expect(model.query == query)
+        #expect(
+            model.state == .content(
+                .init(
+                    items: [firstManga, secondManga],
+                    pagination: .ready(nextPage: 3)
+                )
+            )
+        )
+    }
+
+    @Test
+    func filterOptionsLoadOnceAndRemainIndependentFromPageState() async {
+        let loader = ControlledCatalogFilterOptionsLoader()
+        let options = CatalogFilterOptions(
+            demographics: ["Seinen"],
+            genres: ["Drama"],
+            themes: ["Psychological"]
+        )
+        let emptyPage = page(items: [])
+        let model = CatalogModel(
+            initialState: .empty,
+            loadFilterOptions: {
+                try await loader.load()
+            }
+        ) { _ in
+            emptyPage
+        }
+
+        let loadTask = Task {
+            await model.loadFilterOptionsIfNeeded()
+        }
+        await loader.waitForRequestCount(1)
+
+        #expect(model.filterOptionsState == .loading)
+        #expect(model.state == .empty)
+
+        await loader.succeed(options, at: 0)
+        await loadTask.value
+
+        #expect(model.filterOptionsState == .content(options))
+        #expect(model.state == .empty)
+
+        await model.loadFilterOptionsIfNeeded()
+        #expect(await loader.requests() == 1)
+    }
+
+    @Test
+    func loadedFilterOptionsRetainCurrentQuerySelections() async {
+        let loader = ControlledCatalogFilterOptionsLoader()
+        let serverOptions = CatalogFilterOptions(
+            demographics: ["Seinen"],
+            genres: ["Drama"],
+            themes: ["Psychological"]
+        )
+        let emptyPage = page(items: [])
+        let model = CatalogModel(
+            initialQuery: .advanced(
+                CatalogSearch(
+                    genres: ["Mystery"],
+                    themes: ["Space"],
+                    demographics: ["Josei"]
+                )
+            ),
+            loadFilterOptions: {
+                try await loader.load()
+            }
+        ) { _ in
+            emptyPage
+        }
+
+        let loadTask = Task {
+            await model.loadFilterOptionsIfNeeded()
+        }
+        await loader.waitForRequestCount(1)
+        await loader.succeed(serverOptions, at: 0)
+        await loadTask.value
+
+        #expect(
+            model.filterOptionsState == .content(
+                CatalogFilterOptions(
+                    demographics: ["Josei", "Seinen"],
+                    genres: ["Drama", "Mystery"],
+                    themes: ["Psychological", "Space"]
+                )
+            )
+        )
+
+        model.apply(
+            query: .advanced(
+                CatalogSearch(genres: ["Adventure"])
+            )
+        )
+
+        #expect(
+            model.filterOptionsState == .content(
+                CatalogFilterOptions(
+                    demographics: ["Seinen"],
+                    genres: ["Adventure", "Drama"],
+                    themes: ["Psychological"]
+                )
+            )
+        )
+    }
+
+    @Test
+    func applyingQueryPreparesExistingFilterOptions() {
+        let serverOptions = CatalogFilterOptions(
+            demographics: ["Seinen"],
+            genres: ["Drama"],
+            themes: ["Psychological"]
+        )
+        let emptyPage = page(items: [])
+        let model = CatalogModel(
+            initialFilterOptionsState: .content(serverOptions)
+        ) { _ in
+            emptyPage
+        }
+
+        model.apply(
+            query: .advanced(
+                CatalogSearch(
+                    genres: ["Mystery"],
+                    themes: ["Space"],
+                    demographics: ["Josei"]
+                )
+            )
+        )
+
+        #expect(
+            model.filterOptionsState == .content(
+                CatalogFilterOptions(
+                    demographics: ["Josei", "Seinen"],
+                    genres: ["Drama", "Mystery"],
+                    themes: ["Psychological", "Space"]
+                )
+            )
+        )
+    }
+
+    @Test
+    func filterOptionsFailureRetriesWithoutChangingTheQuery() async {
+        let loader = ControlledCatalogFilterOptionsLoader()
+        let options = CatalogFilterOptions(
+            demographics: ["Josei"],
+            genres: ["Mystery"],
+            themes: ["Adult Cast"]
+        )
+        let emptyPage = page(items: [])
+        let model = CatalogModel(
+            initialState: .empty,
+            initialQuery: .best,
+            loadFilterOptions: {
+                try await loader.load()
+            }
+        ) { _ in
+            emptyPage
+        }
+
+        let failedTask = Task {
+            await model.loadFilterOptionsIfNeeded()
+        }
+        await loader.waitForRequestCount(1)
+        await loader.fail(
+            CatalogAPIClientError.network(.statusCode(503)),
+            at: 0
+        )
+        await failedTask.value
+
+        #expect(model.filterOptionsState == .failure(.network(.statusCode(503))))
+
+        let retryTask = Task {
+            await model.retryFilterOptions()
+        }
+        await loader.waitForRequestCount(2)
+        await loader.succeed(options, at: 1)
+        await retryTask.value
+
+        #expect(model.query == .best)
+        #expect(model.filterOptionsState == .content(options))
+        #expect(model.state == .empty)
+    }
+
+    @Test
+    func cancellingFilterOptionsRestoresIdleWithoutVisibleFailure() async {
+        let loader = ControlledCatalogFilterOptionsLoader()
+        let emptyPage = page(items: [])
+        let model = CatalogModel(
+            loadFilterOptions: {
+                try await loader.load()
+            }
+        ) { _ in
+            emptyPage
+        }
+
+        let loadTask = Task {
+            await model.loadFilterOptionsIfNeeded()
+        }
+        await loader.waitForRequestCount(1)
+
+        loadTask.cancel()
+        await loadTask.value
+
+        #expect(await loader.wasCancelled(at: 0))
+        #expect(model.filterOptionsState == .idle)
+    }
+
+    @Test
+    func reenteringFilterOptionsWhilePreviousLoadCancelsStartsFreshRequest() async {
+        let options = CatalogFilterOptions(
+            demographics: ["Seinen"],
+            genres: ["Drama"],
+            themes: ["Psychological"]
+        )
+        let loader = ReentrantCatalogFilterOptionsLoader(options: options)
+        let emptyPage = page(items: [])
+        let model = CatalogModel(
+            loadFilterOptions: {
+                try await loader.load()
+            }
+        ) { _ in
+            emptyPage
+        }
+
+        let firstTask = Task {
+            await model.loadFilterOptionsIfNeeded()
+        }
+        await loader.waitForRequestCount(1)
+
+        #expect(model.filterOptionsState == .loading)
+
+        await model.loadFilterOptionsIfNeeded()
+        firstTask.cancel()
+        await firstTask.value
+
+        #expect(await loader.requestCount() == 2)
+        #expect(await loader.firstRequestWasCancelled())
+        #expect(model.filterOptionsState == .content(options))
+    }
+
     private func makeModel(loader: ControlledCatalogLoader) -> CatalogModel {
         CatalogModel { request in
             try await loader.load(request)
@@ -453,6 +869,20 @@ struct CatalogModelTests {
 
     private func terminalContent(_ items: [Manga]) -> CatalogModel.State {
         .content(.init(items: items, pagination: .end))
+    }
+
+    private func advancedQuery() -> CatalogQuery {
+        .advanced(
+            CatalogSearch(
+                matchMode: .contains,
+                title: "Frieren",
+                authorFirstName: "Kanehito",
+                authorLastName: "Yamada",
+                genres: ["Adventure"],
+                themes: ["Military"],
+                demographics: ["Shounen"]
+            )
+        )
     }
 
     private func page(
@@ -481,5 +911,85 @@ struct CatalogModelTests {
             score: 8.5,
             coverURL: nil
         )
+    }
+}
+
+private actor ReentrantCatalogFilterOptionsLoader {
+    private struct RequestWaiter {
+        let expectedCount: Int
+        let continuation: CheckedContinuation<Void, Never>
+    }
+
+    private let options: CatalogFilterOptions
+    private var count = 0
+    private var firstContinuation: CheckedContinuation<CatalogFilterOptions, any Error>?
+    private var firstCancelled = false
+    private var requestWaiters: [RequestWaiter] = []
+
+    init(options: CatalogFilterOptions) {
+        self.options = options
+    }
+
+    func load() async throws -> CatalogFilterOptions {
+        let requestIndex = count
+        count += 1
+        resumeSatisfiedRequestWaiters()
+
+        guard requestIndex == 0 else {
+            return options
+        }
+
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                if firstCancelled {
+                    continuation.resume(throwing: CancellationError())
+                } else {
+                    firstContinuation = continuation
+                }
+            }
+        } onCancel: {
+            Task {
+                await self.cancelFirstRequest()
+            }
+        }
+    }
+
+    func requestCount() -> Int {
+        count
+    }
+
+    func waitForRequestCount(_ expectedCount: Int) async {
+        guard count < expectedCount else {
+            return
+        }
+
+        await withCheckedContinuation { continuation in
+            requestWaiters.append(
+                RequestWaiter(
+                    expectedCount: expectedCount,
+                    continuation: continuation
+                )
+            )
+        }
+    }
+
+    func firstRequestWasCancelled() -> Bool {
+        firstCancelled
+    }
+
+    private func cancelFirstRequest() {
+        firstCancelled = true
+        firstContinuation?.resume(throwing: CancellationError())
+        firstContinuation = nil
+    }
+
+    private func resumeSatisfiedRequestWaiters() {
+        let satisfiedWaiters = requestWaiters.filter {
+            count >= $0.expectedCount
+        }
+        requestWaiters.removeAll {
+            count >= $0.expectedCount
+        }
+        satisfiedWaiters.forEach { $0.continuation.resume() }
     }
 }

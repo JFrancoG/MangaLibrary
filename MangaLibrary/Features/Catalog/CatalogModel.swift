@@ -9,6 +9,7 @@ import Observation
 @Observable @MainActor
 final class CatalogModel {
     typealias PageLoader = @Sendable (CatalogPageRequest) async throws -> CatalogPage
+    typealias FilterOptionsLoader = @Sendable () async throws -> CatalogFilterOptions
 
     enum FailureReason: Equatable {
         case unavailable
@@ -48,14 +49,26 @@ final class CatalogModel {
         case failure(FailureReason)
     }
 
+    enum FilterOptionsState: Equatable {
+        case idle
+        case loading
+        case content(CatalogFilterOptions)
+        case failure(FailureReason)
+    }
+
     private final class LoadIdentity {}
 
     private(set) var state = State.idle
+    private(set) var query: CatalogQuery
     private(set) var requestedNextPage: Int64?
+    private(set) var filterOptionsState: FilterOptionsState
     var selectedMangaID: Manga.ID?
 
     @ObservationIgnored private let loadPage: PageLoader
-    @ObservationIgnored private var activeLoadIdentity: LoadIdentity?
+    @ObservationIgnored private let fetchFilterOptions: FilterOptionsLoader
+    @ObservationIgnored private var activePageLoadIdentity: LoadIdentity?
+    @ObservationIgnored private var activeFilterOptionsLoadIdentity: LoadIdentity?
+    @ObservationIgnored private var sourceFilterOptions: CatalogFilterOptions?
 
     var selectedManga: Manga? {
         guard
@@ -68,9 +81,50 @@ final class CatalogModel {
         return content.items.first { $0.id == selectedMangaID }
     }
 
-    init(initialState: State = .idle, loadPage: @escaping PageLoader) {
+    init(
+        initialState: State = .idle,
+        initialQuery: CatalogQuery = .catalog,
+        initialFilterOptionsState: FilterOptionsState = .idle,
+        loadFilterOptions: @escaping FilterOptionsLoader = { .empty },
+        loadPage: @escaping PageLoader
+    ) {
         state = initialState
+        query = initialQuery
+        switch initialFilterOptionsState {
+        case let .content(options):
+            sourceFilterOptions = options
+            filterOptionsState = .content(
+                Self.preparedFilterOptions(options, for: initialQuery)
+            )
+        case .idle, .loading, .failure:
+            filterOptionsState = initialFilterOptionsState
+        }
+        fetchFilterOptions = loadFilterOptions
         self.loadPage = loadPage
+    }
+
+    /// Applies a complete catalog-query identity without starting unstructured work.
+    ///
+    /// Text and filters participate in ``CatalogQuery`` equality. A different value
+    /// clears selection and pagination, restores the first-page state, and invalidates
+    /// any response belonging to the previous query. Reapplying the same value is a
+    /// no-op so the current presentation remains stable.
+    func apply(query: CatalogQuery) {
+        guard self.query != query else {
+            return
+        }
+
+        activePageLoadIdentity = nil
+        self.query = query
+        if let sourceFilterOptions,
+           case .content = filterOptionsState {
+            filterOptionsState = .content(
+                Self.preparedFilterOptions(sourceFilterOptions, for: query)
+            )
+        }
+        requestedNextPage = nil
+        selectedMangaID = nil
+        state = .idle
     }
 
     /// Loads the first page only while the feature has not resolved an initial state.
@@ -82,7 +136,7 @@ final class CatalogModel {
         await loadInitialPage()
     }
 
-    /// Replaces the current query and invalidates any initial or additional response.
+    /// Reloads the first page of the current query and invalidates older page responses.
     func reload() async {
         requestedNextPage = nil
         await loadInitialPage()
@@ -95,6 +149,35 @@ final class CatalogModel {
         }
 
         await loadInitialPage()
+    }
+
+    /// Loads filter vocabularies while their independent state is unresolved.
+    ///
+    /// Page-query changes do not supersede this work. Reentry while a previous view
+    /// task is still cancelling replaces its load identity, preventing a stale
+    /// cancellation or response from leaving the feature idle without a new request.
+    func loadFilterOptionsIfNeeded() async {
+        switch filterOptionsState {
+        case .idle:
+            await loadFilterOptions(previousState: .idle)
+        case .loading:
+            guard activeFilterOptionsLoadIdentity != nil else {
+                return
+            }
+
+            await loadFilterOptions(previousState: .idle)
+        case .content, .failure:
+            return
+        }
+    }
+
+    /// Repeats a failed filter-options request without affecting catalog results.
+    func retryFilterOptions() async {
+        guard case .failure = filterOptionsState else {
+            return
+        }
+
+        await loadFilterOptions(previousState: filterOptionsState)
     }
 
     /// Requests another page only after the final visible manga reaches the UI.
@@ -150,7 +233,10 @@ final class CatalogModel {
         )
 
         do {
-            let request = try CatalogPageRequest(page: requestedNextPage)
+            let request = try CatalogPageRequest(
+                query: query,
+                page: requestedNextPage
+            )
             guard let page = try await fetchPage(request) else {
                 return
             }
@@ -195,7 +281,7 @@ final class CatalogModel {
         state = .loading
 
         do {
-            let request = try CatalogPageRequest()
+            let request = try CatalogPageRequest(query: query)
             guard let page = try await fetchPage(request) else {
                 return
             }
@@ -217,27 +303,61 @@ final class CatalogModel {
         }
     }
 
-    /// Returns a result only while its identity remains the active query.
+    /// Returns a result only while its identity remains the active page query.
     private func fetchPage(_ request: CatalogPageRequest) async throws -> CatalogPage? {
         let identity = LoadIdentity()
-        activeLoadIdentity = identity
+        activePageLoadIdentity = identity
 
         do {
             let page = try await loadPage(request)
             try Task.checkCancellation()
-            guard activeLoadIdentity === identity else {
+            guard activePageLoadIdentity === identity else {
                 return nil
             }
 
-            activeLoadIdentity = nil
+            activePageLoadIdentity = nil
             return page
         } catch {
-            guard activeLoadIdentity === identity else {
+            guard activePageLoadIdentity === identity else {
                 return nil
             }
 
-            activeLoadIdentity = nil
+            activePageLoadIdentity = nil
             throw error
+        }
+    }
+
+    private func loadFilterOptions(previousState: FilterOptionsState) async {
+        let identity = LoadIdentity()
+        activeFilterOptionsLoadIdentity = identity
+        filterOptionsState = .loading
+
+        do {
+            let options = try await fetchFilterOptions()
+            try Task.checkCancellation()
+            guard activeFilterOptionsLoadIdentity === identity else {
+                return
+            }
+
+            activeFilterOptionsLoadIdentity = nil
+            sourceFilterOptions = options
+            filterOptionsState = .content(
+                Self.preparedFilterOptions(options, for: query)
+            )
+        } catch is CancellationError {
+            guard activeFilterOptionsLoadIdentity === identity else {
+                return
+            }
+
+            activeFilterOptionsLoadIdentity = nil
+            filterOptionsState = previousState
+        } catch {
+            guard activeFilterOptionsLoadIdentity === identity else {
+                return
+            }
+
+            activeFilterOptionsLoadIdentity = nil
+            filterOptionsState = .failure(failureReason(for: error))
         }
     }
 
@@ -254,6 +374,21 @@ final class CatalogModel {
         case .contractDrift, .duplicateMangaID:
             return .contractDrift
         }
+    }
+
+    private static func preparedFilterOptions(
+        _ options: CatalogFilterOptions,
+        for query: CatalogQuery
+    ) -> CatalogFilterOptions {
+        guard let search = query.advancedSearch else {
+            return options
+        }
+
+        return options.includingSelections(
+            demographics: Set(search.demographics),
+            genres: Set(search.genres),
+            themes: Set(search.themes)
+        )
     }
 
     private func pagination(after page: CatalogPage) -> Pagination {

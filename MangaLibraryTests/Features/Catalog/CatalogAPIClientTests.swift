@@ -63,6 +63,176 @@ struct CatalogAPIClientTests {
         #expect(request.value(forHTTPHeaderField: "App-Token") == nil)
     }
 
+    @Test("Best manga uses its paginated public operation")
+    func bestMangaBuildsExactPublicRequest() async throws {
+        let recorder = RecordedDataLoader(
+            data: CatalogJSONFixtures.page(page: 2, total: 40)
+        )
+        let client = try makeClient { request in
+            await recorder.load(request)
+        }
+
+        _ = try await client.fetch(
+            CatalogPageRequest(query: .best, page: 2)
+        )
+
+        let request = try #require(await recorder.requests().first)
+        let components = try #require(
+            request.url.flatMap {
+                URLComponents(url: $0, resolvingAgainstBaseURL: false)
+            }
+        )
+        #expect(request.httpMethod == "GET")
+        #expect(components.path == "/list/bestMangas")
+        #expect(
+            components.queryItems == [
+                URLQueryItem(name: "page", value: "2"),
+                URLQueryItem(name: "per", value: "20")
+            ]
+        )
+        #expect(request.httpBody == nil)
+        #expect(request.value(forHTTPHeaderField: "Content-Type") == nil)
+    }
+
+    @Test("Advanced manga search sends the complete canonical filter identity")
+    func advancedSearchBuildsExactPublicRequest() async throws {
+        let recorder = RecordedDataLoader(data: CatalogJSONFixtures.page())
+        let client = try makeClient { request in
+            await recorder.load(request)
+        }
+        let search = CatalogSearch(
+            matchMode: .contains,
+            title: "Fullmetal",
+            authorFirstName: "Hiromu",
+            authorLastName: "Arakawa",
+            genres: ["Drama", "Action", "Drama"],
+            themes: ["Space", "Military", "Space"],
+            demographics: ["Seinen", "Josei", "Seinen"]
+        )
+
+        _ = try await client.fetch(
+            CatalogPageRequest(query: .advanced(search))
+        )
+
+        let request = try #require(await recorder.requests().first)
+        let components = try #require(
+            request.url.flatMap {
+                URLComponents(url: $0, resolvingAgainstBaseURL: false)
+            }
+        )
+        let body = try #require(request.httpBody)
+        let payload = String(decoding: body, as: UTF8.self)
+        #expect(request.httpMethod == "POST")
+        #expect(components.path == "/search/manga")
+        #expect(
+            components.queryItems == [
+                URLQueryItem(name: "page", value: "1"),
+                URLQueryItem(name: "per", value: "20")
+            ]
+        )
+        #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        #expect(
+            payload
+                == #"{"searchAuthorFirstName":"Hiromu","searchAuthorLastName":"Arakawa","searchContains":true,"searchDemographics":["Josei","Seinen"],"searchGenres":["Action","Drama"],"searchThemes":["Military","Space"],"searchTitle":"Fullmetal"}"#
+        )
+    }
+
+    @Test("Advanced manga search omits absent text and empty filter arrays")
+    func advancedSearchOmitsAbsentOptionalFilters() async throws {
+        let recorder = RecordedDataLoader(data: CatalogJSONFixtures.page())
+        let client = try makeClient { request in
+            await recorder.load(request)
+        }
+
+        _ = try await client.fetch(
+            CatalogPageRequest(
+                query: .advanced(
+                    CatalogSearch(
+                        matchMode: .beginsWith,
+                        genres: [],
+                        themes: [],
+                        demographics: []
+                    )
+                )
+            )
+        )
+
+        let request = try #require(await recorder.requests().first)
+        let body = try #require(request.httpBody)
+        #expect(String(decoding: body, as: UTF8.self) == #"{"searchContains":false}"#)
+    }
+
+    @Test("Filter options use the three public taxonomy operations")
+    func fetchFilterOptionsUsesExactPublicRequests() async throws {
+        let recorder = RoutedDataLoader(
+            responses: [
+                "/list/demographics": Data(#"["Shounen","Seinen"]"#.utf8),
+                "/list/genres": Data(#"["Action","Drama"]"#.utf8),
+                "/list/themes": Data(#"["Military","Space"]"#.utf8)
+            ]
+        )
+        let client = try makeClient { request in
+            try await recorder.load(request)
+        }
+
+        let options = try await client.fetchFilterOptions()
+
+        let requests = await recorder.requests()
+        #expect(options.demographics == ["Seinen", "Shounen"])
+        #expect(options.genres == ["Action", "Drama"])
+        #expect(options.themes == ["Military", "Space"])
+        #expect(
+            requests.compactMap(\.url?.path).sorted() == [
+                "/list/demographics",
+                "/list/genres",
+                "/list/themes"
+            ]
+        )
+        #expect(requests.allSatisfy { $0.httpMethod == "GET" })
+        #expect(requests.allSatisfy { $0.url?.query == nil })
+        #expect(requests.allSatisfy { $0.httpBody == nil })
+        #expect(
+            requests.allSatisfy {
+                $0.value(forHTTPHeaderField: "Authorization") == nil
+            }
+        )
+        #expect(
+            requests.allSatisfy {
+                $0.value(forHTTPHeaderField: "App-Token") == nil
+            }
+        )
+    }
+
+    @Test("Filter option network failures preserve their safe category")
+    func fetchFilterOptionsMapsNetworkFailure() async throws {
+        let client = try makeClient { request in
+            if request.url?.path == "/list/genres" {
+                throw NetworkError.statusCode(503)
+            }
+            return Data("[]".utf8)
+        }
+
+        await #expect(
+            throws: CatalogAPIClientError.network(.statusCode(503))
+        ) {
+            try await client.fetchFilterOptions()
+        }
+    }
+
+    @Test("A malformed filter option payload is contract drift")
+    func fetchFilterOptionsMapsDecodingFailure() async throws {
+        let client = try makeClient { request in
+            if request.url?.path == "/list/themes" {
+                return Data(#"{"themes":[]}"#.utf8)
+            }
+            return Data("[]".utf8)
+        }
+
+        await #expect(throws: CatalogAPIClientError.contractDrift) {
+            try await client.fetchFilterOptions()
+        }
+    }
+
     @Test("A contract-valid payload maps every product field and ignores remote additions")
     func validMinimalPayloadMapsCatalogValues() async throws {
         let client = try makeClient(returning: CatalogJSONFixtures.page())
@@ -199,6 +369,34 @@ private actor RecordedDataLoader {
     func load(_ request: URLRequest) -> Data {
         recordedRequests.append(request)
         return data
+    }
+
+    func requests() -> [URLRequest] {
+        recordedRequests
+    }
+}
+
+private actor RoutedDataLoader {
+    enum StubError: Error {
+        case unexpectedPath
+    }
+
+    private let responses: [String: Data]
+    private var recordedRequests: [URLRequest] = []
+
+    init(responses: [String: Data]) {
+        self.responses = responses
+    }
+
+    func load(_ request: URLRequest) throws -> Data {
+        recordedRequests.append(request)
+        guard
+            let path = request.url?.path,
+            let response = responses[path]
+        else {
+            throw StubError.unexpectedPath
+        }
+        return response
     }
 
     func requests() -> [URLRequest] {
