@@ -1,7 +1,23 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-28
-**Estado general:** G0, Catálogo C1–C4, el contrato cromático Library Red, D1, Q1 y P1 entregados; Library Red ejecutable implementado y revalidado técnica y manualmente, con entrega Git completa autorizada
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1 y el contrato y la adopción ejecutable de Library Red entregados; el siguiente corte de producto es S1 — identidad y sesión dual, todavía sin iniciar
+
+## Reconciliación de documentación y hoja de ruta — issue #31
+
+- Tracker: [GitHub Issue #31 — Reconciliar documentación y hoja de ruta tras Catálogo C4 y Library Red](https://github.com/JFrancoG/MangaLibrary/issues/31), abierto después de comprobar que no existía un issue o una PR equivalente.
+- Rama local: `codex/31-reconcile-roadmap-docs`, creada desde `main@1839c296c78cff47f4fd40b7ef51db42a65db64c`, limpio y sincronizado con `origin/main`.
+- Esta unidad cierra el estado histórico de C4 y Library Red y sustituye el siguiente paso ya ejecutado por una secuencia operativa explícita para identidad, Keychain, SwiftData, outbox, Colección local y sincronización remota.
+- El enunciado permite una colección básica solo local, pero el producto Advanced aprobado identifica cada entrada mediante usuario + manga y no define una colección anónima ni su migración posterior. Por eso S1 precede a la Colección expuesta al usuario.
+- No cambia SDD, ADR, OpenAPI ni arquitectura: la hoja de ruta aplica las decisiones vigentes. Tampoco crea el issue de S1, inicia código de producto, ejecuta credenciales o realiza escrituras live.
+
+### Validación documental local
+
+- El diff queda limitado a `README.md`, `CHANGELOG.md` y este registro de progreso; `git diff --check` no encuentra errores y permanecen intactos código, proyecto, SDD, ADR y OpenAPI.
+- Los enlaces y anchors locales de los 39 archivos Markdown resuelven sin roturas. El enlace del README alcanza esta hoja de ruta.
+- El escaneo acotado de líneas añadidas no encuentra rutas privadas, correos, credenciales, secretos ni tokens.
+- Dos revisiones independientes contrastaron Git/GitHub, SDD 00/01/03/04, el enunciado y el OpenAPI vivo. La revisión de alcance detectó el cierre histórico incompleto de C4 y se corrigió con sus commits y PR reales; el read-back final no mantiene hallazgos abiertos.
+- No se ejecutan build, tests, previews ni archive DocC porque esta unidad solo modifica Markdown y no cambia comportamiento, configuración o catálogo DocC.
 
 ## Library Red ejecutable — issue #29
 
@@ -50,9 +66,9 @@ existen trampas al abrir, recorrer y cerrar Filtros. Esta evidencia no constituy
 una medición píxel a píxel de todos los estados nativos ni acredita hardware
 físico, que no es una condición de este cambio al no incorporar capacidades que
 dependan de él. La matriz manual de Library Red queda completa para el alcance
-del issue #29. El propietario autorizó el 2026-08-28 commit, push, PR, merge,
-cierre del issue y borrado de las ramas local y remota; esta autorización no
-inicia Colección ni otra fase como efecto lateral.
+del issue #29. La implementación `ef770f0` se entregó mediante la PR #30,
+fusionada en `f2aaf2b`; el issue quedó cerrado y las ramas local y remota se
+eliminaron. Esta entrega no inicia Colección ni otra fase como efecto lateral.
 
 ## Catálogo C4 — detalle enriquecido y precarga fluida
 
@@ -98,10 +114,11 @@ dinámica no pudo añadirse a esta evidencia porque el skill requerido por Xcode
 no estaba disponible. Build, previews y revisión estructural no constituyen
 por sí solos una medición de fluidez frame a frame ni un recorrido manual con
 VoiceOver, Voice Control, Switch Control, Full Keyboard Access o Accessibility
-Inspector. Tampoco existe evidencia física ni integración live. El propietario
-autorizó el 2026-08-28 commit, push, PR, merge, cierre del issue y borrado de las
-ramas. El read-back manual de VoiceOver quedó aprobado con el orden geométrico
-observado; esta autorización no inicia Colección ni Library Red como efecto
+Inspector. Tampoco existe evidencia física ni integración live. La implementación
+`8b2bb3` y la evidencia manual `98b0bae` se entregaron mediante la PR #28,
+fusionada en `0b39884`; el issue #27 quedó cerrado y las ramas local y remota se
+eliminaron. El read-back manual de VoiceOver quedó aprobado con el orden
+geométrico observado; esta entrega no inició Colección ni Library Red como efecto
 lateral.
 
 ## Catálogo C3 — búsqueda avanzada y filtros
@@ -459,21 +476,34 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 - Arquitectura feature-first, navegación local, contratos de SwiftData, autenticación/sync, WidgetKit/watchOS y DocC selectivo aprobados y auditados.
 - Separación entre `/docs`, catálogo DocC, artefactos generados y memoria privada definida.
 
-## Siguiente trabajo
+## Hoja de ruta Advanced
+
+La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden de implementación. El orden operativo parte de dos decisiones ya aprobadas: la colección local se identifica por **usuario + manga** y no existe una política de colección anónima. Los siguientes cortes son:
+
+1. **S1 — identidad y sesión dual.** Implementar login Basic hacia refresh JWT, intercambio por access JWT, `/users/session/me`, identidad estable, Keychain para ambos tokens, contraseña solo en memoria, renovación única concurrente, restauración, generaciones de sesión y estados básicos de Cuenta. El logout local cubre el escenario sin operaciones pendientes, pero no acredita todavía el gate Advanced que dependerá de la outbox. Aquí comienza la persistencia local de seguridad; el mecanismo durable de metadatos no secretos se concretará en la propuesta de S1.
+2. **S2 — alta de usuario.** Implementar `POST /users` con `App-Token` inyectado desde configuración local ignorada y enlazar el alta con login. Una escritura live continúa necesitando autorización separada. S2 debe cerrarse antes del Advanced Release Gate y no añade todavía Colección.
+3. **L1 — núcleo SwiftData de Colección.** Crear una sola vez el `ModelContainer`, un esquema versionado y los modelos de colección y outbox. La primera mutación disponible debe validar invariantes y guardar atómicamente ambos estados mediante una capacidad `@ModelActor`; no se entrega una ruta local provisional sin outbox. Aquí comienza la persistencia local de datos de producto.
+4. **L2 — Colección local y offline.** Exponer `@Query` restringida a la identidad activa, navegación independiente y alta, edición y eliminación mediante la ruta semántica de L1. Tomos, volumen de lectura, colección completa y tombstones deben sobrevivir al relanzamiento sin depender de red.
+5. **R1 — lectura e importación remota.** Consumir la colección de la persona autenticada al iniciar o restaurar sesión y reconciliarla en SwiftData sin pisar intenciones locales posteriores. Aquí empieza la integración con la persistencia remota; la UI continúa observando exclusivamente el estado local.
+6. **R2 — envío y reconciliación de outbox.** Procesar la outbox persistida mediante POST/DELETE, coalescencia, retry, `blockedAuth`, `blockedOutcome`, reversión y protección frente a respuestas tardías. Antes de implementar GET/DELETE por `{id}` debe resolverse o caracterizarse de forma autorizada la ambigüedad entre ID de manga `int64` e ID de entrada UUID. Las escrituras remotas de Colección comienzan aquí y no se prueban contra producción.
+7. **Advanced Release Gate.** Completar el logout con operaciones pendientes, aislamiento A→B, recuperación después de crash y toda la evidencia de catálogo, Cuenta, Colección, sincronización, iPhone/iPad, accesibilidad, build, tests y DocC.
+8. **Deluxe.** Iniciar WidgetKit, watchOS, App Group, `SessionFence` y los puentes de datos únicamente después de que Advanced quede aceptado.
+
+S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad autenticable, pero permanece antes del gate Advanced y en una unidad separada porque incorpora el `App-Token`. La outbox sí pertenece a L1: el worker de R2 puede llegar después, pero ninguna mutación expuesta puede escribir Colección sin registrar o coalescer su intención en la misma operación lógica.
+
+### Trabajo transversal pendiente
 
 1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
-2. Resolver de forma separada la regresión de descubrimiento de tags de `Fast` e `Integration`, sin mezclarla con el comportamiento C2.
-3. Completar la entrega ya autorizada de Catálogo C4; no iniciar Colección ni mezclar la reparación de Q1 como efecto lateral.
-4. Mantener la clasificación de cada suite nueva mediante su target y tag en el mismo cambio que la introduce.
-5. Implementar el producto restante y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
-6. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
+2. Resolver de forma separada la regresión de descubrimiento de tags de `Fast` e `Integration` antes del Advanced Release Gate.
+3. Mantener la clasificación de cada suite nueva mediante su target y tag en el mismo cambio que la introduce.
+4. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
 
 ## Estado técnico aún no alcanzado
 
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
-- Catálogo C1 y la decisión normativa D1 están entregados.
-- Los planes `Fast`, `Integration`, `UI` y `ReleaseGate` están materializados, ejecutados, revisados y entregados mediante Q1.
-- C2, C3 y P1 están entregados; C4 está implementado y revalidado técnicamente, con VoiceOver manual aprobado y entrega completa autorizada. Colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
+- Catálogo C1–C4, D1, Q1, P1 y Library Red están entregados. La limpieza posterior de tests tautológicos de consulta está en `main@1839c29` y no cambia comportamiento de producto.
+- No existen todavía identidad o sesión dual, Keychain de producto, `ModelContainer`, modelos SwiftData, outbox, Colección funcional ni sincronización remota.
+- S1 no tiene todavía issue o rama propios; el issue #31 y su rama son exclusivamente documentales.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La única evidencia física actual es la instalación y visualización del icono en el iPhone 11 observada por el propietario. No existe todavía evidencia de accesibilidad física, Keychain, App Group, WatchConnectivity o integración live.
 - No se ha autorizado publicación DocC ni GitHub Pages.
