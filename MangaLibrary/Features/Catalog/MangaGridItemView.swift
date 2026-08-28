@@ -15,7 +15,7 @@ struct MangaGridItemView: View {
 
             Text(manga.title)
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(.textPrimary)
                 .multilineTextAlignment(.center)
                 .lineLimit(2, reservesSpace: true)
                 .truncationMode(.tail)
@@ -23,10 +23,10 @@ struct MangaGridItemView: View {
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(12)
-        .background(.background)
+        .background(Color(.surface))
         .overlay {
             RoundedRectangle(cornerRadius: 12)
-                .stroke(.quaternary, lineWidth: 1)
+                .stroke(.controlBorder, lineWidth: 1)
         }
         .compositingGroup()
         .clipShape(.rect(cornerRadius: 12))

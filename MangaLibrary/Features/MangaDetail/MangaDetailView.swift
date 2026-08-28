@@ -37,17 +37,20 @@ struct MangaDetailView: View {
                 Text(manga.title)
                     .font(.largeTitle)
                     .bold()
+                    .foregroundStyle(.textPrimary)
                     .accessibilityHeading(.h1)
 
                 if let titleEnglish = manga.titleEnglish,
                    titleEnglish != manga.title {
                     Text(titleEnglish)
                         .font(.title3)
+                        .foregroundStyle(.textPrimary)
                 }
 
                 if let titleJapanese = manga.titleJapanese {
                     Text(titleJapanese)
                         .font(.title3)
+                        .foregroundStyle(.textPrimary)
                 }
 
                 LabeledContent("Score") {
@@ -55,13 +58,15 @@ struct MangaDetailView: View {
                         manga.score,
                         format: .number.precision(.fractionLength(1...2))
                     )
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.textPrimary)
                 }
+                .foregroundStyle(.textSecondary)
 
                 LabeledContent("Status") {
                     Text(manga.status.localizedTitle)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.textPrimary)
                 }
+                .foregroundStyle(.textSecondary)
 
                 if manga.authors.isEmpty == false {
                     detailSection("Authors") {
@@ -69,9 +74,10 @@ struct MangaDetailView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(formattedName(for: author))
                                     .font(.body)
+                                    .foregroundStyle(.textPrimary)
                                 Text(author.role.localizedTitle)
                                     .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.textSecondary)
                             }
                             .accessibilityElement(children: .combine)
                         }
@@ -90,12 +96,14 @@ struct MangaDetailView: View {
                     detailSection("Synopsis") {
                         Text(synopsis)
                             .font(.body)
+                            .foregroundStyle(.textPrimary)
                     }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
         }
+        .background(Color(.canvas))
         .scrollPosition($scrollPosition)
         .onChange(of: manga.id) { _, _ in
             guard horizontalSizeClass == .regular else {
@@ -163,7 +171,7 @@ struct MangaDetailView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textSecondary)
                 Text(
                     values
                         .map(\.name)
@@ -173,6 +181,7 @@ struct MangaDetailView: View {
                         )
                 )
                 .font(.body)
+                .foregroundStyle(.textPrimary)
             }
         }
     }
@@ -184,6 +193,7 @@ struct MangaDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.headline)
+                .foregroundStyle(.textPrimary)
                 .accessibilityHeading(.h2)
             content()
         }

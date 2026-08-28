@@ -12,6 +12,7 @@ struct CatalogFiltersView: View {
     }
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     let model: CatalogModel
     @Binding private var searchText: String
@@ -64,12 +65,19 @@ struct CatalogFiltersView: View {
                     .accessibilityIdentifier("catalog.filters.reset")
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color(.canvas))
             .navigationTitle("Filters")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .accessibilityIdentifier(
+                        horizontalSizeClass == .compact
+                            ? "catalog.filters.cancel.compact"
+                            : "catalog.filters.cancel.regular"
+                    )
                 }
             }
             .task(id: resultSet) {
@@ -255,7 +263,10 @@ struct CatalogFiltersView: View {
 }
 
 extension CatalogFiltersView {
-    init(model: CatalogModel, searchText: Binding<String>) {
+    init(
+        model: CatalogModel,
+        searchText: Binding<String>
+    ) {
         let search = model.query.advancedSearch ?? CatalogSearch()
 
         self.model = model

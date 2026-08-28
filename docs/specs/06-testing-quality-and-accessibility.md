@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.10
-**Fecha:** 2026-08-27
+**Versión:** 1.12
+**Fecha:** 2026-08-28
 
 ## Propósito
 
@@ -29,8 +29,9 @@ Definir evidencia proporcional al riesgo para entregar Advanced y Deluxe con cer
 Los cuatro ficheros versionados viven en `TestPlans/` y el scheme compartido
 `MangaLibrary` deja `Fast` como plan predeterminado. Los planes unitarios usan
 filtros Include Tags de Swift Testing: `Fast` incluye el tag `fast`, aplicado a
-`APIConfigurationTests`, `CatalogAPIClientTests` y `CatalogModelTests` porque
-usan valores y bytes directos deterministas. `Integration` incluye el tag
+`APIConfigurationTests`, `CatalogAPIClientTests`, `CatalogQueryTests`,
+`CatalogModelTests` y `LibraryColorTests` porque usan valores, bytes o recursos
+locales directos y deterministas. `Integration` incluye el tag
 `integration`, aplicado a `HTTPClientTests`, que atraviesa la frontera real de
 `URLSession` mediante un `URLProtocol` limitado a su sesión. `UI` contiene únicamente
 `MangaLibraryUITests`. Toda suite nueva se clasifica en `Fast`, `Integration` o
@@ -99,10 +100,13 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 
 ### Interfaz
 
-XCUITest se limita al menor smoke determinista que demuestre wiring crítico no
-cubierto con Swift Testing. En el alcance actual ejecuta un único recorrido:
-bootstrap mock Debug → primera fila de Catálogo → detalle de la misma
-`Manga.ID`.
+XCUITest se limita a los menores recorridos deterministas que demuestren wiring
+crítico no cubierto con Swift Testing. En el alcance actual ejecuta dos:
+
+- bootstrap mock Debug → primera fila de Catálogo → detalle de la misma
+  `Manga.ID`;
+- bootstrap mock Debug → abrir Filtros → descartar la sheet compacta con el
+  gesto → volver a abrirla.
 
 Un flujo UI adicional solo se incorpora cuando exista un riesgo observable que
 no pueda caracterizarse con estado, modelo, integración o preview, y se elimina
@@ -167,7 +171,9 @@ La política común se materializa en `Configuration/Shared.xcconfig`, conectada
 
 Library Red es el contrato cromático aprobado para Manga Library. La [especificación humana](../design/brand-palette.md) define significado, política de uso, accesibilidad y límites; el [JSON canónico](../design/library-color-tokens.json) es la autoridad exacta de valores, roles, modos, umbrales y parejas autorizadas.
 
-La incorporación documental no materializa colorsets ni acredita la interfaz. Una unidad posterior implementará Asset Catalog mediante RED/GREEN, comprobará las cuatro combinaciones Light/Dark y Standard/Increased Contrast contra el JSON y auditará los estados renderizados. Que una pareja opaca supere su ratio no demuestra por sí solo contraste tras materiales, transparencia, imágenes, estados nativos o composición dinámica, ni conformidad WCAG de la app o soporte de una etiqueta de accesibilidad de App Store.
+La implementación ejecutable materializa los 29 roles como colorsets sRGB opacos, cada uno con Light, Dark, Increased Contrast Light e Increased Contrast Dark. No existe `AccentColor`: Debug y Release declaran `BrandPrimary` como color global del catálogo y `MainShellView` lo aplica directamente mediante `tint`. Swift Testing usa el JSON como oráculo independiente para comprobar inventario fuente, resolución runtime, componentes y las 224 parejas autorizadas sin redondeo previo. La generación de símbolos se limita a SwiftUI para conservar el rol contractual `Link` sin colisionar con `UIColor.link`.
+
+La prueba de assets no acredita por sí sola la interfaz. Que una pareja opaca supere su ratio no demuestra contraste tras materiales, transparencia, imágenes, estados nativos o composición dinámica, ni conformidad WCAG de la app o soporte de una etiqueta de accesibilidad de App Store. Los estados renderizados continúan requiriendo auditoría proporcional.
 
 ## Gates
 

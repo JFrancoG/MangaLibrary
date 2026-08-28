@@ -58,6 +58,7 @@ struct MainShellView: View {
             }
             .accessibilityIdentifier("tab.account")
         }
+        .tint(Color(.brandPrimary))
     }
 }
 
