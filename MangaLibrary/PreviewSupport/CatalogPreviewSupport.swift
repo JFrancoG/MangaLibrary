@@ -125,7 +125,7 @@ enum CatalogPreviewSupport {
         )
     ]
 
-    /// Deterministic domain data for previews and the single Debug UI smoke.
+    /// Deterministic domain data for previews and Debug UI smoke tests.
     ///
     /// This loader deliberately bypasses URLSession, DTOs and JSON. Their
     /// behavior is covered at the transport and typed-client boundaries.

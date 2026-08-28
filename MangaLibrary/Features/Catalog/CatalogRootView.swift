@@ -25,9 +25,9 @@ struct CatalogRootView: View {
     @State private var filtersPresented = false
 
     var body: some View {
-        navigation
-            .inspector(isPresented: $filtersPresented) {
-                CatalogFiltersView(model: model, searchText: $searchText)
+        filterPresentation
+            .onChange(of: horizontalSizeClass) {
+                filtersPresented = false
             }
             .task(id: model.query) {
                 await model.loadIfNeeded()
@@ -42,6 +42,28 @@ struct CatalogRootView: View {
             .task(id: model.requestedNextPage) {
                 await model.loadRequestedNextPage()
             }
+    }
+
+    @ViewBuilder
+    private var filterPresentation: some View {
+        if horizontalSizeClass == .compact {
+            navigation
+                .sheet(isPresented: $filtersPresented) {
+                    filters
+                }
+        } else {
+            navigation
+                .inspector(isPresented: $filtersPresented) {
+                    filters
+                }
+        }
+    }
+
+    private var filters: some View {
+        CatalogFiltersView(
+            model: model,
+            searchText: $searchText
+        )
     }
 
     @ViewBuilder
@@ -93,7 +115,7 @@ struct CatalogRootView: View {
                     .buttonStyle(.bordered)
                     .padding(.horizontal)
                     .padding(.vertical, 8)
-                    .background(.bar)
+                    .background(Color(.backgroundElevated))
                 }
             }
             .toolbar {
@@ -110,6 +132,7 @@ struct CatalogRootView: View {
                     }
                 }
             }
+            .background(Color(.canvas))
     }
 
     @ViewBuilder
@@ -218,7 +241,7 @@ struct CatalogRootView: View {
             Label(
                 "Filters",
                 systemImage: model.query.activeFilterCount == 0
-                    ? "line.3.horizontal.decrease.circle"
+                    ? "line.3.horizontal.decrease"
                     : "line.3.horizontal.decrease.circle.fill"
             )
         }

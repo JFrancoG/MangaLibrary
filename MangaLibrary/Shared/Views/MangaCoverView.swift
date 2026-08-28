@@ -37,7 +37,7 @@ struct MangaCoverView: View {
             }
         }
         .frame(width: size.width, height: size.height)
-        .background(.fill.tertiary)
+        .background(Color(.surfaceStrong))
         .compositingGroup()
         .clipShape(.rect(cornerRadius: 8))
         .accessibilityHidden(true)
@@ -69,7 +69,7 @@ struct MangaCoverView: View {
     private var unavailableCover: some View {
         Image(systemName: "book.closed")
             .font(.title2)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.textTertiary)
     }
 
     private var size: CGSize {

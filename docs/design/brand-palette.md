@@ -4,7 +4,8 @@
 - **Plataforma objetivo:** iOS 27
 - **Versión:** 1.0.0
 - **Fecha:** 25 de agosto de 2026
-- **Estado:** contrato de diseño aprobado; implementación en Asset Catalog diferida
+- **Estado:** contrato aprobado y materializado en Asset Catalog
+- **Implementación:** 28 de agosto de 2026
 - **Autoridad exacta:** [`library-color-tokens.json`](library-color-tokens.json)
 
 ## Resultado
@@ -53,9 +54,9 @@ WCAG exime formalmente el contenido de componentes inactivos. Library Red adopta
 
 > La `L` de OKLCH no es la luminancia relativa de WCAG. OKLCH ayuda a diseñar una escala coherente, pero no demuestra contraste por sí solo.
 
-[`library-color-tokens.json`](library-color-tokens.json) es la autoridad exacta de roles, modos, umbrales, parejas, OKLCH y HEX sRGB. Este Markdown define su significado, política de uso y límites. Una discrepancia entre ambos bloquea la implementación; ni el código ni los futuros assets pueden sustituir silenciosamente el contrato. Cuando se materialicen los color sets, deberán coincidir con el JSON y mantener los OKLCH como información de diseño para futuras revisiones.
+[`library-color-tokens.json`](library-color-tokens.json) es la autoridad exacta de roles, modos, umbrales, parejas, OKLCH y HEX sRGB. Este Markdown define su significado, política de uso y límites. Una discrepancia entre ambos bloquea la implementación; ni el código ni los assets pueden sustituir silenciosamente el contrato. Los color sets materializados coinciden con el JSON y mantienen los OKLCH como información de diseño para futuras revisiones.
 
-## Inventario semántico previsto para Asset Catalog
+## Inventario semántico materializado en Asset Catalog
 
 Los nombres de asset son deliberadamente semánticos. Que dos roles compartan el mismo valor en v1 no los convierte en el mismo contrato.
 
@@ -271,11 +272,11 @@ Manga Library puede mostrar progreso de lectura, colecciones, estados editoriale
 - En `accessibilityDifferentiateWithoutColor`, pueden reforzarse patrones o símbolos, pero la versión base ya debe funcionar sin color.
 - Las portadas no deben cargar con el significado exclusivo de un estado. Cualquier insignia superpuesta necesita fondo opaco o composición auditada, texto accesible y una segunda señal que no dependa del color.
 
-## Implementación futura nativa en iOS 27
+## Implementación nativa en iOS 27
 
 ### Asset Catalog
 
-Cuando se implemente la paleta, crear un `.colorset` universal por cada nombre semántico. Usar espacio `sRGB`, componentes del HEX final y `alpha = 1.0`.
+La paleta se materializa mediante un `.colorset` universal por cada uno de los 29 nombres semánticos. Cada entrada usa espacio `sRGB`, componentes del HEX final y `alpha = 1.0`.
 
 | Apariencia de esta especificación | Traits del color set |
 |---|---|
@@ -286,7 +287,9 @@ Cuando se implemente la paleta, crear un `.colorset` universal por cada nombre s
 
 La elección Light/Dark e Increased Contrast es ortogonal. No existe una única tercera paleta «High Contrast».
 
-Si Xcode genera símbolos Swift para los assets, usar esos símbolos directamente. No crear un wrapper manual sin una necesidad real. La unidad de implementación confirmará la API generada por Xcode 27 y conectará los roles semánticos a controles nativos antes de aceptar cualquier ejemplo de código como evidencia.
+Xcode 27 genera `ColorResource` y extensiones de `SwiftUI.Color`, que la app usa directamente sin wrapper manual. La generación se limita al framework SwiftUI mediante `ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOL_FRAMEWORKS = SwiftUI`: el rol normativo `Link` coincide con `UIColor.link`, por lo que generar también extensiones UIKit produciría un conflicto de símbolos. La limitación no renombra assets ni desactiva los recursos tipados.
+
+Manga Library no usa un color set `AccentColor`. Las configuraciones Debug y Release del target declaran `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = BrandPrimary`, evitando que `actool` busque el placeholder retirado. `MainShellView` establece además el tint global de SwiftUI con `.tint(Color(.brandPrimary))`, de modo que `BrandPrimary` es el único origen de la identidad cromática y conserva sus cuatro variantes.
 
 Asset Catalog empaqueta las variantes y UIKit/SwiftUI seleccionan en runtime la combinación correspondiente a los traits. Esa selección no calcula ni garantiza contraste. `@Environment(\.colorSchemeContrast)` solo debe utilizarse si la estructura necesita un refuerzo adicional; no para anular la preferencia del usuario.
 
@@ -316,9 +319,9 @@ No puede reutilizarse el ratio de un token opaco para afirmar que una composici�
 
 Los tokens funcionales se entregan en sRGB para maximizar reproducibilidad. Display P3 puede reservarse para ilustración o arte no crítico. Si se añade una variante P3 funcional, debe tener fallback sRGB y una auditoría independiente; el clipping no conserva necesariamente contraste ni diferenciación.
 
-## Contrato de pruebas con Swift Testing
+## Contrato de validación
 
-La implementación del proyecto debería automatizar como mínimo:
+Swift Testing automatiza:
 
 1. Inventario exacto de assets semánticos.
 2. Resolución no nula bajo cuatro `UITraitCollection`: Light, Dark, Light + High Contrast y Dark + High Contrast.
@@ -326,8 +329,15 @@ La implementación del proyecto debería automatizar como mínimo:
 4. Coincidencia de componentes con `library-color-tokens.json`.
 5. Expansión de las `56` parejas por apariencia y comparación sin redondeo previo.
 6. Umbral `4.5` para todo texto estándar, `7.0` para todo texto Increased Contrast, `3.0` para UI estándar y `4.5` como política UI Increased Contrast.
-7. Correspondencia de `AccentColor` con `BrandPrimary` si se decide usarlo como tint global.
-8. Ausencia de colores RGB/HEX de marca hardcodeados en producción fuera del catálogo.
+7. Ausencia de `AccentColor` tanto en el inventario fuente como en el bundle compilado.
+
+El gate de implementación verifica por separado y registra en
+[`Progress.md`](../Progress.md):
+
+- `BrandPrimary` como color global de Debug y Release, el argumento efectivo de
+  `actool` y el `tint` directo de `MainShellView`;
+- ausencia de colores RGB/HEX de marca hardcodeados en producción fuera del
+  catálogo.
 
 Una prueba de assets no demuestra el contraste real de composiciones con opacidad, imágenes o materiales; esas rutas requieren pruebas específicas.
 
@@ -352,7 +362,7 @@ Una prueba de assets no demuestra el contraste real de composiciones con opacida
 - Este Markdown es la especificación humana del sistema cromático de Manga Library.
 - [`library-color-tokens.json`](library-color-tokens.json) es la autoridad exacta y auditable de versión, valores, roles, modos, umbrales y parejas.
 - Los dos archivos forman una sola revisión: cualquier cambio de versión, HEX, OKLCH, rol, umbral o pareja autorizada debe actualizar ambos y repetir la validación completa.
-- Los futuros color sets son una implementación del JSON, no una fuente alternativa. Su incorporación exige una unidad RED/GREEN separada y evidencia de las cuatro apariencias.
+- Los color sets versionados son una implementación del JSON, no una fuente alternativa. Cualquier cambio futuro debe conservar la unidad RED/GREEN y repetir la evidencia de las cuatro apariencias.
 - La procedencia coordinada con ScienceLibrary no crea una invariante entre repositorios. Cualquier cambio allí requiere alcance, revisión y entrega propios.
 
 ## Referencias oficiales

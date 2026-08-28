@@ -11,7 +11,7 @@
     "designSpace": "OKLCH",
     "deliverySpace": "sRGB 8-bit opaque",
     "visualReference": "MangaLibrary/Resources/MangaLibrary.icon",
-    "implementationStatus": "Approved design contract; Asset Catalog implementation deferred",
+    "implementationStatus": "Implemented in Asset Catalog and adopted by the current SwiftUI interface",
     "provenance": "Owner-approved palette derived from the versioned Manga Library icon; generic and visual working artifacts remain outside Git.",
     "note": "Digital semantic color system; it does not define licensed Pantone Matching System spot colors."
   },

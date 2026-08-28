@@ -1,7 +1,58 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-28
-**Estado general:** G0, Catálogo C1, C2 y C3, el contrato cromático Library Red, D1, Q1 y P1 entregados; Catálogo C4 implementado y revalidado técnicamente, con VoiceOver manual aprobado y entrega completa autorizada
+**Estado general:** G0, Catálogo C1–C4, el contrato cromático Library Red, D1, Q1 y P1 entregados; Library Red ejecutable implementado y revalidado técnica y manualmente, con entrega Git completa autorizada
+
+## Library Red ejecutable — issue #29
+
+- Tracker: [GitHub Issue #29 — Implementar Library Red en Asset Catalog y la UI actual](https://github.com/JFrancoG/MangaLibrary/issues/29), abierto después de comprobar que no existía un issue o una PR equivalente.
+- Rama local: `codex/29-library-red-assets`, creada desde `main@0b398841b64f27071ac22a133b00dd3a72b7c2ce`, limpio y sincronizado con `origin/main` después de entregar C4.
+- El JSON canónico materializa 29 color sets universales sRGB opacos. Cada uno contiene Any/Light, Dark, Increased Contrast Light e Increased Contrast Dark; el placeholder `AccentColor` se retira y `BrandPrimary` queda como único origen de identidad cromática.
+- `MainShellView` establece el tint global mediante `.tint(Color(.brandPrimary))`. La UI con superficie final controlada adopta `Canvas`, `BackgroundElevated`, `Surface`, `SurfaceStrong`, `ControlBorder`, `TextPrimary`, `TextSecondary` y `TextTertiary`. Las filas de `List` y `Form` conservan `.primary`/`.secondary` porque su selección o material final pertenece a SwiftUI; así sus estados nativos no quedan forzados a una pareja opaca que deja de ser cierta durante la interacción.
+- Los nombres tipados se generan únicamente para `ColorResource` y SwiftUI mediante `ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOL_FRAMEWORKS = SwiftUI`. Así se conserva el nombre normativo `Link` sin colisionar con `UIColor.link` ni renombrar el contrato.
+- Por autorización expresa del propietario, Debug y Release sustituyen en el target `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor` por `BrandPrimary`. El diff de `project.pbxproj` se limita a esas dos líneas y `actool` recibe ahora `--accent-color BrandPrimary`.
+- La validación manual descubrió que el `inspector` adaptado a sheet en compacto no permitía una segunda apertura después de descartarlo con el gesto. `EnvironmentValues.isPresented`, el ciclo de vida del formulario y un nuevo flanco manual tampoco resolvieron de forma válida el cierre real; el ciclo de vida además se dispara al navegar dentro de los pickers. La solución usa la API nativa adecuada en cada tamaño: sheet en compacto e inspector en regular, ambos con el mismo `CatalogFiltersView` y la misma consulta vigente. El `Binding` de la sheet recibe su cierre interactivo sin estado interno adaptado. Un cambio entre clase horizontal compacta y regular cierra explícitamente Filtros y descarta la copia no aplicada, evitando trasladar parcialmente borrador, picker o foco entre hosts con identidades distintas. El botón usa el símbolo sin círculo cuando no hay filtros y conserva el círculo relleno con filtros activos.
+- No se añade wrapper cromático, dependencia, endpoint, target, entitlement, persistencia, autenticación, sincronización, gradiente, alpha o material personalizado. No cambian la consulta ni las rutas de navegación y Colección no se inicia como efecto lateral.
+
+### RED / GREEN de Library Red
+
+- RED: las tres caracterizaciones nuevas se escribieron contra `library-color-tokens.json` como oráculo independiente y fallaron 3/3 bajo `ReleaseGate` porque solo existía el placeholder `AccentColor` y faltaban los 29 recursos contractuales. `Fast` no pudo acreditar el RED por la regresión ya registrada de tags heredados en Q1: descubre cero tests habilitados y este issue no modifica los planes.
+- La primera compilación GREEN reveló una colisión generada entre el asset normativo `Link` y `UIColor.link`. Limitar la generación al framework SwiftUI conserva `ColorResource`, `SwiftUI.Color` y los 29 nombres exactos sin desactivar los símbolos tipados.
+- Retirar `AccentColor` reveló en el gate DocC que el target aún pasaba ese nombre a `actool`. La configuración autorizada lo sustituye por `BrandPrimary` en Debug y Release; el siguiente build confirmó `--accent-color BrandPrimary` y cero warnings.
+- GREEN final: las tres pruebas aprueban inventario fuente, ausencia de `AccentColor`, resolución runtime en los cuatro traits, componentes sRGB, opacidad y las 56 parejas por apariencia —224 en total— comparadas con sus umbrales sin redondeo previo.
+- RED de presentación: el propietario reprodujo dos veces que, después del arrastre real sobre la sheet, el botón no volvía a presentarla. El primer XCUITest arrastraba sobre el botón Cancelar y produjo un falso GREEN; se corrige para arrastrar desde la propia presentación.
+- GREEN de presentación: la sheet compacta posee directamente el estado de su presentación y el inspector regular conserva su columna nativa; ambos reutilizan el mismo formulario. El propietario confirmó manualmente en iPhone que, tras descartarla con el gesto, una única pulsación vuelve a abrir Filtros.
+
+### Validación local de Library Red
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Xcode MCP — build y diagnósticos | Build-for-testing final aprobado en 5,618 s sobre iPhone 17 Pro; la misma separación sheet/inspector aprobó antes en 5,039 s sobre iPad Air 11-inch (M4), ambos con iOS 27. `CatalogRootView.swift`, `CatalogFiltersView.swift` y `MangaLibraryUITests.swift` muestran cero diagnósticos y el Issue Navigator conserva cero warnings o errores. El helper cromático moderno crea un entorno UIKit con `traitOverrides` y fuerza su actualización mediante `updateTraitsIfNeeded()`, sin inicializadores deprecados ni escapes de aislamiento |
+| Xcode MCP — pruebas focalizadas | 3/3 pruebas de `LibraryColorTests` aprobadas: inventario/catálogo fuente, resolución compilada exacta y umbrales de todas las parejas autorizadas |
+| Xcode MCP — UI y `ReleaseGate` | El test corregido arrastra la propia sheet y demuestra RED 0/1 tanto con `EnvironmentValues.isPresented` como con el flanco manual; con sheet compacta nativa aprueba 1/1 y el plan UI completo aprueba 2/2 en iPhone 17 Pro. La repetición regular de iPad no devolvió resultado por bloqueo de Xcode MCP, aunque su build-for-testing sí aprobó. El `ReleaseGate` final, posterior a la corrección y a la matriz manual, aprueba 81/81 en iPhone 17 Pro: cero fallos, omisiones o tests no ejecutados |
+| Xcode MCP — previews | El shell se inspeccionó en español y tamaño Large en iPad y en iPhone 17 Pro para Light, Dark, Increased Contrast Light e Increased Contrast Dark. En iPhone se inspeccionaron además cuadrícula y detalle en Dark + Increased Contrast. La comprobación final muestra el símbolo sin círculo sin filtros, el círculo relleno con filtros activos y la cabecera regular de iPad intacta. El tint rojo coral, fondos cálidos, superficies, texto y bordes se resuelven de forma coherente en las cuatro apariencias |
+| `Scripts/validate-docc.sh` | 8/8 escenarios del clasificador; archive Release generado con warnings DocC como errores y una única emisión externa acotada por ADR 0011. Ya no existe el warning de `AccentColor` |
+| Localización | No se añaden textos visibles; `Localizable.xcstrings` conserva 68/68 claves con valor manual en inglés y español y cero entradas stale |
+| Integridad | 29 color sets y ausencia de `AccentColor`; JSON válido; cero colores RGB/HEX hardcodeados en Swift de producción; `git diff --check` limpio y 215 enlaces Markdown locales sin roturas. OpenAPI conserva SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`; `project.pbxproj` queda en `c52c7a23ebc51f075ec1f5e83291288e78d28a679f3c019b4b05f4d166c9b735` tras sus dos sustituciones autorizadas |
+| Revisiones independientes | Los read-backs de Library Red y la reauditoría final quedan sin hallazgos pendientes. El primer read-back del cierre interactivo rechazó correctamente `onDisappear` porque también responde a la navegación interna de los pickers; el siguiente detectó la pérdida implícita del borrador entre hosts, cerrada mediante cancelación explícita al cambiar de size class. Los revisores no sustituyen la evidencia runtime del propietario |
+| Restauración Xcode | Tras el `ReleaseGate` final se restauraron el scheme `MangaLibrary`, el plan `Fast` y el simulador iPad Air 11-inch (M4) con iOS 27 al estado encontrado al comenzar esa comprobación. `Fast` mantiene la limitación conocida de Q1 —0 habilitados y 60 deshabilitados por los tags heredados—; la actualización explícita de diagnósticos de `LibraryColorTests.swift` y el Issue Navigator quedan en cero |
+
+Las pruebas demuestran los recursos opacos y las parejas contractuales; el
+propietario confirmó manualmente la reapertura de la sheet corregida. Las previews demuestran composición estática
+representativa. El propietario confirmó en modo claro y oscuro que la interfaz permanece
+legible y operable al combinar Increased Contrast, Reduce Transparency y Bold
+Text, además de los recorridos ya aprobados de VoiceOver, Voice Control y Switch
+Control. También confirmó en escala de grises que el contenido y los estados de
+Lista, Cuadrícula y Filtros permanecen legibles y distinguibles sin depender solo
+del color. Asimismo, aprobó en iPad el recorrido completo con Acceso total con
+teclado: el foco permanece visible, Espacio o Retorno activan los controles y no
+existen trampas al abrir, recorrer y cerrar Filtros. Esta evidencia no constituye
+una medición píxel a píxel de todos los estados nativos ni acredita hardware
+físico, que no es una condición de este cambio al no incorporar capacidades que
+dependan de él. La matriz manual de Library Red queda completa para el alcance
+del issue #29. El propietario autorizó el 2026-08-28 commit, push, PR, merge,
+cierre del issue y borrado de las ramas local y remota; esta autorización no
+inicia Colección ni otra fase como efecto lateral.
 
 ## Catálogo C4 — detalle enriquecido y precarga fluida
 

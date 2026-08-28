@@ -1,7 +1,7 @@
 # API, catálogo, búsqueda e imágenes
 
 - Estado: aprobado
-- Versión: 1.11
+- Versión: 1.13
 - Última revisión: 2026-08-28
 
 ## Propósito y alcance
@@ -69,6 +69,7 @@ Los JSON mock pertenecen exclusivamente a tests del cliente tipado: un fixture p
 | CAT-014 | En presentación compacta, lista y cuadrícula abren el detalle dentro de un `NavigationStack` tipado por `Manga.ID`. Al aparecer el destino, solo la portada grande ejecuta una animación local de escala `0,1 → 1,25 → 1`: el primer tramo usa `easeIn` durante `0,3 s` y el segundo `easeOut` durante `0,08 s`; el resto del detalle no participa y el regreso conserva el pop nativo. Reducir movimiento omite esta escala y usa `crossFade`; la columna de detalle regular conserva una actualización estable sin fingir una navegación apilada. |
 | CAT-015 | La lista presenta portada, título y una línea secundaria formada con todos los nombres de autoría disponibles, con el bloque textual centrado verticalmente junto a la portada mientras exista anchura y reflow vertical en tamaños de accesibilidad. La cuadrícula presenta solo portada y título; reserva dos líneas del estilo tipográfico, centra el texto y trunca el exceso para que todas las tarjetas conserven la misma altura. |
 | CAT-016 | En presentación regular, seleccionar un `Manga.ID` distinto restablece inmediatamente el detalle al borde superior para mostrar portada y título. El cambio no anima el desplazamiento, no recrea todo el detalle ni fuerza el foco de accesibilidad. |
+| CAT-017 | Filtros usa una sheet nativa en compacto y un inspector nativo en regular, ambos con el mismo formulario y la misma consulta vigente. Descartar la sheet mediante el gesto interactivo actualiza su `Binding` y permite abrirla de nuevo inmediatamente. |
 
 El tamaño `20` es la política inicial de la app, no una afirmación sobre el valor predeterminado del servidor. Cualquier optimización posterior debe mantener el máximo `100` y justificarse con evidencia.
 
@@ -103,11 +104,15 @@ rechace valores fuera de rango.
 - Quitar todos los filtros produce una consulta nueva sin filtros y reinicia la página.
 - Los estados vacío, cargando, error recuperable y resultados deben distinguirse.
 - Reintentar conserva la identidad de la consulta fallida; modificar la consulta cancela lógicamente ese reintento.
-- La edición combinable vive en el inspector de Catálogo, que SwiftUI adapta a
-  sheet en presentación compacta. Expone dentro del mismo formulario título,
-  modo de coincidencia, nombre y apellidos de autoría y selección múltiple de
-  las tres taxonomías. Aplica una copia preparada al confirmar y no modifica la
-  consulta vigente al cancelar.
+- La edición combinable usa una sheet nativa en compacto y un inspector nativo
+  en regular. Ambos presentan el mismo `CatalogFiltersView`, con título, modo de
+  coincidencia, nombre y apellidos de autoría y selección múltiple de las tres
+  taxonomías. La sheet posee el `Binding` de su cierre interactivo, evitando el
+  estado interno obsoleto observado al adaptar el inspector. La copia preparada
+  solo se aplica al confirmar y no modifica la consulta vigente al cancelar o
+  descartar la presentación. Si cambia la clase horizontal con Filtros abierto,
+  la edición se cancela antes de continuar en el nuevo host; así no se conserva
+  parcialmente un borrador ni una ruta de picker con identidad sustituida.
 - En iOS 27 compacto, Filtros, Lista y Cuadrícula son botones nativos de
   toolbar. Filtros ocupa un `ToolbarItem` independiente; un
   `ToolbarSpacer(.fixed)` declara el corte visual antes del
@@ -117,8 +122,9 @@ rechace valores fuera de rango.
   botones de layout pasan juntos a una franja propia para preservar el título
   completo de la columna. El título usa presentación inline en regular para no
   reservar además la franja expandida del título grande entre la toolbar y la
-  búsqueda; compacto conserva el título grande. El icono relleno y el valor accesible de Filtros
-  indican cuántos filtros están activos; el modo de layout vigente conserva
+  búsqueda; compacto conserva el título grande. Filtros usa el icono sin círculo
+  cuando no hay filtros y conserva el círculo relleno cuando existe alguno; su
+  valor accesible indica la cantidad activa. El modo de layout vigente conserva
   estado visual y el trait accesible de selección.
 
 ## Lista, cuadrícula y detalle
@@ -199,6 +205,8 @@ La carga usa APIs de Apple y no introduce una dependencia externa. La caché HTT
 | Vocabularios | Demografía, género y tema cargan de sus operaciones verificadas con estados de carga, vacío, error recuperable y contenido. |
 | Cambio lista/cuadrícula | Mantiene resultados, consulta y selección. |
 | Cabecera regular | La columna de iPad mantiene toolbar, búsqueda y controles legibles sin reservar la franja expandida del título grande; compacto conserva su título grande. |
+| Reapertura de filtros | En compacto, abrir Filtros, descartar mediante el gesto la sheet nativa y volver a pulsar el botón presenta de nuevo el formulario; en regular se conserva el inspector nativo. |
+| Cambio de tamaño con filtros | Una transición entre clase horizontal compacta y regular cierra Filtros y descarta su copia no aplicada; no traslada parcialmente campos, ruta interna o foco entre sheet e inspector. |
 | Presentación de lista | Cada fila muestra título y una línea secundaria de hasta dos líneas formada con todos los nombres de autoría disponibles; el bloque se centra junto a la portada y refluye verticalmente en tamaños de accesibilidad. |
 | Presentación de cuadrícula | Todas las tarjetas tienen la misma altura, muestran solo portada y título y reservan dos líneas centradas; el título que excede ese espacio se trunca sin reducir Dynamic Type. |
 | Mapeo enriquecido | Estado, autoría y clasificaciones requeridas se decodifican con identidad tipada; omisiones, UUID inválidos y vocabulario cerrado desconocido producen deriva. |

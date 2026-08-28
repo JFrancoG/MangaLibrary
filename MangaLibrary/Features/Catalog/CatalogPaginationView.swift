@@ -27,7 +27,7 @@ struct CatalogPaginationView: View {
 
                 Text(reason.errorDescriptionResource)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.textSecondary)
 
                 Button("Retry") {
                     model.requestNextPageRetry()
@@ -39,7 +39,7 @@ struct CatalogPaginationView: View {
         case .end:
             Label("End of results", systemImage: "checkmark.circle")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.textSecondary)
                 .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("catalog.pagination.end")
         }
