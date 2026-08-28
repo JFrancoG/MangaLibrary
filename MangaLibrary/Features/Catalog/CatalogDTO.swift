@@ -40,12 +40,17 @@ private struct PageMetadataDTO: Decodable {
 }
 
 private struct MangaDTO: Decodable {
-    // Decode only values the product currently presents. Unknown remote fields
-    // can then evolve without becoming false contract drift in this feature.
+    // Decode only values the product presents. Unknown remote fields can then
+    // evolve without becoming false contract drift in this feature.
+    let authors: [AuthorDTO]
+    let demographics: [DemographicDTO]
+    let genres: [GenreDTO]
     let id: Int64
     let mainPicture: String?
     let score: Double
+    let status: MangaStatusDTO
     let sypnosis: String?
+    let themes: [ThemeDTO]
     let title: String
     let titleEnglish: String?
     let titleJapanese: String?
@@ -58,6 +63,11 @@ private struct MangaDTO: Decodable {
             titleJapanese: titleJapanese,
             synopsis: sypnosis,
             score: score,
+            status: status.status,
+            authors: authors.map(\.author),
+            demographics: demographics.map(\.classification),
+            genres: genres.map(\.classification),
+            themes: themes.map(\.classification),
             coverURL: validatedCoverURL()
         )
     }
@@ -78,5 +88,82 @@ private struct MangaDTO: Decodable {
         else { return nil }
 
         return url
+    }
+}
+
+private struct AuthorDTO: Decodable {
+    let id: UUID
+    let firstName: String
+    let lastName: String
+    let role: AuthorRoleDTO
+
+    var author: Manga.Author {
+        Manga.Author(
+            id: id,
+            firstName: firstName,
+            lastName: lastName,
+            role: role.role
+        )
+    }
+}
+
+private enum AuthorRoleDTO: String, Decodable {
+    case art = "Art"
+    case storyAndArt = "Story & Art"
+    case story = "Story"
+    case unspecified = "None"
+
+    var role: Manga.Author.Role {
+        switch self {
+        case .art: .art
+        case .storyAndArt: .storyAndArt
+        case .story: .story
+        case .unspecified: .unspecified
+        }
+    }
+}
+
+private enum MangaStatusDTO: String, Decodable {
+    case discontinued
+    case onHiatus = "on_hiatus"
+    case publishing = "currently_publishing"
+    case finished
+    case unspecified = "none"
+
+    var status: Manga.Status {
+        switch self {
+        case .discontinued: .discontinued
+        case .onHiatus: .onHiatus
+        case .publishing: .publishing
+        case .finished: .finished
+        case .unspecified: .unspecified
+        }
+    }
+}
+
+private struct DemographicDTO: Decodable {
+    let id: UUID
+    let demographic: String
+
+    var classification: Manga.Classification {
+        Manga.Classification(id: id, name: demographic)
+    }
+}
+
+private struct GenreDTO: Decodable {
+    let id: UUID
+    let genre: String
+
+    var classification: Manga.Classification {
+        Manga.Classification(id: id, name: genre)
+    }
+}
+
+private struct ThemeDTO: Decodable {
+    let id: UUID
+    let theme: String
+
+    var classification: Manga.Classification {
+        Manga.Classification(id: id, name: theme)
     }
 }

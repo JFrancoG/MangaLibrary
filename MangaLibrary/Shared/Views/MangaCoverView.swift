@@ -10,6 +10,7 @@ struct MangaCoverView: View {
     enum Presentation {
         case row
         case grid
+        case detail
     }
 
     private let url: URL?
@@ -20,6 +21,8 @@ struct MangaCoverView: View {
     @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 88
     @ScaledMetric(relativeTo: .body) private var gridWidth: CGFloat = 104
     @ScaledMetric(relativeTo: .body) private var gridHeight: CGFloat = 143
+    @ScaledMetric(relativeTo: .body) private var detailWidth: CGFloat = 240
+    @ScaledMetric(relativeTo: .body) private var detailHeight: CGFloat = 330
 
     var body: some View {
         Group {
@@ -44,9 +47,16 @@ struct MangaCoverView: View {
     private func cover(for phase: AsyncImagePhase) -> some View {
         switch phase {
         case let .success(image):
-            image
-                .resizable()
-                .scaledToFill()
+            switch presentation {
+            case .row, .grid:
+                image
+                    .resizable()
+                    .scaledToFill()
+            case .detail:
+                image
+                    .resizable()
+                    .scaledToFit()
+            }
         case .empty:
             ProgressView()
         case .failure:
@@ -68,6 +78,8 @@ struct MangaCoverView: View {
             CGSize(width: min(rowWidth, 96), height: min(rowHeight, 132))
         case .grid:
             CGSize(width: min(gridWidth, 160), height: min(gridHeight, 220))
+        case .detail:
+            CGSize(width: min(detailWidth, 320), height: min(detailHeight, 440))
         }
     }
 }
@@ -98,5 +110,10 @@ extension MangaCoverView {
 
 #Preview("Grid cover") {
     MangaCoverView(url: nil, presentation: .grid)
+        .padding()
+}
+
+#Preview("Detail cover") {
+    MangaCoverView(url: nil, presentation: .detail)
         .padding()
 }

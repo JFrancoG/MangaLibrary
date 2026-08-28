@@ -3,12 +3,14 @@
 //  MangaLibrary
 //
 
+import Foundation
 import SwiftUI
 
 struct MangaRowView: View {
-    let manga: Manga
-
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.locale) private var locale
+
+    let manga: Manga
 
     var body: some View {
         Group {
@@ -18,7 +20,7 @@ struct MangaRowView: View {
                     metadata
                 }
             } else {
-                HStack(alignment: .top, spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
                     MangaCoverView(url: manga.coverURL)
                     metadata
                 }
@@ -33,32 +35,28 @@ struct MangaRowView: View {
                 .font(.headline)
                 .foregroundStyle(.primary)
 
-            if let titleEnglish = manga.titleEnglish,
-               titleEnglish != manga.title {
-                Text(titleEnglish)
+            if manga.authors.isEmpty == false {
+                Text(formattedAuthors)
                     .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
-
-            Group {
-                if dynamicTypeSize.isAccessibilitySize {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Score")
-                        formattedScore
-                    }
-                } else {
-                    HStack(spacing: 4) {
-                        Text("Score")
-                        formattedScore
-                    }
-                }
-            }
-            .font(.subheadline)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var formattedScore: some View {
-        Text(manga.score, format: .number.precision(.fractionLength(1...2)))
+    private var formattedAuthors: String {
+        manga.authors
+            .map { author in
+                author.nameComponents.formatted(
+                    .name(style: .medium)
+                        .locale(locale)
+                )
+            }
+            .formatted(
+                .list(type: .and)
+                    .locale(locale)
+            )
     }
 }
 

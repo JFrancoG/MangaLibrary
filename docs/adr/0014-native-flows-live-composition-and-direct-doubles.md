@@ -1,9 +1,9 @@
 # ADR-0014: Flujos nativos, composición live y dobles directos
 
-**Estado:** Accepted
+**Estado:** Superseded
 **Fecha:** 2026-08-27
 **Supersede:** [ADR-0009](0009-native-source-owned-features-and-local-navigation.md)
-**Superseded by:** —
+**Superseded by:** [ADR-0015](0015-native-flows-live-composition-and-adaptive-navigation.md)
 
 ## Contexto
 

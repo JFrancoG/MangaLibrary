@@ -1,8 +1,8 @@
 # Arquitectura y composición
 
 - Estado: aprobado
-- Versión: 1.2
-- Última revisión: 2026-08-27
+- Versión: 1.3
+- Última revisión: 2026-08-28
 
 ## Propósito y alcance
 
@@ -22,7 +22,7 @@ Definir la organización arquitectónica de Manga Library, sus límites de aisla
 - Swift Testing es la base de la estrategia híbrida; XCTest se reserva para capacidades que lo requieran.
 - La navegación principal usa componentes SwiftUI nativos, rutas tipadas y estado propiedad de la feature que presenta el destino.
 
-Estas decisiones se desarrollan en [ADR-0002](../adr/0002-feature-first-and-composition-root.md), [ADR-0003](../adr/0003-concurrency-and-default-isolation.md), [ADR-0004](../adr/0004-swiftdata-local-first-and-model-actors.md) y [ADR-0014](../adr/0014-native-flows-live-composition-and-direct-doubles.md).
+Estas decisiones se desarrollan en [ADR-0002](../adr/0002-feature-first-and-composition-root.md), [ADR-0003](../adr/0003-concurrency-and-default-isolation.md), [ADR-0004](../adr/0004-swiftdata-local-first-and-model-actors.md) y [ADR-0015](../adr/0015-native-flows-live-composition-and-adaptive-navigation.md).
 
 ## Organización lógica
 
@@ -75,7 +75,7 @@ Las dependencias locales obligatorias se pasan por inicializador o factory. Envi
 | ARCH-015 | Environment distribuye capacidades tipadas de ámbito apropiado; no contiene selección de navegación, modelos vivos ni un contenedor consultable como service locator. |
 | ARCH-016 | La navegación pasa `Manga.ID`, un valor estable `Hashable` y `Sendable`; no pasa `PersistentIdentifier`, DTO, tokens, `@Model` vivos ni clientes de infraestructura. |
 | ARCH-017 | El shell principal debe ofrecer Catálogo, Colección y Cuenta con `TabView`; el cambio lista/cuadrícula, los filtros y los estados de carga no son rutas. |
-| ARCH-018 | Catálogo y Colección poseen localmente su selección y usan `NavigationSplitView` adaptable; Cuenta posee un `NavigationStack` lineal para autenticación. |
+| ARCH-018 | Catálogo y Colección poseen localmente su selección. Catálogo usa un `NavigationStack` tipado en compacto y un `NavigationSplitView` en regular; Colección adopta su contenedor nativo al implementarse sin compartir rutas con Catálogo. Cuenta posee un `NavigationStack` lineal para autenticación. |
 | ARCH-019 | No se crea un router global mientras no exista una necesidad aprobada de deep links, restauración o navegación transversal programática. |
 | ARCH-020 | Un cambio de identidad completado invalida la selección y rutas de Colección de la sesión anterior; un intento de logout cancelado no las borra. |
 
@@ -108,11 +108,11 @@ La composición live puede cambiar la configuración concreta sin cambiar las fu
 
 `MainShellView` es la raíz estable del producto. Posee únicamente `selectedTab: AppTab` y contiene tres destinos estables con el estilo predeterminado de `TabView`:
 
-1. **Catálogo**: `NavigationSplitView` con lista o cuadrícula y detalle.
-2. **Colección**: `NavigationSplitView` con colección y el mismo detalle compartido.
+1. **Catálogo**: `NavigationStack` tipado por `Manga.ID` en presentación compacta y `NavigationSplitView` con lista o cuadrícula y detalle en regular.
+2. **Colección**: navegación local e independiente con el mismo detalle compartido; su contenedor adaptable se concreta al implementar la feature.
 3. **Cuenta**: `NavigationStack` para estado de cuenta, login y registro.
 
-No se envuelve todo el `TabView` en un `NavigationStack`. Catálogo posee `selectedCatalogMangaID: Manga.ID?`; Colección posee `selectedCollectionMangaID: Manga.ID?`; Cuenta posee una ruta tipada `[AccountRoute]`. En presentación compacta, la navegación list-detail adopta el comportamiento apilado nativo.
+No se envuelve todo el `TabView` en un `NavigationStack`. Catálogo posee `selectedCatalogMangaID: Manga.ID?`; esa selección deriva el path homogéneo `[Manga.ID]` de su stack compacto y alimenta el detalle del split regular, sin una segunda fuente de navegación. Colección posee `selectedCollectionMangaID: Manga.ID?`; Cuenta posee una ruta tipada `[AccountRoute]`.
 
 `Manga.ID` es la identidad de producto compartida entre catálogo, colección y detalle: un valor estable `Hashable` y `Sendable`, independiente de `PersistentIdentifier`. Solo necesitará `Codable` si una decisión posterior aprueba restauración o deep links. Una selección inexistente, todavía no cargada o desactualizada se representa como estado explícito, no como objeto retenido en la ruta.
 
@@ -185,4 +185,4 @@ La red nunca escribe directamente en estado de View. El detalle operativo está 
 - [ADR-0002: feature-first y composition root](../adr/0002-feature-first-and-composition-root.md)
 - [ADR-0003: concurrencia y aislamiento predeterminado](../adr/0003-concurrency-and-default-isolation.md)
 - [ADR-0004: SwiftData local-first y model actors](../adr/0004-swiftdata-local-first-and-model-actors.md)
-- [ADR-0014: flujos nativos, composición live y dobles directos](../adr/0014-native-flows-live-composition-and-direct-doubles.md)
+- [ADR-0015: flujos nativos, composición live y navegación adaptable](../adr/0015-native-flows-live-composition-and-adaptive-navigation.md)

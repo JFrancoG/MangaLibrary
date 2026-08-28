@@ -57,6 +57,7 @@ final class CatalogModel {
     }
 
     private final class LoadIdentity {}
+    private static let paginationPrefetchItemCount = 2
 
     private(set) var state = State.idle
     private(set) var query: CatalogQuery
@@ -71,14 +72,19 @@ final class CatalogModel {
     @ObservationIgnored private var sourceFilterOptions: CatalogFilterOptions?
 
     var selectedManga: Manga? {
-        guard
-            let selectedMangaID,
-            case let .content(content) = state
-        else {
+        guard let selectedMangaID else {
             return nil
         }
 
-        return content.items.first { $0.id == selectedMangaID }
+        return manga(id: selectedMangaID)
+    }
+
+    func manga(id: Manga.ID) -> Manga? {
+        guard case let .content(content) = state else {
+            return nil
+        }
+
+        return content.items.first { $0.id == id }
     }
 
     init(
@@ -180,7 +186,7 @@ final class CatalogModel {
         await loadFilterOptions(previousState: filterOptionsState)
     }
 
-    /// Requests another page only after the final visible manga reaches the UI.
+    /// Requests another page when one of the final two mangas reaches the UI.
     ///
     /// Repeated appearances and calls while a request is pending are idempotent.
     /// Reaching ``Pagination/end`` cannot schedule more network work.
@@ -188,7 +194,9 @@ final class CatalogModel {
         guard
             requestedNextPage == nil,
             case let .content(content) = state,
-            content.items.last?.id == mangaID,
+            content.items
+                .suffix(Self.paginationPrefetchItemCount)
+                .contains(where: { $0.id == mangaID }),
             case let .ready(nextPage) = content.pagination
         else {
             return

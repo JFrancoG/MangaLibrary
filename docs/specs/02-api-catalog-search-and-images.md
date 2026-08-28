@@ -1,8 +1,8 @@
 # API, catálogo, búsqueda e imágenes
 
 - Estado: aprobado
-- Versión: 1.4
-- Última revisión: 2026-08-27
+- Versión: 1.11
+- Última revisión: 2026-08-28
 
 ## Propósito y alcance
 
@@ -64,6 +64,11 @@ Los JSON mock pertenecen exclusivamente a tests del cliente tipado: un fixture p
 | CAT-009 | Lista y cuadrícula deben representar el mismo conjunto, búsqueda, filtros y progreso de paginación. |
 | CAT-010 | El detalle debe abrir la misma identidad de manga seleccionada en lista o cuadrícula. |
 | CAT-011 | Advanced debe permitir buscar por autoría, demografía, género y tema mediante la operación avanzada paginada y explorar «Mejores» mediante su conjunto paginado exclusivo. El contrato actual no expone «Destacados». |
+| CAT-012 | Cada manga consumido conserva el estado, la autoría con rol y las clasificaciones de demografía, género y tema que exige el contrato vivo; un valor cerrado desconocido o una relación requerida inválida se trata como deriva. |
+| CAT-013 | La siguiente página se solicita de forma idempotente al aparecer cualquiera de los dos últimos resultados disponibles. El contenido actual permanece visible y un progreso compacto confirma la carga adicional cuando la persona alcanza el final. |
+| CAT-014 | En presentación compacta, lista y cuadrícula abren el detalle dentro de un `NavigationStack` tipado por `Manga.ID`. Al aparecer el destino, solo la portada grande ejecuta una animación local de escala `0,1 → 1,25 → 1`: el primer tramo usa `easeIn` durante `0,3 s` y el segundo `easeOut` durante `0,08 s`; el resto del detalle no participa y el regreso conserva el pop nativo. Reducir movimiento omite esta escala y usa `crossFade`; la columna de detalle regular conserva una actualización estable sin fingir una navegación apilada. |
+| CAT-015 | La lista presenta portada, título y una línea secundaria formada con todos los nombres de autoría disponibles, con el bloque textual centrado verticalmente junto a la portada mientras exista anchura y reflow vertical en tamaños de accesibilidad. La cuadrícula presenta solo portada y título; reserva dos líneas del estilo tipográfico, centra el texto y trunca el exceso para que todas las tarjetas conserven la misma altura. |
+| CAT-016 | En presentación regular, seleccionar un `Manga.ID` distinto restablece inmediatamente el detalle al borde superior para mostrar portada y título. El cambio no anima el desplazamiento, no recrea todo el detalle ni fuerza el foco de accesibilidad. |
 
 El tamaño `20` es la política inicial de la app, no una afirmación sobre el valor predeterminado del servidor. Cualquier optimización posterior debe mantener el máximo `100` y justificarse con evidencia.
 
@@ -98,6 +103,23 @@ rechace valores fuera de rango.
 - Quitar todos los filtros produce una consulta nueva sin filtros y reinicia la página.
 - Los estados vacío, cargando, error recuperable y resultados deben distinguirse.
 - Reintentar conserva la identidad de la consulta fallida; modificar la consulta cancela lógicamente ese reintento.
+- La edición combinable vive en el inspector de Catálogo, que SwiftUI adapta a
+  sheet en presentación compacta. Expone dentro del mismo formulario título,
+  modo de coincidencia, nombre y apellidos de autoría y selección múltiple de
+  las tres taxonomías. Aplica una copia preparada al confirmar y no modifica la
+  consulta vigente al cancelar.
+- En iOS 27 compacto, Filtros, Lista y Cuadrícula son botones nativos de
+  toolbar. Filtros ocupa un `ToolbarItem` independiente; un
+  `ToolbarSpacer(.fixed)` declara el corte visual antes del
+  `ToolbarItemGroup` que reúne Lista y Cuadrícula. No se usa un menú de
+  desbordamiento para una sola acción ni un `Picker` segmentado dentro de la
+  toolbar. En presentación regular, Filtros permanece en la toolbar y los dos
+  botones de layout pasan juntos a una franja propia para preservar el título
+  completo de la columna. El título usa presentación inline en regular para no
+  reservar además la franja expandida del título grande entre la toolbar y la
+  búsqueda; compacto conserva el título grande. El icono relleno y el valor accesible de Filtros
+  indican cuántos filtros están activos; el modo de layout vigente conserva
+  estado visual y el trait accesible de selección.
 
 ## Lista, cuadrícula y detalle
 
@@ -108,7 +130,34 @@ Lista y cuadrícula son dos presentaciones de un único estado de consulta. Camb
 - duplicar elementos ya integrados;
 - cambiar el manga seleccionado.
 
-Lista, cuadrícula y filtros son estado de la feature, no rutas distintas. La selección pertenece a la raíz de Catálogo y pasa el mismo `Manga.ID` al detalle. El detalle puede solicitar información adicional solo si el contrato ofrece una operación verificada. No debe rellenar propiedades ausentes con datos inventados.
+Lista, cuadrícula y filtros son estado de la feature, no rutas distintas. La selección pertenece a la raíz de Catálogo y pasa el mismo `Manga.ID` al detalle. En presentación compacta, esa selección deriva el path homogéneo del `NavigationStack`, sin mantener una segunda fuente de verdad; en regular, sigue alimentando la columna de detalle del `NavigationSplitView`. La página ya entrega títulos, puntuación, sinopsis, estado, autoría, demografías, géneros, temas y portada; el detalle consume ese valor completo sin repetir la petición. Solo puede solicitar información adicional si el contrato incorpora una operación verificada. No debe rellenar propiedades ausentes con datos inventados.
+
+La fila de lista compone todos los nombres de autoría disponibles con formato
+sensible al locale dentro de una línea secundaria limitada a dos líneas; no
+elige arbitrariamente una autoría principal y omite la línea cuando la relación
+está vacía sin inventar un autor desconocido. En disposición horizontal, el bloque queda
+centrado verticalmente respecto a la portada; Dynamic Type de accesibilidad
+conserva el reflow vertical. La tarjeta de cuadrícula usa únicamente portada y
+título: reserva el alto tipográfico de dos líneas mediante
+`lineLimit(_:reservesSpace:)`, centra títulos cortos y multilínea y trunca por
+la cola el contenido que excede ese límite. No reduce artificialmente la fuente
+ni deja que un título largo aumente la altura de una tarjeta.
+
+La portada del detalle es materialmente mayor que sus variantes de lista y
+cuadrícula, respeta proporción y mantiene límites que no rompen Dynamic Type ni
+anchuras compactas. En navegación compacta, la propia portada del destino parte
+de escala `0,1`, alcanza `1,25` con `easeIn` en `0,3 s` y vuelve a `1` con
+`easeOut` en `0,08 s`; no se mide geometría del origen, no se dibuja una copia
+superpuesta y el resto del detalle
+no recibe una animación personalizada. El regreso usa el pop nativo; Reduce
+Motion omite la escala y la presentación regular conserva una actualización
+estable.
+
+La columna de detalle regular conserva identidad estructural mientras cambia la
+selección. Para no heredar el contexto de lectura de otro manga, un cambio real
+de `Manga.ID` restablece inmediatamente su posición al borde superior. No se
+anima el desplazamiento ni se modifica programáticamente el foco; la navegación
+compacta conserva su ciclo de vida independiente.
 
 Las previews representativas incluyen carga inicial, vacío, contenido, error inicial recuperable, fallo de página adicional conservando resultados, portada ausente o fallida y contenido largo. Su composición y aislamiento se rigen por [Testing, calidad y accesibilidad](06-testing-quality-and-accessibility.md).
 
@@ -142,13 +191,20 @@ La carga usa APIs de Apple y no introduce una dependencia externa. La caché HTT
 | Primera consulta | La petición verificada contiene `per = 20`. |
 | Límite | Ningún camino permite emitir `per > 100`. |
 | Página siguiente | Mantiene búsqueda y filtros de la consulta inicial; no inventa una ordenación ausente. |
+| Precarga | La aparición de cualquiera de los dos últimos resultados agenda una sola petición de la siguiente página y presenta progreso mientras está pendiente. |
 | Cambio de consulta | Reinicia la página, limpia la selección anterior y una respuesta tardía de la consulta sustituida se ignora. |
 | Búsqueda avanzada | Construye el `POST` paginado exacto y omite del body las dimensiones sin valor. |
 | Varios filtros | El request construido conserva todas las dimensiones que el servidor combina con semántica AND. |
 | Mejores | Usa su `GET` paginado exclusivo y no presenta texto, filtros u ordenación configurable como combinables. |
 | Vocabularios | Demografía, género y tema cargan de sus operaciones verificadas con estados de carga, vacío, error recuperable y contenido. |
 | Cambio lista/cuadrícula | Mantiene resultados, consulta y selección. |
-| Detalle | La identidad corresponde al elemento seleccionado y solo muestra datos disponibles. |
+| Cabecera regular | La columna de iPad mantiene toolbar, búsqueda y controles legibles sin reservar la franja expandida del título grande; compacto conserva su título grande. |
+| Presentación de lista | Cada fila muestra título y una línea secundaria de hasta dos líneas formada con todos los nombres de autoría disponibles; el bloque se centra junto a la portada y refluye verticalmente en tamaños de accesibilidad. |
+| Presentación de cuadrícula | Todas las tarjetas tienen la misma altura, muestran solo portada y título y reservan dos líneas centradas; el título que excede ese espacio se trunca sin reducir Dynamic Type. |
+| Mapeo enriquecido | Estado, autoría y clasificaciones requeridas se decodifican con identidad tipada; omisiones, UUID inválidos y vocabulario cerrado desconocido producen deriva. |
+| Detalle | La identidad corresponde al elemento seleccionado y muestra portada grande, estado, autoría, demografías, géneros, temas y sinopsis disponibles sin una segunda petición. |
+| Transición de detalle | Lista y cuadrícula navegan por `Manga.ID` dentro del stack compacto; únicamente la portada del destino ejecuta `scaleEffect` de `0,1` a `1,25` con `easeIn` en `0,3 s` y a `1` con `easeOut` en `0,08 s`, y el regreso conserva el pop nativo. Reduce Motion evita esta animación y la presentación regular no fuerza una transición apilada. |
+| Cambio de detalle regular | Después de desplazar un manga y seleccionar otro `Manga.ID`, la columna regular muestra inmediatamente la portada y el título desde el borde superior, sin animar el scroll ni forzar el foco. |
 | Portada válida | Lista, cuadrícula y detalle muestran la portada. |
 | Portada fallida | Los tres contextos mantienen placeholder o ausencia explícita sin saltos de identidad. |
 | Fin de páginas | El desplazamiento posterior no genera más requests. |
@@ -171,4 +227,4 @@ Las pruebas de construcción de request y decodificación inyectan bytes y regis
 - [Arquitectura y composición](01-architecture-and-composition.md)
 - [Colección local e invariantes](03-local-collection-and-invariants.md)
 - [Caracterización del contrato OpenAPI](../api/openapi-contract.md)
-- [ADR-0014: flujos nativos, composición live y dobles directos](../adr/0014-native-flows-live-composition-and-direct-doubles.md)
+- [ADR-0015: flujos nativos, composición live y navegación adaptable](../adr/0015-native-flows-live-composition-and-adaptive-navigation.md)
