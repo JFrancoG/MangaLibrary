@@ -1,7 +1,7 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-28
-**Estado general:** G0, Catálogo C1, C2 y C3, el contrato cromático Library Red, D1, Q1 y P1 entregados; Catálogo C4 implementado y revalidado técnicamente, con entrega completa autorizada y el read-back manual de VoiceOver pendiente antes del merge
+**Estado general:** G0, Catálogo C1, C2 y C3, el contrato cromático Library Red, D1, Q1 y P1 entregados; Catálogo C4 implementado y revalidado técnicamente, con VoiceOver manual aprobado y entrega completa autorizada
 
 ## Catálogo C4 — detalle enriquecido y precarga fluida
 
@@ -37,7 +37,7 @@
 | Localización | `Localizable.xcstrings` válido; 68/68 claves traducidas manualmente en inglés y español, sin entradas stale o incompletas |
 | Integridad | `git diff --check` limpio; 216 enlaces Markdown locales sin roturas; cero patrones sensibles en líneas añadidas; snapshot OpenAPI y `project.pbxproj` conservan sus SHA-256 esperados; sin configuración, scheme o planes en el diff |
 | Revisiones independientes | El read-back de SDD 02 y ADR 0015 y las reauditorías finales de composición y SwiftUI/accesibilidad no encuentran defectos en `ToolbarItem` + spacer + `ToolbarItemGroup`, lista, cuadrícula, stack compacto, escala local, Reduce Motion, semántica estática, contraste o Dynamic Type. La evidencia runtime de tecnologías de asistencia permanece excluida |
-| Accesibilidad interactiva | El árbol accesible del Simulator iPad expone Lista y Cuadrícula como botones con identificadores estables, marca Lista como seleccionada y conserva tabs y contenido. Device Interaction instaló y ejecutó el snapshot determinista, pero su skill obligatorio no estaba disponible para el revisor y el relanzamiento posterior del runtime no completó; el recorrido hablado de VoiceOver permanece pendiente del read-back manual del propietario y no se sustituye por esta evidencia parcial |
+| Accesibilidad interactiva | **Pasa con observación.** El árbol accesible del Simulator iPad expone Lista y Cuadrícula como botones con identificadores estables, marca Lista como seleccionada y conserva tabs y contenido. El propietario confirmó manualmente que VoiceOver entra por Filtros, Lista y Cuadrícula y alcanza después el encabezamiento Catálogo según su posición visual; al volver arriba tras desplazar la lista, anuncia también el encabezamiento colapsado. En el inspector anuncia Cancelar antes de Filtros por su posición de cierre. El recorrido no queda atrapado y los controles conservan nombres comprensibles. Device Interaction no sustituyó esta comprobación: su skill obligatorio no estaba disponible para el revisor |
 | Restauración Xcode | Plan activo `Fast` y destino simulador iPad Air 11-inch (M4) con iOS 27 restaurados y verificados mediante Xcode MCP |
 
 La observación runtime anterior acreditaba una transición ya retirada y no la
@@ -49,8 +49,9 @@ por sí solos una medición de fluidez frame a frame ni un recorrido manual con
 VoiceOver, Voice Control, Switch Control, Full Keyboard Access o Accessibility
 Inspector. Tampoco existe evidencia física ni integración live. El propietario
 autorizó el 2026-08-28 commit, push, PR, merge, cierre del issue y borrado de las
-ramas; el merge espera únicamente el read-back manual de VoiceOver solicitado.
-Esta autorización no inicia Colección ni Library Red como efecto lateral.
+ramas. El read-back manual de VoiceOver quedó aprobado con el orden geométrico
+observado; esta autorización no inicia Colección ni Library Red como efecto
+lateral.
 
 ## Catálogo C3 — búsqueda avanzada y filtros
 
@@ -411,7 +412,7 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 
 1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
 2. Resolver de forma separada la regresión de descubrimiento de tags de `Fast` e `Integration`, sin mezclarla con el comportamiento C2.
-3. Completar el read-back manual de VoiceOver y la entrega ya autorizada de Catálogo C4; no iniciar Colección ni mezclar la reparación de Q1 como efecto lateral.
+3. Completar la entrega ya autorizada de Catálogo C4; no iniciar Colección ni mezclar la reparación de Q1 como efecto lateral.
 4. Mantener la clasificación de cada suite nueva mediante su target y tag en el mismo cambio que la introduce.
 5. Implementar el producto restante y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
 6. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
@@ -421,7 +422,7 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
 - Catálogo C1 y la decisión normativa D1 están entregados.
 - Los planes `Fast`, `Integration`, `UI` y `ReleaseGate` están materializados, ejecutados, revisados y entregados mediante Q1.
-- C2, C3 y P1 están entregados; C4 está implementado y revalidado técnicamente, con entrega completa autorizada y read-back manual de VoiceOver pendiente antes del merge. Colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
+- C2, C3 y P1 están entregados; C4 está implementado y revalidado técnicamente, con VoiceOver manual aprobado y entrega completa autorizada. Colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La única evidencia física actual es la instalación y visualización del icono en el iPhone 11 observada por el propietario. No existe todavía evidencia de accesibilidad física, Keychain, App Group, WatchConnectivity o integración live.
 - No se ha autorizado publicación DocC ni GitHub Pages.
