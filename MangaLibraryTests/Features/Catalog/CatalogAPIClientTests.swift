@@ -248,10 +248,85 @@ struct CatalogAPIClientTests {
         #expect(manga.titleJapanese == "鋼の錬金術師")
         #expect(manga.synopsis == "Two brothers search for the Philosopher's Stone.")
         #expect(manga.score == 9.12)
+        #expect(manga.status == .finished)
+        #expect(
+            manga.authors == [
+                Manga.Author(
+                    id: try #require(
+                        UUID(uuidString: "11111111-1111-1111-1111-111111111111")
+                    ),
+                    firstName: "Hiromu",
+                    lastName: "Arakawa",
+                    role: .storyAndArt
+                )
+            ]
+        )
+        #expect(
+            manga.demographics == [
+                Manga.Classification(
+                    id: try #require(
+                        UUID(uuidString: "22222222-2222-2222-2222-222222222222")
+                    ),
+                    name: "Shounen"
+                )
+            ]
+        )
+        #expect(
+            manga.genres == [
+                Manga.Classification(
+                    id: try #require(
+                        UUID(uuidString: "33333333-3333-3333-3333-333333333333")
+                    ),
+                    name: "Adventure"
+                )
+            ]
+        )
+        #expect(
+            manga.themes == [
+                Manga.Classification(
+                    id: try #require(
+                        UUID(uuidString: "44444444-4444-4444-4444-444444444444")
+                    ),
+                    name: "Military"
+                )
+            ]
+        )
         #expect(
             manga.coverURL
                 == URL(string: "https://images.example.test/fullmetal-alchemist.jpg")
         )
+    }
+
+    @Test(
+        "Every valid author role maps to its domain value",
+        arguments: CatalogAuthorRoleMapping.allCases
+    )
+    func mapsEveryValidAuthorRole(_ mapping: CatalogAuthorRoleMapping) async throws {
+        let item = CatalogJSONFixtures.manga(authorRole: mapping.wireValue)
+        let client = try makeClient(
+            returning: CatalogJSONFixtures.page(items: [item])
+        )
+
+        let page = try await client.fetch(CatalogPageRequest())
+        let author = try #require(page.items.first?.authors.first)
+
+        #expect(author.role == mapping.domainValue)
+    }
+
+    @Test(
+        "Every valid publication status maps to its domain value",
+        arguments: CatalogStatusMapping.allCases
+    )
+    func mapsEveryValidPublicationStatus(_ mapping: CatalogStatusMapping) async throws {
+        let item = CatalogJSONFixtures.manga(status: mapping.wireValue)
+        let client = try makeClient(
+            returning: CatalogJSONFixtures.page(items: [item])
+        )
+
+        let page = try await client.fetch(CatalogPageRequest())
+        let manga = try #require(page.items.first)
+
+        #expect(manga.status == mapping.domainValue)
     }
 
     @Test("Incoherent metadata is contract drift", arguments: MetadataMismatch.allCases)
@@ -273,6 +348,51 @@ struct CatalogAPIClientTests {
     @Test("A missing product field is contract drift")
     func missingConsumedFieldIsContractDrift() async throws {
         let item = CatalogJSONFixtures.manga(includesTitle: false)
+        let client = try makeClient(
+            returning: CatalogJSONFixtures.page(items: [item])
+        )
+
+        await #expect(throws: CatalogAPIClientError.contractDrift) {
+            try await client.fetch(CatalogPageRequest())
+        }
+    }
+
+    @Test("A missing required relationship is contract drift")
+    func missingRequiredRelationshipIsContractDrift() async throws {
+        let item = CatalogJSONFixtures.manga(includesAuthors: false)
+        let client = try makeClient(
+            returning: CatalogJSONFixtures.page(items: [item])
+        )
+
+        await #expect(throws: CatalogAPIClientError.contractDrift) {
+            try await client.fetch(CatalogPageRequest())
+        }
+    }
+
+    @Test("An invalid nested identity is contract drift")
+    func invalidNestedIdentityIsContractDrift() async throws {
+        let item = CatalogJSONFixtures.manga(authorID: "not-a-uuid")
+        let client = try makeClient(
+            returning: CatalogJSONFixtures.page(items: [item])
+        )
+
+        await #expect(throws: CatalogAPIClientError.contractDrift) {
+            try await client.fetch(CatalogPageRequest())
+        }
+    }
+
+    @Test("Unknown closed manga values are contract drift", arguments: [
+        CatalogClosedValueMutation.authorRole,
+        .status
+    ])
+    func unknownClosedMangaValueIsContractDrift(_ mutation: CatalogClosedValueMutation) async throws {
+        let item: String
+        switch mutation {
+        case .authorRole:
+            item = CatalogJSONFixtures.manga(authorRole: "Editor")
+        case .status:
+            item = CatalogJSONFixtures.manga(status: "cancelled")
+        }
         let client = try makeClient(
             returning: CatalogJSONFixtures.page(items: [item])
         )
@@ -355,6 +475,79 @@ struct CatalogAPIClientTests {
             configuration: try APIConfiguration(baseURL: baseURL),
             loadData: loadData
         )
+    }
+}
+
+enum CatalogClosedValueMutation: CustomTestStringConvertible {
+    case authorRole
+    case status
+
+    var testDescription: String {
+        switch self {
+        case .authorRole: "author role"
+        case .status: "publication status"
+        }
+    }
+}
+
+enum CatalogAuthorRoleMapping: CaseIterable, CustomTestStringConvertible {
+    case art
+    case storyAndArt
+    case story
+    case unspecified
+
+    var wireValue: String {
+        switch self {
+        case .art: "Art"
+        case .storyAndArt: "Story & Art"
+        case .story: "Story"
+        case .unspecified: "None"
+        }
+    }
+
+    var domainValue: Manga.Author.Role {
+        switch self {
+        case .art: .art
+        case .storyAndArt: .storyAndArt
+        case .story: .story
+        case .unspecified: .unspecified
+        }
+    }
+
+    var testDescription: String {
+        wireValue
+    }
+}
+
+enum CatalogStatusMapping: CaseIterable, CustomTestStringConvertible {
+    case discontinued
+    case onHiatus
+    case publishing
+    case finished
+    case unspecified
+
+    var wireValue: String {
+        switch self {
+        case .discontinued: "discontinued"
+        case .onHiatus: "on_hiatus"
+        case .publishing: "currently_publishing"
+        case .finished: "finished"
+        case .unspecified: "none"
+        }
+    }
+
+    var domainValue: Manga.Status {
+        switch self {
+        case .discontinued: .discontinued
+        case .onHiatus: .onHiatus
+        case .publishing: .publishing
+        case .finished: .finished
+        case .unspecified: .unspecified
+        }
+    }
+
+    var testDescription: String {
+        wireValue
     }
 }
 

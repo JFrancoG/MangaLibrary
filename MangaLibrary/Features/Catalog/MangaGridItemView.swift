@@ -9,31 +9,19 @@ struct MangaGridItemView: View {
     let manga: Manga
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .center, spacing: 10) {
             MangaCoverView(url: manga.coverURL, presentation: .grid)
                 .frame(maxWidth: .infinity)
 
             Text(manga.title)
                 .font(.headline)
                 .foregroundStyle(.primary)
-
-            if let titleEnglish = manga.titleEnglish,
-               titleEnglish != manga.title {
-                Text(titleEnglish)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            LabeledContent("Score") {
-                Text(
-                    manga.score,
-                    format: .number.precision(.fractionLength(1...2))
-                )
-                .foregroundStyle(.primary)
-            }
-            .font(.subheadline)
+                .multilineTextAlignment(.center)
+                .lineLimit(2, reservesSpace: true)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
         .padding(12)
         .background(.background)
         .overlay {

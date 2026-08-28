@@ -253,6 +253,29 @@ struct CatalogModelTests {
     }
 
     @Test
+    func approachingTheLastTwoItemsRequestsTheNextPageOnlyOnce() {
+        let items = (1...20).map {
+            manga(id: Manga.ID($0), title: "Manga \($0)")
+        }
+        let emptyPage = page(items: [])
+        let model = CatalogModel(
+            initialState: .content(
+                .init(items: items, pagination: .ready(nextPage: 2))
+            )
+        ) { _ in
+            emptyPage
+        }
+
+        model.requestNextPageIfNeeded(after: items[17].id)
+        #expect(model.requestedNextPage == nil)
+
+        model.requestNextPageIfNeeded(after: items[18].id)
+        model.requestNextPageIfNeeded(after: items[19].id)
+
+        #expect(model.requestedNextPage == 2)
+    }
+
+    @Test
     func emptyAdditionalPageEndsPaginationWithoutRemovingContent() async {
         let loader = ControlledCatalogLoader()
         let model = makeModel(loader: loader)
@@ -909,6 +932,11 @@ struct CatalogModelTests {
             titleJapanese: nil,
             synopsis: nil,
             score: 8.5,
+            status: .unspecified,
+            authors: [],
+            demographics: [],
+            genres: [],
+            themes: [],
             coverURL: nil
         )
     }

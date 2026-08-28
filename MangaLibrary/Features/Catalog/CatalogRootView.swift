@@ -10,6 +10,11 @@ enum CatalogLayout: Hashable {
     case grid
 }
 
+enum CatalogNavigationMode {
+    case compactStack
+    case regularSplit
+}
+
 struct CatalogRootView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -18,70 +23,97 @@ struct CatalogRootView: View {
     @State private var layout: CatalogLayout
     @State private var searchText: String
     @State private var filtersPresented = false
-    @State private var preferredCompactColumn = NavigationSplitViewColumn.sidebar
 
     var body: some View {
-        NavigationSplitView(preferredCompactColumn: $preferredCompactColumn) {
-            sidebar
-                .navigationTitle("Catalog")
-                .toolbarTitleDisplayMode(.large)
-                .searchable(text: $searchText, prompt: "Search manga")
-                .onSubmit(of: .search) {
-                    applySearchText()
-                }
-                .onChange(of: searchText) { previousText, currentText in
-                    guard
-                        previousText.isEmpty == false,
-                        currentText.isEmpty,
-                        model.query != .best
-                    else {
-                        return
-                    }
-
-                    applySearchText()
-                }
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    if horizontalSizeClass == .regular {
-                        HStack {
-                            Spacer()
-                            layoutPicker
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                        .background(.bar)
-                    }
-                }
-                .toolbar {
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        filtersButton
-                        if horizontalSizeClass != .regular {
-                            layoutPicker
-                        }
-                    }
-                }
-        } detail: {
-            detail
-        }
-        .inspector(isPresented: $filtersPresented) {
-            CatalogFiltersView(model: model, searchText: $searchText)
-        }
-        .task(id: model.query) {
-            await model.loadIfNeeded()
-        }
-        .task(id: retryRequest) {
-            guard retryRequest != nil else {
-                return
+        navigation
+            .inspector(isPresented: $filtersPresented) {
+                CatalogFiltersView(model: model, searchText: $searchText)
             }
+            .task(id: model.query) {
+                await model.loadIfNeeded()
+            }
+            .task(id: retryRequest) {
+                guard retryRequest != nil else {
+                    return
+                }
 
-            await model.retry()
-        }
-        .task(id: model.requestedNextPage) {
-            await model.loadRequestedNextPage()
-        }
+                await model.retry()
+            }
+            .task(id: model.requestedNextPage) {
+                await model.loadRequestedNextPage()
+            }
     }
 
     @ViewBuilder
-    private var sidebar: some View {
+    private var navigation: some View {
+        if horizontalSizeClass == .compact {
+            NavigationStack(path: compactNavigationPath) {
+                catalogSidebar(for: .compactStack)
+                    .navigationDestination(for: Manga.ID.self) { mangaID in
+                        compactDetail(for: mangaID)
+                    }
+            }
+        } else {
+            NavigationSplitView {
+                catalogSidebar(for: .regularSplit)
+            } detail: {
+                detail
+            }
+        }
+    }
+
+    private func catalogSidebar(for navigationMode: CatalogNavigationMode) -> some View {
+        sidebar(for: navigationMode)
+            .navigationTitle("Catalog")
+            .toolbarTitleDisplayMode(
+                navigationMode == .regularSplit ? .inline : .large
+            )
+            .searchable(text: $searchText, prompt: "Search manga")
+            .onSubmit(of: .search) {
+                applySearchText()
+            }
+            .onChange(of: searchText) { previousText, currentText in
+                guard
+                    previousText.isEmpty == false,
+                    currentText.isEmpty,
+                    model.query != .best
+                else {
+                    return
+                }
+
+                applySearchText()
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if navigationMode == .regularSplit {
+                    HStack(spacing: 8) {
+                        Spacer()
+                        listLayoutAction
+                        gridLayoutAction
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(.bar)
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    filtersAction
+                }
+
+                if navigationMode == .compactStack {
+                    ToolbarSpacer(.fixed, placement: .primaryAction)
+
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        listLayoutAction
+                        gridLayoutAction
+                    }
+                }
+            }
+    }
+
+    @ViewBuilder
+    private func sidebar(for navigationMode: CatalogNavigationMode) -> some View {
         switch model.state {
         case .idle, .loading:
             ProgressView("Loading results")
@@ -93,14 +125,15 @@ struct CatalogRootView: View {
                 CatalogListView(
                     content: content,
                     model: model,
-                    selection: $model.selectedMangaID
+                    selection: $model.selectedMangaID,
+                    navigationMode: navigationMode
                 )
             case .grid:
                 CatalogGridView(
                     content: content,
                     model: model,
                     selection: $model.selectedMangaID,
-                    preferredCompactColumn: $preferredCompactColumn
+                    navigationMode: navigationMode
                 )
             }
         case .empty:
@@ -133,17 +166,38 @@ struct CatalogRootView: View {
         }
     }
 
+    private var compactNavigationPath: Binding<[Manga.ID]> {
+        Binding {
+            model.selectedMangaID.map { [$0] } ?? []
+        } set: { path in
+            model.selectedMangaID = path.last
+        }
+    }
+
+    @ViewBuilder
+    private func compactDetail(for mangaID: Manga.ID) -> some View {
+        if let manga = model.manga(id: mangaID) {
+            MangaDetailView(manga: manga)
+        } else {
+            unavailableDetail
+        }
+    }
+
     @ViewBuilder
     private var detail: some View {
         if let manga = model.selectedManga {
             MangaDetailView(manga: manga)
         } else {
-            ContentUnavailableView(
-                "Select a manga",
-                systemImage: "book.pages",
-                description: Text("Choose a manga from the catalog to see its details.")
-            )
+            unavailableDetail
         }
+    }
+
+    private var unavailableDetail: some View {
+        ContentUnavailableView(
+            "Select a manga",
+            systemImage: "book.pages",
+            description: Text("Choose a manga from the catalog to see its details.")
+        )
     }
 
     private func requestRetry() {
@@ -157,7 +211,7 @@ struct CatalogRootView: View {
         searchText = search.title ?? ""
     }
 
-    private var filtersButton: some View {
+    private var filtersAction: some View {
         Button {
             filtersPresented = true
         } label: {
@@ -175,21 +229,44 @@ struct CatalogRootView: View {
         .accessibilityIdentifier("catalog.filters")
     }
 
-    private var layoutPicker: some View {
-        Picker("Catalog layout", selection: $layout) {
-            Label("List", systemImage: "list.bullet")
-                .labelStyle(.iconOnly)
-                .tag(CatalogLayout.list)
-                .accessibilityIdentifier("catalog.layout.list")
+    private var listLayoutAction: some View {
+        layoutAction(
+            .list,
+            title: "List",
+            systemImage: layout == .list
+                ? "list.bullet.circle.fill"
+                : "list.bullet",
+            accessibilityIdentifier: "catalog.layout.list"
+        )
+    }
 
-            Label("Grid", systemImage: "square.grid.2x2")
+    private var gridLayoutAction: some View {
+        layoutAction(
+            .grid,
+            title: "Grid",
+            systemImage: layout == .grid
+                ? "square.grid.2x2.fill"
+                : "square.grid.2x2",
+            accessibilityIdentifier: "catalog.layout.grid"
+        )
+    }
+
+    private func layoutAction(
+        _ targetLayout: CatalogLayout,
+        title: LocalizedStringKey,
+        systemImage: String,
+        accessibilityIdentifier: String
+    ) -> some View {
+        Button {
+            layout = targetLayout
+        } label: {
+            Label(title, systemImage: systemImage)
                 .labelStyle(.iconOnly)
-                .tag(CatalogLayout.grid)
-                .accessibilityIdentifier("catalog.layout.grid")
         }
-        .pickerStyle(.segmented)
-        .frame(width: 96)
-        .accessibilityIdentifier("catalog.layout")
+        .accessibilityAddTraits(
+            layout == targetLayout ? .isSelected : []
+        )
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }
 

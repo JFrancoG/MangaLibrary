@@ -1,7 +1,57 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-08-27
-**Estado general:** G0, Catálogo C1, C2 y C3, el contrato cromático Library Red, D1, Q1 y P1 entregados
+**Última actualización:** 2026-08-28
+**Estado general:** G0, Catálogo C1, C2 y C3, el contrato cromático Library Red, D1, Q1 y P1 entregados; Catálogo C4 implementado y revalidado técnicamente, con VoiceOver manual aprobado y entrega completa autorizada
+
+## Catálogo C4 — detalle enriquecido y precarga fluida
+
+- Tracker: [GitHub Issue #27 — Catálogo C4: enriquecer el detalle y anticipar la paginación](https://github.com/JFrancoG/MangaLibrary/issues/27), abierto después de comprobar que no existía un issue o una PR equivalente.
+- El cuerpo del issue se reconcilió el 2026-08-28 con la petición actual del propietario, SDD 02 v1.11 y ADR 0015: animación local de escala de la portada, reset de scroll regular, cabecera compactada de iPad y tres botones nativos de toolbar. La descripción anterior del `zoom` de navegación completo ya no figura como plan vigente.
+- Rama local: `codex/27-catalog-detail-prefetch`, creada desde `main@76ab2707241ac13b21e3e70b3edaca0383a2b23d`, limpio y sincronizado con `origin/main`.
+- El OpenAPI vivo se descubrió desde `/docs` y su forma canónica volvió a coincidir con el snapshot saneado, SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`. Las páginas ya contienen el manga completo necesario y no se añadió una segunda petición de detalle ni se hicieron llamadas funcionales al servicio.
+- `Manga` conserva ahora estado editorial, autoría con UUID y rol cerrado, y demografías, géneros y temas con identidad UUID. El cliente tipado trata relaciones requeridas ausentes, UUID inválidos y vocabulario cerrado desconocido como deriva contractual.
+- El detalle presenta la portada con una variante propia claramente mayor, estado, autoría, clasificaciones y sinopsis disponibles. La raíz de Catálogo usa un `NavigationStack` tipado por `Manga.ID` en compacto y conserva el `NavigationSplitView` regular; ambas presentaciones derivan de la misma selección. Al abrir en compacto, solo la portada del destino aplica `scaleEffect`: `0,1 → 1,25` con `easeIn` en `0,3 s` y `1,25 → 1` con `easeOut` en `0,08 s`. Ya no existen copia visual, geometría global ni coordinación manual; el regreso conserva el pop nativo y Reduce Motion usa `crossFade` sin escala. En regular no se repite la animación y un nuevo `Manga.ID` restablece inmediatamente el scroll arriba sin recrear el detalle ni forzar el foco.
+- C3 conserva su inspector adaptativo, presentado como sheet en compacto. En iOS 27 compacto, Filtros ocupa un `ToolbarItem` propio; un `ToolbarSpacer(.fixed)` lo separa del `ToolbarItemGroup` de Lista y Cuadrícula. En regular, Filtros permanece arriba y la pareja de layout pasa a una franja propia para que el título de la columna no se trunque; el título usa modo inline para no apilar además la reserva expandida del título grande sobre la búsqueda. Se retiran el menú de desbordamiento de un único elemento y el `Picker` segmentado. El formulario expone conjuntamente título, modo «Contiene/Empieza por», nombre y apellidos de autoría y selección múltiple de demografía, género y tema. El servidor combina las dimensiones mediante AND; no existe una búsqueda genérica por palabra fuera de los campos declarados.
+- La lista muestra título y todos los nombres de autoría disponibles con formato sensible al locale; el bloque textual se centra verticalmente junto a la portada y conserva reflow en tamaños de accesibilidad. La cuadrícula muestra solo portada y título, reserva dos líneas tipográficas centradas y trunca el exceso, por lo que todas las tarjetas mantienen la misma altura sin reducir la fuente.
+- Por decisión del propietario durante la implementación, la siguiente página se agenda al aparecer cualquiera de los dos últimos resultados, no cinco. La petición sigue siendo idempotente y el footer existente conserva progreso, error recuperable y fin.
+- No se añadieron Repository, UseCase, Store, router global, dependencia externa, endpoint, target, entitlement ni cambio de configuración.
+
+### RED / GREEN de C4
+
+- RED de contrato: el primer build-for-testing falló al exigir en los tests el mapping de estado, autoría y las tres taxonomías, además de deriva por relación ausente, UUID inválido y enum desconocido.
+- GREEN de contrato: el DTO mínimo se amplió solo con los campos ahora presentados y todos los valores se traducen a tipos de producto antes de llegar a SwiftUI. La caracterización parametrizada cubre los cuatro roles y los cinco estados válidos, además de mantener separados los casos desconocidos que representan deriva.
+- La caracterización de paginación se escribió antes del cambio, pero su RED no se aisló en ejecución porque el build conjunto ya estaba detenido por los nuevos tipos de `Manga`. Tras la aclaración del propietario, el umbral se fijó en los dos últimos elementos y el caso focalizado se volvió a ejecutar 1/1.
+- GREEN de paginación: el elemento anterior al umbral no agenda; cualquiera de los dos últimos agenda exactamente la página preparada y las apariciones repetidas no duplican trabajo.
+- RED de navegación: el propietario confirmó primero que el `zoom` no se producía en el split compacto y después que la alternativa geométrica no daba un resultado runtime convincente. La prueba visual también mostró el `Picker` segmentado anidado con la acción de Filtros en una cápsula poco clara.
+- GREEN de navegación y presentación: lista y cuadrícula compactas vuelven a `NavigationLink(value:)` dentro de un `NavigationStack` cuyo path `[Manga.ID]` se deriva de `selectedMangaID`; la portada del destino posee el único estado de animación. La toolbar declara un corte fijo entre Filtros y el grupo de layout. Lista conserva título y autoría centrados respecto a la portada; cuadrícula reserva dos líneas de título y elimina metadata secundaria para igualar tarjetas. La cabecera regular mantiene búsqueda y controles en franjas propias, pero cambia únicamente el título de `.large` a `.inline` para retirar la reserva vertical expandida. El detalle regular usa una `ScrollPosition` local y vuelve sin animación al borde superior solo cuando cambia `Manga.ID`, sin reiniciar el árbol completo. Estos ajustes editoriales no poseen una aserción unitaria significativa; se validan mediante compilador, previews y recorrido UI, mientras que la secuencia temporal de escala permanece excluida de la evidencia runtime. ADR 0015 supersede la cláusula incompatible de ADR 0014 sin cambiar sus decisiones de composición, transporte o dobles.
+
+### Validación local de C4
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Xcode MCP — build y diagnósticos | Build-for-testing del snapshot final aprobado en 2,981 s sobre el simulador iPad Air 11-inch (M4); `CatalogRootView.swift` muestra cero diagnósticos y el Issue Navigator contiene cero warnings |
+| Xcode MCP — `ReleaseGate` | 77/77 casos aprobados sobre el simulador iPad Air 11-inch (M4): cero fallos, skips, expected failures o casos no ejecutados |
+| Xcode MCP — previews | Lista y cuadrícula compactas inspeccionadas en español con Large, XXX Large y AX5; la cuadrícula también en modo oscuro con contraste aumentado, y ambas presentaciones en split regular de iPad. La lista muestra título y uno o varios autores centrados junto a la portada y refluye en AX; la cuadrícula conserva alturas uniformes, centra títulos cortos y trunca los largos dentro de dos líneas reservadas. El detalle regular final se volvió a renderizar en iPad con Large y con español AX5 desde el borde superior. La cabecera regular final se inspeccionó de nuevo en español con Large, XXX Large y AX5: título inline, acciones, búsqueda y selector permanecen visibles y desaparece la reserva expandida anterior |
+| Recorrido de detalle | El smoke determinista `testMockCatalogOpensMangaDetail()` aprobó 1/1 en el simulador iPad Air 11-inch (M4) y vuelve a aprobar dentro de `ReleaseGate`. Abre el mismo detalle por `Manga.ID`, pero no desplaza el detalle y selecciona otro manga; por tanto, no acredita por sí solo el reset de scroll ni la secuencia temporal de los dos tramos de escala |
+| `Scripts/validate-docc.sh` | 8/8 escenarios del clasificador; archive Release generado con warnings DocC como errores y una única emisión externa acotada por ADR 0011 |
+| Localización | `Localizable.xcstrings` válido; 68/68 claves traducidas manualmente en inglés y español, sin entradas stale o incompletas |
+| Integridad | `git diff --check` limpio; 216 enlaces Markdown locales sin roturas; cero patrones sensibles en líneas añadidas; snapshot OpenAPI y `project.pbxproj` conservan sus SHA-256 esperados; sin configuración, scheme o planes en el diff |
+| Revisiones independientes | El read-back de SDD 02 y ADR 0015 y las reauditorías finales de composición y SwiftUI/accesibilidad no encuentran defectos en `ToolbarItem` + spacer + `ToolbarItemGroup`, lista, cuadrícula, stack compacto, escala local, Reduce Motion, semántica estática, contraste o Dynamic Type. La evidencia runtime de tecnologías de asistencia permanece excluida |
+| Accesibilidad interactiva | **Pasa con observación.** El árbol accesible del Simulator iPad expone Lista y Cuadrícula como botones con identificadores estables, marca Lista como seleccionada y conserva tabs y contenido. El propietario confirmó manualmente que VoiceOver entra por Filtros, Lista y Cuadrícula y alcanza después el encabezamiento Catálogo según su posición visual; al volver arriba tras desplazar la lista, anuncia también el encabezamiento colapsado. En el inspector anuncia Cancelar antes de Filtros por su posición de cierre. El recorrido no queda atrapado y los controles conservan nombres comprensibles. Device Interaction no sustituyó esta comprobación: su skill obligatorio no estaba disponible para el revisor |
+| Restauración Xcode | Plan activo `Fast` y destino simulador iPad Air 11-inch (M4) con iOS 27 restaurados y verificados mediante Xcode MCP |
+
+La observación runtime anterior acreditaba una transición ya retirada y no la
+nueva escala local. La preview estática y el smoke existente tampoco reproducen
+el desplazamiento seguido de un cambio de selección regular; la interacción
+dinámica no pudo añadirse a esta evidencia porque el skill requerido por Xcode
+no estaba disponible. Build, previews y revisión estructural no constituyen
+por sí solos una medición de fluidez frame a frame ni un recorrido manual con
+VoiceOver, Voice Control, Switch Control, Full Keyboard Access o Accessibility
+Inspector. Tampoco existe evidencia física ni integración live. El propietario
+autorizó el 2026-08-28 commit, push, PR, merge, cierre del issue y borrado de las
+ramas. El read-back manual de VoiceOver quedó aprobado con el orden geométrico
+observado; esta autorización no inicia Colección ni Library Red como efecto
+lateral.
 
 ## Catálogo C3 — búsqueda avanzada y filtros
 
@@ -362,7 +412,7 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 
 1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
 2. Resolver de forma separada la regresión de descubrimiento de tags de `Fast` e `Integration`, sin mezclarla con el comportamiento C2.
-3. Iniciar la siguiente unidad de producto únicamente mediante autorización separada y sin mezclar la reparación de Q1.
+3. Completar la entrega ya autorizada de Catálogo C4; no iniciar Colección ni mezclar la reparación de Q1 como efecto lateral.
 4. Mantener la clasificación de cada suite nueva mediante su target y tag en el mismo cambio que la introduce.
 5. Implementar el producto restante y superar Advanced antes de iniciar WidgetKit/watchOS y el Deluxe Release Gate.
 6. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
@@ -372,7 +422,7 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
 - Catálogo C1 y la decisión normativa D1 están entregados.
 - Los planes `Fast`, `Integration`, `UI` y `ReleaseGate` están materializados, ejecutados, revisados y entregados mediante Q1.
-- C2, C3 y P1 están entregados; colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
+- C2, C3 y P1 están entregados; C4 está implementado y revalidado técnicamente, con VoiceOver manual aprobado y entrega completa autorizada. Colección, autenticación, sincronización, widget y watchOS siguen sin implementar.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La única evidencia física actual es la instalación y visualización del icono en el iPhone 11 observada por el propietario. No existe todavía evidencia de accesibilidad física, Keychain, App Group, WatchConnectivity o integración live.
 - No se ha autorizado publicación DocC ni GitHub Pages.

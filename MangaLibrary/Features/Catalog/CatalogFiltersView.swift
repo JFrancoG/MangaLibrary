@@ -18,6 +18,7 @@ struct CatalogFiltersView: View {
 
     @State private var resultSet: ResultSet
     @State private var matchMode: CatalogSearch.MatchMode
+    @State private var title: String
     @State private var authorFirstName: String
     @State private var authorLastName: String
     @State private var selectedGenres: Set<String>
@@ -92,6 +93,14 @@ struct CatalogFiltersView: View {
     private var searchSections: some View {
         Group {
             Section("Text matching") {
+                LabeledContent("Title") {
+                    TextField(text: $title) {
+                        Text("Title")
+                    }
+                    .multilineTextAlignment(.trailing)
+                    .textInputAutocapitalization(.sentences)
+                }
+
                 Picker("Match", selection: $matchMode) {
                     Text("Contains")
                         .tag(CatalogSearch.MatchMode.contains)
@@ -101,10 +110,21 @@ struct CatalogFiltersView: View {
             }
 
             Section("Author") {
-                TextField("First name", text: $authorFirstName)
+                LabeledContent("First name") {
+                    TextField(text: $authorFirstName) {
+                        Text("First name")
+                    }
+                    .multilineTextAlignment(.trailing)
                     .textInputAutocapitalization(.words)
-                TextField("Last name", text: $authorLastName)
+                }
+
+                LabeledContent("Last name") {
+                    TextField(text: $authorLastName) {
+                        Text("Last name")
+                    }
+                    .multilineTextAlignment(.trailing)
                     .textInputAutocapitalization(.words)
+                }
             }
         }
     }
@@ -210,7 +230,7 @@ struct CatalogFiltersView: View {
         case .catalog:
             let search = CatalogSearch(
                 matchMode: matchMode,
-                title: searchText,
+                title: title,
                 authorFirstName: authorFirstName,
                 authorLastName: authorLastName,
                 genres: Array(selectedGenres),
@@ -242,6 +262,7 @@ extension CatalogFiltersView {
         _searchText = searchText
         resultSet = model.query == .best ? .best : .catalog
         matchMode = search.matchMode
+        title = searchText.wrappedValue
         authorFirstName = search.authorFirstName ?? ""
         authorLastName = search.authorLastName ?? ""
         selectedGenres = Set(search.genres)
