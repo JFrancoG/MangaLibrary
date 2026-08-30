@@ -1,14 +1,41 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.7
-- Última revisión: 2026-08-30
+- Versión: 1.8
+- Última revisión: 2026-08-31
 
 ## Propósito y alcance
 
 Definir la sesión de usuario y una sincronización local-first de la colección. La UI observa SwiftData; la API es autoridad remota solo cuando confirma una operación. Esta especificación no inventa endpoints, cabeceras, payloads ni campos: cada intercambio debe implementarse desde `/openapi/openapi.json`.
 
 ## Autenticación
+
+### Alta de cuenta S2
+
+El alta usa exclusivamente el contrato vivo `POST /users`: body JSON con
+`email` y `password`, cabecera `App-Token`, status `200` e `Int64` de respuesta
+interpretado solo como confirmación opaca. El `App-Token` procede de una
+configuración local ignorada y queda encerrado en este request; no entra en la
+configuración común de API, Catálogo, sesión, Keychain, ledger, logs o errores.
+Si falta, está vacío o conserva un placeholder sin expandir, la capacidad falla
+antes de transporte y el resto de la app, incluido Catálogo público, continúa
+disponible.
+
+| ID | Requisito |
+| --- | --- |
+| AUTH-006 | El alta se ofrece solo desde el estado sin sesión; `authenticationRequired` conserva su identidad estable y no permite crear otra cuenta. |
+| AUTH-007 | La validación local normaliza un email no vacío y exige una contraseña de al menos ocho caracteres, sin inventar una gramática que OpenAPI no declara. |
+| AUTH-008 | La contraseña permanece únicamente en el formulario y en la operación suspendida; se limpia al enviar o abandonar y nunca se persiste. |
+| AUTH-009 | Una confirmación válida inicia exactamente una vez el login S1 existente; no crea otra autoridad de sesión ni otra ruta de persistencia. |
+| AUTH-010 | Un fallo o cancelación después de confirmar el alta conserva «cuenta creada» y ofrece login manual sin repetir `POST /users`. |
+| AUTH-011 | Timeout, cancelación o fallo después de invocar el transporte sin confirmación válida dejan un resultado incierto visible y nunca provocan reintento automático. |
+| AUTH-012 | Cada workflow posee identidad propia. Abandonar un alta aún no confirmada invalida sus efectos de presentación; si ya comenzó el login S1, su cancelación reconcilia primero la autoridad de sesión para no ocultar un commit durable. Una respuesta tardía no sustituye una sesión posterior. |
+
+La persona puede preparar conscientemente un alta nueva después de un resultado
+incierto, pero la preparación no envía nada. La interfaz prioriza probar el
+login porque el servidor no declara idempotency key, `409` ni un DTO de error.
+Un status no declarado o un payload distinto del `Int64` esperado no expone el
+body y conserva el resultado remoto como no confirmado.
 
 ### Sesión dual JWT
 
@@ -254,6 +281,11 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 
 | Gate | Caso | Resultado requerido |
 | --- | --- | --- |
+| Advanced | Alta confirmada | Ejecuta una sola vez el login S1 y termina en la sesión durable que este confirme. |
+| Advanced | Configuración de alta ausente | Falla antes de transporte; Catálogo y el login existente continúan disponibles. |
+| Advanced | Alta confirmada y login fallido o cancelado | Conserva «cuenta creada», no repite el alta y ofrece iniciar sesión. |
+| Advanced | Respuesta de alta perdida o cancelada después del envío | Presenta resultado incierto y no reintenta automáticamente. |
+| Advanced | Alta A tardía después de autenticar B | No inicia el login de A ni reemplaza el estado o la sesión de B. |
 | Advanced | Login correcto | Los dos tokens quedan en Keychain; la contraseña no queda persistida. |
 | Advanced | Access expirado y refresh vigente | Una sola renovación abastece peticiones concurrentes y actualiza la sesión aplicable. |
 | Advanced | Refresh no válido | La sesión requiere autenticación y sus operaciones pasan a `blockedAuth`. |

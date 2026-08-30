@@ -15,13 +15,17 @@ enum AccountPreviewSupport {
     )
 
     @MainActor
-    static func model(state: AccountModel.State) -> AccountModel {
+    static func model(
+        state: AccountModel.State,
+        registrationState: AccountModel.RegistrationState = .idle
+    ) -> AccountModel {
         let session = AccountPreviewSession(
             snapshot: snapshot(for: state),
             fallbackAccount: account
         )
         return AccountModel(
             initialState: state,
+            registrationState: registrationState,
             operations: session.operations()
         )
     }
@@ -60,6 +64,7 @@ private actor AccountPreviewSession {
             currentSnapshot: { [self] in await currentSnapshot() },
             restore: { [self] in await restore() },
             login: { [self] email, _ in await login(email: email) },
+            register: { _, _ in .confirmed },
             logout: { [self] in try await logout() },
             retryLogout: { [self] in try await retryLogout() },
             cancelLogout: { [self] in try await cancelLogout() },

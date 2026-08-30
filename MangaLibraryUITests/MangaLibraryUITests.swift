@@ -105,4 +105,58 @@ final class MangaLibraryUITests: XCTestCase {
             identityEmail.label.contains("ui-account@example.invalid")
         )
     }
+
+    @MainActor
+    func testSyntheticAccountRegistrationSignsIn() throws(any Error) {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing")
+        app.launch()
+
+        let accountTab = app.buttons
+            .matching(identifier: "tab.account")
+            .firstMatch
+        XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
+        accountTab.tap()
+
+        let registerAction = app.descendants(matching: .any)
+            .matching(identifier: "account.register.action")
+            .firstMatch
+        XCTAssertTrue(registerAction.waitForExistence(timeout: 2))
+        registerAction.tap()
+
+        let email = app.textFields["account.register.email"]
+        XCTAssertTrue(email.waitForExistence(timeout: 2))
+        email.tap()
+        email.typeText("ui-new-account@example.invalid")
+
+        let password = app.secureTextFields["account.register.password"]
+        XCTAssertTrue(password.waitForExistence(timeout: 2))
+        password.tap()
+
+        let dismissStrongPasswordSuggestion = app.buttons
+            .matching(identifier: "xmark")
+            .firstMatch
+        if dismissStrongPasswordSuggestion.waitForExistence(timeout: 1) {
+            dismissStrongPasswordSuggestion.tap()
+            password.tap()
+        }
+        password.typeText("synthetic-passphrase")
+
+        let submit = app.buttons["account.register.submit"]
+        XCTAssertTrue(submit.isEnabled)
+        submit.tap()
+        let authenticated = app.descendants(matching: .any)[
+            "account.authenticated"
+        ]
+        XCTAssertTrue(authenticated.waitForExistence(timeout: 5))
+
+        let identityEmail = app.descendants(matching: .any)[
+            "account.identity.email"
+        ]
+        XCTAssertTrue(identityEmail.waitForExistence(timeout: 2))
+        XCTAssertTrue(identityEmail.label.contains("reader@example.invalid"))
+        XCTAssertFalse(
+            identityEmail.label.contains("ui-new-account@example.invalid")
+        )
+    }
 }

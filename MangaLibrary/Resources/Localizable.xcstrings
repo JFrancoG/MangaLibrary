@@ -35,6 +35,40 @@
         }
       }
     },
+    "Account created" : {
+      "comment" : "Title confirming that registration succeeded before automatic sign-in completed.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account created"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuenta creada"
+          }
+        }
+      }
+    },
+    "Account creation couldn't be confirmed" : {
+      "comment" : "Title for a registration request whose remote result is uncertain.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account creation couldn't be confirmed"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido confirmar la creación de la cuenta"
+          }
+        }
+      }
+    },
     "Active filters: %lld" : {
       "comment" : "Number of active non-title filter dimensions announced for the filters button.",
       "localizations" : {
@@ -354,6 +388,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se pudieron cargar más resultados"
+          }
+        }
+      }
+    },
+    "Create account" : {
+      "comment" : "Button and navigation title for creating a Manga Library account.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create account"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crear cuenta"
+          }
+        }
+      }
+    },
+    "Creating account" : {
+      "comment" : "Progress label while the registration request is in flight.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creating account"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creando la cuenta"
           }
         }
       }
@@ -830,6 +898,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Contraseña"
+          }
+        }
+      }
+    },
+    "Password must contain at least 8 characters." : {
+      "comment" : "Visible registration password requirement and accessibility hint.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password must contain at least 8 characters."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La contraseña debe contener al menos 8 caracteres."
           }
         }
       }
@@ -1464,7 +1549,7 @@
       }
     },
     "The account service is temporarily unavailable." : {
-      "comment" : "Error description for a network failure.",
+      "comment" : "Safe error description when the account service or its local configuration is unavailable.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1544,6 +1629,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La solicitud de red ha agotado el tiempo de espera."
+          }
+        }
+      }
+    },
+    "The registration request was cancelled." : {
+      "comment" : "Cancellation detail; the surrounding state distinguishes a request stopped before transport from an uncertain remote result.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The registration request was cancelled."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se ha cancelado la solicitud de creación de la cuenta."
+          }
+        }
+      }
+    },
+    "The request may have created your account. Try signing in before creating it again." : {
+      "comment" : "Safety guidance when a registration response is uncertain and must not be retried automatically.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The request may have created your account. Try signing in before creating it again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es posible que la solicitud haya creado tu cuenta. Prueba a iniciar sesión antes de crearla de nuevo."
           }
         }
       }
@@ -1718,6 +1837,40 @@
         }
       }
     },
+    "Try creating account again" : {
+      "comment" : "Deliberate secondary action that prepares a new registration form after an uncertain result.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try creating account again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intentar crear la cuenta de nuevo"
+          }
+        }
+      }
+    },
+    "Unable to create account" : {
+      "comment" : "Heading for a registration failure known to have occurred before submission.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to create account"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido crear la cuenta"
+          }
+        }
+      }
+    },
     "Unable to sign in" : {
       "comment" : "A heading for an error message when signing in.",
       "localizations" : {
@@ -1731,6 +1884,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se ha podido iniciar sesión"
+          }
+        }
+      }
+    },
+    "Your account was created, but Manga Library couldn't sign you in." : {
+      "comment" : "Guidance after registration succeeds but automatic sign-in does not complete.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your account was created, but Manga Library couldn't sign you in."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu cuenta se ha creado, pero Manga Library no ha podido iniciar sesión."
           }
         }
       }

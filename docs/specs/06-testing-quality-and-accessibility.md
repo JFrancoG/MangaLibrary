@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.13
-**Fecha:** 2026-08-30
+**Versión:** 1.14
+**Fecha:** 2026-08-31
 
 ## Propósito
 
@@ -32,7 +32,7 @@ filtros Include Tags de Swift Testing: `Fast` incluye el tag `fast`, aplicado a
 `APIConfigurationTests`, `CatalogAPIClientTests`, `CatalogQueryTests`,
 `CatalogModelTests`, `LibraryColorTests`, `SessionAPIClientTests`,
 `SessionPersistenceFailureTests`, `SessionControllerTests` y
-`AccountModelTests` porque usan valores, bytes, recursos locales o capacidades
+`AccountModelTests` y `UserRegistrationClientTests` porque usan valores, bytes, recursos locales o capacidades
 directas y deterministas. `Integration` incluye el tag `integration`, aplicado
 a `HTTPClientTests`, que atraviesa la frontera real de `URLSession` mediante un
 `URLProtocol` limitado a su sesión, y a `SessionPersistenceActorTests` y
@@ -105,15 +105,18 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 ### Interfaz
 
 XCUITest se limita a los menores recorridos deterministas que demuestren wiring
-crítico no cubierto con Swift Testing. En el alcance actual ejecuta tres:
+crítico no cubierto con Swift Testing. En el alcance actual ejecuta cuatro:
 
 - bootstrap mock Debug → primera fila de Catálogo → detalle de la misma
   `Manga.ID`;
 - bootstrap mock Debug → abrir Filtros → descartar la sheet compacta con el
-  gesto → volver a abrirla.
+  gesto → volver a abrirla;
 - bootstrap mock Debug → Cuenta → login con credenciales sintéticas → identidad
   sintética fija distinta del email introducido, sin red, Keychain ni
-  almacenamiento live.
+  almacenamiento live;
+- bootstrap mock Debug → Cuenta → alta con credenciales sintéticas → login S1
+  inyectado → identidad sintética fija distinta del email introducido, sin leer
+  `App-Token`, usar Keychain, persistir ni alcanzar red live.
 
 Un flujo UI adicional solo se incorpora cuando exista un riesgo observable que
 no pueda caracterizarse con estado, modelo, integración o preview, y se elimina
@@ -140,6 +143,9 @@ Se inyectarán pérdida o corrupción de contador, overflow, disco lleno y carre
 - Colección usa un `ModelContainer` en memoria con el esquema real; las interacciones posteriores recorren la capacidad de mutación de producción.
 - Cada escenario significativo posee contexto aislado y no llama a API, Keychain ni almacenamiento live.
 - Loading estable se modela como estado de presentación; no se simula con sleeps.
+- Cuenta construye directamente estados de alta inactiva, enviando, incierta y
+  creada, y usa operaciones sintéticas para el encadenado con login; ninguna
+  preview lee Info.plist, `App-Token`, Keychain o red.
 - Xcode MCP renderiza las variantes aprobadas como comprobación editorial; una preview no sustituye build, tests UI ni evidencia de accesibilidad.
 
 ## Warnings como errores

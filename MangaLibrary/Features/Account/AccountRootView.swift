@@ -7,6 +7,7 @@ import SwiftUI
 
 enum AccountRoute: Hashable {
     case signIn
+    case register
 }
 
 struct AccountRootView: View {
@@ -31,6 +32,13 @@ struct AccountRootView: View {
                     switch route {
                     case .signIn:
                         SignInView(model: model)
+                    case .register:
+                        RegisterView(
+                            model: model,
+                            onSignIn: {
+                                path = [.signIn]
+                            }
+                        )
                     }
                 }
         }
@@ -76,12 +84,7 @@ struct AccountRootView: View {
             restorationFailureContent(failure: failure)
 
         case let .signedOut(failure):
-            signInRequiredContent(
-                title: "Sign in to Manga Library",
-                description: "Sign in with an existing Manga Library account.",
-                failure: failure,
-                stateIdentifier: "account.signed-out"
-            )
+            signedOutContent(failure: failure)
 
         case .authenticating:
             ProgressView("Signing in")
@@ -96,7 +99,8 @@ struct AccountRootView: View {
                 title: "Sign in again",
                 description: "Enter your credentials to continue.",
                 failure: failure,
-                stateIdentifier: "account.authentication-required"
+                stateIdentifier: "account.authentication-required",
+                allowsRegistration: false
             )
 
         case let .signingOut(account):
@@ -120,11 +124,38 @@ struct AccountRootView: View {
         }
     }
 
+    @ViewBuilder
+    private func signedOutContent(failure: AccountModel.Failure?) -> some View {
+        switch model.registrationState {
+        case .idle, .failed:
+            signInRequiredContent(
+                title: "Sign in to Manga Library",
+                description: "Sign in with an existing Manga Library account.",
+                failure: failure,
+                stateIdentifier: "account.signed-out",
+                allowsRegistration: true
+            )
+        case .submitting:
+            ProgressView("Creating account")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityIdentifier("account.register.progress")
+        case .signingIn:
+            ProgressView("Signing in")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityIdentifier("account.register.signing-in")
+        case let .unconfirmed(registrationFailure):
+            registrationUnconfirmedContent(failure: registrationFailure)
+        case let .created(loginFailure):
+            accountCreatedContent(loginFailure: loginFailure)
+        }
+    }
+
     private func signInRequiredContent(
         title: LocalizedStringResource,
         description: LocalizedStringResource,
         failure: AccountModel.Failure?,
-        stateIdentifier: String
+        stateIdentifier: String,
+        allowsRegistration: Bool
     ) -> some View {
         ScrollView {
             ContentUnavailableView {
@@ -144,6 +175,76 @@ struct AccountRootView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("account.sign-in.action")
+
+                if allowsRegistration {
+                    Button("Create account") {
+                        path.append(.register)
+                    }
+                    .accessibilityIdentifier("account.register.action")
+                }
+            }
+            .padding(.vertical, 24)
+        }
+    }
+
+    private func registrationUnconfirmedContent(
+        failure: UserRegistrationFailure
+    ) -> some View {
+        ScrollView {
+            ContentUnavailableView {
+                Label(
+                    "Account creation couldn't be confirmed",
+                    systemImage: "questionmark.circle"
+                )
+                .accessibilityIdentifier("account.register.unconfirmed")
+            } description: {
+                VStack(spacing: 8) {
+                    Text(
+                        "The request may have created your account. Try signing in before creating it again."
+                    )
+                    Text(failure.errorDescriptionResource)
+                        .foregroundStyle(.secondary)
+                }
+            } actions: {
+                Button("Sign in") {
+                    path = [.signIn]
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("account.register.sign-in")
+
+                Button("Try creating account again") {
+                    model.prepareRegistrationRetry()
+                    path = [.register]
+                }
+                .accessibilityIdentifier("account.register.retry")
+            }
+            .padding(.vertical, 24)
+        }
+    }
+
+    private func accountCreatedContent(
+        loginFailure: AccountModel.Failure?
+    ) -> some View {
+        ScrollView {
+            ContentUnavailableView {
+                Label("Account created", systemImage: "checkmark.circle")
+                    .accessibilityIdentifier("account.register.created")
+            } description: {
+                VStack(spacing: 8) {
+                    Text(
+                        "Your account was created, but Manga Library couldn't sign you in."
+                    )
+                    if let loginFailure {
+                        Text(loginFailure.errorDescriptionResource)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } actions: {
+                Button("Sign in") {
+                    path = [.signIn]
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("account.register.sign-in")
             }
             .padding(.vertical, 24)
         }
@@ -289,6 +390,28 @@ struct AccountRootView: View {
     AccountRootView(
         model: AccountPreviewSupport.model(
             state: .signedOut(failure: nil)
+        )
+    )
+}
+
+#Preview("Account registration unconfirmed") {
+    AccountRootView(
+        model: AccountPreviewSupport.model(
+            state: .signedOut(failure: nil),
+            registrationState: .unconfirmed(
+                .network(.transport(.timedOut))
+            )
+        )
+    )
+}
+
+#Preview("Account created, sign in required") {
+    AccountRootView(
+        model: AccountPreviewSupport.model(
+            state: .signedOut(failure: nil),
+            registrationState: .created(
+                loginFailure: .invalidCredentials
+            )
         )
     )
 }
