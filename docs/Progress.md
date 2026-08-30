@@ -1,7 +1,45 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-08-30
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, el contrato y la adopción ejecutable de Library Red y S1 — identidad y sesión dual entregados; el siguiente corte de producto es S2 — alta de usuario
+**Última actualización:** 2026-08-31
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red y S1 entregados; S2 — alta de usuario está implementado y validado localmente, pendiente de entrega; el siguiente corte de producto es L1 — esquema local y outbox atómica
+
+## Alta de usuario S2 — issue #35
+
+- Tracker: [GitHub Issue #35 — S2: implementar alta de usuario con App-Token y enlazar login](https://github.com/JFrancoG/MangaLibrary/issues/35), todavía abierto hasta una entrega autorizada.
+- Rama local: `codex/35-s2-user-registration`, creada desde `main@422ffbb6abd723f41899d0d047417d9777ad4158`, limpio y sincronizado con `origin/main` al comenzar. El propietario ha autorizado commit, push, PR, merge, cierre del issue y borrado de la rama; los identificadores definitivos se reconciliarán en esta misma entrega.
+- El propietario aprobó la implementación hermética. `/docs` volvió a descubrir `/openapi/openapi.json`; el contrato vivo y el snapshot coinciden con SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`: `POST /users`, JSON requerido `email/password`, seguridad exclusiva `App-Token` y única respuesta declarada `200` con `integer/int64` opaco.
+- `UserRegistrationClient` limita esa cabecera al alta, valida el status mediante el transporte común y descarta el entero después de confirmar el contrato. Configuración ausente, vacía o sin expandir falla antes del loader sin impedir Catálogo o login. `Shared.xcconfig` carga primero el `Local.xcconfig` ignorado y el repositorio conserva solo un ejemplo vacío; Xcode MCP añadió la clave propia al Info.plist del target app.
+- `AccountModel` mantiene separado el estado de sesión S1 del workflow de alta. Valida únicamente email normalizado no vacío y contraseña de ocho caracteres, distingue no enviado, incierto y confirmado, enlaza una sola vez con el login existente y conserva «cuenta creada» si esa segunda fase falla o se cancela. Abandonar un alta no confirmada invalida efectos tardíos; si el login ya empezó, la cancelación reconcilia primero cualquier commit durable de S1. Nunca repite automáticamente el `POST` y una respuesta A tardía no puede iniciar login ni sustituir una sesión B posterior.
+- Cuenta ofrece alta solo desde `signedOut`, nunca desde `authenticationRequired`. El formulario nativo usa `.newPassword`, limpia la contraseña antes de suspender y al abandonar, y representa progreso, fallo local, incertidumbre y cuenta creada sin depender solo del color. Inglés y español quedan completos en las 112 claves del String Catalog.
+- Previews y UI tests usan composición sintética directa: no leen Info.plist, `App-Token`, Keychain o almacenamiento live y no alcanzan producción.
+
+### RED / GREEN de S2
+
+- RED del cliente: 10 instancias fallaron contra el stub por request ausente, configuración mal clasificada y resultados no tipados. GREEN cubre request exacto, cuatro configuraciones inválidas, status, timeout, payload, cancelación antes y después del transporte y fallo desconocido.
+- RED de `AccountModel`: las nuevas caracterizaciones detectaron los stubs en validación, secuencia `register → login`, estados no enviado/incierto/creado y protección de respuesta tardía. GREEN cubre además la cancelación antes de entrar en el modelo y la carrera en la que S1 ya confirmó durablemente la sesión, incluida la traza exacta `register(A), login(B)` cuando A termina después de autenticar B. La suite focal completa de `AccountModel` termina 19/19.
+- El primer XCUITest de alta llegó al formulario, pero iOS 27 abrió el panel del generador de contraseña segura y dejó el botón deshabilitado. La automatización final conserva `.newPassword`, cierra condicionalmente esa sugerencia del sistema y aprueba 1/1 el recorrido Cuenta → alta sintética → login S1 → identidad fija.
+
+### Validación local de S2
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Xcode MCP — build y diagnósticos | Build normal final aprobado en 1,237 s sobre iPad Air 11-inch (M4), iOS 27; Issue Navigator y log de build quedan en cero warnings y cero errores. El target efectivo conserva Swift 6, concurrencia estricta completa, aislamiento predeterminado `nonisolated`, warnings como errores y ningún entitlement. |
+| Xcode MCP — pruebas focalizadas | `AccountModelTests` finaliza 19/19. `ReleaseGate` ejecuta además 11/11 invocaciones de `UserRegistrationClientTests`, incluidas cuatro configuraciones inválidas y cancelación pretransporte con cero requests. |
+| Xcode MCP — UI | El único smoke nuevo aprueba 1/1 con bootstrap Debug sintético y sin red o persistencia live, y vuelve a pasar dentro del gate final. |
+| Xcode MCP — previews | Formulario inspeccionado en iPad y en iPhone con Dynamic Type XXX Large; incertidumbre en español e iPad con AX5 conserva texto y ambas acciones visibles. La preview base se vuelve a renderizar con locale inglés explícito. Ninguna preview acredita VoiceOver físico. |
+| Localización y privacidad | JSON válido, 112/112 claves con inglés y español; no se incorpora un token utilizable, cuenta real, payload sensible o log de credenciales. |
+| Gate completo | `ReleaseGate`: 166 aprobadas, 0 fallos y 1 omisión de 167, limitada al test preexistente «Requires a physical iOS device». DocC genera el archive con warnings como errores y solo la emisión externa exacta de ADR-0011. Integridad documental limpia y las revisiones finales de arquitectura/concurrencia, SwiftUI/accesibilidad y contrato/privacidad cierran sin hallazgos P0–P3 después de corregir los detectados. |
+
+No se atribuye a S2 una ejecución independiente de `Fast` o `Integration`: esos
+planes conservan la regresión transversal de descubrimiento ya registrada. Los
+comportamientos afectados sí quedan incluidos en `ReleaseGate`.
+
+No se realizó ningún alta, login o escritura live. S2 no incorpora SwiftData,
+`ModelContainer`, outbox, Colección, sincronización, entitlements, recuperación o
+eliminación de cuenta, App Group, WidgetKit ni watchOS. La eliminación de cuenta
+deberá resolverse antes de distribuir una app que permita crearla; no amplía este
+issue. La evidencia visual no demuestra VoiceOver, Voice Control, Switch Control
+o Acceso total con teclado en runtime.
 
 ## Identidad y sesión dual S1 — issue #33
 
@@ -491,10 +529,10 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 
 ## Hoja de ruta Advanced
 
-La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden de implementación. El orden operativo parte de dos decisiones ya aprobadas: la colección local se identifica por **usuario + manga** y no existe una política de colección anónima. Los siguientes cortes son:
+La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden de implementación. El orden operativo parte de dos decisiones ya aprobadas: la colección local se identifica por **usuario + manga** y no existe una política de colección anónima. S1 está entregado, S2 queda implementado localmente en su rama y L1 es el siguiente corte; la secuencia completa es:
 
-1. **S1 — identidad y sesión dual.** Implementar login Basic hacia refresh JWT, intercambio por access JWT, `/users/session/me`, identidad estable, Keychain para ambos tokens, contraseña solo en memoria, renovación única concurrente, restauración, generaciones de sesión y estados básicos de Cuenta. El logout local cubre el escenario sin operaciones pendientes, pero no acredita todavía el gate Advanced que dependerá de la outbox. Aquí comienza la persistencia local de seguridad; [ADR-0016](adr/0016-versioned-session-ledger-and-keychain-boundary.md) concreta el ledger durable no secreto y su frontera Keychain.
-2. **S2 — alta de usuario.** Implementar `POST /users` con `App-Token` inyectado desde configuración local ignorada y enlazar el alta con login. Una escritura live continúa necesitando autorización separada. S2 debe cerrarse antes del Advanced Release Gate y no añade todavía Colección.
+1. **S1 — identidad y sesión dual, entregado.** Login Basic hacia refresh JWT, intercambio por access JWT, `/users/session/me`, identidad estable, Keychain para ambos tokens, contraseña solo en memoria, renovación única concurrente, restauración, generaciones de sesión y estados básicos de Cuenta. El logout local cubre el escenario sin operaciones pendientes, pero no acredita todavía el gate Advanced que dependerá de la outbox. Aquí comienza la persistencia local de seguridad; [ADR-0016](adr/0016-versioned-session-ledger-and-keychain-boundary.md) concreta el ledger durable no secreto y su frontera Keychain.
+2. **S2 — alta de usuario, implementado localmente.** `POST /users` con `App-Token` inyectado desde configuración local ignorada y alta enlazada con login, pendiente de entrega autorizada. Una escritura live continúa necesitando autorización separada. S2 no añade todavía Colección.
 3. **L1 — núcleo SwiftData de Colección.** Crear una sola vez el `ModelContainer`, un esquema versionado y los modelos de colección y outbox. La primera mutación disponible debe validar invariantes y guardar atómicamente ambos estados mediante una capacidad `@ModelActor`; no se entrega una ruta local provisional sin outbox. Aquí comienza la persistencia local de datos de producto.
 4. **L2 — Colección local y offline.** Exponer `@Query` restringida a la identidad activa, navegación independiente y alta, edición y eliminación mediante la ruta semántica de L1. Tomos, volumen de lectura, colección completa y tombstones deben sobrevivir al relanzamiento sin depender de red.
 5. **R1 — lectura e importación remota.** Consumir la colección de la persona autenticada al iniciar o restaurar sesión y reconciliarla en SwiftData sin pisar intenciones locales posteriores. Aquí empieza la integración con la persistencia remota; la UI continúa observando exclusivamente el estado local.
@@ -516,6 +554,7 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
 - Catálogo C1–C4, D1, Q1, P1 y Library Red están entregados. La limpieza posterior de tests tautológicos de consulta está en `main@1839c29` y no cambia comportamiento de producto.
 - S1 entrega identidad, sesión dual y Keychain de producto mediante la PR #34. Su estado y evidencia viven en la sección correspondiente de este documento.
+- S2 implementa el alta y su enlace seguro con S1 en la rama del issue #35; permanece pendiente de entrega y no acredita una escritura live.
 - No existen todavía `ModelContainer`, modelos SwiftData, outbox, Colección funcional ni sincronización remota.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La evidencia física actual comprende la instalación y visualización del icono observada por el propietario y las comprobaciones sintéticas de Keychain y protección de fichero de S1 ejecutadas en el iPhone 11. No existe todavía evidencia de accesibilidad física, App Group, WatchConnectivity o integración live.

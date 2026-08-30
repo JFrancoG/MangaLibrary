@@ -1,3 +1,7 @@
+// Optional local values are loaded first so they cannot relax the mandatory
+// policies declared below. Local.xcconfig is ignored by Git.
+#include? "Local.xcconfig"
+
 // Shared build policy for every target and configuration.
 GCC_TREAT_WARNINGS_AS_ERRORS = YES
 SWIFT_TREAT_WARNINGS_AS_ERRORS = YES

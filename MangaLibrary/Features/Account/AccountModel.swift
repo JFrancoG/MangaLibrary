@@ -10,20 +10,24 @@ import Observation
 ///
 /// The model never stores credentials. It normalizes email at the semantic
 /// boundary and passes the password only through the current sign-in operation.
-    /// Every asynchronous intent carries an identity so a late response cannot
-    /// replace the current presentation. Sign-in itself remains single-action.
+/// Every asynchronous intent carries an identity so a late response cannot
+/// replace the current presentation. Sign-in itself remains single-action.
 @Observable @MainActor
 final class AccountModel {
     struct Operations: Sendable {
         let currentSnapshot: @Sendable () async -> SessionSnapshot
         let restore: @Sendable () async throws(any Error) -> SessionSnapshot
         let login: @Sendable (String, String) async throws(any Error) -> SessionSnapshot
+        let register: UserRegistrationClient.Operation
         let logout: @Sendable () async throws(any Error) -> SessionSnapshot
         let retryLogout: @Sendable () async throws(any Error) -> SessionSnapshot
         let cancelLogout: @Sendable () async throws(any Error) -> SessionSnapshot
         let retryCleanup: @Sendable () async throws(any Error) -> SessionSnapshot
 
-        static func live(controller: SessionController) -> Self {
+        static func live(
+            controller: SessionController,
+            register: @escaping UserRegistrationClient.Operation
+        ) -> Self {
             Self(
                 currentSnapshot: { [controller] in
                     await controller.currentSnapshot()
@@ -37,6 +41,7 @@ final class AccountModel {
                         password: password
                     )
                 },
+                register: register,
                 logout: { [controller] in
                     try await controller.logout()
                 },
@@ -108,16 +113,112 @@ final class AccountModel {
         )
     }
 
+    enum RegistrationState: Equatable {
+        case idle
+        case submitting
+        case signingIn
+        case failed(UserRegistrationFailure)
+        case created(loginFailure: Failure?)
+        case unconfirmed(UserRegistrationFailure)
+    }
+
     private final class OperationIdentity {}
 
     private(set) var state: State
+    private(set) var registrationState: RegistrationState
 
     @ObservationIgnored private let operations: Operations
     @ObservationIgnored private var activeOperationIdentity: OperationIdentity?
 
-    init(initialState: State = .restoring, operations: Operations) {
+    init(
+        initialState: State = .restoring,
+        registrationState: RegistrationState = .idle,
+        operations: Operations
+    ) {
         state = initialState
+        self.registrationState = registrationState
         self.operations = operations
+    }
+
+    func register(email: String, password: String) async {
+        guard
+            Task.isCancelled == false,
+            activeOperationIdentity == nil,
+            canSubmitRegistration(email: email, password: password),
+            case .signedOut = state
+        else {
+            return
+        }
+
+        switch registrationState {
+        case .idle, .failed:
+            break
+        case .submitting, .signingIn, .created, .unconfirmed:
+            return
+        }
+
+        let normalizedEmail = Self.normalizedEmail(email)
+        let identity = beginOperation()
+        registrationState = .submitting
+
+        let submission = await operations.register(
+            normalizedEmail,
+            password
+        )
+        guard isCurrent(identity) else {
+            return
+        }
+
+        switch submission {
+        case let .notSubmitted(failure):
+            registrationState = .failed(failure)
+            finish(identity)
+        case let .unconfirmed(failure):
+            registrationState = .unconfirmed(failure)
+            finish(identity)
+        case .confirmed:
+            registrationState = .signingIn
+
+            guard Task.isCancelled == false else {
+                registrationState = .created(loginFailure: nil)
+                finish(identity)
+                return
+            }
+
+            await signInAfterRegistration(
+                identity: identity,
+                email: normalizedEmail,
+                password: password
+            )
+        }
+    }
+
+    func canSubmitRegistration(email: String, password: String) -> Bool {
+        Self.normalizedEmail(email).isEmpty == false
+            && password.count >= 8
+    }
+
+    func prepareRegistrationRetry() {
+        guard case .unconfirmed = registrationState else {
+            return
+        }
+
+        registrationState = .idle
+    }
+
+    /// Invalidates a registration workflow whose caller no longer owns its UI.
+    ///
+    /// A request suspended in transport becomes uncertain. Once the account was
+    /// confirmed, cancellation remains owned by the automatic sign-in task so
+    /// it can reconcile any durable session commit before presenting a result.
+    func abandonRegistration() {
+        switch registrationState {
+        case .submitting:
+            activeOperationIdentity = nil
+            registrationState = .unconfirmed(.cancelled)
+        case .idle, .failed, .signingIn, .created, .unconfirmed:
+            break
+        }
     }
 
     func restore() async {
@@ -145,7 +246,10 @@ final class AccountModel {
     }
 
     func signIn(email: String, password: String) async {
-        guard canSubmitSignIn(email: email, password: password) else {
+        guard
+            activeOperationIdentity == nil,
+            canSubmitSignIn(email: email, password: password)
+        else {
             return
         }
 
@@ -271,6 +375,58 @@ final class AccountModel {
         }
     }
 
+    private func signInAfterRegistration(
+        identity: OperationIdentity,
+        email: String,
+        password: String
+    ) async {
+        do {
+            let snapshot = try await operations.login(email, password)
+            try Task.checkCancellation()
+            guard isCurrent(identity) else {
+                return
+            }
+
+            guard case .active = snapshot else {
+                registrationState = .created(
+                    loginFailure: .unavailable
+                )
+                finish(identity)
+                return
+            }
+
+            apply(snapshot, failure: nil)
+            finish(identity)
+        } catch is CancellationError {
+            await reconcileRegistrationLogin(
+                identity: identity,
+                failure: nil
+            )
+        } catch {
+            await reconcileRegistrationLogin(
+                identity: identity,
+                failure: Self.map(error)
+            )
+        }
+    }
+
+    private func reconcileRegistrationLogin(
+        identity: OperationIdentity,
+        failure: Failure?
+    ) async {
+        let snapshot = await operations.currentSnapshot()
+        guard isCurrent(identity) else {
+            return
+        }
+
+        if case .active = snapshot {
+            apply(snapshot, failure: nil)
+        } else {
+            registrationState = .created(loginFailure: failure)
+        }
+        finish(identity)
+    }
+
     private func recoverAfterCancellation(identity: OperationIdentity, fallback: State) async {
         let snapshot = await operations.currentSnapshot()
         guard isCurrent(identity) else {
@@ -307,6 +463,7 @@ final class AccountModel {
             state = .signedOut(failure: failure)
         case let .active(account):
             state = .authenticated(account, notice: failure)
+            registrationState = .idle
         case let .logoutPrepared(account):
             state = .logoutPrepared(account, failure: failure)
         case let .cleaning(userID, completion):

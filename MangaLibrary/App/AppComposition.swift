@@ -7,6 +7,7 @@ import Foundation
 
 struct AppComposition {
     let catalogClient: CatalogAPIClient
+    let registerUser: UserRegistrationClient.Operation
     let sessionController: SessionController
 
     /// Builds only the dependencies used by a production launch.
@@ -50,6 +51,13 @@ struct AppComposition {
             catalogClient: CatalogAPIClient(
                 httpClient: httpClient,
                 configuration: apiConfiguration
+            ),
+            registerUser: UserRegistrationClient.operation(
+                httpClient: httpClient,
+                configuration: apiConfiguration,
+                appToken: Bundle.main.object(
+                    forInfoDictionaryKey: "MangaLibraryAppToken"
+                ) as? String
             ),
             sessionController: sessionController
         )

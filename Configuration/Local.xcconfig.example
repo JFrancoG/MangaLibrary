@@ -1,0 +1,4 @@
+// Copy this file to Local.xcconfig and keep the copy outside Git.
+// Obtain the development App-Token through the approved private channel.
+// Never commit a real token or paste it into issues, logs, captures or tests.
+MANGA_LIBRARY_APP_TOKEN =

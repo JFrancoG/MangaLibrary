@@ -52,7 +52,8 @@ extension MangaLibraryApp {
             }
             accountModel = AccountModel(
                 operations: .live(
-                    controller: composition.sessionController
+                    controller: composition.sessionController,
+                    register: composition.registerUser
                 )
             )
         } catch {
