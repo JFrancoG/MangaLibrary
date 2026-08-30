@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-08-30 | 📝 docs(session): record S1 delivery
 - 2026-08-30 | 📝 docs(session): define versioned Keychain and ledger authority
 - 2026-08-28 | 📝 docs(roadmap): sequence identity, local persistence and sync
 

@@ -1,12 +1,13 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-30
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1 y el contrato y la adopción ejecutable de Library Red entregados; S1 — identidad y sesión dual implementada y validada localmente, pendiente de entrega
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, el contrato y la adopción ejecutable de Library Red y S1 — identidad y sesión dual entregados; el siguiente corte de producto es S2 — alta de usuario
 
 ## Identidad y sesión dual S1 — issue #33
 
-- Tracker: [GitHub Issue #33 — S1: implementar identidad estable y sesión dual recuperable](https://github.com/JFrancoG/MangaLibrary/issues/33).
-- Rama local: `codex/33-s1-dual-session`, creada desde `main@0c250d423244cadaf15280758e06c452d2790f41`, limpio y sincronizado con `origin/main`.
+- Tracker: [GitHub Issue #33 — S1: implementar identidad estable y sesión dual recuperable](https://github.com/JFrancoG/MangaLibrary/issues/33), cerrado por la entrega.
+- Rama de entrega: `codex/33-s1-dual-session`, creada desde `main@0c250d423244cadaf15280758e06c452d2790f41`, limpio y sincronizado con `origin/main`.
+- La implementación se versiona en `f1c8629` y se entrega mediante la [PR #34](https://github.com/JFrancoG/MangaLibrary/pull/34), cuya fusión cierra el issue #33; el cierre autorizado incluye retirar después la rama local y remota.
 - El propietario aprobó continuar el 2026-08-30. Xcode MCP confirmó `MangaLibrary.xcodeproj` en Xcode Beta, scheme `MangaLibrary`, iOS 27, los tres targets, los cuatro planes y cero issues de navegador antes del primer cambio.
 - `/docs` volvió a descubrir `/openapi/openapi.json`; la forma canónica viva conserva el SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`.
 - [ADR-0016](adr/0016-versioned-session-ledger-and-keychain-boundary.md) acepta Keychain por generación y un ledger protegido en Application Support como autoridad durable. Persiste solo versión, UUID, generación opcional, revisión, fase y destino de limpieza opcional; no adelanta SwiftData, Colección, App Group, entitlements ni capacidades Deluxe.
@@ -514,7 +515,7 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
 - Catálogo C1–C4, D1, Q1, P1 y Library Red están entregados. La limpieza posterior de tests tautológicos de consulta está en `main@1839c29` y no cambia comportamiento de producto.
-- S1 implementa identidad, sesión dual y Keychain de producto en la rama `codex/33-s1-dual-session`; está validado localmente y continúa pendiente de entrega. Su estado y evidencia viven en la sección correspondiente de este documento.
+- S1 entrega identidad, sesión dual y Keychain de producto mediante la PR #34. Su estado y evidencia viven en la sección correspondiente de este documento.
 - No existen todavía `ModelContainer`, modelos SwiftData, outbox, Colección funcional ni sincronización remota.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La evidencia física actual comprende la instalación y visualización del icono observada por el propietario y las comprobaciones sintéticas de Keychain y protección de fichero de S1 ejecutadas en el iPhone 11. No existe todavía evidencia de accesibilidad física, App Group, WatchConnectivity o integración live.
