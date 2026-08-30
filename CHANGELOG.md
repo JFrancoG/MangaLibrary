@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-08-31 | 📝 docs(delivery): record S2 pull request
 - 2026-08-31 | 📝 docs(account): record S2 registration contract and evidence
 - 2026-08-30 | 📝 docs(session): record S1 delivery
 - 2026-08-30 | 📝 docs(session): define versioned Keychain and ledger authority
