@@ -6,12 +6,15 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-08-30 | ✨ feat(session): add recoverable dual-token identity session
 - 2026-08-28 | ✨ feat(ui): implement Library Red
 
 ### Documentation
 
+- 2026-08-30 | 📝 docs(session): define versioned Keychain and ledger authority
 - 2026-08-28 | 📝 docs(roadmap): sequence identity, local persistence and sync
 
 ### Tests
 
+- 2026-08-30 | ✅ test(session): cover authentication, persistence recovery and Account states
 - 2026-08-28 | ✅ test(catalog): remove tautological query tests

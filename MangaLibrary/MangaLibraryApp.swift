@@ -11,12 +11,14 @@ import SwiftUI
 struct MangaLibraryApp: App {
     private let loadCatalogPage: CatalogModel.PageLoader
     private let loadCatalogFilterOptions: CatalogModel.FilterOptionsLoader
+    @State private var accountModel: AccountModel
 
     var body: some Scene {
         WindowGroup {
             MainShellView(
                 loadCatalogPage: loadCatalogPage,
-                loadCatalogFilterOptions: loadCatalogFilterOptions
+                loadCatalogFilterOptions: loadCatalogFilterOptions,
+                accountModel: accountModel
             )
         }
     }
@@ -30,6 +32,9 @@ extension MangaLibraryApp {
             // fixtures or fall through to production networking.
             loadCatalogPage = CatalogPreviewSupport.pageLoader
             loadCatalogFilterOptions = CatalogPreviewSupport.filterOptionsLoader
+            accountModel = AccountPreviewSupport.model(
+                state: .signedOut(failure: nil)
+            )
             return
 #else
             preconditionFailure("UI testing data is unavailable in production builds.")
@@ -37,13 +42,19 @@ extension MangaLibraryApp {
         }
 
         do {
-            let client = try AppComposition.live().catalogClient
+            let composition = try AppComposition.live()
+            let catalogClient = composition.catalogClient
             loadCatalogPage = { request in
-                try await client.fetch(request)
+                try await catalogClient.fetch(request)
             }
             loadCatalogFilterOptions = {
-                try await client.fetchFilterOptions()
+                try await catalogClient.fetchFilterOptions()
             }
+            accountModel = AccountModel(
+                operations: .live(
+                    controller: composition.sessionController
+                )
+            )
         } catch {
             preconditionFailure("Manga Library could not create its app dependencies.")
         }

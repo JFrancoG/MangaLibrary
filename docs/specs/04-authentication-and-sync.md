@@ -1,8 +1,8 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.6
-- Última revisión: 2026-08-27
+- Versión: 1.7
+- Última revisión: 2026-08-30
 
 ## Propósito y alcance
 
@@ -30,6 +30,15 @@ Las duraciones se modelan con un reloj inyectable para que expiración y renovac
 | AUTH-003 | Los tokens no aparecen en logs, errores presentados, fixtures versionados ni documentación pública. |
 | AUTH-004 | El estado de sesión visible para UI no expone el valor bruto de ningún token. |
 | AUTH-005 | Los datos locales y operaciones pendientes permanecen particionados por identidad de usuario. |
+
+S1 materializa esta autoridad mediante el [ledger versionado de sesión y la
+frontera Keychain](../adr/0016-versioned-session-ledger-and-keychain-boundary.md).
+El ledger protegido persiste solo versión, UUID, generación opcional, revisión,
+fase y destino de limpieza opcional; email y roles permanecen en memoria. Un
+bundle Keychain sin un ledger activo de la misma generación nunca reactiva
+sesión. La fase `authenticationRequired` conserva el scope UUID sin autorizar
+tokens, mientras `invalidatedCleanupPending` obliga a completar la limpieza
+después del punto de no retorno.
 
 ### Renovación
 
@@ -314,3 +323,4 @@ WatchOS y WidgetKit consumen proyecciones y no abren nuevos escritores autoritat
 - [ADR-0015: flujos nativos, composición live y navegación adaptable](../adr/0015-native-flows-live-composition-and-adaptive-navigation.md)
 - [ADR-0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
 - [ADR-0013: frontera de logout Advanced y bridge Deluxe](../adr/0013-advanced-logout-and-deluxe-bridge-boundary.md)
+- [ADR-0016: ledger versionado y frontera Keychain de sesión](../adr/0016-versioned-session-ledger-and-keychain-boundary.md)

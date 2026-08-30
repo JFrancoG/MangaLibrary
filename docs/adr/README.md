@@ -24,6 +24,7 @@ sus compromisos.
 | [0013](0013-advanced-logout-and-deluxe-bridge-boundary.md) | Frontera de logout Advanced y bridge Deluxe | Accepted | 2026-08-25 |
 | [0014](0014-native-flows-live-composition-and-direct-doubles.md) | Flujos nativos, composición live y dobles directos | Superseded | 2026-08-27 |
 | [0015](0015-native-flows-live-composition-and-adaptive-navigation.md) | Flujos nativos, composición live y navegación adaptable | Accepted | 2026-08-28 |
+| [0016](0016-versioned-session-ledger-and-keychain-boundary.md) | Ledger versionado y frontera Keychain de sesión | Accepted | 2026-08-30 |
 
 ## Inmutabilidad y supersesión
 

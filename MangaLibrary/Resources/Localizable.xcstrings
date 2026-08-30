@@ -35,40 +35,6 @@
         }
       }
     },
-    "Account arrives in a later Advanced unit." : {
-      "comment" : "Explanation shown while the account feature is intentionally unavailable.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Account arrives in a later Advanced unit."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La cuenta llegará en una unidad posterior de Advanced."
-          }
-        }
-      }
-    },
-    "Account is not available yet" : {
-      "comment" : "Temporary unavailable state title for the account tab.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Account is not available yet"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La cuenta aún no está disponible"
-          }
-        }
-      }
-    },
     "Active filters: %lld" : {
       "comment" : "Number of active non-title filter dimensions announced for the filters button.",
       "localizations" : {
@@ -99,6 +65,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Todos los mangas"
+          }
+        }
+      }
+    },
+    "Another account action is already in progress." : {
+      "comment" : "Error shown when an account transition blocks another account action.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another account action is already in progress."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya hay otra acción de la cuenta en curso."
           }
         }
       }
@@ -375,6 +358,23 @@
         }
       }
     },
+    "Credentials" : {
+      "comment" : "A section that contains the user's email and password.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Credentials"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Credenciales"
+          }
+        }
+      }
+    },
     "Demographics" : {
       "comment" : "Heading for exact demographic-name filter options.",
       "localizations" : {
@@ -409,6 +409,23 @@
         }
       }
     },
+    "Email" : {
+      "comment" : "A label for the user's email address.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Correo electrónico"
+          }
+        }
+      }
+    },
     "End of results" : {
       "comment" : "Footer confirming that the current query has no more pages.",
       "localizations" : {
@@ -422,6 +439,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fin de los resultados"
+          }
+        }
+      }
+    },
+    "Enter your credentials to continue." : {
+      "comment" : "A description for the sign in screen.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter your credentials to continue."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduce tus credenciales para continuar."
           }
         }
       }
@@ -460,6 +494,40 @@
         }
       }
     },
+    "Finish removing expired credentials before signing in again." : {
+      "comment" : "A description of the cleanup process for a user who has expired credentials.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finish removing expired credentials before signing in again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Termina de eliminar las credenciales caducadas antes de volver a iniciar sesión."
+          }
+        }
+      }
+    },
+    "Finish removing the signed-out session from this device." : {
+      "comment" : "A description of the action to be taken to finish removing the signed-out session from this device.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finish removing the signed-out session from this device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Termina de eliminar de este dispositivo los datos de la sesión cerrada."
+          }
+        }
+      }
+    },
     "Finished" : {
       "comment" : "Status label for a completed manga.",
       "localizations" : {
@@ -473,6 +541,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Finalizado"
+          }
+        }
+      }
+    },
+    "Finishing secure session cleanup" : {
+      "comment" : "A label that describes the progress of a session cleanup.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finishing secure session cleanup"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finalizando la limpieza segura de la sesión"
           }
         }
       }
@@ -524,6 +609,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cuadrícula"
+          }
+        }
+      }
+    },
+    "Keep me signed in" : {
+      "comment" : "A button that keeps a user signed in after signing out.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep me signed in"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantener la sesión iniciada"
+          }
+        }
+      }
+    },
+    "Keeping session active" : {
+      "comment" : "Progress label while cancelling a prepared sign-out before local invalidation.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keeping session active"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manteniendo la sesión activa"
           }
         }
       }
@@ -698,6 +817,40 @@
         }
       }
     },
+    "Password" : {
+      "comment" : "A label for the user's password.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contraseña"
+          }
+        }
+      }
+    },
+    "Protected session data is temporarily unavailable." : {
+      "comment" : "Safe error shown when protected local session data cannot be read yet.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Protected session data is temporarily unavailable."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los datos protegidos de la sesión no están disponibles temporalmente."
+          }
+        }
+      }
+    },
     "Publishing" : {
       "comment" : "Status label for a manga currently being published.",
       "localizations" : {
@@ -728,6 +881,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Restablecer filtros"
+          }
+        }
+      }
+    },
+    "Restoring session" : {
+      "comment" : "A title for a view that shows a progress indicator while restoring a user's session.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restoring session"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restaurando la sesión"
           }
         }
       }
@@ -796,6 +966,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reintentar"
+          }
+        }
+      }
+    },
+    "Retry cleanup" : {
+      "comment" : "A button that retries a session cleanup.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry cleanup"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reintentar limpieza"
+          }
+        }
+      }
+    },
+    "Retry restoration" : {
+      "comment" : "Button that retries restoring protected session state before sign-in is allowed.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry restoration"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reintentar restauración"
+          }
+        }
+      }
+    },
+    "Retry restoration before signing in." : {
+      "comment" : "Explanation shown when protected session restoration must finish before sign-in.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry restoration before signing in."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reintenta la restauración antes de iniciar sesión."
+          }
+        }
+      }
+    },
+    "Retry sign out" : {
+      "comment" : "A button that retries signing out.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry sign out"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reintentar cierre de sesión"
           }
         }
       }
@@ -881,6 +1119,244 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Seleccionados: %lld"
+          }
+        }
+      }
+    },
+    "Session cleanup needs attention" : {
+      "comment" : "A title for a view that displays a session cleanup error.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session cleanup needs attention"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La limpieza de la sesión requiere atención"
+          }
+        }
+      }
+    },
+    "Session notice" : {
+      "comment" : "A section that displays a notice about the user's session.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session notice"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aviso de la sesión"
+          }
+        }
+      }
+    },
+    "Session restoration needs attention" : {
+      "comment" : "Title shown when protected session restoration failed and can be retried.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session restoration needs attention"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La restauración de la sesión requiere atención"
+          }
+        }
+      }
+    },
+    "Sign in" : {
+      "comment" : "A button to sign in.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar sesión"
+          }
+        }
+      }
+    },
+    "Sign in again" : {
+      "comment" : "A title for a screen where a user is prompted to sign in again.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuelve a iniciar sesión"
+          }
+        }
+      }
+    },
+    "Sign in again to continue." : {
+      "comment" : "Error message displayed when the user is not authenticated.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in again to continue."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuelve a iniciar sesión para continuar."
+          }
+        }
+      }
+    },
+    "Sign in to continue." : {
+      "comment" : "Error message displayed when the user is not authenticated.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to continue."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicia sesión para continuar."
+          }
+        }
+      }
+    },
+    "Sign in to Manga Library" : {
+      "comment" : "A title for a screen that requires a user to sign in.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to Manga Library"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicia sesión en Manga Library"
+          }
+        }
+      }
+    },
+    "Sign in with an existing Manga Library account." : {
+      "comment" : "A description of the sign in process.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in with an existing Manga Library account."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicia sesión con una cuenta existente de Manga Library."
+          }
+        }
+      }
+    },
+    "Sign out" : {
+      "comment" : "A button that signs out the user.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar sesión"
+          }
+        }
+      }
+    },
+    "Sign out needs attention" : {
+      "comment" : "A label that reads \"Sign out needs attention\".",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out needs attention"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El cierre de sesión requiere atención"
+          }
+        }
+      }
+    },
+    "Signed in" : {
+      "comment" : "A label displayed in the account view when the user is signed in.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signed in"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sesión iniciada"
+          }
+        }
+      }
+    },
+    "Signing in" : {
+      "comment" : "A label that describes a task of signing in.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing in"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciando sesión"
+          }
+        }
+      }
+    },
+    "Signing out" : {
+      "comment" : "A progress view that shows the user's email address.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing out"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrando sesión"
           }
         }
       }
@@ -987,6 +1463,23 @@
         }
       }
     },
+    "The account service is temporarily unavailable." : {
+      "comment" : "Error description for a network failure.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The account service is temporarily unavailable."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servicio de cuenta no está disponible temporalmente."
+          }
+        }
+      }
+    },
     "The catalog is empty" : {
       "comment" : "Title for a successful first catalog page with no manga.",
       "localizations" : {
@@ -1017,6 +1510,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "El catálogo no está disponible temporalmente."
+          }
+        }
+      }
+    },
+    "The email or password is incorrect." : {
+      "comment" : "Error description for an invalid credentials failure.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The email or password is incorrect."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El correo electrónico o la contraseña son incorrectos."
           }
         }
       }
@@ -1089,6 +1599,57 @@
         }
       }
     },
+    "The session changed while the action was in progress." : {
+      "comment" : "Error message when the session changes during an action.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The session changed while the action was in progress."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sesión cambió mientras la acción estaba en curso."
+          }
+        }
+      }
+    },
+    "The session could not be saved securely." : {
+      "comment" : "Error message when the session could not be saved securely.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The session could not be saved securely."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido guardar la sesión de forma segura."
+          }
+        }
+      }
+    },
+    "The session is still active and can be kept safely." : {
+      "comment" : "A description of the state of the user's session.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The session is still active and can be kept safely."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La sesión sigue activa y puede conservarse de forma segura."
+          }
+        }
+      }
+    },
     "Themes" : {
       "comment" : "Heading for exact theme-name filter options.",
       "localizations" : {
@@ -1153,6 +1714,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Prueba a cambiar la búsqueda o los filtros."
+          }
+        }
+      }
+    },
+    "Unable to sign in" : {
+      "comment" : "A heading for an error message when signing in.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to sign in"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido iniciar sesión"
           }
         }
       }

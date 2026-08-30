@@ -14,6 +14,7 @@ enum AppTab: Hashable {
 struct MainShellView: View {
     let loadCatalogPage: CatalogModel.PageLoader
     let loadCatalogFilterOptions: CatalogModel.FilterOptionsLoader
+    let accountModel: AccountModel
 
     @State private var selectedTab: AppTab = .catalog
 
@@ -46,25 +47,23 @@ struct MainShellView: View {
             .accessibilityIdentifier("tab.collection")
 
             Tab("Account", systemImage: "person.crop.circle", value: .account) {
-                NavigationStack {
-                    ContentUnavailableView(
-                        "Account is not available yet",
-                        systemImage: "person.crop.circle",
-                        description: Text("Account arrives in a later Advanced unit.")
-                    )
-                    .accessibilityIdentifier("account.unavailable")
-                    .navigationTitle("Account")
-                }
+                AccountRootView(model: accountModel)
             }
             .accessibilityIdentifier("tab.account")
         }
         .tint(Color(.brandPrimary))
+        .task {
+            await accountModel.restore()
+        }
     }
 }
 
 #Preview("Shell") {
     MainShellView(
         loadCatalogPage: CatalogPreviewSupport.pageLoader,
-        loadCatalogFilterOptions: CatalogPreviewSupport.filterOptionsLoader
+        loadCatalogFilterOptions: CatalogPreviewSupport.filterOptionsLoader,
+        accountModel: AccountPreviewSupport.model(
+            state: .signedOut(failure: nil)
+        )
     )
 }
