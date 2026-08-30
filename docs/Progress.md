@@ -1,7 +1,20 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-08-28
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1 y el contrato y la adopción ejecutable de Library Red entregados; el siguiente corte de producto es S1 — identidad y sesión dual, todavía sin iniciar
+**Última actualización:** 2026-08-30
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, el contrato y la adopción ejecutable de Library Red y S1 — identidad y sesión dual entregados; el siguiente corte de producto es S2 — alta de usuario
+
+## Identidad y sesión dual S1 — issue #33
+
+- Tracker: [GitHub Issue #33 — S1: implementar identidad estable y sesión dual recuperable](https://github.com/JFrancoG/MangaLibrary/issues/33), cerrado por la entrega.
+- Rama de entrega: `codex/33-s1-dual-session`, creada desde `main@0c250d423244cadaf15280758e06c452d2790f41`, limpio y sincronizado con `origin/main`.
+- La implementación se versiona en `f1c8629` y se entrega mediante la [PR #34](https://github.com/JFrancoG/MangaLibrary/pull/34), cuya fusión cierra el issue #33; el cierre autorizado incluye retirar después la rama local y remota.
+- El propietario aprobó continuar el 2026-08-30. Xcode MCP confirmó `MangaLibrary.xcodeproj` en Xcode Beta, scheme `MangaLibrary`, iOS 27, los tres targets, los cuatro planes y cero issues de navegador antes del primer cambio.
+- `/docs` volvió a descubrir `/openapi/openapi.json`; la forma canónica viva conserva el SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`.
+- [ADR-0016](adr/0016-versioned-session-ledger-and-keychain-boundary.md) acepta Keychain por generación y un ledger protegido en Application Support como autoridad durable. Persiste solo versión, UUID, generación opcional, revisión, fase y destino de limpieza opcional; no adelanta SwiftData, Colección, App Group, entitlements ni capacidades Deluxe.
+- La implementación materializa el cliente de sesión vivo, Keychain y ledger versionados, actor de persistencia, controller de sesión, modelo de Cuenta, estados recuperables, localización, previews y bootstrap UI sintético. No incorpora SwiftData, Colección, sincronización, entitlements ni escrituras live.
+- Xcode Beta 27A5252f construye app y tests para iPad Air 11-inch (M4) e iPhone 11, iOS 27, con Swift 6.4. No aparecen warnings de Swift o Clang ni issues estructurados; el full log conserva las tres emisiones externas —una por target— acotadas por ADR 0011, por lo que esta evidencia no acredita aún el Advanced Release Gate limpio. `ReleaseGate` en el simulador produjo 146 invocaciones: 145 pasaron, ninguna falló y se omitió únicamente la comprobación declarada como exclusiva de dispositivo físico. `Fast` continúa mostrando la regresión transversal conocida de 0 habilitados y 117 deshabilitados; no existe una ejecución independiente acreditada de `Integration`, aunque sus comportamientos sí quedaron cubiertos por `ReleaseGate`.
+- `Scripts/validate-docc.sh` genera `.build/docc/MangaLibrary.doccarchive` con warnings DocC como errores y admite exactamente la única emisión externa acotada por ADR 0011. No publica el archive.
+- En el iPhone 11 físico, una ejecución dirigida con `RunSomeTests` bajo el plan `ReleaseGate` seleccionó sin omisiones el ciclo Keychain sintético por generación y la restauración de `completeFileProtection` del ledger: 2/2 pasaron. La evidencia no incluye credenciales o red reales, lectura con el dispositivo bloqueado ni validación física de accesibilidad.
 
 ## Reconciliación de documentación y hoja de ruta — issue #31
 
@@ -480,7 +493,7 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 
 La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden de implementación. El orden operativo parte de dos decisiones ya aprobadas: la colección local se identifica por **usuario + manga** y no existe una política de colección anónima. Los siguientes cortes son:
 
-1. **S1 — identidad y sesión dual.** Implementar login Basic hacia refresh JWT, intercambio por access JWT, `/users/session/me`, identidad estable, Keychain para ambos tokens, contraseña solo en memoria, renovación única concurrente, restauración, generaciones de sesión y estados básicos de Cuenta. El logout local cubre el escenario sin operaciones pendientes, pero no acredita todavía el gate Advanced que dependerá de la outbox. Aquí comienza la persistencia local de seguridad; el mecanismo durable de metadatos no secretos se concretará en la propuesta de S1.
+1. **S1 — identidad y sesión dual.** Implementar login Basic hacia refresh JWT, intercambio por access JWT, `/users/session/me`, identidad estable, Keychain para ambos tokens, contraseña solo en memoria, renovación única concurrente, restauración, generaciones de sesión y estados básicos de Cuenta. El logout local cubre el escenario sin operaciones pendientes, pero no acredita todavía el gate Advanced que dependerá de la outbox. Aquí comienza la persistencia local de seguridad; [ADR-0016](adr/0016-versioned-session-ledger-and-keychain-boundary.md) concreta el ledger durable no secreto y su frontera Keychain.
 2. **S2 — alta de usuario.** Implementar `POST /users` con `App-Token` inyectado desde configuración local ignorada y enlazar el alta con login. Una escritura live continúa necesitando autorización separada. S2 debe cerrarse antes del Advanced Release Gate y no añade todavía Colección.
 3. **L1 — núcleo SwiftData de Colección.** Crear una sola vez el `ModelContainer`, un esquema versionado y los modelos de colección y outbox. La primera mutación disponible debe validar invariantes y guardar atómicamente ambos estados mediante una capacidad `@ModelActor`; no se entrega una ruta local provisional sin outbox. Aquí comienza la persistencia local de datos de producto.
 4. **L2 — Colección local y offline.** Exponer `@Query` restringida a la identidad activa, navegación independiente y alta, edición y eliminación mediante la ruta semántica de L1. Tomos, volumen de lectura, colección completa y tombstones deben sobrevivir al relanzamiento sin depender de red.
@@ -502,10 +515,10 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
 - Catálogo C1–C4, D1, Q1, P1 y Library Red están entregados. La limpieza posterior de tests tautológicos de consulta está en `main@1839c29` y no cambia comportamiento de producto.
-- No existen todavía identidad o sesión dual, Keychain de producto, `ModelContainer`, modelos SwiftData, outbox, Colección funcional ni sincronización remota.
-- S1 no tiene todavía issue o rama propios; el issue #31 y su rama son exclusivamente documentales.
+- S1 entrega identidad, sesión dual y Keychain de producto mediante la PR #34. Su estado y evidencia viven en la sección correspondiente de este documento.
+- No existen todavía `ModelContainer`, modelos SwiftData, outbox, Colección funcional ni sincronización remota.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
-- La única evidencia física actual es la instalación y visualización del icono en el iPhone 11 observada por el propietario. No existe todavía evidencia de accesibilidad física, Keychain, App Group, WatchConnectivity o integración live.
+- La evidencia física actual comprende la instalación y visualización del icono observada por el propietario y las comprobaciones sintéticas de Keychain y protección de fichero de S1 ejecutadas en el iPhone 11. No existe todavía evidencia de accesibilidad física, App Group, WatchConnectivity o integración live.
 - No se ha autorizado publicación DocC ni GitHub Pages.
 
 ## Pendiente externo

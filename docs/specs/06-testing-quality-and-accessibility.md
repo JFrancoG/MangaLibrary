@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.12
-**Fecha:** 2026-08-28
+**Versión:** 1.13
+**Fecha:** 2026-08-30
 
 ## Propósito
 
@@ -30,13 +30,17 @@ Los cuatro ficheros versionados viven en `TestPlans/` y el scheme compartido
 `MangaLibrary` deja `Fast` como plan predeterminado. Los planes unitarios usan
 filtros Include Tags de Swift Testing: `Fast` incluye el tag `fast`, aplicado a
 `APIConfigurationTests`, `CatalogAPIClientTests`, `CatalogQueryTests`,
-`CatalogModelTests` y `LibraryColorTests` porque usan valores, bytes o recursos
-locales directos y deterministas. `Integration` incluye el tag
-`integration`, aplicado a `HTTPClientTests`, que atraviesa la frontera real de
-`URLSession` mediante un `URLProtocol` limitado a su sesión. `UI` contiene únicamente
+`CatalogModelTests`, `LibraryColorTests`, `SessionAPIClientTests`,
+`SessionPersistenceFailureTests`, `SessionControllerTests` y
+`AccountModelTests` porque usan valores, bytes, recursos locales o capacidades
+directas y deterministas. `Integration` incluye el tag `integration`, aplicado
+a `HTTPClientTests`, que atraviesa la frontera real de `URLSession` mediante un
+`URLProtocol` limitado a su sesión, y a `SessionPersistenceActorTests` y
+`SessionPersistenceStoreTests`, que recorren la coordinación durable, Keychain
+aislado y filesystem temporal. `UI` contiene únicamente
 `MangaLibraryUITests`. Toda suite nueva se clasifica en `Fast`, `Integration` o
-`UI` mediante su target y, cuando corresponda, su tag, en el mismo cambio que la
-introduce. No se filtra por nombres de funciones o suites.
+`UI` mediante su target y, cuando corresponda, su tag, en el mismo cambio que
+la introduce. No se filtra por nombres de funciones o suites.
 
 `ReleaseGate.xctestplan` incluye completos los targets `MangaLibraryTests` y
 `MangaLibraryUITests`. Por ello también detecta un test nuevo todavía no
@@ -101,12 +105,15 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 ### Interfaz
 
 XCUITest se limita a los menores recorridos deterministas que demuestren wiring
-crítico no cubierto con Swift Testing. En el alcance actual ejecuta dos:
+crítico no cubierto con Swift Testing. En el alcance actual ejecuta tres:
 
 - bootstrap mock Debug → primera fila de Catálogo → detalle de la misma
   `Manga.ID`;
 - bootstrap mock Debug → abrir Filtros → descartar la sheet compacta con el
   gesto → volver a abrirla.
+- bootstrap mock Debug → Cuenta → login con credenciales sintéticas → identidad
+  sintética fija distinta del email introducido, sin red, Keychain ni
+  almacenamiento live.
 
 Un flujo UI adicional solo se incorpora cuando exista un riesgo observable que
 no pueda caracterizarse con estado, modelo, integración o preview, y se elimina
@@ -215,3 +222,4 @@ Un simulador no sustituye evidencia física cuando la capacidad dependa de hardw
 - [Documentación y DocC](07-documentation-and-docc.md)
 - [ADR 0015: flujos nativos, composición live y navegación adaptable](../adr/0015-native-flows-live-composition-and-adaptive-navigation.md)
 - [ADR 0013: frontera de logout Advanced y bridge Deluxe](../adr/0013-advanced-logout-and-deluxe-bridge-boundary.md)
+- [ADR 0016: ledger versionado y frontera Keychain de sesión](../adr/0016-versioned-session-ledger-and-keychain-boundary.md)

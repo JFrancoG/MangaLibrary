@@ -57,4 +57,52 @@ final class MangaLibraryUITests: XCTestCase {
         filtersButton.tap()
         XCTAssertTrue(cancelButton.waitForExistence(timeout: 2))
     }
+
+    @MainActor
+    func testSyntheticAccountSignsIn() throws(any Error) {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing")
+        app.launch()
+
+        let accountTab = app.buttons
+            .matching(identifier: "tab.account")
+            .firstMatch
+        XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
+        accountTab.tap()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["account.signed-out"]
+                .waitForExistence(timeout: 2)
+        )
+        let signInAction = app.descendants(matching: .any)
+            .matching(identifier: "account.sign-in.action")
+            .firstMatch
+        XCTAssertTrue(signInAction.waitForExistence(timeout: 2))
+        signInAction.tap()
+
+        let email = app.textFields["account.sign-in.email"]
+        XCTAssertTrue(email.waitForExistence(timeout: 2))
+        email.tap()
+        email.typeText("ui-account@example.invalid")
+
+        let password = app.secureTextFields["account.sign-in.password"]
+        XCTAssertTrue(password.waitForExistence(timeout: 2))
+        password.tap()
+        password.typeText("synthetic-passphrase")
+
+        app.buttons["account.sign-in.submit"].tap()
+        let authenticated = app.descendants(matching: .any)[
+            "account.authenticated"
+        ]
+        XCTAssertTrue(authenticated.waitForExistence(timeout: 2))
+
+        let identityEmail = app.descendants(matching: .any)[
+            "account.identity.email"
+        ]
+        XCTAssertTrue(identityEmail.waitForExistence(timeout: 2))
+        XCTAssertTrue(identityEmail.label.contains("reader@example.invalid"))
+        XCTAssertFalse(
+            identityEmail.label.contains("ui-account@example.invalid")
+        )
+    }
 }

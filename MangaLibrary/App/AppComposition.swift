@@ -7,6 +7,7 @@ import Foundation
 
 struct AppComposition {
     let catalogClient: CatalogAPIClient
+    let sessionController: SessionController
 
     /// Builds only the dependencies used by a production launch.
     ///
@@ -33,11 +34,24 @@ struct AppComposition {
             )
         )
 
+        let sessionClient = SessionAPIClient(
+            httpClient: httpClient,
+            configuration: apiConfiguration,
+            now: { Date() }
+        )
+        let sessionController = try SessionController(
+            apiClient: sessionClient,
+            persistence: .live(),
+            now: { Date() },
+            makeGeneration: { UUID() }
+        )
+
         return AppComposition(
             catalogClient: CatalogAPIClient(
                 httpClient: httpClient,
                 configuration: apiConfiguration
-            )
+            ),
+            sessionController: sessionController
         )
     }
 
