@@ -1,7 +1,29 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-31
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1 y S2 entregados; el siguiente corte de producto es L1 — esquema local y outbox atómica
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1 y S2 entregados; S2.1 está implementado y validado localmente, pendiente de entrega; L1 continúa como siguiente corte planificado y no se ha iniciado
+
+## Acciones accesibles de Cuenta S2.1 — issue #37
+
+- Tracker: [GitHub Issue #37 — S2.1: mejorar jerarquía y áreas táctiles de acceso en Cuenta](https://github.com/JFrancoG/MangaLibrary/issues/37), abierto; implementación y validación local completadas, pendientes de entrega.
+- Rama: `codex/37-account-actions-accessibility`, creada desde `main@45ce7a0c7db74c726049cdeb9ec0909e764b720f` limpio y sincronizado.
+- `AccountRootView` conserva dos `Button` semánticos y sus rutas existentes. Iniciar sesión mantiene jerarquía primaria y Crear cuenta pasa a secundaria bordeada; ambas usan texto `.headline` y control grande y flexible. El frame runtime estándar queda acotado entre 44 y 56 pt de alto, sin sumar otro mínimo a la etiqueta. La acción primaria aplica la pareja semántica `OnBrandPrimary` sobre `BrandPrimary` para adaptar el contraste a cada apariencia. El prompt `Don't have an account?` / `¿No tienes cuenta?` usa `.body`, aparece solo cuando el alta está disponible y el ajuste visual final conserva 16 pt extra tras la acción primaria y 16 pt entre el prompt y Crear cuenta.
+- El smoke de login existente incorpora el oráculo independiente de pulsabilidad, tamaño y orden vertical; no se añade un quinto recorrido UI. El String Catalog queda completo en 113/113 claves inglesas y españolas.
+- SDD 06 y ADR 0015 continúan siendo la autoridad aplicable y no cambian. No se modifica modelo, sesión, red, configuración, persistencia ni navegación; no se realiza login, alta o escritura live y L1 no se ha iniciado.
+
+### RED / GREEN y validación local de S2.1
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Xcode MCP — RED / GREEN focalizado | El primer RED midió `28,0 pt`, menos de los `44 pt` exigidos. La primera GREEN sumó el mínimo de la etiqueta al control grande y el nuevo RED de calibración midió `74,0 pt`, por encima del máximo estándar de `56 pt`. Tras retirar ese doble escalado y aplicar el espaciado final, login y alta sintéticos aprueban 2/2: ambas acciones permanecen pulsables y entre 44 y 56 pt, y Crear cuenta conserva al menos 12 pt respecto al prompt. |
+| Xcode MCP — build y diagnósticos | Build normal final aprobado en 1,748 s sobre iPhone 17 Simulator, iOS 27; log de build, Issue Navigator y diagnósticos focales de View y UI test quedan en cero warnings y cero errores. |
+| Xcode MCP — `ReleaseGate` | 166 aprobadas, 0 fallos y 1 omisión de 167, limitada al test preexistente que requiere un dispositivo físico. No se atribuye a S2.1 una ejecución independiente de `Fast` o `Integration`. |
+| `Scripts/validate-docc.sh` | 8/8 escenarios del clasificador aprobados; archive Release generado con warnings DocC como errores y exactamente la emisión externa acotada por ADR 0011. No se publica el archive. |
+| Xcode MCP — previews | Estado sin sesión final inspeccionado en iPhone 17 Pro con inglés y español Large, español XXX Large y AX5; la corrección cromática final se volvió a renderizar en español Large bajo Light/Dark × contraste estándar/aumentado y conserva la pareja adaptativa clara u oscura. En iPad Pro 13-inch (M5) se inspeccionó español Large y AX5. Las acciones quedan completas en iPad AX5 y continúan bajo el primer viewport dentro del `ScrollView` en iPhone AX5; la preview no acredita desplazamiento runtime, estados pulsado/deshabilitado/foco ni tecnologías de asistencia. |
+| Localización e integridad | String Catalog JSON válido y completo en 113/113 claves inglesas y españolas, sin textos vacíos ni comentarios ausentes; `git diff --check` limpio. El diff no incluye proyecto, configuración, sesión, red, persistencia, secretos ni datos personales. |
+| Revisiones independientes | Arquitectura, alcance/privacidad y SwiftUI/accesibilidad cierran sin hallazgos P0–P3. La primera revisión visual detectó contraste insuficiente del texto blanco sobre `BrandPrimary` claro; se corrigió aplicando `OnBrandPrimary` y la reauditoría de las cuatro apariencias resolvió el P2 sin regresiones. La inspección estática y las previews no se presentan como evidencia runtime de VoiceOver, Voice Control, Switch Control o Acceso total con teclado. |
+
+La evidencia anterior es local: no existe todavía PR ni merge y el issue #37 continúa abierto. Esta corrección no altera la hoja de ruta ni inicia L1.
 
 ## Alta de usuario S2 — issue #35
 

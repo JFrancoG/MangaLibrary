@@ -477,6 +477,23 @@
         }
       }
     },
+    "Don't have an account?" : {
+      "comment" : "Prompt shown between the primary sign-in action and the secondary account-creation action.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don't have an account?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿No tienes cuenta?"
+          }
+        }
+      }
+    },
     "Email" : {
       "comment" : "A label for the user's email address.",
       "localizations" : {

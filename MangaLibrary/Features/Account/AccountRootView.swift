@@ -170,21 +170,47 @@ struct AccountRootView: View {
                     }
                 }
             } actions: {
-                Button("Sign in") {
-                    path.append(.signIn)
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("account.sign-in.action")
-
-                if allowsRegistration {
-                    Button("Create account") {
-                        path.append(.register)
+                VStack(spacing: 16) {
+                    Button {
+                        path.append(.signIn)
+                    } label: {
+                        accountActionLabel("Sign in")
+                            .foregroundStyle(Color(.onBrandPrimary))
                     }
-                    .accessibilityIdentifier("account.register.action")
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .buttonSizing(.flexible)
+                    .accessibilityIdentifier("account.sign-in.action")
+                    .padding(EdgeInsets(top: 0, leading: 0, bottom: 16, trailing: 0))
+
+                    if allowsRegistration {
+                        VStack(spacing: 16) {
+                            Text("Don't have an account?")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .accessibilityIdentifier("account.register.prompt")
+
+                            Button {
+                                path.append(.register)
+                            } label: {
+                                accountActionLabel("Create account")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.large)
+                            .buttonSizing(.flexible)
+                            .accessibilityIdentifier("account.register.action")
+                        }
+                    }
                 }
             }
             .padding(.vertical, 24)
         }
+    }
+
+    private func accountActionLabel(_ title: LocalizedStringResource) -> some View {
+        Text(title)
+            .font(.headline)
     }
 
     private func registrationUnconfirmedContent(

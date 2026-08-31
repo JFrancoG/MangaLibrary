@@ -78,6 +78,31 @@ final class MangaLibraryUITests: XCTestCase {
             .matching(identifier: "account.sign-in.action")
             .firstMatch
         XCTAssertTrue(signInAction.waitForExistence(timeout: 2))
+
+        let registerAction = app.descendants(matching: .any)
+            .matching(identifier: "account.register.action")
+            .firstMatch
+        XCTAssertTrue(registerAction.waitForExistence(timeout: 2))
+        XCTAssertTrue(signInAction.isHittable)
+        XCTAssertTrue(registerAction.isHittable)
+        XCTAssertGreaterThanOrEqual(signInAction.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(signInAction.frame.height, 44)
+        XCTAssertLessThanOrEqual(signInAction.frame.height, 56)
+        XCTAssertGreaterThanOrEqual(registerAction.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(registerAction.frame.height, 44)
+        XCTAssertLessThanOrEqual(registerAction.frame.height, 56)
+
+        let registrationPrompt = app.descendants(matching: .any)
+            .matching(identifier: "account.register.prompt")
+            .firstMatch
+        XCTAssertTrue(registrationPrompt.waitForExistence(timeout: 2))
+        XCTAssertLessThan(signInAction.frame.maxY, registrationPrompt.frame.minY)
+        XCTAssertLessThan(registrationPrompt.frame.maxY, registerAction.frame.minY)
+        XCTAssertGreaterThanOrEqual(
+            registerAction.frame.minY - registrationPrompt.frame.maxY,
+            12
+        )
+
         signInAction.tap()
 
         let email = app.textFields["account.sign-in.email"]

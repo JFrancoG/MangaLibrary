@@ -10,6 +10,10 @@ All notable changes to this project are documented in this file.
 - 2026-08-30 | ✨ feat(session): add recoverable dual-token identity session
 - 2026-08-28 | ✨ feat(ui): implement Library Red
 
+### Fixed
+
+- 2026-08-31 | 🐛 fix(account): improve signed-out actions
+
 ### Documentation
 
 - 2026-08-31 | 📝 docs(delivery): record S2 pull request
