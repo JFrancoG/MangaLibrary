@@ -1,12 +1,13 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-08-31
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1 y S2 entregados; S2.1 está implementado y validado localmente, pendiente de entrega; L1 continúa como siguiente corte planificado y no se ha iniciado
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2 y S2.1 entregados; S2.2 — formularios de credenciales, validación inline y visibilidad de contraseña es el siguiente corte acordado y no se ha iniciado; L1 continúa después y tampoco se ha iniciado
 
 ## Acciones accesibles de Cuenta S2.1 — issue #37
 
-- Tracker: [GitHub Issue #37 — S2.1: mejorar jerarquía y áreas táctiles de acceso en Cuenta](https://github.com/JFrancoG/MangaLibrary/issues/37), abierto; implementación y validación local completadas, pendientes de entrega.
-- Rama: `codex/37-account-actions-accessibility`, creada desde `main@45ce7a0c7db74c726049cdeb9ec0909e764b720f` limpio y sincronizado.
+- Tracker: [GitHub Issue #37 — S2.1: mejorar jerarquía y áreas táctiles de acceso en Cuenta](https://github.com/JFrancoG/MangaLibrary/issues/37), cerrado por la entrega.
+- Rama de entrega: `codex/37-account-actions-accessibility`, creada desde `main@45ce7a0c7db74c726049cdeb9ec0909e764b720f` limpio y sincronizado.
+- La implementación se versiona inicialmente en `e19c7f1` y se entrega mediante la [PR #38](https://github.com/JFrancoG/MangaLibrary/pull/38), cuya fusión cierra el issue #37; el cierre autorizado incluye retirar después la rama local y remota.
 - `AccountRootView` conserva dos `Button` semánticos y sus rutas existentes. Iniciar sesión mantiene jerarquía primaria y Crear cuenta pasa a secundaria bordeada; ambas usan texto `.headline` y control grande y flexible. El frame runtime estándar queda acotado entre 44 y 56 pt de alto, sin sumar otro mínimo a la etiqueta. La acción primaria aplica la pareja semántica `OnBrandPrimary` sobre `BrandPrimary` para adaptar el contraste a cada apariencia. El prompt `Don't have an account?` / `¿No tienes cuenta?` usa `.body`, aparece solo cuando el alta está disponible y el ajuste visual final conserva 16 pt extra tras la acción primaria y 16 pt entre el prompt y Crear cuenta.
 - El smoke de login existente incorpora el oráculo independiente de pulsabilidad, tamaño y orden vertical; no se añade un quinto recorrido UI. El String Catalog queda completo en 113/113 claves inglesas y españolas.
 - SDD 06 y ADR 0015 continúan siendo la autoridad aplicable y no cambian. No se modifica modelo, sesión, red, configuración, persistencia ni navegación; no se realiza login, alta o escritura live y L1 no se ha iniciado.
@@ -23,7 +24,7 @@
 | Localización e integridad | String Catalog JSON válido y completo en 113/113 claves inglesas y españolas, sin textos vacíos ni comentarios ausentes; `git diff --check` limpio. El diff no incluye proyecto, configuración, sesión, red, persistencia, secretos ni datos personales. |
 | Revisiones independientes | Arquitectura, alcance/privacidad y SwiftUI/accesibilidad cierran sin hallazgos P0–P3. La primera revisión visual detectó contraste insuficiente del texto blanco sobre `BrandPrimary` claro; se corrigió aplicando `OnBrandPrimary` y la reauditoría de las cuatro apariencias resolvió el P2 sin regresiones. La inspección estática y las previews no se presentan como evidencia runtime de VoiceOver, Voice Control, Switch Control o Acceso total con teclado. |
 
-La evidencia anterior es local: no existe todavía PR ni merge y el issue #37 continúa abierto. Esta corrección no altera la hoja de ruta ni inicia L1.
+La evidencia anterior se entrega mediante la PR #38. S2.2 permanece como una unidad posterior, separada y todavía no iniciada antes de L1.
 
 ## Alta de usuario S2 — issue #35
 
@@ -552,18 +553,20 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 
 ## Hoja de ruta Advanced
 
-La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden de implementación. El orden operativo parte de dos decisiones ya aprobadas: la colección local se identifica por **usuario + manga** y no existe una política de colección anónima. S1 y S2 están entregados y L1 es el siguiente corte; la secuencia completa es:
+La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden de implementación. El orden operativo parte de dos decisiones ya aprobadas: la colección local se identifica por **usuario + manga** y no existe una política de colección anónima. S1, S2 y S2.1 están entregados; S2.2 es el siguiente corte acordado y L1 comienza después. La secuencia completa es:
 
 1. **S1 — identidad y sesión dual, entregado.** Login Basic hacia refresh JWT, intercambio por access JWT, `/users/session/me`, identidad estable, Keychain para ambos tokens, contraseña solo en memoria, renovación única concurrente, restauración, generaciones de sesión y estados básicos de Cuenta. El logout local cubre el escenario sin operaciones pendientes, pero no acredita todavía el gate Advanced que dependerá de la outbox. Aquí comienza la persistencia local de seguridad; [ADR-0016](adr/0016-versioned-session-ledger-and-keychain-boundary.md) concreta el ledger durable no secreto y su frontera Keychain.
 2. **S2 — alta de usuario, entregado.** `POST /users` con `App-Token` inyectado desde configuración local ignorada y alta enlazada con login, entregado mediante la PR #36. Una escritura live continúa necesitando autorización separada. S2 no añade todavía Colección.
-3. **L1 — núcleo SwiftData de Colección.** Crear una sola vez el `ModelContainer`, un esquema versionado y los modelos de colección y outbox. La primera mutación disponible debe validar invariantes y guardar atómicamente ambos estados mediante una capacidad `@ModelActor`; no se entrega una ruta local provisional sin outbox. Aquí comienza la persistencia local de datos de producto.
-4. **L2 — Colección local y offline.** Exponer `@Query` restringida a la identidad activa, navegación independiente y alta, edición y eliminación mediante la ruta semántica de L1. Tomos, volumen de lectura, colección completa y tombstones deben sobrevivir al relanzamiento sin depender de red.
-5. **R1 — lectura e importación remota.** Consumir la colección de la persona autenticada al iniciar o restaurar sesión y reconciliarla en SwiftData sin pisar intenciones locales posteriores. Aquí empieza la integración con la persistencia remota; la UI continúa observando exclusivamente el estado local.
-6. **R2 — envío y reconciliación de outbox.** Procesar la outbox persistida mediante POST/DELETE, coalescencia, retry, `blockedAuth`, `blockedOutcome`, reversión y protección frente a respuestas tardías. Antes de implementar GET/DELETE por `{id}` debe resolverse o caracterizarse de forma autorizada la ambigüedad entre ID de manga `int64` e ID de entrada UUID. Las escrituras remotas de Colección comienzan aquí y no se prueban contra producción.
-7. **Advanced Release Gate.** Completar el logout con operaciones pendientes, aislamiento A→B, recuperación después de crash y toda la evidencia de catálogo, Cuenta, Colección, sincronización, iPhone/iPad, accesibilidad, build, tests y DocC.
-8. **Deluxe.** Iniciar WidgetKit, watchOS, App Group, `SessionFence` y los puentes de datos únicamente después de que Advanced quede aceptado.
+3. **S2.1 — acciones accesibles de Cuenta, entregado.** La PR #38 da jerarquía primaria y secundaria a las acciones sin sesión, incorpora el prompt de alta y conserva objetivos táctiles nativos y contraste adaptativo sin cambiar sesión, red o persistencia.
+4. **S2.2 — formularios de credenciales, acordado y pendiente.** Separar email y contraseña, presentar errores locales inline y fallos no atribuibles a nivel de formulario, permitir mostrar u ocultar la contraseña y dar jerarquía nativa a las acciones de login y alta. La gramática conservadora de email deberá quedar definida en la SDD 04 antes de implementarse; no se inicia dentro de S2.1.
+5. **L1 — núcleo SwiftData de Colección.** Crear una sola vez el `ModelContainer`, un esquema versionado y los modelos de colección y outbox. La primera mutación disponible debe validar invariantes y guardar atómicamente ambos estados mediante una capacidad `@ModelActor`; no se entrega una ruta local provisional sin outbox. Aquí comienza la persistencia local de datos de producto.
+6. **L2 — Colección local y offline.** Exponer `@Query` restringida a la identidad activa, navegación independiente y alta, edición y eliminación mediante la ruta semántica de L1. Tomos, volumen de lectura, colección completa y tombstones deben sobrevivir al relanzamiento sin depender de red.
+7. **R1 — lectura e importación remota.** Consumir la colección de la persona autenticada al iniciar o restaurar sesión y reconciliarla en SwiftData sin pisar intenciones locales posteriores. Aquí empieza la integración con la persistencia remota; la UI continúa observando exclusivamente el estado local.
+8. **R2 — envío y reconciliación de outbox.** Procesar la outbox persistida mediante POST/DELETE, coalescencia, retry, `blockedAuth`, `blockedOutcome`, reversión y protección frente a respuestas tardías. Antes de implementar GET/DELETE por `{id}` debe resolverse o caracterizarse de forma autorizada la ambigüedad entre ID de manga `int64` e ID de entrada UUID. Las escrituras remotas de Colección comienzan aquí y no se prueban contra producción.
+9. **Advanced Release Gate.** Completar el logout con operaciones pendientes, aislamiento A→B, recuperación después de crash y toda la evidencia de catálogo, Cuenta, Colección, sincronización, iPhone/iPad, accesibilidad, build, tests y DocC.
+10. **Deluxe.** Iniciar WidgetKit, watchOS, App Group, `SessionFence` y los puentes de datos únicamente después de que Advanced quede aceptado.
 
-S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad autenticable, pero permanece antes del gate Advanced y en una unidad separada porque incorpora el `App-Token`. La outbox sí pertenece a L1: el worker de R2 puede llegar después, pero ninguna mutación expuesta puede escribir Colección sin registrar o coalescer su intención en la misma operación lógica.
+S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad autenticable, pero permanece antes del gate Advanced y en una unidad separada porque incorpora el `App-Token`. S2.1 y S2.2 cierran superficies de Cuenta sin iniciar persistencia de producto. La outbox sí pertenece a L1: el worker de R2 puede llegar después, pero ninguna mutación expuesta puede escribir Colección sin registrar o coalescer su intención en la misma operación lógica.
 
 ### Trabajo transversal pendiente
 
