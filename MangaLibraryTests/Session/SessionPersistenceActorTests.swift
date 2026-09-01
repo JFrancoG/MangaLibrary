@@ -131,7 +131,7 @@ struct SessionPersistenceActorTests {
     private static let generationB = UUID(uuidString: "BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF")!
 }
 
-private struct SessionPersistenceHarness: Sendable {
+private struct SessionPersistenceHarness {
     let keychain: SessionKeychainStore
     let persistence: SessionPersistenceActor
 

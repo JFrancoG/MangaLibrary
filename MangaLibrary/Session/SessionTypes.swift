@@ -5,7 +5,7 @@
 
 import Foundation
 
-enum SessionCredentialUse: String, Codable, Equatable, Sendable {
+enum SessionCredentialUse: String, Codable, Equatable {
     case refresh
     case access
 }
@@ -14,14 +14,14 @@ enum SessionCredentialUse: String, Codable, Equatable, Sendable {
 ///
 /// Raw values remain inside the session infrastructure and must never cross
 /// into SwiftUI state, logs, diagnostics or user-facing errors.
-struct SessionCredential: Codable, Equatable, Sendable {
+struct SessionCredential: Codable, Equatable {
     let value: String
     let use: SessionCredentialUse
     let expiresAt: Date
 }
 
 /// The safe account details returned by the authenticated identity endpoint.
-struct SessionIdentity: Equatable, Sendable {
+struct SessionIdentity: Equatable {
     let id: UUID
     let email: String
     let isActive: Bool

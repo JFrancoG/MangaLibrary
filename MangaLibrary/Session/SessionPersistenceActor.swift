@@ -7,7 +7,7 @@ import Foundation
 
 /// Serializes every mutation of the single durable Keychain session.
 actor SessionPersistenceActor {
-    struct Operations: Sendable {
+    struct Operations {
         let load: @Sendable () throws(any Error) -> SessionPersistedSession?
         let save: @Sendable (SessionPersistedSession) throws(any Error) -> Void
         let removeAll: @Sendable () throws(any Error) -> Void

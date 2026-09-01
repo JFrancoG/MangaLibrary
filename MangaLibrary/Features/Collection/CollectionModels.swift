@@ -11,7 +11,7 @@ extension MangaLibrarySchema.V1 {
     ///
     /// Product mutations obtain instances from ``CollectionMutationActor`` so owned
     /// volumes are canonical and every value satisfies the active known-total rules.
-    struct CollectionSnapshot: Codable, Equatable, Sendable {
+    struct CollectionSnapshot: Codable, Equatable {
         let ownedVolumes: [Int64]
         let readingVolume: Int64?
         let isComplete: Bool
@@ -19,7 +19,7 @@ extension MangaLibrarySchema.V1 {
         let isTombstone: Bool
     }
 
-    enum CollectionOutboxState: String, Codable, Equatable, Sendable {
+    enum CollectionOutboxState: String, Codable, Equatable {
         case queued
         case sending
         case retry
@@ -142,8 +142,8 @@ typealias CollectionMangaSnapshot = MangaLibrarySchema.V2.MangaSnapshot
 ///
 /// A non-`nil` total replaces the actor's prior knowledge only when it keeps the
 /// current state valid. `nil` retains any total already persisted for the pair.
-struct CollectionMutationCommand: Equatable, Sendable {
-    enum Change: Equatable, Sendable {
+struct CollectionMutationCommand: Equatable {
+    enum Change: Equatable {
         case replaceOwnedVolumes([Int64])
         case setReadingVolume(Int64?)
         case setComplete(Bool)
@@ -159,7 +159,7 @@ struct CollectionMutationCommand: Equatable, Sendable {
 }
 
 /// The committed collection and outbox identity returned by one mutation.
-struct CollectionMutationResult: Equatable, Sendable {
+struct CollectionMutationResult: Equatable {
     let userID: UUID
     let mangaID: Manga.ID
     let state: CollectionSnapshot
@@ -168,7 +168,7 @@ struct CollectionMutationResult: Equatable, Sendable {
 }
 
 /// Failures that leave both collection and outbox at their last committed state.
-enum CollectionMutationError: Error, Equatable, Sendable {
+enum CollectionMutationError: Error, Equatable {
     case invalidIdentity
     case nonPositiveKnownTotal(Int64)
     case nonPositiveVolume(Int64)

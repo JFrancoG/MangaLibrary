@@ -9,15 +9,15 @@ import Foundation
 ///
 /// A known identity can remain readable while reauthentication or logout is in
 /// progress, but only an unrestricted authenticated scope authorizes a submit.
-enum CollectionAccess: Equatable, Sendable {
-    enum UnavailableReason: Equatable, Sendable {
+enum CollectionAccess: Equatable {
+    enum UnavailableReason: Equatable {
         case restoring
         case restorationFailed
         case signedOut
         case authenticating
     }
 
-    enum MutationRestriction: Equatable, Sendable {
+    enum MutationRestriction: Equatable {
         case authenticationRequired
         case authenticating
         case signingOut
@@ -68,7 +68,7 @@ extension AccountModel.State {
 ///
 /// The capability stores no session snapshot. A sheet that outlives an account
 /// transition therefore cannot enqueue work for a stale or unauthorized user.
-struct CollectionMutation: Sendable {
+struct CollectionMutation {
     typealias Operation = @Sendable (
         CollectionMutationCommand
     ) async throws(CollectionMutationError) -> CollectionMutationResult

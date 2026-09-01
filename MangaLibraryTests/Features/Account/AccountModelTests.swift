@@ -597,7 +597,7 @@ struct CredentialFormViewModelTests {
     )
 }
 
-fileprivate struct EmailValidationCase: Sendable, CustomTestStringConvertible {
+fileprivate struct EmailValidationCase: CustomTestStringConvertible {
     let testDescription: String
     let email: String
     let expectedFailure: AccountModel.CredentialValidationFailure?
@@ -658,12 +658,12 @@ fileprivate struct EmailValidationCase: Sendable, CustomTestStringConvertible {
 }
 
 private actor ControlledAccountSession {
-    private struct RegistrationPlan: Sendable {
+    private struct RegistrationPlan {
         let submission: UserRegistrationSubmission
         let gate: AccountOperationGate?
     }
 
-    private struct LoginPlan: Sendable {
+    private struct LoginPlan {
         let result: Result<SessionSnapshot, SessionControllerError>
         let gate: AccountOperationGate?
         let commitsSnapshot: Bool
@@ -758,7 +758,7 @@ private actor ControlledAccountSession {
     }
 }
 
-private enum AccountRemoteCall: Equatable, Sendable {
+private enum AccountRemoteCall: Equatable {
     case register(email: String, password: String)
     case login(email: String, password: String)
 }

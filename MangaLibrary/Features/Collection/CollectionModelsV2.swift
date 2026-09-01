@@ -12,8 +12,8 @@ extension MangaLibrarySchema.V2 {
     /// Collection owns this snapshot, while the remote catalog remains authoritative
     /// for future refreshes. Its manga identity is validated against the persisted
     /// collection pair before the actor accepts a mutation.
-    struct MangaSnapshot: Codable, Equatable, Sendable {
-        enum Status: String, Codable, Equatable, Sendable {
+    struct MangaSnapshot: Codable, Equatable {
+        enum Status: String, Codable, Equatable {
             case discontinued
             case onHiatus
             case publishing
@@ -21,8 +21,8 @@ extension MangaLibrarySchema.V2 {
             case unspecified
         }
 
-        struct Author: Codable, Equatable, Sendable {
-            enum Role: String, Codable, Equatable, Sendable {
+        struct Author: Codable, Equatable {
+            enum Role: String, Codable, Equatable {
                 case art
                 case storyAndArt
                 case story
@@ -35,7 +35,7 @@ extension MangaLibrarySchema.V2 {
             let role: Role
         }
 
-        struct Classification: Codable, Equatable, Sendable {
+        struct Classification: Codable, Equatable {
             let id: UUID
             let name: String
         }
