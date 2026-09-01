@@ -1,9 +1,9 @@
 # ADR-0015: Flujos nativos, composición live y navegación adaptable
 
-**Estado:** Accepted
+**Estado:** Superseded
 **Fecha:** 2026-08-28
 **Supersede:** [ADR-0014](0014-native-flows-live-composition-and-direct-doubles.md)
-**Superseded by:** —
+**Superseded by:** [ADR-0017](0017-validated-http-status-response-boundary.md)
 
 ## Contexto
 

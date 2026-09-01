@@ -105,6 +105,14 @@ final class MangaLibraryUITests: XCTestCase {
 
         signInAction.tap()
 
+        let submit = app.buttons["account.sign-in.submit"]
+        XCTAssertTrue(submit.waitForExistence(timeout: 2))
+        XCTAssertTrue(submit.isEnabled)
+        submit.tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["account.sign-in.email.failure"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["account.sign-in.password.failure"].waitForExistence(timeout: 2))
+
         let email = app.textFields["account.sign-in.email"]
         XCTAssertTrue(email.waitForExistence(timeout: 2))
         email.tap()
@@ -115,7 +123,50 @@ final class MangaLibraryUITests: XCTestCase {
         password.tap()
         password.typeText("synthetic-passphrase")
 
-        app.buttons["account.sign-in.submit"].tap()
+        let passwordVisibility = app.buttons["account.sign-in.password-visibility"]
+        XCTAssertTrue(passwordVisibility.waitForExistence(timeout: 2))
+        XCTAssertTrue(passwordVisibility.isHittable)
+        XCTAssertGreaterThanOrEqual(passwordVisibility.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(passwordVisibility.frame.height, 44)
+        passwordVisibility.tap()
+
+        let revealedPassword = app.textFields["account.sign-in.password"]
+        XCTAssertTrue(revealedPassword.waitForExistence(timeout: 2))
+        XCTAssertEqual(revealedPassword.value as? String, "synthetic-passphrase")
+        revealedPassword.typeText("-visible")
+        XCTAssertEqual(revealedPassword.value as? String, "synthetic-passphrase-visible")
+        let hidePassword = app.buttons["account.sign-in.password-visibility"]
+        XCTAssertTrue(hidePassword.waitForExistence(timeout: 2))
+        XCTAssertTrue(hidePassword.isHittable)
+        hidePassword.tap()
+        let remaskedPassword = app.secureTextFields["account.sign-in.password"]
+        XCTAssertTrue(remaskedPassword.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+
+        app.buttons["account.sign-in.password-visibility"].tap()
+        let revealedAfterRemask = app.textFields["account.sign-in.password"]
+        XCTAssertTrue(revealedAfterRemask.waitForExistence(timeout: 2))
+        XCTAssertEqual(revealedAfterRemask.value as? String, "synthetic-passphrase-visible")
+        revealedAfterRemask.typeText("-hidden")
+        XCTAssertEqual(revealedAfterRemask.value as? String, "synthetic-passphrase-visible-hidden")
+        app.buttons["account.sign-in.password-visibility"].tap()
+        XCTAssertTrue(app.secureTextFields["account.sign-in.password"].waitForExistence(timeout: 2))
+
+        email.tap()
+        app.buttons["account.sign-in.password-visibility"].tap()
+        let revealedAfterUnfocusedToggle = app.textFields["account.sign-in.password"]
+        XCTAssertTrue(revealedAfterUnfocusedToggle.waitForExistence(timeout: 2))
+        XCTAssertEqual(revealedAfterUnfocusedToggle.value as? String, "synthetic-passphrase-visible-hidden")
+        revealedAfterUnfocusedToggle.tap()
+        app.buttons["account.sign-in.password-visibility"].tap()
+        let remaskedAfterRefocus = app.secureTextFields["account.sign-in.password"]
+        XCTAssertTrue(remaskedAfterRefocus.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+
+        XCTAssertTrue(submit.isHittable)
+        XCTAssertGreaterThanOrEqual(submit.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(submit.frame.height, 44)
+        submit.tap()
         let authenticated = app.descendants(matching: .any)[
             "account.authenticated"
         ]
@@ -129,6 +180,12 @@ final class MangaLibraryUITests: XCTestCase {
         XCTAssertFalse(
             identityEmail.label.contains("ui-account@example.invalid")
         )
+
+        let signOut = app.buttons["account.sign-out"]
+        XCTAssertTrue(signOut.waitForExistence(timeout: 2))
+        XCTAssertTrue(signOut.isHittable)
+        XCTAssertGreaterThanOrEqual(signOut.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(signOut.frame.height, 44)
     }
 
     @MainActor
@@ -149,6 +206,14 @@ final class MangaLibraryUITests: XCTestCase {
         XCTAssertTrue(registerAction.waitForExistence(timeout: 2))
         registerAction.tap()
 
+        let submit = app.buttons["account.register.submit"]
+        XCTAssertTrue(submit.waitForExistence(timeout: 2))
+        XCTAssertTrue(submit.isEnabled)
+        submit.tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["account.register.email.failure"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["account.register.password.failure"].waitForExistence(timeout: 2))
+
         let email = app.textFields["account.register.email"]
         XCTAssertTrue(email.waitForExistence(timeout: 2))
         email.tap()
@@ -167,8 +232,49 @@ final class MangaLibraryUITests: XCTestCase {
         }
         password.typeText("synthetic-passphrase")
 
-        let submit = app.buttons["account.register.submit"]
-        XCTAssertTrue(submit.isEnabled)
+        let passwordVisibility = app.buttons["account.register.password-visibility"]
+        XCTAssertTrue(passwordVisibility.waitForExistence(timeout: 2))
+        XCTAssertTrue(passwordVisibility.isHittable)
+        XCTAssertGreaterThanOrEqual(passwordVisibility.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(passwordVisibility.frame.height, 44)
+        passwordVisibility.tap()
+
+        let revealedPassword = app.textFields["account.register.password"]
+        XCTAssertTrue(revealedPassword.waitForExistence(timeout: 2))
+        XCTAssertEqual(revealedPassword.value as? String, "synthetic-passphrase")
+        revealedPassword.typeText("-visible")
+        XCTAssertEqual(revealedPassword.value as? String, "synthetic-passphrase-visible")
+        let hidePassword = app.buttons["account.register.password-visibility"]
+        XCTAssertTrue(hidePassword.waitForExistence(timeout: 2))
+        XCTAssertTrue(hidePassword.isHittable)
+        hidePassword.tap()
+        let remaskedPassword = app.secureTextFields["account.register.password"]
+        XCTAssertTrue(remaskedPassword.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+
+        app.buttons["account.register.password-visibility"].tap()
+        let revealedAfterRemask = app.textFields["account.register.password"]
+        XCTAssertTrue(revealedAfterRemask.waitForExistence(timeout: 2))
+        XCTAssertEqual(revealedAfterRemask.value as? String, "synthetic-passphrase-visible")
+        revealedAfterRemask.typeText("-hidden")
+        XCTAssertEqual(revealedAfterRemask.value as? String, "synthetic-passphrase-visible-hidden")
+        app.buttons["account.register.password-visibility"].tap()
+        XCTAssertTrue(app.secureTextFields["account.register.password"].waitForExistence(timeout: 2))
+
+        email.tap()
+        app.buttons["account.register.password-visibility"].tap()
+        let revealedAfterUnfocusedToggle = app.textFields["account.register.password"]
+        XCTAssertTrue(revealedAfterUnfocusedToggle.waitForExistence(timeout: 2))
+        XCTAssertEqual(revealedAfterUnfocusedToggle.value as? String, "synthetic-passphrase-visible-hidden")
+        revealedAfterUnfocusedToggle.tap()
+        app.buttons["account.register.password-visibility"].tap()
+        let remaskedAfterRefocus = app.secureTextFields["account.register.password"]
+        XCTAssertTrue(remaskedAfterRefocus.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+
+        XCTAssertTrue(submit.isHittable)
+        XCTAssertGreaterThanOrEqual(submit.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(submit.frame.height, 44)
         submit.tap()
         let authenticated = app.descendants(matching: .any)[
             "account.authenticated"

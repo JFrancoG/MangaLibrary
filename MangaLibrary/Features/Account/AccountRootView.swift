@@ -14,9 +14,6 @@ struct AccountRootView: View {
     private enum Action: Hashable {
         case retryRestore
         case signOut
-        case retryLogout
-        case cancelLogout
-        case retryCleanup
     }
 
     let model: AccountModel
@@ -58,12 +55,6 @@ struct AccountRootView: View {
                 await model.restore()
             case .signOut:
                 await model.signOut()
-            case .retryLogout:
-                await model.retryLogout()
-            case .cancelLogout:
-                await model.cancelLogout()
-            case .retryCleanup:
-                await model.retryCleanup()
             }
 
             if requestedAction == action {
@@ -84,7 +75,13 @@ struct AccountRootView: View {
             restorationFailureContent(failure: failure)
 
         case let .signedOut(failure):
-            signedOutContent(failure: failure)
+            signInRequiredContent(
+                title: "Sign in to Manga Library",
+                description: "Sign in with an existing Manga Library account.",
+                failure: failure,
+                stateIdentifier: "account.signed-out",
+                allowsRegistration: true
+            )
 
         case .authenticating:
             ProgressView("Signing in")
@@ -110,43 +107,6 @@ struct AccountRootView: View {
                 .accessibilityValue(account.email ?? "")
                 .accessibilityIdentifier("account.signing-out")
 
-        case let .logoutPrepared(account, failure):
-            logoutPreparedContent(account: account, failure: failure)
-
-        case let .resolvingLogout(account):
-            ProgressView("Keeping session active")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .accessibilityValue(account.email ?? "")
-                .accessibilityIdentifier("account.logout-resolving")
-
-        case let .cleaning(_, completion, failure):
-            cleaningContent(completion: completion, failure: failure)
-        }
-    }
-
-    @ViewBuilder
-    private func signedOutContent(failure: AccountModel.Failure?) -> some View {
-        switch model.registrationState {
-        case .idle, .failed:
-            signInRequiredContent(
-                title: "Sign in to Manga Library",
-                description: "Sign in with an existing Manga Library account.",
-                failure: failure,
-                stateIdentifier: "account.signed-out",
-                allowsRegistration: true
-            )
-        case .submitting:
-            ProgressView("Creating account")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .accessibilityIdentifier("account.register.progress")
-        case .signingIn:
-            ProgressView("Signing in")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .accessibilityIdentifier("account.register.signing-in")
-        case let .unconfirmed(registrationFailure):
-            registrationUnconfirmedContent(failure: registrationFailure)
-        case let .created(loginFailure):
-            accountCreatedContent(loginFailure: loginFailure)
         }
     }
 
@@ -179,7 +139,7 @@ struct AccountRootView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                    .buttonSizing(.flexible)
+                    .buttonSizing(.fitted)
                     .accessibilityIdentifier("account.sign-in.action")
                     .padding(EdgeInsets(top: 0, leading: 0, bottom: 16, trailing: 0))
 
@@ -198,7 +158,7 @@ struct AccountRootView: View {
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.large)
-                            .buttonSizing(.flexible)
+                            .buttonSizing(.fitted)
                             .accessibilityIdentifier("account.register.action")
                         }
                     }
@@ -211,69 +171,6 @@ struct AccountRootView: View {
     private func accountActionLabel(_ title: LocalizedStringResource) -> some View {
         Text(title)
             .font(.headline)
-    }
-
-    private func registrationUnconfirmedContent(
-        failure: UserRegistrationFailure
-    ) -> some View {
-        ScrollView {
-            ContentUnavailableView {
-                Label(
-                    "Account creation couldn't be confirmed",
-                    systemImage: "questionmark.circle"
-                )
-                .accessibilityIdentifier("account.register.unconfirmed")
-            } description: {
-                VStack(spacing: 8) {
-                    Text(
-                        "The request may have created your account. Try signing in before creating it again."
-                    )
-                    Text(failure.errorDescriptionResource)
-                        .foregroundStyle(.secondary)
-                }
-            } actions: {
-                Button("Sign in") {
-                    path = [.signIn]
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("account.register.sign-in")
-
-                Button("Try creating account again") {
-                    model.prepareRegistrationRetry()
-                    path = [.register]
-                }
-                .accessibilityIdentifier("account.register.retry")
-            }
-            .padding(.vertical, 24)
-        }
-    }
-
-    private func accountCreatedContent(
-        loginFailure: AccountModel.Failure?
-    ) -> some View {
-        ScrollView {
-            ContentUnavailableView {
-                Label("Account created", systemImage: "checkmark.circle")
-                    .accessibilityIdentifier("account.register.created")
-            } description: {
-                VStack(spacing: 8) {
-                    Text(
-                        "Your account was created, but Manga Library couldn't sign you in."
-                    )
-                    if let loginFailure {
-                        Text(loginFailure.errorDescriptionResource)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } actions: {
-                Button("Sign in") {
-                    path = [.signIn]
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("account.register.sign-in")
-            }
-            .padding(.vertical, 24)
-        }
     }
 
     private func restorationFailureContent(failure: AccountModel.Failure) -> some View {
@@ -302,106 +199,73 @@ struct AccountRootView: View {
     }
 
     private func authenticatedContent(account: SessionAccount, notice: AccountModel.Failure?) -> some View {
-        Form {
-            Section {
-                if let email = account.email {
-                    LabeledContent("Email") {
-                        Text(email)
-                            .accessibilityIdentifier("account.identity.email")
-                    }
-                } else {
-                    Text("Signed in")
-                }
-            } header: {
-                Text("Account")
+        ScrollView {
+            VStack(spacing: 24) {
+                Label("Signed in", systemImage: "checkmark.circle.fill")
+                    .font(.title2.bold())
+                    .foregroundStyle(Color(.successInk))
+                    .frame(maxWidth: .infinity)
                     .accessibilityIdentifier("account.authenticated")
-            }
 
-            if let notice {
-                Section("Session notice") {
-                    Label(
-                        notice.errorDescriptionResource,
-                        systemImage: "exclamationmark.triangle"
-                    )
+                if let email = account.email {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Email")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color(.textSecondary))
+
+                        Text(email)
+                            .font(.body)
+                            .foregroundStyle(Color(.textPrimary))
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .privacySensitive()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
+                    .background(Color(.surface), in: .rect(cornerRadius: 16, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(Color(.separatorDecorative), lineWidth: 1)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("account.identity.email")
                 }
-            }
 
-            Section {
+                if let notice {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Session notice")
+                            .font(.headline)
+
+                        Label(notice.errorDescriptionResource, systemImage: "exclamationmark.triangle.fill")
+                    }
+                    .foregroundStyle(Color(.dangerInk))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
+                    .background(Color(.surface), in: .rect(cornerRadius: 16, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(Color(.dangerInk), lineWidth: 1)
+                    }
+                }
+
                 Button("Sign out", role: .destructive) {
                     requestedAction = .signOut
                 }
+                .font(.headline)
+                .foregroundStyle(Color(.onDanger))
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .buttonSizing(.fitted)
+                .tint(Color(.dangerFill))
                 .accessibilityIdentifier("account.sign-out")
             }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 32)
+            .frame(maxWidth: 728)
+            .frame(maxWidth: .infinity)
         }
-        .scrollContentBackground(.hidden)
         .background(Color(.canvas))
-    }
-
-    private func logoutPreparedContent(account _: SessionAccount, failure: AccountModel.Failure?) -> some View {
-        ScrollView {
-            ContentUnavailableView {
-                Label("Sign out needs attention", systemImage: "exclamationmark.triangle")
-                    .accessibilityIdentifier("account.logout-prepared")
-            } description: {
-                VStack(spacing: 8) {
-                    Text("The session is still active and can be kept safely.")
-                    if let failure {
-                        Text(failure.errorDescriptionResource)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } actions: {
-                Button("Retry sign out") {
-                    requestedAction = .retryLogout
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("account.logout.retry")
-
-                Button("Keep me signed in") {
-                    requestedAction = .cancelLogout
-                }
-                .accessibilityIdentifier("account.logout.cancel")
-            }
-            .padding(.vertical, 24)
-        }
-    }
-
-    @ViewBuilder
-    private func cleaningContent(completion: SessionCleanupCompletion, failure: AccountModel.Failure?) -> some View {
-        if let failure {
-            ScrollView {
-                ContentUnavailableView {
-                    Label("Session cleanup needs attention", systemImage: "lock.trianglebadge.exclamationmark")
-                        .accessibilityIdentifier("account.cleaning.failure")
-                } description: {
-                    VStack(spacing: 8) {
-                        Text(cleanupDescription(for: completion))
-                        Text(failure.errorDescriptionResource)
-                            .foregroundStyle(.secondary)
-                    }
-                } actions: {
-                    Button("Retry cleanup") {
-                        requestedAction = .retryCleanup
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityIdentifier("account.cleanup.retry")
-                }
-                .padding(.vertical, 24)
-            }
-        } else {
-            ProgressView("Finishing secure session cleanup")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .accessibilityIdentifier("account.cleaning")
-        }
-    }
-
-    private func cleanupDescription(for completion: SessionCleanupCompletion) -> LocalizedStringResource {
-        switch completion {
-        case .signedOut:
-            "Finish removing the signed-out session from this device."
-        case .authenticationRequired:
-            "Finish removing expired credentials before signing in again."
-        }
     }
 
     private var authenticatedAccountID: UUID? {
@@ -420,23 +284,12 @@ struct AccountRootView: View {
     )
 }
 
-#Preview("Account registration unconfirmed") {
+#Preview("Account landing after registration uncertainty") {
     AccountRootView(
         model: AccountPreviewSupport.model(
             state: .signedOut(failure: nil),
             registrationState: .unconfirmed(
                 .network(.transport(.timedOut))
-            )
-        )
-    )
-}
-
-#Preview("Account created, sign in required") {
-    AccountRootView(
-        model: AccountPreviewSupport.model(
-            state: .signedOut(failure: nil),
-            registrationState: .created(
-                loginFailure: .invalidCredentials
             )
         )
     )
@@ -467,6 +320,28 @@ struct AccountRootView: View {
     )
 }
 
+#Preview("Account authenticated without email") {
+    AccountRootView(
+        model: AccountPreviewSupport.model(
+            state: .authenticated(
+                AccountPreviewSupport.accountWithoutEmail,
+                notice: nil
+            )
+        )
+    )
+}
+
+#Preview("Account authenticated with notice") {
+    AccountRootView(
+        model: AccountPreviewSupport.model(
+            state: .authenticated(
+                AccountPreviewSupport.account,
+                notice: .temporarilyUnavailable
+            )
+        )
+    )
+}
+
 #Preview("Account authentication required") {
     AccountRootView(
         model: AccountPreviewSupport.model(
@@ -478,53 +353,10 @@ struct AccountRootView: View {
     )
 }
 
-#Preview("Account logout prepared") {
-    AccountRootView(
-        model: AccountPreviewSupport.model(
-            state: .logoutPrepared(
-                AccountPreviewSupport.account,
-                failure: .temporarilyUnavailable
-            )
-        )
-    )
-}
-
 #Preview("Account signing out") {
     AccountRootView(
         model: AccountPreviewSupport.model(
             state: .signingOut(AccountPreviewSupport.account)
-        )
-    )
-}
-
-#Preview("Account keeping session active") {
-    AccountRootView(
-        model: AccountPreviewSupport.model(
-            state: .resolvingLogout(AccountPreviewSupport.account)
-        )
-    )
-}
-
-#Preview("Account cleanup failure") {
-    AccountRootView(
-        model: AccountPreviewSupport.model(
-            state: .cleaning(
-                userID: AccountPreviewSupport.account.id,
-                completion: .signedOut,
-                failure: .temporarilyUnavailable
-            )
-        )
-    )
-}
-
-#Preview("Account cleanup in progress") {
-    AccountRootView(
-        model: AccountPreviewSupport.model(
-            state: .cleaning(
-                userID: AccountPreviewSupport.account.id,
-                completion: .signedOut,
-                failure: nil
-            )
         )
     )
 }

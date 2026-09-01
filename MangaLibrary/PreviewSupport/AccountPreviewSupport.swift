@@ -14,6 +14,14 @@ enum AccountPreviewSupport {
         role: "user"
     )
 
+    static let accountWithoutEmail = SessionAccount(
+        id: UUID(uuidString: "A11CE000-0000-4000-8000-000000000002")!,
+        email: nil,
+        isActive: true,
+        isAdmin: false,
+        role: "user"
+    )
+
     @MainActor
     static func model(
         state: AccountModel.State,
@@ -40,12 +48,6 @@ enum AccountPreviewSupport {
             .active(account)
         case let .authenticationRequired(userID, _):
             .authenticationRequired(userID)
-        case let .logoutPrepared(account, _):
-            .logoutPrepared(account)
-        case let .resolvingLogout(account):
-            .logoutPrepared(account)
-        case let .cleaning(userID, completion, _):
-            .cleaning(userID: userID, completion: completion)
         }
     }
 }
@@ -65,10 +67,7 @@ private actor AccountPreviewSession {
             restore: { [self] in await restore() },
             login: { [self] email, _ in await login(email: email) },
             register: { _, _ in .confirmed },
-            logout: { [self] in try await logout() },
-            retryLogout: { [self] in try await retryLogout() },
-            cancelLogout: { [self] in try await cancelLogout() },
-            retryCleanup: { [self] in await retryCleanup() }
+            logout: { [self] in try await logout() }
         )
     }
 
@@ -96,32 +95,4 @@ private actor AccountPreviewSession {
         return snapshot
     }
 
-    private func retryLogout() throws(SessionControllerError) -> SessionSnapshot {
-        guard case .logoutPrepared = snapshot else {
-            throw SessionControllerError.transitionInProgress
-        }
-        snapshot = .signedOut
-        return snapshot
-    }
-
-    private func cancelLogout() throws(SessionControllerError) -> SessionSnapshot {
-        guard case .logoutPrepared = snapshot else {
-            throw SessionControllerError.transitionInProgress
-        }
-        snapshot = .active(fallbackAccount)
-        return snapshot
-    }
-
-    private func retryCleanup() -> SessionSnapshot {
-        switch snapshot {
-        case let .cleaning(userID, .authenticationRequired):
-            snapshot = .authenticationRequired(userID)
-        case .cleaning:
-            snapshot = .signedOut
-        case .notRestored, .signedOut, .active, .logoutPrepared,
-             .authenticationRequired:
-            break
-        }
-        return snapshot
-    }
 }

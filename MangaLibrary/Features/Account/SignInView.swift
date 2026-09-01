@@ -6,116 +6,170 @@
 import SwiftUI
 
 struct SignInView: View {
-    private enum Field: Hashable {
-        case email
-        case password
+    @State private var viewModel: SignInViewModel
+    @FocusState private var focusedField: SignInViewModel.FocusedField?
+
+    init(model: AccountModel) {
+        _viewModel = State(initialValue: SignInViewModel(accountModel: model))
     }
-
-    let model: AccountModel
-
-    @State private var email = ""
-    @State private var password = ""
-    @State private var signInTask: Task<Void, Never>?
-    @FocusState private var focusedField: Field?
 
     var body: some View {
         Form {
-            Section("Credentials") {
-                TextField("Email", text: $email)
-                    .textContentType(.username)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .submitLabel(.next)
-                    .focused($focusedField, equals: .email)
-                    .onSubmit {
-                        focusedField = .password
-                    }
-                    .accessibilityIdentifier("account.sign-in.email")
+            emailSection
+            passwordSection
 
-                SecureField("Password", text: $password)
-                    .textContentType(.password)
-                    .submitLabel(.go)
-                    .focused($focusedField, equals: .password)
-                    .onSubmit {
-                        startSignIn()
-                    }
-                    .accessibilityIdentifier("account.sign-in.password")
-            }
-
-            if let failure {
+            if let failure = viewModel.failure {
                 Section("Unable to sign in") {
-                    Label(
-                        failure.errorDescriptionResource,
-                        systemImage: "exclamationmark.triangle"
-                    )
+                    Label(failure.errorDescriptionResource, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(Color(.dangerInk))
                 }
                 .accessibilityIdentifier("account.sign-in.failure")
             }
 
             Section {
-                Button("Sign in") {
-                    startSignIn()
-                }
-                .disabled(canSubmit == false)
-                .accessibilityIdentifier("account.sign-in.submit")
+                VStack(spacing: 22) {
+                    Button {
+                        focusedField = viewModel.submit(currentFocus: focusedField)
+                    } label: {
+                        Text("Sign in")
+                            .font(.headline)
+                            .foregroundStyle(Color(.onBrandPrimary))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .buttonSizing(.fitted)
+                    .tint(Color(.brandPrimary))
+                    .accessibilityIdentifier("account.sign-in.submit")
 
-                if isAuthenticating {
-                    ProgressView("Signing in")
-                        .accessibilityIdentifier("account.sign-in.progress")
+                    if viewModel.isAuthenticating {
+                        ProgressView("Signing in")
+                            .accessibilityIdentifier("account.sign-in.progress")
+                    }
                 }
+                .frame(maxWidth: .infinity)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
         }
         .scrollContentBackground(.hidden)
         .background(Color(.canvas))
         .navigationTitle("Sign in")
         .defaultFocus($focusedField, .email)
-        .disabled(isAuthenticating)
+        .disabled(viewModel.isAuthenticating)
+        .onChange(of: focusedField) { previousField, currentField in
+            viewModel.focusChanged(from: previousField, to: currentField)
+        }
         .onDisappear {
-            signInTask?.cancel()
-            signInTask = nil
-            password = ""
+            focusedField = viewModel.disappear(currentFocus: focusedField)
         }
     }
 
-    private var isAuthenticating: Bool {
-        model.state == .authenticating
-    }
-
-    private var canSubmit: Bool {
-        model.canSubmitSignIn(email: email, password: password)
-            && isAuthenticating == false
-    }
-
-    private var failure: AccountModel.Failure? {
-        switch model.state {
-        case let .signedOut(failure),
-             let .authenticationRequired(_, failure):
-            failure
-        case .restoring, .restorationFailed, .authenticating,
-             .authenticated, .signingOut, .logoutPrepared,
-             .resolvingLogout, .cleaning:
-            nil
+    private var emailSection: some View {
+        Section {
+            TextField("Email", text: $viewModel.email)
+                .textContentType(.username)
+                .keyboardType(.emailAddress)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.next)
+                .focused($focusedField, equals: .email)
+                .onSubmit {
+                    focusedField = viewModel.emailSubmitted()
+                }
+                .accessibilityIdentifier("account.sign-in.email")
+                .padding(.horizontal, 16)
+                .frame(minHeight: 48)
+                .background(Color(.surface), in: .rect(cornerRadius: 12, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color(.controlBorder), lineWidth: 1)
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                .listRowBackground(Color(.canvas))
+        } footer: {
+            if let emailFailure = viewModel.emailFailure {
+                Label(emailFailure.errorDescriptionResource, systemImage: "exclamationmark.circle.fill")
+                .font(.footnote)
+                .foregroundStyle(Color(.dangerInk))
+                .accessibilityIdentifier("account.sign-in.email.failure")
+            }
         }
     }
 
-    private func startSignIn() {
-        guard canSubmit else {
-            return
+    private var passwordSection: some View {
+        Section {
+            HStack(spacing: 8) {
+                Group {
+                    if viewModel.isPasswordVisible {
+                        TextField("Password", text: $viewModel.password)
+                            .focused($focusedField, equals: .revealedPassword)
+                    } else {
+                        SecureField("Password", text: $viewModel.password)
+                            .focused($focusedField, equals: .concealedPassword)
+                    }
+                }
+                .textContentType(.password)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.go)
+                .onSubmit {
+                    focusedField = viewModel.submit(currentFocus: focusedField)
+                }
+                .accessibilityIdentifier("account.sign-in.password")
+                .privacySensitive()
+
+                Button {
+                    focusedField = viewModel.togglePasswordVisibility(currentFocus: focusedField)
+                } label: {
+                    Label {
+                        Text(viewModel.passwordVisibilityLabel)
+                    } icon: {
+                        Image(systemName: viewModel.isPasswordVisible ? "eye.slash" : "eye")
+                    }
+                    .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.plain)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(.rect)
+                .tint(Color(.brandPrimary))
+                .accessibilityIdentifier("account.sign-in.password-visibility")
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 48)
+            .background(Color(.surface), in: .rect(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color(.controlBorder), lineWidth: 1)
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+            .listRowBackground(Color(.canvas))
+        } footer: {
+            if let passwordFailure = viewModel.passwordFailure {
+                Label(passwordFailure.errorDescriptionResource, systemImage: "exclamationmark.circle.fill")
+                .font(.footnote)
+                .foregroundStyle(Color(.dangerInk))
+                .accessibilityIdentifier("account.sign-in.password.failure")
+            }
         }
+    }
 
-        let submittedEmail = email
-        let submittedPassword = password
-        password = ""
-        focusedField = nil
+}
 
-        signInTask?.cancel()
-        signInTask = Task { @MainActor [model] in
-            await model.signIn(
-                email: submittedEmail,
-                password: submittedPassword
+private extension SignInView {
+    init(
+        previewModel model: AccountModel,
+        email: String,
+        password: String,
+        showsValidationErrors: Bool
+    ) {
+        _viewModel = State(
+            initialValue: SignInViewModel(
+                accountModel: model,
+                email: email,
+                password: password,
+                showsValidationErrors: showsValidationErrors
             )
-        }
+        )
     }
 }
 
@@ -138,6 +192,21 @@ struct SignInView: View {
         )
     }
     .environment(\.dynamicTypeSize, .accessibility3)
+}
+
+#Preview("Sign in inline validation Spanish AX5") {
+    NavigationStack {
+        SignInView(
+            previewModel: AccountPreviewSupport.model(
+                state: .signedOut(failure: nil)
+            ),
+            email: "readerexample.invalid",
+            password: "",
+            showsValidationErrors: true
+        )
+    }
+    .environment(\.locale, Locale(identifier: "es"))
+    .environment(\.dynamicTypeSize, .accessibility5)
 }
 
 #Preview("Sign in authenticating") {

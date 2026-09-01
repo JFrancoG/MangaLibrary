@@ -1,9 +1,9 @@
 # ADR-0016: Ledger versionado y frontera Keychain de sesión
 
-**Estado:** Accepted
+**Estado:** Superseded
 **Fecha:** 2026-08-30
 **Supersede:** —
-**Superseded by:** —
+**Superseded by:** [ADR-0018](0018-single-keychain-session-bundle-and-atomic-logout.md)
 **Complementa:** [ADR-0006](0006-authentication-keychain-and-sync.md) y [ADR-0013](0013-advanced-logout-and-deluxe-bridge-boundary.md)
 
 ## Contexto

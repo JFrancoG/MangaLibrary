@@ -9,9 +9,9 @@ import Testing
 
 @Suite("User registration client", .tags(.fast))
 struct UserRegistrationClientTests {
-    @Test("Registration sends the exact live contract and accepts its opaque integer")
-    func registrationUsesTheLiveContract() async throws(any Error) {
-        let recorder = RegistrationRecordedDataLoader(data: Data("42".utf8))
+    @Test("Registration sends the request and accepts the declared 200 integer")
+    func registrationUsesDeclared200Contract() async throws(any Error) {
+        let recorder = RegistrationRecordedResponseLoader(data: Data("42".utf8))
         let register = try makeOperation { request in
             await recorder.load(request)
         }
@@ -49,10 +49,10 @@ struct UserRegistrationClientTests {
     fileprivate func invalidConfigurationFailsClosed(
         _ invalidToken: InvalidRegistrationAppToken
     ) async throws(any Error) {
-        let recorder = RegistrationRecordedDataLoader(data: Data("42".utf8))
+        let recorder = RegistrationRecordedResponseLoader(data: Data("42".utf8))
         let register = try makeOperation(
             appToken: invalidToken.value,
-            loadData: { request in
+            loadResponse: { request in
                 await recorder.load(request)
             }
         )
@@ -122,7 +122,7 @@ struct UserRegistrationClientTests {
 
     @Test("Cancellation before submission never reaches transport")
     func cancellationBeforeSubmissionIsNotSubmitted() async throws(any Error) {
-        let recorder = RegistrationRecordedDataLoader(data: Data("42".utf8))
+        let recorder = RegistrationRecordedResponseLoader(data: Data("42".utf8))
         let gate = RegistrationOperationGate()
         let register = try makeOperation { request in
             await recorder.load(request)
@@ -163,19 +163,19 @@ struct UserRegistrationClientTests {
         appToken: String? = "synthetic-app-token",
         returning data: Data
     ) throws(any Error) -> UserRegistrationClient.Operation {
-        try makeOperation(appToken: appToken) { _ in data }
+        try makeOperation(appToken: appToken) { _ in HTTPResponse(data: data, statusCode: 200) }
     }
 
     fileprivate func makeOperation(
         appToken: String? = "synthetic-app-token",
-        loadData: @escaping UserRegistrationClient.DataLoader
+        loadResponse: @escaping UserRegistrationClient.ResponseLoader
     ) throws(any Error) -> UserRegistrationClient.Operation {
         let baseURL = try #require(URL(string: "https://registration.example.test"))
 
         return UserRegistrationClient.operation(
             configuration: try APIConfiguration(baseURL: baseURL),
             appToken: appToken,
-            loadData: loadData
+            loadResponse: loadResponse
         )
     }
 }
@@ -211,17 +211,17 @@ private enum InvalidRegistrationAppToken: CaseIterable, CustomTestStringConverti
 
 private struct RegistrationLoaderFailure: Error {}
 
-private actor RegistrationRecordedDataLoader {
-    private let data: Data
+private actor RegistrationRecordedResponseLoader {
+    private let response: HTTPResponse
     private var recordedRequests: [URLRequest] = []
 
-    init(data: Data) {
-        self.data = data
+    init(data: Data, statusCode: Int = 200) {
+        response = HTTPResponse(data: data, statusCode: statusCode)
     }
 
-    func load(_ request: URLRequest) -> Data {
+    func load(_ request: URLRequest) -> HTTPResponse {
         recordedRequests.append(request)
-        return data
+        return response
     }
 
     func requests() -> [URLRequest] {

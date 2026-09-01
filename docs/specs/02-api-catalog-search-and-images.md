@@ -235,4 +235,4 @@ Las pruebas de construcción de request y decodificación inyectan bytes y regis
 - [Arquitectura y composición](01-architecture-and-composition.md)
 - [Colección local e invariantes](03-local-collection-and-invariants.md)
 - [Caracterización del contrato OpenAPI](../api/openapi-contract.md)
-- [ADR-0015: flujos nativos, composición live y navegación adaptable](../adr/0015-native-flows-live-composition-and-adaptive-navigation.md)
+- [ADR-0017: flujos nativos y respuesta HTTP con status validado](../adr/0017-validated-http-status-response-boundary.md)

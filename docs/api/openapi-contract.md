@@ -92,6 +92,21 @@ aparece en las descripciones y debe respetarse en el cliente.
 Los flujos legacy y JWT de un solo token siguen presentes, pero no sustituyen la
 decisión de sesión dual de la [SDD 04][sdd-04].
 
+### Deriva runtime observada en el alta
+
+El 31 de agosto de 2026, una prueba manual autorizada de `POST /users` en el
+iPhone físico recibió `201 Created`. Ese status coincide con el
+[enunciado aprobado][practice-statement], pero contradice la única respuesta
+`200` con `integer/int64` que sigue publicando el OpenAPI vivo. La observación
+caracteriza solo el status: no se conserva ni se atribuye una forma al body, y
+no se registran email, token o payload.
+
+Hasta que el servidor reconcilie ambas fuentes, el producto acepta exactamente
+`200` y `201`: `200` mantiene la validación del `Int64` declarado y `201`
+confirma la creación sin exigir un body no especificado. Cualquier otro status,
+incluido otro `2xx`, conserva el resultado como no confirmado. El snapshot no se
+modifica porque sigue representando fielmente lo que publica OpenAPI.
+
 ## Catálogo, búsqueda y paginación
 
 Las diecisiete operaciones públicas se agrupan en:
@@ -168,7 +183,8 @@ en otro caso existente. `mainPicture` y `url` son strings nullable, no schemas
 ## Vacíos contractuales
 
 - Las treinta operaciones solo modelan respuesta `200`. Algunas descripciones
-  mencionan `404`, pero no existe response ni payload de error tipado.
+  mencionan `404`, pero no existe response ni payload de error tipado; además,
+  `POST /users` ha devuelto `201` en runtime sin reflejarlo en el schema.
 - No hay `servers`, ordenación configurable, idempotency key, endpoint de
   revocación, rate limits, ETag ni versión de recurso.
 - Los schemas de paginación omiten límites y defaults machine-readable.
@@ -195,12 +211,14 @@ Antes de implementar o cambiar una operación:
 5. regenerar snapshot y checksum solo dentro de una unidad revisable;
 6. derivar después DTOs y fixtures mínimos para la operación implementada.
 
-No se realizan peticiones funcionales, login, altas ni escrituras para validar
-esta baseline. Build, tests de Xcode y TDD no aplican a este cambio documental;
-sí aplican validación JSON/OpenAPI, referencias, checksum, privacidad, enlaces y
-revisión iOS/API.
+La baseline del 25 de agosto se obtuvo sin peticiones funcionales, login, altas
+ni escrituras. La observación manual posterior de `201` queda separada arriba y
+no altera su snapshot. Build, tests de Xcode y TDD no aplicaron a la creación de
+la baseline; sí aplicaron validación JSON/OpenAPI, referencias, checksum,
+privacidad, enlaces y revisión iOS/API.
 
 [live-docs]: https://mymanga-acacademy-5607149ebe3d.herokuapp.com/docs
 [live-contract]: https://mymanga-acacademy-5607149ebe3d.herokuapp.com/openapi/openapi.json
 [snapshot]: ../../Contracts/OpenAPI/openapi.json
 [sdd-04]: ../specs/04-authentication-and-sync.md
+[practice-statement]: ../sources/Practica_Mis_Mangas_SDP_2026.md#creación-de-usuario
