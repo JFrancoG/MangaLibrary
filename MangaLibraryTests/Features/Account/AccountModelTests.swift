@@ -48,7 +48,7 @@ struct AccountModelTests {
             await model.signIn(email: "a@example.invalid", password: "synthetic-passphrase")
         }
         await gate.waitUntilArrived()
-        #expect(model.state == .authenticating)
+        #expect(model.state == .authenticating(previousUserID: nil))
 
         await gate.open()
         await signIn.value
@@ -138,7 +138,7 @@ struct AccountModelTests {
         }
         await gateA.waitUntilArrived()
         await model.signIn(email: "b@example.invalid", password: "synthetic-b")
-        #expect(model.state == .authenticating)
+        #expect(model.state == .authenticating(previousUserID: nil))
         await gateA.open()
         await signInA.value
 
@@ -182,7 +182,7 @@ struct AccountModelTests {
 
         await model.restore()
 
-        #expect(model.state == .authenticating)
+        #expect(model.state == .authenticating(previousUserID: nil))
         await gate.open()
         await signIn.value
         #expect(model.state == .authenticated(Self.accountA, notice: nil))
@@ -492,7 +492,7 @@ struct CredentialFormViewModelTests {
             await session.remoteCalls()
                 == [.login(email: "reader@example.invalid", password: "synthetic-passphrase")]
         )
-        #expect(accountModel.state == .authenticating)
+        #expect(accountModel.state == .authenticating(previousUserID: nil))
 
         await gate.open()
         await viewModel.waitForPendingOperation()

@@ -17,6 +17,7 @@ struct Manga: Identifiable, Equatable {
     let demographics: [Classification]
     let genres: [Classification]
     let themes: [Classification]
+    private(set) var totalVolumes: Int64? = nil
     let coverURL: URL?
 }
 

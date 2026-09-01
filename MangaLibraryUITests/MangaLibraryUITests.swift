@@ -23,6 +23,23 @@ final class MangaLibraryUITests: XCTestCase {
         firstManga.tap()
         let detail = app.descendants(matching: .any)["manga.detail.1"]
         XCTAssertTrue(detail.waitForExistence(timeout: 2))
+
+        let collectionDisclosure = app.buttons["collection.disclosure.1"]
+        for _ in 0..<4 where collectionDisclosure.exists == false {
+            detail.swipeUp()
+        }
+        XCTAssertTrue(collectionDisclosure.waitForExistence(timeout: 2))
+        for _ in 0..<4 where collectionDisclosure.isHittable == false {
+            detail.swipeUp()
+        }
+        XCTAssertTrue(collectionDisclosure.isHittable)
+
+        let signedOutMessage = app.descendants(matching: .any)["collection.controls.unavailable"]
+        XCTAssertTrue(signedOutMessage.waitForExistence(timeout: 2))
+        collectionDisclosure.tap()
+        XCTAssertTrue(signedOutMessage.waitForNonExistence(timeout: 2))
+        collectionDisclosure.tap()
+        XCTAssertTrue(signedOutMessage.waitForExistence(timeout: 2))
     }
 
     @MainActor
@@ -52,6 +69,84 @@ final class MangaLibraryUITests: XCTestCase {
 
         filtersButton.tap()
         XCTAssertTrue(cancelButton.waitForExistence(timeout: 2))
+    }
+
+    @MainActor
+    func testCatalogDetailSavesMangaIntoCollection() throws {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing")
+        app.launch()
+
+        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
+        XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
+        accountTab.tap()
+
+        let signInAction = app.descendants(matching: .any)
+            .matching(identifier: "account.sign-in.action")
+            .firstMatch
+        XCTAssertTrue(signInAction.waitForExistence(timeout: 2))
+        signInAction.tap()
+
+        let email = app.textFields["account.sign-in.email"]
+        XCTAssertTrue(email.waitForExistence(timeout: 2))
+        email.tap()
+        email.typeText("ui-collection@example.invalid")
+
+        let password = app.secureTextFields["account.sign-in.password"]
+        XCTAssertTrue(password.waitForExistence(timeout: 2))
+        password.tap()
+        password.typeText("synthetic-passphrase")
+
+        let signInSubmit = app.buttons["account.sign-in.submit"]
+        XCTAssertTrue(signInSubmit.waitForExistence(timeout: 2))
+        signInSubmit.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["account.authenticated"].waitForExistence(timeout: 2))
+
+        let catalogTab = app.buttons.matching(identifier: "tab.catalog").firstMatch
+        XCTAssertTrue(catalogTab.waitForExistence(timeout: 2))
+        catalogTab.tap()
+
+        let firstManga = app.descendants(matching: .any)["catalog.row.1"]
+        XCTAssertTrue(firstManga.waitForExistence(timeout: 5))
+        firstManga.tap()
+        let detail = app.descendants(matching: .any)["manga.detail.1"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 2))
+
+        let addToCollection = app.buttons["collection.add.1"]
+        for _ in 0..<4 where addToCollection.exists == false {
+            detail.swipeUp()
+        }
+        XCTAssertTrue(addToCollection.waitForExistence(timeout: 2))
+        if addToCollection.isHittable == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(addToCollection.isHittable)
+        addToCollection.tap()
+
+        let firstVolume = app.switches["collection.editor.owned-volume.1"]
+        XCTAssertTrue(firstVolume.waitForExistence(timeout: 2))
+        XCTAssertEqual(firstVolume.value as? String, "0")
+        firstVolume.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(firstVolume.value as? String, "1")
+
+        let cancel = app.buttons["collection.editor.cancel"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 2))
+        XCTAssertTrue(["Cancel", "Cancelar"].contains(cancel.label))
+
+        let save = app.buttons["collection.editor.save"]
+        XCTAssertTrue(save.waitForExistence(timeout: 2))
+        XCTAssertTrue(["Save", "Guardar"].contains(save.label))
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+        XCTAssertTrue(save.waitForNonExistence(timeout: 2))
+
+        let collectionTab = app.buttons.matching(identifier: "tab.collection").firstMatch
+        XCTAssertTrue(collectionTab.waitForExistence(timeout: 2))
+        collectionTab.tap()
+
+        let savedManga = app.buttons["collection.row.1"]
+        XCTAssertTrue(savedManga.waitForExistence(timeout: 2))
+        XCTAssertTrue(savedManga.label.contains("Fullmetal Alchemist"))
     }
 
     @MainActor

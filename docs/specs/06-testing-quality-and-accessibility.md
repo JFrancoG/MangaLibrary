@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.15
+**Versión:** 1.16
 **Fecha:** 2026-09-01
 
 ## Propósito
@@ -32,15 +32,19 @@ filtros Include Tags de Swift Testing: `Fast` incluye el tag `fast`, aplicado a
 `APIConfigurationTests`, `CatalogAPIClientTests`, `CatalogQueryTests`,
 `CatalogModelTests`, `LibraryColorTests`, `SessionAPIClientTests`,
 `SessionPersistenceFailureTests`, `SessionControllerTests` y
-`AccountModelTests` y `UserRegistrationClientTests` porque usan valores, bytes, recursos locales o capacidades
-directas y deterministas. `Integration` incluye el tag `integration`, aplicado
-a `HTTPClientTests`, que atraviesa la frontera real de `URLSession` mediante un
-`URLProtocol` limitado a su sesión, y a `SessionPersistenceActorTests` y
+`AccountModelTests`, `UserRegistrationClientTests` y `CollectionAccessTests`
+porque usan valores, bytes, recursos locales o capacidades directas y
+deterministas. `Integration` incluye el tag `integration`, aplicado a
+`HTTPClientTests`, que atraviesa la frontera real de `URLSession` mediante un
+`URLProtocol` limitado a su sesión; a `SessionPersistenceActorTests` y
 `SessionPersistenceStoreTests`, que recorren la coordinación serializada y el
-único bundle Keychain V2 en un service aislado. `UI` contiene únicamente
-`MangaLibraryUITests`. Toda suite nueva se clasifica en `Fast`, `Integration` o
-`UI` mediante su target y, cuando corresponda, su tag, en el mismo cambio que
-la introduce. No se filtra por nombres de funciones o suites.
+único bundle Keychain V2 en un service aislado; y a
+`CollectionMutationActorTests`, `CollectionMutationAuthorizationTests`,
+`CollectionPersistenceTests` y `CollectionEditorModelTests`, que recorren el
+container real, la capacidad autenticada, migración y reapertura. `UI` contiene
+únicamente `MangaLibraryUITests`. Toda suite nueva se clasifica en `Fast`,
+`Integration` o `UI` mediante su target y, cuando corresponda, su tag, en el
+mismo cambio que la introduce. No se filtra por nombres de funciones o suites.
 
 `ReleaseGate.xctestplan` incluye completos los targets `MangaLibraryTests` y
 `MangaLibraryUITests`. Por ello también detecta un test nuevo todavía no
@@ -110,7 +114,7 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 ### Interfaz
 
 XCUITest se limita a los menores recorridos deterministas que demuestren wiring
-crítico no cubierto con Swift Testing. En el alcance actual ejecuta cuatro:
+crítico no cubierto con Swift Testing. En el alcance actual ejecuta cinco:
 
 - bootstrap mock Debug → primera fila de Catálogo → detalle de la misma
   `Manga.ID`;
@@ -122,6 +126,9 @@ crítico no cubierto con Swift Testing. En el alcance actual ejecuta cuatro:
 - bootstrap mock Debug → Cuenta → alta con credenciales sintéticas → login S1
   inyectado → identidad sintética fija distinta del email introducido, sin leer
   `App-Token`, usar Keychain, persistir ni alcanzar red live.
+- bootstrap mock Debug → login sintético → detalle de Catálogo → alta por la
+  capacidad de producción → fila observada por `@Query` en Colección, con un
+  único `ModelContainer` real en memoria y sin red, Keychain o disco live.
 
 Un flujo UI adicional solo se incorpora cuando exista un riesgo observable que
 no pueda caracterizarse con estado, modelo, integración o preview, y se elimina

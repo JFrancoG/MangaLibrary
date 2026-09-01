@@ -45,7 +45,13 @@ final class SignInViewModel {
         validatedFields = showsValidationErrors ? [.email, .password] : []
     }
 
-    var isAuthenticating: Bool { accountModel.state == .authenticating }
+    var isAuthenticating: Bool {
+        if case .authenticating = accountModel.state {
+            return true
+        }
+
+        return false
+    }
 
     var emailFailure: AccountModel.CredentialValidationFailure? {
         guard validatedFields.contains(.email) else { return nil }

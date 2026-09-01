@@ -3,6 +3,7 @@
 //  MangaLibrary
 //
 
+import SwiftData
 import SwiftUI
 
 enum AppTab: Hashable {
@@ -15,28 +16,26 @@ struct MainShellView: View {
     let loadCatalogPage: CatalogModel.PageLoader
     let loadCatalogFilterOptions: CatalogModel.FilterOptionsLoader
     let accountModel: AccountModel
+    let collectionMutation: CollectionMutation
 
     @State private var selectedTab: AppTab = .catalog
 
     var body: some View {
+        let collectionAccess = accountModel.state.collectionAccess
+
         TabView(selection: $selectedTab) {
             Tab("Catalog", systemImage: "books.vertical", value: .catalog) {
-                CatalogRootView(loadPage: loadCatalogPage, loadFilterOptions: loadCatalogFilterOptions)
+                CatalogRootView(
+                    loadPage: loadCatalogPage,
+                    loadFilterOptions: loadCatalogFilterOptions,
+                    collectionAccess: collectionAccess,
+                    collectionMutation: collectionMutation
+                )
             }
             .accessibilityIdentifier("tab.catalog")
 
             Tab("Collection", systemImage: "books.vertical.fill", value: .collection) {
-                NavigationSplitView {
-                    ContentUnavailableView(
-                        "Collection is not available yet",
-                        systemImage: "books.vertical",
-                        description: Text("Collection arrives in a later Advanced unit.")
-                    )
-                    .accessibilityIdentifier("collection.unavailable")
-                    .navigationTitle("Collection")
-                } detail: {
-                    ContentUnavailableView("Collection is not available yet", systemImage: "books.vertical")
-                }
+                CollectionRootView(access: collectionAccess, mutation: collectionMutation)
             }
             .accessibilityIdentifier("tab.collection")
 
@@ -52,10 +51,7 @@ struct MainShellView: View {
     }
 }
 
-#Preview("Shell") {
-    MainShellView(
-        loadCatalogPage: CatalogPreviewSupport.pageLoader,
-        loadCatalogFilterOptions: CatalogPreviewSupport.filterOptionsLoader,
-        accountModel: AccountPreviewSupport.model(state: .signedOut(failure: nil))
-    )
+#Preview("Shell", traits: .modifier(CollectionPreviewModifier<CollectionPreviewScenarios.Shell>())) {
+    @Previewable @Environment(\.modelContext) var modelContext
+    CollectionPreviewSupport.shell(container: modelContext.container)
 }

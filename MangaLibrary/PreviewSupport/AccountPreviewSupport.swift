@@ -35,8 +35,10 @@ enum AccountPreviewSupport {
         switch state {
         case .restoring, .restorationFailed:
             .notRestored
-        case .signedOut, .authenticating:
+        case .signedOut:
             .signedOut
+        case let .authenticating(previousUserID):
+            previousUserID.map(SessionSnapshot.authenticationRequired) ?? .signedOut
         case let .authenticated(account, _), let .signingOut(account):
             .active(account)
         case let .authenticationRequired(userID, _):

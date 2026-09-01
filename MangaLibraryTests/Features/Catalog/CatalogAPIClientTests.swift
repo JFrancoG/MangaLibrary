@@ -231,6 +231,7 @@ struct CatalogAPIClientTests {
         #expect(manga.synopsis == "Two brothers search for the Philosopher's Stone.")
         #expect(manga.score == 9.12)
         #expect(manga.status == .finished)
+        #expect(manga.totalVolumes == 27)
         #expect(
             manga.authors == [
                 Manga.Author(
@@ -266,6 +267,26 @@ struct CatalogAPIClientTests {
             ]
         )
         #expect(manga.coverURL == URL(string: "https://images.example.test/fullmetal-alchemist.jpg"))
+    }
+
+    @Test("Only a positive published volume total becomes known collection metadata", arguments: ["null", "0", "-1"])
+    func unavailablePublishedVolumeTotalRemainsUnknown(volumesJSON: String) async throws {
+        let item = CatalogJSONFixtures.manga(volumesJSON: volumesJSON)
+        let client = try makeClient(returning: CatalogJSONFixtures.page(items: [item]))
+
+        let page = try await client.fetch(CatalogPageRequest())
+
+        #expect(page.items.first?.totalVolumes == nil)
+    }
+
+    @Test("A missing optional published volume total remains unknown")
+    func missingPublishedVolumeTotalRemainsUnknown() async throws {
+        let item = CatalogJSONFixtures.manga(volumesJSON: nil)
+        let client = try makeClient(returning: CatalogJSONFixtures.page(items: [item]))
+
+        let page = try await client.fetch(CatalogPageRequest())
+
+        #expect(page.items.first?.totalVolumes == nil)
     }
 
     @Test("Every valid author role maps to its domain value", arguments: CatalogAuthorRoleMapping.allCases)

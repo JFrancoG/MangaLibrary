@@ -10,6 +10,50 @@ import Testing
 
 @Suite("Collection mutation actor", .tags(.integration))
 struct CollectionMutationActorTests {
+    @Test("A first mutation requires an offline presentation snapshot")
+    func firstMutationWithoutSnapshotLeavesTheStoreEmpty() async throws(any Error) {
+        let container = try makeContainer()
+        let actor = CollectionMutationActor(modelContainer: container)
+
+        await #expect(throws: CollectionMutationError.mangaSnapshotRequired) {
+            try await actor.apply(
+                CollectionMutationCommand(
+                    userID: Self.userA,
+                    mangaID: Self.mangaA,
+                    knownTotalVolumes: nil,
+                    change: .replaceOwnedVolumes([1])
+                ),
+                newOperationID: Self.operationA
+            )
+        }
+
+        #expect(try readStore(container) == PersistedCollectionStore(entries: [], operations: []))
+    }
+
+    @Test("A presentation snapshot must belong to the mutated manga")
+    func mismatchedSnapshotIdentityLeavesTheStoreEmpty() async throws(any Error) {
+        let container = try makeContainer()
+        let actor = CollectionMutationActor(modelContainer: container)
+        let mismatchedSnapshot = CollectionMangaSnapshot(manga: Self.manga(id: Self.mangaB))
+
+        await #expect(
+            throws: CollectionMutationError.mangaSnapshotIdentityMismatch(expected: Self.mangaA, actual: Self.mangaB)
+        ) {
+            try await actor.apply(
+                CollectionMutationCommand(
+                    userID: Self.userA,
+                    mangaID: Self.mangaA,
+                    mangaSnapshot: mismatchedSnapshot,
+                    knownTotalVolumes: nil,
+                    change: .replaceOwnedVolumes([1])
+                ),
+                newOperationID: Self.operationA
+            )
+        }
+
+        #expect(try readStore(container) == PersistedCollectionStore(entries: [], operations: []))
+    }
+
     @Test("A manga identity must be positive", arguments: [Int64(0), Int64(-1)])
     func invalidMangaIdentityLeavesTheStoreEmpty(mangaID: Manga.ID) async throws(any Error) {
         let container = try makeContainer()
@@ -17,7 +61,7 @@ struct CollectionMutationActorTests {
 
         await #expect(throws: CollectionMutationError.invalidIdentity) {
             try await actor.apply(
-                CollectionMutationCommand(
+                Self.command(
                     userID: Self.userA,
                     mangaID: mangaID,
                     knownTotalVolumes: nil,
@@ -36,7 +80,7 @@ struct CollectionMutationActorTests {
         let actor = CollectionMutationActor(modelContainer: container)
 
         let result = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: nil,
@@ -91,7 +135,7 @@ struct CollectionMutationActorTests {
 
         await #expect(throws: CollectionMutationError.nonPositiveVolume(0)) {
             try await actor.apply(
-                CollectionMutationCommand(
+                Self.command(
                     userID: Self.userA,
                     mangaID: Self.mangaA,
                     knownTotalVolumes: nil,
@@ -111,7 +155,7 @@ struct CollectionMutationActorTests {
 
         await #expect(throws: CollectionMutationError.nonPositiveKnownTotal(total)) {
             try await actor.apply(
-                CollectionMutationCommand(
+                Self.command(
                     userID: Self.userA,
                     mangaID: Self.mangaA,
                     knownTotalVolumes: total,
@@ -131,7 +175,7 @@ struct CollectionMutationActorTests {
 
         await #expect(throws: CollectionMutationError.volumeExceedsKnownTotal(volume: 4, total: 3)) {
             try await actor.apply(
-                CollectionMutationCommand(
+                Self.command(
                     userID: Self.userA,
                     mangaID: Self.mangaA,
                     knownTotalVolumes: 3,
@@ -151,7 +195,7 @@ struct CollectionMutationActorTests {
 
         await #expect(throws: CollectionMutationError.nonPositiveVolume(volume)) {
             try await actor.apply(
-                CollectionMutationCommand(
+                Self.command(
                     userID: Self.userA,
                     mangaID: Self.mangaA,
                     knownTotalVolumes: nil,
@@ -169,7 +213,7 @@ struct CollectionMutationActorTests {
         let container = try makeContainer()
         let actor = CollectionMutationActor(modelContainer: container)
         _ = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -179,7 +223,7 @@ struct CollectionMutationActorTests {
         )
 
         let accepted = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -189,7 +233,7 @@ struct CollectionMutationActorTests {
         )
         await #expect(throws: CollectionMutationError.volumeExceedsKnownTotal(volume: 4, total: 3)) {
             try await actor.apply(
-                CollectionMutationCommand(
+                Self.command(
                     userID: Self.userA,
                     mangaID: Self.mangaA,
                     knownTotalVolumes: 3,
@@ -215,6 +259,95 @@ struct CollectionMutationActorTests {
         #expect(store.operations.map(\.desiredState) == [expectedState])
     }
 
+    @Test("Whole-editor replacement canonicalizes ownership and an invalid replacement rolls back")
+    func replacementStateCanonicalizesAndRollsBackAtomically() async throws(any Error) {
+        let container = try makeContainer()
+        let actor = CollectionMutationActor(modelContainer: container)
+        let accepted = try await actor.apply(
+            Self.command(
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                knownTotalVolumes: 3,
+                change: .replaceState(ownedVolumes: [3, 1, 3, 2], readingVolume: 2, isComplete: false)
+            ),
+            newOperationID: Self.operationA
+        )
+
+        await #expect(throws: CollectionMutationError.volumeExceedsKnownTotal(volume: 4, total: 3)) {
+            try await actor.apply(
+                Self.command(
+                    userID: Self.userA,
+                    mangaID: Self.mangaA,
+                    knownTotalVolumes: 3,
+                    change: .replaceState(ownedVolumes: [1, 3], readingVolume: 4, isComplete: false)
+                ),
+                newOperationID: Self.operationB
+            )
+        }
+
+        let expectedState = CollectionSnapshot(
+            ownedVolumes: [1, 2, 3],
+            readingVolume: 2,
+            isComplete: false,
+            knownTotalVolumes: 3,
+            isTombstone: false
+        )
+        let store = try readStore(container)
+        #expect(accepted.state == expectedState)
+        #expect(store.entries.map(\.state) == [expectedState])
+        #expect(store.operations.map(\.operationID) == [Self.operationA])
+        #expect(store.operations.map(\.sequence) == [1])
+        #expect(store.operations.map(\.desiredState) == [expectedState])
+    }
+
+    @Test("Deleting and re-adding coalesce one reversible local intent")
+    func deleteAndReactivationPreserveTheQueuedIdentity() async throws(any Error) {
+        let container = try makeContainer()
+        let actor = CollectionMutationActor(modelContainer: container)
+        _ = try await actor.apply(
+            Self.command(
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                knownTotalVolumes: 3,
+                change: .replaceOwnedVolumes([1])
+            ),
+            newOperationID: Self.operationA
+        )
+        let deleted = try await actor.apply(
+            CollectionMutationCommand(
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                knownTotalVolumes: 3,
+                change: .delete
+            ),
+            newOperationID: Self.operationB
+        )
+
+        #expect(deleted.state.isTombstone)
+        #expect(deleted.outboxOperationID == Self.operationA)
+        #expect(deleted.sequence == 2)
+
+        let reactivated = try await actor.apply(
+            Self.command(
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                knownTotalVolumes: 3,
+                change: .replaceOwnedVolumes([2])
+            ),
+            newOperationID: Self.operationC
+        )
+        let store = try readStore(container)
+
+        #expect(reactivated.state.isTombstone == false)
+        #expect(reactivated.outboxOperationID == Self.operationA)
+        #expect(reactivated.sequence == 3)
+        #expect(store.entries.map(\.state.ownedVolumes) == [[2]])
+        #expect(store.operations.map(\.operationID) == [Self.operationA])
+        #expect(store.operations.map(\.sequence) == [3])
+        #expect(store.operations.map(\.isTombstone) == [false])
+        #expect(store.operations.map(\.desiredState) == [reactivated.state])
+    }
+
     @Test("Complete state requires a total, preserves volumes when cleared, and falls when one volume is removed")
     func completeStateCanonicalizesAndFallsOnRemoval() async throws(any Error) {
         let container = try makeContainer()
@@ -222,7 +355,7 @@ struct CollectionMutationActorTests {
 
         await #expect(throws: CollectionMutationError.completeRequiresKnownTotal) {
             try await actor.apply(
-                CollectionMutationCommand(
+                Self.command(
                     userID: Self.userA,
                     mangaID: Self.mangaA,
                     knownTotalVolumes: nil,
@@ -233,7 +366,7 @@ struct CollectionMutationActorTests {
         }
 
         let completed = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -242,7 +375,7 @@ struct CollectionMutationActorTests {
             newOperationID: Self.operationB
         )
         let cleared = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -251,7 +384,7 @@ struct CollectionMutationActorTests {
             newOperationID: Self.operationC
         )
         _ = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -260,7 +393,7 @@ struct CollectionMutationActorTests {
             newOperationID: Self.operationD
         )
         let removed = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -290,7 +423,7 @@ struct CollectionMutationActorTests {
         let container = try makeContainer()
         let actor = CollectionMutationActor(modelContainer: container)
         _ = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: nil,
@@ -301,7 +434,7 @@ struct CollectionMutationActorTests {
 
         await #expect(throws: CollectionMutationError.knownTotalInvalidatesCurrentState(3)) {
             try await actor.apply(
-                CollectionMutationCommand(
+                Self.command(
                     userID: Self.userA,
                     mangaID: Self.mangaA,
                     knownTotalVolumes: 3,
@@ -323,7 +456,7 @@ struct CollectionMutationActorTests {
         let container = try makeContainer()
         let actor = CollectionMutationActor(modelContainer: container)
         _ = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: nil,
@@ -334,7 +467,7 @@ struct CollectionMutationActorTests {
 
         await #expect(throws: CollectionMutationError.knownTotalInvalidatesCurrentState(3)) {
             try await actor.apply(
-                CollectionMutationCommand(
+                Self.command(
                     userID: Self.userA,
                     mangaID: Self.mangaA,
                     knownTotalVolumes: 3,
@@ -356,7 +489,7 @@ struct CollectionMutationActorTests {
         let container = try makeContainer()
         let actor = CollectionMutationActor(modelContainer: container)
         _ = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -365,7 +498,7 @@ struct CollectionMutationActorTests {
             newOperationID: Self.operationA
         )
         _ = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -374,7 +507,7 @@ struct CollectionMutationActorTests {
             newOperationID: Self.operationB
         )
         _ = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userB,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -402,7 +535,7 @@ struct CollectionMutationActorTests {
         let container = try makeContainer()
         let actor = CollectionMutationActor(modelContainer: container)
         _ = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -411,7 +544,7 @@ struct CollectionMutationActorTests {
             newOperationID: Self.operationA
         )
         _ = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaB,
                 knownTotalVolumes: 4,
@@ -428,7 +561,7 @@ struct CollectionMutationActorTests {
         #expect(store.operations.map(\.operationID) == [Self.operationA, Self.operationB])
     }
 
-    @Test("The V1 schema independently enforces collection identity uniqueness")
+    @Test("The current schema independently enforces collection identity uniqueness")
     func versionedSchemaEnforcesCollectionIdentityUniqueness() throws(any Error) {
         let container = try makeContainer()
         let initialState = CollectionSnapshot(
@@ -478,7 +611,7 @@ struct CollectionMutationActorTests {
         let container = try makeContainer()
         let actor = CollectionMutationActor(modelContainer: container)
         _ = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -489,7 +622,7 @@ struct CollectionMutationActorTests {
 
         await #expect(throws: CollectionMutationError.persistenceConflict) {
             try await actor.apply(
-                CollectionMutationCommand(
+                Self.command(
                     userID: Self.userB,
                     mangaID: Self.mangaA,
                     knownTotalVolumes: 3,
@@ -539,7 +672,7 @@ struct CollectionMutationActorTests {
 
         let actor = CollectionMutationActor(modelContainer: container)
         _ = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -548,7 +681,7 @@ struct CollectionMutationActorTests {
             newOperationID: Self.operationB
         )
         let finalResult = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userA,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -571,13 +704,13 @@ struct CollectionMutationActorTests {
     func concurrentMutationsAreSerialized() async throws(any Error) {
         let container = try makeContainer()
         let actor = CollectionMutationActor(modelContainer: container)
-        let ownedCommand = CollectionMutationCommand(
+        let ownedCommand = Self.command(
             userID: Self.userA,
             mangaID: Self.mangaA,
             knownTotalVolumes: 3,
             change: .replaceOwnedVolumes([1, 3])
         )
-        let readingCommand = CollectionMutationCommand(
+        let readingCommand = Self.command(
             userID: Self.userA,
             mangaID: Self.mangaA,
             knownTotalVolumes: 3,
@@ -638,7 +771,7 @@ struct CollectionMutationActorTests {
         let actor = CollectionMutationActor(modelContainer: container)
         await #expect(throws: CollectionMutationError.sequenceExhausted) {
             try await actor.apply(
-                CollectionMutationCommand(
+                Self.command(
                     userID: Self.userA,
                     mangaID: Self.mangaA,
                     knownTotalVolumes: 3,
@@ -648,7 +781,7 @@ struct CollectionMutationActorTests {
             )
         }
         _ = try await actor.apply(
-            CollectionMutationCommand(
+            Self.command(
                 userID: Self.userB,
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
@@ -675,7 +808,7 @@ struct CollectionMutationActorTests {
                 $0?.cancel()
             }
             return try await actor.apply(
-                CollectionMutationCommand(
+                Self.command(
                     userID: Self.userA,
                     mangaID: Self.mangaA,
                     knownTotalVolumes: 3,
@@ -693,6 +826,38 @@ struct CollectionMutationActorTests {
 
     private func makeContainer() throws(any Error) -> ModelContainer {
         try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+    }
+
+    private static func command(
+        userID: UUID,
+        mangaID: Manga.ID,
+        knownTotalVolumes: Int64?,
+        change: CollectionMutationCommand.Change
+    ) -> CollectionMutationCommand {
+        CollectionMutationCommand(
+            userID: userID,
+            mangaID: mangaID,
+            mangaSnapshot: CollectionMangaSnapshot(manga: manga(id: mangaID)),
+            knownTotalVolumes: knownTotalVolumes,
+            change: change
+        )
+    }
+
+    private static func manga(id: Manga.ID) -> Manga {
+        Manga(
+            id: id,
+            title: "Manga \(id)",
+            titleEnglish: nil,
+            titleJapanese: nil,
+            synopsis: nil,
+            score: 8,
+            status: .publishing,
+            authors: [],
+            demographics: [],
+            genres: [],
+            themes: [],
+            coverURL: nil
+        )
     }
 
     private static let userA = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!

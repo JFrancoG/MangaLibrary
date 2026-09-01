@@ -215,6 +215,6 @@ private extension SignInView {
 
 #Preview("Sign in authenticating") {
     NavigationStack {
-        SignInView(model: AccountPreviewSupport.model(state: .authenticating))
+        SignInView(model: AccountPreviewSupport.model(state: .authenticating(previousUserID: nil)))
     }
 }
