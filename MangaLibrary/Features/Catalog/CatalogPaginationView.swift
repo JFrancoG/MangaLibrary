@@ -19,10 +19,7 @@ struct CatalogPaginationView: View {
                 .accessibilityIdentifier("catalog.pagination.loading")
         case let .failure(_, reason):
             VStack(spacing: 10) {
-                Label(
-                    "Couldn't load more results",
-                    systemImage: "exclamationmark.triangle"
-                )
+                Label("Couldn't load more results", systemImage: "exclamationmark.triangle")
                 .font(.headline)
 
                 Text(reason.errorDescriptionResource)
@@ -51,10 +48,7 @@ struct CatalogPaginationView: View {
         pagination: .failure(page: 2, reason: .unavailable),
         model: CatalogPreviewSupport.model(
             state: .content(
-                .init(
-                    items: CatalogPreviewSupport.mangas,
-                    pagination: .failure(page: 2, reason: .unavailable)
-                )
+                .init(items: CatalogPreviewSupport.mangas, pagination: .failure(page: 2, reason: .unavailable))
             )
         )
     )

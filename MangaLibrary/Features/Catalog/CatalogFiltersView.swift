@@ -40,9 +40,7 @@ struct CatalogFiltersView: View {
                     .pickerStyle(.navigationLink)
 
                     if resultSet == .best {
-                        Text(
-                            "Best manga is a separate server result set and cannot be combined with other filters."
-                        )
+                        Text("Best manga is a separate server result set and cannot be combined with other filters.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     }
@@ -81,16 +79,12 @@ struct CatalogFiltersView: View {
                 }
             }
             .task(id: resultSet) {
-                guard resultSet == .catalog else {
-                    return
-                }
+                guard resultSet == .catalog else { return }
 
                 await model.loadFilterOptionsIfNeeded()
             }
             .task(id: retryRequest) {
-                guard retryRequest != nil, resultSet == .catalog else {
-                    return
-                }
+                guard retryRequest != nil, resultSet == .catalog else { return }
 
                 await model.retryFilterOptions()
             }
@@ -155,29 +149,14 @@ struct CatalogFiltersView: View {
                     )
                 }
             } else {
-                taxonomySection(
-                    "Demographics",
-                    options: options.demographics,
-                    selection: $selectedDemographics
-                )
-                taxonomySection(
-                    "Genres",
-                    options: options.genres,
-                    selection: $selectedGenres
-                )
-                taxonomySection(
-                    "Themes",
-                    options: options.themes,
-                    selection: $selectedThemes
-                )
+                taxonomySection("Demographics", options: options.demographics, selection: $selectedDemographics)
+                taxonomySection("Genres", options: options.genres, selection: $selectedGenres)
+                taxonomySection("Themes", options: options.themes, selection: $selectedThemes)
             }
         case let .failure(reason):
             Section {
                 ContentUnavailableView {
-                    Label(
-                        "Filters unavailable",
-                        systemImage: "exclamationmark.triangle"
-                    )
+                    Label("Filters unavailable", systemImage: "exclamationmark.triangle")
                 } description: {
                     Text(reason.errorDescriptionResource)
                 } actions: {
@@ -198,13 +177,7 @@ struct CatalogFiltersView: View {
         Section {
             DisclosureGroup {
                 ForEach(options, id: \.self) { option in
-                    Toggle(
-                        option,
-                        isOn: selectionBinding(
-                            for: option,
-                            selection: selection
-                        )
-                    )
+                    Toggle(option, isOn: selectionBinding(for: option, selection: selection))
                 }
             } label: {
                 LabeledContent {
@@ -216,10 +189,7 @@ struct CatalogFiltersView: View {
         }
     }
 
-    private func selectionBinding(
-        for option: String,
-        selection: Binding<Set<String>>
-    ) -> Binding<Bool> {
+    private func selectionBinding(for option: String, selection: Binding<Set<String>>) -> Binding<Bool> {
         Binding {
             selection.wrappedValue.contains(option)
         } set: { isSelected in
@@ -263,10 +233,7 @@ struct CatalogFiltersView: View {
 }
 
 extension CatalogFiltersView {
-    init(
-        model: CatalogModel,
-        searchText: Binding<String>
-    ) {
+    init(model: CatalogModel, searchText: Binding<String>) {
         let search = model.query.advancedSearch ?? CatalogSearch()
 
         self.model = model
@@ -285,12 +252,7 @@ extension CatalogFiltersView {
 #Preview("Catalog filters") {
     CatalogFiltersView(
         model: CatalogPreviewSupport.model(
-            state: .content(
-                .init(
-                    items: CatalogPreviewSupport.mangas,
-                    pagination: .end
-                )
-            ),
+            state: .content(.init(items: CatalogPreviewSupport.mangas, pagination: .end)),
             query: .advanced(
                 CatalogSearch(
                     title: "Monster",
@@ -310,12 +272,7 @@ extension CatalogFiltersView {
 #Preview("Catalog filters loading") {
     CatalogFiltersView(
         model: CatalogPreviewSupport.model(
-            state: .content(
-                .init(
-                    items: CatalogPreviewSupport.mangas,
-                    pagination: .end
-                )
-            ),
+            state: .content(.init(items: CatalogPreviewSupport.mangas, pagination: .end)),
             filterOptionsState: .loading
         ),
         searchText: .constant("")
@@ -325,12 +282,7 @@ extension CatalogFiltersView {
 #Preview("Catalog filters error") {
     CatalogFiltersView(
         model: CatalogPreviewSupport.model(
-            state: .content(
-                .init(
-                    items: CatalogPreviewSupport.mangas,
-                    pagination: .end
-                )
-            ),
+            state: .content(.init(items: CatalogPreviewSupport.mangas, pagination: .end)),
             filterOptionsState: .failure(.unavailable)
         ),
         searchText: .constant("")
@@ -340,12 +292,7 @@ extension CatalogFiltersView {
 #Preview("Catalog filters empty") {
     CatalogFiltersView(
         model: CatalogPreviewSupport.model(
-            state: .content(
-                .init(
-                    items: CatalogPreviewSupport.mangas,
-                    pagination: .end
-                )
-            ),
+            state: .content(.init(items: CatalogPreviewSupport.mangas, pagination: .end)),
             filterOptionsState: .content(.empty)
         ),
         searchText: .constant("")
@@ -355,12 +302,7 @@ extension CatalogFiltersView {
 #Preview("Catalog filters best manga") {
     CatalogFiltersView(
         model: CatalogPreviewSupport.model(
-            state: .content(
-                .init(
-                    items: CatalogPreviewSupport.mangas,
-                    pagination: .end
-                )
-            ),
+            state: .content(.init(items: CatalogPreviewSupport.mangas, pagination: .end)),
             query: .best
         ),
         searchText: .constant("")

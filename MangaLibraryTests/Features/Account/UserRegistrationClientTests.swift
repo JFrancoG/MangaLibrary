@@ -16,10 +16,7 @@ struct UserRegistrationClientTests {
             await recorder.load(request)
         }
 
-        let submission = await register(
-            "reader@example.invalid",
-            "synthetic-passphrase"
-        )
+        let submission = await register("reader@example.invalid", "synthetic-passphrase")
 
         #expect(submission == .confirmed)
         let requests = await recorder.requests()
@@ -34,18 +31,10 @@ struct UserRegistrationClientTests {
 
         let body = try #require(request.httpBody)
         let submittedUser = try JSONDecoder().decode([String: String].self, from: body)
-        #expect(
-            submittedUser == [
-                "email": "reader@example.invalid",
-                "password": "synthetic-passphrase"
-            ]
-        )
+        #expect(submittedUser == ["email": "reader@example.invalid", "password": "synthetic-passphrase"])
     }
 
-    @Test(
-        "Missing registration configuration fails before transport",
-        arguments: InvalidRegistrationAppToken.allCases
-    )
+    @Test("Missing registration configuration fails before transport", arguments: InvalidRegistrationAppToken.allCases)
     fileprivate func invalidConfigurationFailsClosed(
         _ invalidToken: InvalidRegistrationAppToken
     ) async throws(any Error) {
@@ -57,10 +46,7 @@ struct UserRegistrationClientTests {
             }
         )
 
-        let submission = await register(
-            "reader@example.invalid",
-            "synthetic-passphrase"
-        )
+        let submission = await register("reader@example.invalid", "synthetic-passphrase")
 
         #expect(submission == .notSubmitted(.configurationUnavailable))
         #expect(await recorder.requests().isEmpty)
@@ -72,10 +58,7 @@ struct UserRegistrationClientTests {
             throw NetworkError.statusCode(409)
         }
 
-        let submission = await register(
-            "reader@example.invalid",
-            "synthetic-passphrase"
-        )
+        let submission = await register("reader@example.invalid", "synthetic-passphrase")
 
         #expect(submission == .unconfirmed(.network(.statusCode(409))))
     }
@@ -86,10 +69,7 @@ struct UserRegistrationClientTests {
             throw NetworkError.transport(.timedOut)
         }
 
-        let submission = await register(
-            "reader@example.invalid",
-            "synthetic-passphrase"
-        )
+        let submission = await register("reader@example.invalid", "synthetic-passphrase")
 
         #expect(submission == .unconfirmed(.network(.transport(.timedOut))))
     }
@@ -98,10 +78,7 @@ struct UserRegistrationClientTests {
     func invalidConfirmationPayloadIsUnconfirmed() async throws(any Error) {
         let register = try makeOperation(returning: Data(#"{"id":42}"#.utf8))
 
-        let submission = await register(
-            "reader@example.invalid",
-            "synthetic-passphrase"
-        )
+        let submission = await register("reader@example.invalid", "synthetic-passphrase")
 
         #expect(submission == .unconfirmed(.contractDrift))
     }
@@ -112,10 +89,7 @@ struct UserRegistrationClientTests {
             throw CancellationError()
         }
 
-        let submission = await register(
-            "reader@example.invalid",
-            "synthetic-passphrase"
-        )
+        let submission = await register("reader@example.invalid", "synthetic-passphrase")
 
         #expect(submission == .unconfirmed(.cancelled))
     }
@@ -130,10 +104,7 @@ struct UserRegistrationClientTests {
 
         let submissionTask = Task {
             await gate.suspendUntilOpen()
-            return await register(
-                "reader@example.invalid",
-                "synthetic-passphrase"
-            )
+            return await register("reader@example.invalid", "synthetic-passphrase")
         }
         await gate.waitUntilArrived()
         submissionTask.cancel()
@@ -151,10 +122,7 @@ struct UserRegistrationClientTests {
             throw RegistrationLoaderFailure()
         }
 
-        let submission = await register(
-            "reader@example.invalid",
-            "synthetic-passphrase"
-        )
+        let submission = await register("reader@example.invalid", "synthetic-passphrase")
 
         #expect(submission == .unconfirmed(.unavailable))
     }

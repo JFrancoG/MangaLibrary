@@ -114,9 +114,7 @@ actor SessionController {
 
     /// Completes refresh → access → `/me` before writing one complete Keychain record.
     func login(email: String, password: String) async throws(any Error) -> SessionSnapshot {
-        guard committingLoginIdentity == nil else {
-            throw SessionControllerError.transitionInProgress
-        }
+        guard committingLoginIdentity == nil else { throw SessionControllerError.transitionInProgress }
         let replacedAuthority: SessionAuthority?
         switch state {
         case .signedOut:
@@ -170,9 +168,7 @@ actor SessionController {
 
     /// Returns an unexpired access credential, sharing one refresh across callers.
     func accessCredential() async throws(any Error) -> SessionCredential {
-        guard pendingTransition == nil else {
-            throw SessionControllerError.transitionInProgress
-        }
+        guard pendingTransition == nil else { throw SessionControllerError.transitionInProgress }
         guard case let .active(authenticated) = state else {
             if case .authenticationRequired = state {
                 throw SessionControllerError.authenticationRequired
@@ -203,12 +199,8 @@ actor SessionController {
 
     /// Signs out by deleting the exact current Keychain generation.
     func logout() async throws(any Error) -> SessionSnapshot {
-        guard pendingTransition == nil else {
-            throw SessionControllerError.transitionInProgress
-        }
-        guard case let .active(authenticated) = state else {
-            throw SessionControllerError.notAuthenticated
-        }
+        guard pendingTransition == nil else { throw SessionControllerError.transitionInProgress }
+        guard case let .active(authenticated) = state else { throw SessionControllerError.notAuthenticated }
         try Task.checkCancellation()
 
         let transition = PendingTransition.logout(authenticated.session.authority)
@@ -217,8 +209,7 @@ actor SessionController {
             guard try await persistence.remove(expected: authenticated.session.authority) else {
                 throw SessionControllerError.sessionChanged
             }
-            guard pendingTransition == transition,
-                  isActive(authority: authenticated.session.authority) else {
+            guard pendingTransition == transition, isActive(authority: authenticated.session.authority) else {
                 clearPendingTransition(transition)
                 throw SessionControllerError.sessionChanged
             }
@@ -236,16 +227,12 @@ actor SessionController {
         let restoration = try await persistence.restore()
         apply(restoration)
 
-        guard case let .active(authenticated) = state else {
-            return snapshot(for: state)
-        }
+        guard case let .active(authenticated) = state else { return snapshot(for: state) }
 
         do {
             let access = try await accessCredential()
             let identity = try await apiClient.fetchIdentity(accessToken: access.value)
-            guard isActive(authority: authenticated.session.authority) else {
-                return snapshot(for: state)
-            }
+            guard isActive(authority: authenticated.session.authority) else { return snapshot(for: state) }
             guard identity.id == authenticated.account.id else {
                 try await requireAuthentication(expected: authenticated.session.authority)
                 return snapshot(for: state)
@@ -281,7 +268,9 @@ actor SessionController {
         return snapshot(for: state)
     }
 
-    private func performRefresh(expected authenticated: AuthenticatedState) async throws(any Error) -> SessionCredential {
+    private func performRefresh(
+        expected authenticated: AuthenticatedState
+    ) async throws(any Error) -> SessionCredential {
         let access: SessionCredential
         do {
             access = try await apiClient.exchangeAccess(refreshToken: authenticated.session.refresh.value)
@@ -293,36 +282,24 @@ actor SessionController {
             throw error
         }
 
-        guard isActive(authority: authenticated.session.authority) else {
-            throw SessionControllerError.sessionChanged
-        }
-        guard pendingTransition == nil else {
-            throw SessionControllerError.transitionInProgress
-        }
+        guard isActive(authority: authenticated.session.authority) else { throw SessionControllerError.sessionChanged }
+        guard pendingTransition == nil else { throw SessionControllerError.transitionInProgress }
         guard let renewed = try await persistence.replaceAccess(
             access,
             expected: authenticated.session.authority
         ) else {
             throw SessionControllerError.sessionChanged
         }
-        guard isActive(authority: authenticated.session.authority) else {
-            throw SessionControllerError.sessionChanged
-        }
+        guard isActive(authority: authenticated.session.authority) else { throw SessionControllerError.sessionChanged }
 
         state = .active(AuthenticatedState(session: renewed, account: authenticated.account))
-        guard pendingTransition == nil else {
-            throw SessionControllerError.transitionInProgress
-        }
+        guard pendingTransition == nil else { throw SessionControllerError.transitionInProgress }
         return renewed.access
     }
 
     private func requireAuthentication(expected authority: SessionAuthority) async throws(SessionControllerError) {
-        guard pendingTransition == nil else {
-            throw SessionControllerError.transitionInProgress
-        }
-        guard isActive(authority: authority) else {
-            throw SessionControllerError.sessionChanged
-        }
+        guard pendingTransition == nil else { throw SessionControllerError.transitionInProgress }
+        guard isActive(authority: authority) else { throw SessionControllerError.sessionChanged }
 
         let transition = PendingTransition.authenticationInvalidation(authority)
         pendingTransition = transition
@@ -414,9 +391,7 @@ actor SessionController {
     }
 
     private func ensureCurrentLogin(_ identity: OperationIdentity) throws(SessionControllerError) {
-        guard activeLoginIdentity === identity else {
-            throw SessionControllerError.sessionChanged
-        }
+        guard activeLoginIdentity === identity else { throw SessionControllerError.sessionChanged }
     }
 
     private func clearLogin(_ identity: OperationIdentity) {

@@ -72,17 +72,13 @@ final class CatalogModel {
     @ObservationIgnored private var sourceFilterOptions: CatalogFilterOptions?
 
     var selectedManga: Manga? {
-        guard let selectedMangaID else {
-            return nil
-        }
+        guard let selectedMangaID else { return nil }
 
         return manga(id: selectedMangaID)
     }
 
     func manga(id: Manga.ID) -> Manga? {
-        guard case let .content(content) = state else {
-            return nil
-        }
+        guard case let .content(content) = state else { return nil }
 
         return content.items.first { $0.id == id }
     }
@@ -99,9 +95,7 @@ final class CatalogModel {
         switch initialFilterOptionsState {
         case let .content(options):
             sourceFilterOptions = options
-            filterOptionsState = .content(
-                Self.preparedFilterOptions(options, for: initialQuery)
-            )
+            filterOptionsState = .content(Self.preparedFilterOptions(options, for: initialQuery))
         case .idle, .loading, .failure:
             filterOptionsState = initialFilterOptionsState
         }
@@ -116,17 +110,12 @@ final class CatalogModel {
     /// any response belonging to the previous query. Reapplying the same value is a
     /// no-op so the current presentation remains stable.
     func apply(query: CatalogQuery) {
-        guard self.query != query else {
-            return
-        }
+        guard self.query != query else { return }
 
         activePageLoadIdentity = nil
         self.query = query
-        if let sourceFilterOptions,
-           case .content = filterOptionsState {
-            filterOptionsState = .content(
-                Self.preparedFilterOptions(sourceFilterOptions, for: query)
-            )
+        if let sourceFilterOptions, case .content = filterOptionsState {
+            filterOptionsState = .content(Self.preparedFilterOptions(sourceFilterOptions, for: query))
         }
         requestedNextPage = nil
         selectedMangaID = nil
@@ -135,9 +124,7 @@ final class CatalogModel {
 
     /// Loads the first page only while the feature has not resolved an initial state.
     func loadIfNeeded() async {
-        guard state == .idle else {
-            return
-        }
+        guard state == .idle else { return }
 
         await loadInitialPage()
     }
@@ -150,9 +137,7 @@ final class CatalogModel {
 
     /// Repeats the failed first-page query without changing its identity.
     func retry() async {
-        guard case .failure = state else {
-            return
-        }
+        guard case .failure = state else { return }
 
         await loadInitialPage()
     }
@@ -167,9 +152,7 @@ final class CatalogModel {
         case .idle:
             await loadFilterOptions(previousState: .idle)
         case .loading:
-            guard activeFilterOptionsLoadIdentity != nil else {
-                return
-            }
+            guard activeFilterOptionsLoadIdentity != nil else { return }
 
             await loadFilterOptions(previousState: .idle)
         case .content, .failure:
@@ -179,9 +162,7 @@ final class CatalogModel {
 
     /// Repeats a failed filter-options request without affecting catalog results.
     func retryFilterOptions() async {
-        guard case .failure = filterOptionsState else {
-            return
-        }
+        guard case .failure = filterOptionsState else { return }
 
         await loadFilterOptions(previousState: filterOptionsState)
     }
@@ -233,36 +214,19 @@ final class CatalogModel {
             return
         }
 
-        state = .content(
-            Content(
-                items: content.items,
-                pagination: .loading(page: requestedNextPage)
-            )
-        )
+        state = .content(Content(items: content.items, pagination: .loading(page: requestedNextPage)))
 
         do {
-            let request = try CatalogPageRequest(
-                query: query,
-                page: requestedNextPage
-            )
+            let request = try CatalogPageRequest(query: query, page: requestedNextPage)
             guard let page = try await fetchPage(request) else {
                 return
             }
 
-            let integration = integrate(
-                page.items,
-                into: content.items
-            )
+            let integration = integrate(page.items, into: content.items)
             let pagination = pagination(after: page)
-            state = .content(
-                Content(
-                    items: integration.items,
-                    pagination: pagination
-                )
-            )
+            state = .content(Content(items: integration.items, pagination: pagination))
 
-            if integration.appendedCount == 0,
-               case let .ready(nextPage) = pagination {
+            if integration.appendedCount == 0, case let .ready(nextPage) = pagination {
                 self.requestedNextPage = nextPage
             } else {
                 self.requestedNextPage = nil
@@ -275,10 +239,7 @@ final class CatalogModel {
             state = .content(
                 Content(
                     items: content.items,
-                    pagination: .failure(
-                        page: requestedNextPage,
-                        reason: failureReason(for: error)
-                    )
+                    pagination: .failure(page: requestedNextPage, reason: failureReason(for: error))
                 )
             )
         }
@@ -297,12 +258,7 @@ final class CatalogModel {
             if page.items.isEmpty {
                 state = .empty
             } else {
-                state = .content(
-                    Content(
-                        items: page.items,
-                        pagination: pagination(after: page)
-                    )
-                )
+                state = .content(Content(items: page.items, pagination: pagination(after: page)))
             }
         } catch is CancellationError {
             state = previousState
@@ -319,16 +275,12 @@ final class CatalogModel {
         do {
             let page = try await loadPage(request)
             try Task.checkCancellation()
-            guard activePageLoadIdentity === identity else {
-                return nil
-            }
+            guard activePageLoadIdentity === identity else { return nil }
 
             activePageLoadIdentity = nil
             return page
         } catch {
-            guard activePageLoadIdentity === identity else {
-                return nil
-            }
+            guard activePageLoadIdentity === identity else { return nil }
 
             activePageLoadIdentity = nil
             throw error
@@ -343,26 +295,18 @@ final class CatalogModel {
         do {
             let options = try await fetchFilterOptions()
             try Task.checkCancellation()
-            guard activeFilterOptionsLoadIdentity === identity else {
-                return
-            }
+            guard activeFilterOptionsLoadIdentity === identity else { return }
 
             activeFilterOptionsLoadIdentity = nil
             sourceFilterOptions = options
-            filterOptionsState = .content(
-                Self.preparedFilterOptions(options, for: query)
-            )
+            filterOptionsState = .content(Self.preparedFilterOptions(options, for: query))
         } catch is CancellationError {
-            guard activeFilterOptionsLoadIdentity === identity else {
-                return
-            }
+            guard activeFilterOptionsLoadIdentity === identity else { return }
 
             activeFilterOptionsLoadIdentity = nil
             filterOptionsState = previousState
         } catch {
-            guard activeFilterOptionsLoadIdentity === identity else {
-                return
-            }
+            guard activeFilterOptionsLoadIdentity === identity else { return }
 
             activeFilterOptionsLoadIdentity = nil
             filterOptionsState = .failure(failureReason(for: error))
@@ -370,9 +314,7 @@ final class CatalogModel {
     }
 
     private func failureReason(for error: any Error) -> FailureReason {
-        guard let clientError = error as? CatalogAPIClientError else {
-            return .unavailable
-        }
+        guard let clientError = error as? CatalogAPIClientError else { return .unavailable }
 
         switch clientError {
         case .unavailable:
@@ -388,9 +330,7 @@ final class CatalogModel {
         _ options: CatalogFilterOptions,
         for query: CatalogQuery
     ) -> CatalogFilterOptions {
-        guard let search = query.advancedSearch else {
-            return options
-        }
+        guard let search = query.advancedSearch else { return options }
 
         return options.includingSelections(
             demographics: Set(search.demographics),
@@ -401,31 +341,16 @@ final class CatalogModel {
 
     private func pagination(after page: CatalogPage) -> Pagination {
         let metadata = page.metadata
-        guard
-            !page.items.isEmpty,
-            metadata.total > 0,
-            metadata.per > 0
-        else {
-            return .end
-        }
+        guard !page.items.isEmpty, metadata.total > 0, metadata.per > 0 else { return .end }
 
         let completePages = metadata.total / metadata.per
-        let totalPages = completePages
-            + (metadata.total.isMultiple(of: metadata.per) ? 0 : 1)
-        guard
-            metadata.page < totalPages,
-            metadata.page < Int64.max
-        else {
-            return .end
-        }
+        let totalPages = completePages + (metadata.total.isMultiple(of: metadata.per) ? 0 : 1)
+        guard metadata.page < totalPages, metadata.page < Int64.max else { return .end }
 
         return .ready(nextPage: metadata.page + 1)
     }
 
-    private func integrate(
-        _ newItems: [Manga],
-        into existingItems: [Manga]
-    ) -> (items: [Manga], appendedCount: Int) {
+    private func integrate(_ newItems: [Manga], into existingItems: [Manga]) -> (items: [Manga], appendedCount: Int) {
         var identities = Set(existingItems.map(\.id))
         var items = existingItems
         items.reserveCapacity(existingItems.count + newItems.count)

@@ -19,19 +19,14 @@ struct CatalogGridView: View {
                 ForEach(content.items) { manga in
                     navigationControl(for: manga)
                     .accessibilityIdentifier("catalog.grid.item.\(manga.id)")
-                    .accessibilityAddTraits(
-                        selection == manga.id ? .isSelected : []
-                    )
+                    .accessibilityAddTraits(selection == manga.id ? .isSelected : [])
                     .onAppear {
                         model.requestNextPageIfNeeded(after: manga.id)
                     }
                 }
             }
 
-            CatalogPaginationView(
-                pagination: content.pagination,
-                model: model
-            )
+            CatalogPaginationView(pagination: content.pagination, model: model)
             .padding(.vertical, 12)
         }
         .contentMargins(16, for: .scrollContent)
@@ -59,21 +54,14 @@ struct CatalogGridView: View {
 
     private var columns: [GridItem] {
         [
-            GridItem(
-                .adaptive(minimum: min(minimumItemWidth, 240)),
-                spacing: 16,
-                alignment: .top
-            )
+            GridItem(.adaptive(minimum: min(minimumItemWidth, 240)), spacing: 16, alignment: .top)
         ]
     }
 }
 
 #Preview("Catalog grid") {
     @Previewable @State var selection: Manga.ID?
-    let content = CatalogModel.Content(
-        items: CatalogPreviewSupport.mangas,
-        pagination: .end
-    )
+    let content = CatalogModel.Content(items: CatalogPreviewSupport.mangas, pagination: .end)
     let model = CatalogPreviewSupport.model(state: .content(content))
 
     NavigationStack {

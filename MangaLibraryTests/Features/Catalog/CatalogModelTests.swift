@@ -57,16 +57,10 @@ struct CatalogModelTests {
             await model.loadIfNeeded()
         }
         await loader.waitForRequestCount(1)
-        await loader.fail(
-            CatalogAPIClientError.network(.transport(.notConnectedToInternet)),
-            at: 0
-        )
+        await loader.fail(CatalogAPIClientError.network(.transport(.notConnectedToInternet)), at: 0)
         await initialTask.value
 
-        #expect(
-            model.state
-                == .failure(.network(.transport(.notConnectedToInternet)))
-        )
+        #expect(model.state == .failure(.network(.transport(.notConnectedToInternet))))
 
         let retryTask = Task {
             await model.retry()
@@ -157,10 +151,7 @@ struct CatalogModelTests {
         await currentTask.value
         #expect(model.state == terminalContent(currentPage.items))
 
-        await loader.fail(
-            CatalogAPIClientError.network(.transport(.timedOut)),
-            at: 0
-        )
+        await loader.fail(CatalogAPIClientError.network(.transport(.timedOut)), at: 0)
         await staleTask.value
 
         #expect(model.state == terminalContent(currentPage.items))
@@ -179,14 +170,7 @@ struct CatalogModelTests {
             await model.loadIfNeeded()
         }
         await loader.waitForRequestCount(1)
-        await loader.succeed(
-            page(
-                number: 1,
-                total: 40,
-                items: [firstManga, selectedManga]
-            ),
-            at: 0
-        )
+        await loader.succeed(page(number: 1, total: 40, items: [firstManga, selectedManga]), at: 0)
         await initialTask.value
         model.selectedMangaID = selectedManga.id
 
@@ -203,23 +187,13 @@ struct CatalogModelTests {
             page(
                 number: 2,
                 total: 40,
-                items: [
-                    manga(id: selectedManga.id, title: "Changed duplicate"),
-                    appendedManga
-                ]
+                items: [manga(id: selectedManga.id, title: "Changed duplicate"), appendedManga]
             ),
             at: 1
         )
         await nextPageTask.value
 
-        #expect(
-            model.state == .content(
-                .init(
-                    items: [firstManga, selectedManga, appendedManga],
-                    pagination: .end
-                )
-            )
-        )
+        #expect(model.state == .content(.init(items: [firstManga, selectedManga, appendedManga], pagination: .end)))
         #expect(model.selectedManga == selectedManga)
         #expect(model.requestedNextPage == nil)
     }
@@ -234,10 +208,7 @@ struct CatalogModelTests {
             await model.loadIfNeeded()
         }
         await loader.waitForRequestCount(1)
-        await loader.succeed(
-            page(number: 1, total: 1, items: [onlyManga]),
-            at: 0
-        )
+        await loader.succeed(page(number: 1, total: 1, items: [onlyManga]), at: 0)
         await initialTask.value
 
         model.requestNextPageIfNeeded(after: onlyManga.id)
@@ -245,11 +216,7 @@ struct CatalogModelTests {
 
         #expect(model.requestedNextPage == nil)
         #expect(await loader.requests().count == 1)
-        #expect(
-            model.state == .content(
-                .init(items: [onlyManga], pagination: .end)
-            )
-        )
+        #expect(model.state == .content(.init(items: [onlyManga], pagination: .end)))
     }
 
     @Test
@@ -258,11 +225,7 @@ struct CatalogModelTests {
             manga(id: Manga.ID($0), title: "Manga \($0)")
         }
         let emptyPage = page(items: [])
-        let model = CatalogModel(
-            initialState: .content(
-                .init(items: items, pagination: .ready(nextPage: 2))
-            )
-        ) { _ in
+        let model = CatalogModel(initialState: .content(.init(items: items, pagination: .ready(nextPage: 2)))) { _ in
             emptyPage
         }
 
@@ -285,10 +248,7 @@ struct CatalogModelTests {
             await model.loadIfNeeded()
         }
         await loader.waitForRequestCount(1)
-        await loader.succeed(
-            page(number: 1, total: 41, items: [firstManga]),
-            at: 0
-        )
+        await loader.succeed(page(number: 1, total: 41, items: [firstManga]), at: 0)
         await initialTask.value
 
         model.requestNextPageIfNeeded(after: firstManga.id)
@@ -296,17 +256,10 @@ struct CatalogModelTests {
             await model.loadRequestedNextPage()
         }
         await loader.waitForRequestCount(2)
-        await loader.succeed(
-            page(number: 2, total: 41, items: []),
-            at: 1
-        )
+        await loader.succeed(page(number: 2, total: 41, items: []), at: 1)
         await nextPageTask.value
 
-        #expect(
-            model.state == .content(
-                .init(items: [firstManga], pagination: .end)
-            )
-        )
+        #expect(model.state == .content(.init(items: [firstManga], pagination: .end)))
 
         model.requestNextPageIfNeeded(after: firstManga.id)
         await model.loadRequestedNextPage()
@@ -324,10 +277,7 @@ struct CatalogModelTests {
             await model.loadIfNeeded()
         }
         await loader.waitForRequestCount(1)
-        await loader.succeed(
-            page(number: 1, total: 41, items: [firstManga]),
-            at: 0
-        )
+        await loader.succeed(page(number: 1, total: 41, items: [firstManga]), at: 0)
         await initialTask.value
 
         model.requestNextPageIfNeeded(after: firstManga.id)
@@ -335,20 +285,14 @@ struct CatalogModelTests {
             await model.loadRequestedNextPage()
         }
         await loader.waitForRequestCount(2)
-        await loader.fail(
-            CatalogAPIClientError.network(.transport(.notConnectedToInternet)),
-            at: 1
-        )
+        await loader.fail(CatalogAPIClientError.network(.transport(.notConnectedToInternet)), at: 1)
         await failedTask.value
 
         #expect(
             model.state == .content(
                 .init(
                     items: [firstManga],
-                    pagination: .failure(
-                        page: 2,
-                        reason: .network(.transport(.notConnectedToInternet))
-                    )
+                    pagination: .failure(page: 2, reason: .network(.transport(.notConnectedToInternet)))
                 )
             )
         )
@@ -367,20 +311,10 @@ struct CatalogModelTests {
                 try CatalogPageRequest(page: 2)
             ]
         )
-        await loader.succeed(
-            page(number: 2, total: 41, items: [secondManga]),
-            at: 2
-        )
+        await loader.succeed(page(number: 2, total: 41, items: [secondManga]), at: 2)
         await retryTask.value
 
-        #expect(
-            model.state == .content(
-                .init(
-                    items: [firstManga, secondManga],
-                    pagination: .ready(nextPage: 3)
-                )
-            )
-        )
+        #expect(model.state == .content(.init(items: [firstManga, secondManga], pagination: .ready(nextPage: 3))))
     }
 
     @Test
@@ -393,10 +327,7 @@ struct CatalogModelTests {
             await model.loadIfNeeded()
         }
         await loader.waitForRequestCount(1)
-        await loader.succeed(
-            page(number: 1, total: 41, items: [firstManga]),
-            at: 0
-        )
+        await loader.succeed(page(number: 1, total: 41, items: [firstManga]), at: 0)
         await initialTask.value
 
         model.requestNextPageIfNeeded(after: firstManga.id)
@@ -411,14 +342,7 @@ struct CatalogModelTests {
 
         #expect(await loader.wasCancelled(at: 1))
         #expect(model.requestedNextPage == nil)
-        #expect(
-            model.state == .content(
-                .init(
-                    items: [firstManga],
-                    pagination: .ready(nextPage: 2)
-                )
-            )
-        )
+        #expect(model.state == .content(.init(items: [firstManga], pagination: .ready(nextPage: 2))))
     }
 
     @Test
@@ -432,10 +356,7 @@ struct CatalogModelTests {
             await model.loadIfNeeded()
         }
         await loader.waitForRequestCount(1)
-        await loader.succeed(
-            page(number: 1, total: 41, items: [staleManga]),
-            at: 0
-        )
+        await loader.succeed(page(number: 1, total: 41, items: [staleManga]), at: 0)
         await initialTask.value
 
         model.requestNextPageIfNeeded(after: staleManga.id)
@@ -448,23 +369,13 @@ struct CatalogModelTests {
             await model.reload()
         }
         await loader.waitForRequestCount(3)
-        await loader.succeed(
-            page(number: 1, total: 1, items: [currentManga]),
-            at: 2
-        )
+        await loader.succeed(page(number: 1, total: 1, items: [currentManga]), at: 2)
         await reloadTask.value
 
-        await loader.succeed(
-            page(number: 2, total: 41, items: [staleManga]),
-            at: 1
-        )
+        await loader.succeed(page(number: 2, total: 41, items: [staleManga]), at: 1)
         await staleTask.value
 
-        #expect(
-            model.state == .content(
-                .init(items: [currentManga], pagination: .end)
-            )
-        )
+        #expect(model.state == .content(.init(items: [currentManga], pagination: .end)))
         #expect(model.requestedNextPage == nil)
     }
 
@@ -480,10 +391,7 @@ struct CatalogModelTests {
             await model.loadIfNeeded()
         }
         await loader.waitForRequestCount(1)
-        await loader.succeed(
-            page(number: 1, total: 41, items: [selectedManga]),
-            at: 0
-        )
+        await loader.succeed(page(number: 1, total: 41, items: [selectedManga]), at: 0)
         await initialTask.value
         model.selectedMangaID = selectedManga.id
         model.requestNextPageIfNeeded(after: selectedManga.id)
@@ -504,17 +412,10 @@ struct CatalogModelTests {
         #expect(
             await loader.requests() == [
                 try CatalogPageRequest(),
-                try CatalogPageRequest(
-                    query: replacementQuery,
-                    page: 1,
-                    per: 20
-                )
+                try CatalogPageRequest(query: replacementQuery, page: 1, per: 20)
             ]
         )
-        await loader.succeed(
-            page(items: [replacementManga]),
-            at: 1
-        )
+        await loader.succeed(page(items: [replacementManga]), at: 1)
         await replacementTask.value
 
         #expect(model.state == terminalContent([replacementManga]))
@@ -530,10 +431,7 @@ struct CatalogModelTests {
             await model.loadIfNeeded()
         }
         await loader.waitForRequestCount(1)
-        await loader.succeed(
-            page(number: 1, total: 41, items: [selectedManga]),
-            at: 0
-        )
+        await loader.succeed(page(number: 1, total: 41, items: [selectedManga]), at: 0)
         await initialTask.value
         model.selectedMangaID = selectedManga.id
         model.requestNextPageIfNeeded(after: selectedManga.id)
@@ -591,26 +489,15 @@ struct CatalogModelTests {
         let query = advancedQuery()
         let firstManga = manga(id: 100, title: "First")
         let secondManga = manga(id: 101, title: "Second")
-        let firstRequest = try CatalogPageRequest(
-            query: query,
-            page: 1,
-            per: 20
-        )
-        let secondRequest = try CatalogPageRequest(
-            query: query,
-            page: 2,
-            per: 20
-        )
+        let firstRequest = try CatalogPageRequest(query: query, page: 1, per: 20)
+        let secondRequest = try CatalogPageRequest(query: query, page: 2, per: 20)
 
         model.apply(query: query)
         let initialTask = Task {
             await model.loadIfNeeded()
         }
         await loader.waitForRequestCount(1)
-        await loader.succeed(
-            page(number: 1, total: 41, items: [firstManga]),
-            at: 0
-        )
+        await loader.succeed(page(number: 1, total: 41, items: [firstManga]), at: 0)
         await initialTask.value
 
         model.requestNextPageIfNeeded(after: firstManga.id)
@@ -618,10 +505,7 @@ struct CatalogModelTests {
             await model.loadRequestedNextPage()
         }
         await loader.waitForRequestCount(2)
-        await loader.fail(
-            CatalogAPIClientError.network(.transport(.notConnectedToInternet)),
-            at: 1
-        )
+        await loader.fail(CatalogAPIClientError.network(.transport(.notConnectedToInternet)), at: 1)
         await failedTask.value
 
         model.requestNextPageRetry()
@@ -630,39 +514,19 @@ struct CatalogModelTests {
         }
         await loader.waitForRequestCount(3)
 
-        #expect(
-            await loader.requests() == [
-                firstRequest,
-                secondRequest,
-                secondRequest
-            ]
-        )
+        #expect(await loader.requests() == [firstRequest, secondRequest, secondRequest])
 
-        await loader.succeed(
-            page(number: 2, total: 41, items: [secondManga]),
-            at: 2
-        )
+        await loader.succeed(page(number: 2, total: 41, items: [secondManga]), at: 2)
         await retryTask.value
 
         #expect(model.query == query)
-        #expect(
-            model.state == .content(
-                .init(
-                    items: [firstManga, secondManga],
-                    pagination: .ready(nextPage: 3)
-                )
-            )
-        )
+        #expect(model.state == .content(.init(items: [firstManga, secondManga], pagination: .ready(nextPage: 3))))
     }
 
     @Test
     func filterOptionsLoadOnceAndRemainIndependentFromPageState() async {
         let loader = ControlledCatalogFilterOptionsLoader()
-        let options = CatalogFilterOptions(
-            demographics: ["Seinen"],
-            genres: ["Drama"],
-            themes: ["Psychological"]
-        )
+        let options = CatalogFilterOptions(demographics: ["Seinen"], genres: ["Drama"], themes: ["Psychological"])
         let emptyPage = page(items: [])
         let model = CatalogModel(
             initialState: .empty,
@@ -694,20 +558,10 @@ struct CatalogModelTests {
     @Test
     func loadedFilterOptionsRetainCurrentQuerySelections() async {
         let loader = ControlledCatalogFilterOptionsLoader()
-        let serverOptions = CatalogFilterOptions(
-            demographics: ["Seinen"],
-            genres: ["Drama"],
-            themes: ["Psychological"]
-        )
+        let serverOptions = CatalogFilterOptions(demographics: ["Seinen"], genres: ["Drama"], themes: ["Psychological"])
         let emptyPage = page(items: [])
         let model = CatalogModel(
-            initialQuery: .advanced(
-                CatalogSearch(
-                    genres: ["Mystery"],
-                    themes: ["Space"],
-                    demographics: ["Josei"]
-                )
-            ),
+            initialQuery: .advanced(CatalogSearch(genres: ["Mystery"], themes: ["Space"], demographics: ["Josei"])),
             loadFilterOptions: {
                 try await loader.load()
             }
@@ -732,11 +586,7 @@ struct CatalogModelTests {
             )
         )
 
-        model.apply(
-            query: .advanced(
-                CatalogSearch(genres: ["Adventure"])
-            )
-        )
+        model.apply(query: .advanced(CatalogSearch(genres: ["Adventure"])))
 
         #expect(
             model.filterOptionsState == .content(
@@ -751,27 +601,13 @@ struct CatalogModelTests {
 
     @Test
     func applyingQueryPreparesExistingFilterOptions() {
-        let serverOptions = CatalogFilterOptions(
-            demographics: ["Seinen"],
-            genres: ["Drama"],
-            themes: ["Psychological"]
-        )
+        let serverOptions = CatalogFilterOptions(demographics: ["Seinen"], genres: ["Drama"], themes: ["Psychological"])
         let emptyPage = page(items: [])
-        let model = CatalogModel(
-            initialFilterOptionsState: .content(serverOptions)
-        ) { _ in
+        let model = CatalogModel(initialFilterOptionsState: .content(serverOptions)) { _ in
             emptyPage
         }
 
-        model.apply(
-            query: .advanced(
-                CatalogSearch(
-                    genres: ["Mystery"],
-                    themes: ["Space"],
-                    demographics: ["Josei"]
-                )
-            )
-        )
+        model.apply(query: .advanced(CatalogSearch(genres: ["Mystery"], themes: ["Space"], demographics: ["Josei"])))
 
         #expect(
             model.filterOptionsState == .content(
@@ -787,11 +623,7 @@ struct CatalogModelTests {
     @Test
     func filterOptionsFailureRetriesWithoutChangingTheQuery() async {
         let loader = ControlledCatalogFilterOptionsLoader()
-        let options = CatalogFilterOptions(
-            demographics: ["Josei"],
-            genres: ["Mystery"],
-            themes: ["Adult Cast"]
-        )
+        let options = CatalogFilterOptions(demographics: ["Josei"], genres: ["Mystery"], themes: ["Adult Cast"])
         let emptyPage = page(items: [])
         let model = CatalogModel(
             initialState: .empty,
@@ -807,10 +639,7 @@ struct CatalogModelTests {
             await model.loadFilterOptionsIfNeeded()
         }
         await loader.waitForRequestCount(1)
-        await loader.fail(
-            CatalogAPIClientError.network(.statusCode(503)),
-            at: 0
-        )
+        await loader.fail(CatalogAPIClientError.network(.statusCode(503)), at: 0)
         await failedTask.value
 
         #expect(model.filterOptionsState == .failure(.network(.statusCode(503))))
@@ -853,11 +682,7 @@ struct CatalogModelTests {
 
     @Test
     func reenteringFilterOptionsWhilePreviousLoadCancelsStartsFreshRequest() async {
-        let options = CatalogFilterOptions(
-            demographics: ["Seinen"],
-            genres: ["Drama"],
-            themes: ["Psychological"]
-        )
+        let options = CatalogFilterOptions(demographics: ["Seinen"], genres: ["Drama"], themes: ["Psychological"])
         let loader = ReentrantCatalogFilterOptionsLoader(options: options)
         let emptyPage = page(items: [])
         let model = CatalogModel(
@@ -914,14 +739,7 @@ struct CatalogModelTests {
         total: Int64? = nil,
         items: [Manga]
     ) -> CatalogPage {
-        CatalogPage(
-            items: items,
-            metadata: .init(
-                page: number,
-                per: per,
-                total: total ?? Int64(items.count)
-            )
-        )
+        CatalogPage(items: items, metadata: .init(page: number, per: per, total: total ?? Int64(items.count)))
     }
 
     private func manga(id: Manga.ID, title: String) -> Manga {
@@ -963,9 +781,7 @@ private actor ReentrantCatalogFilterOptionsLoader {
         count += 1
         resumeSatisfiedRequestWaiters()
 
-        guard requestIndex == 0 else {
-            return options
-        }
+        guard requestIndex == 0 else { return options }
 
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
@@ -987,17 +803,10 @@ private actor ReentrantCatalogFilterOptionsLoader {
     }
 
     func waitForRequestCount(_ expectedCount: Int) async {
-        guard count < expectedCount else {
-            return
-        }
+        guard count < expectedCount else { return }
 
         await withCheckedContinuation { continuation in
-            requestWaiters.append(
-                RequestWaiter(
-                    expectedCount: expectedCount,
-                    continuation: continuation
-                )
-            )
+            requestWaiters.append(RequestWaiter(expectedCount: expectedCount, continuation: continuation))
         }
     }
 

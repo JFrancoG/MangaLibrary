@@ -49,22 +49,13 @@ enum CatalogPreviewSupport {
                 )
             ],
             demographics: [
-                Manga.Classification(
-                    id: demographicID,
-                    name: "Shounen"
-                )
+                Manga.Classification(id: demographicID, name: "Shounen")
             ],
             genres: [
-                Manga.Classification(
-                    id: genreID,
-                    name: "Adventure"
-                )
+                Manga.Classification(id: genreID, name: "Adventure")
             ],
             themes: [
-                Manga.Classification(
-                    id: themeID,
-                    name: "Military"
-                )
+                Manga.Classification(id: themeID, name: "Military")
             ],
             coverURL: nil
         ),
@@ -134,11 +125,7 @@ enum CatalogPreviewSupport {
 
         return CatalogPage(
             items: items,
-            metadata: .init(
-                page: request.page,
-                per: request.per,
-                total: Int64(mangas.count)
-            )
+            metadata: .init(page: request.page, per: request.per, total: Int64(mangas.count))
         )
     }
 

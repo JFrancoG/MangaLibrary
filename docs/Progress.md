@@ -3,6 +3,24 @@
 **Última actualización:** 2026-09-01
 **Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2 y L1 entregados; L1 se incorpora mediante la PR #44
 
+## Normalización histórica de layout Swift — issue #45
+
+- El [issue #45 — normalizar el layout Swift histórico](https://github.com/JFrancoG/MangaLibrary/issues/45) no tenía duplicados. La rama local `codex/45-normalize-swift-source-style` parte de `main@5a78084c6c2a`, limpio y sincronizado con `origin/main` después de entregar L1.
+- El normalize repositorio-wide de `$ios-development-kit:swift-source-style` inventaría 61/61 archivos Swift y modifica 44: 30 de aplicación, 13 de tests y uno de UI tests. Una segunda auditoría exhaustiva corrige omisiones sistemáticas de la primera pasada en previews, result builders, llamadas anidadas, tests y fixtures; ningún archivo o categoría queda exento y cada construcción se juzga de forma independiente. Se conservan verticales closures, function types, construcciones de cuatro o más argumentos, condiciones complejas y excepciones donde el formato horizontal superaría 120 columnas o reduciría claridad.
+- El cambio es exclusivamente lexical: no modifica tokens, strings, comentarios, interpolaciones, operadores, overloads, orden de evaluación o comportamiento. Tampoco cambia `project.pbxproj`, assets, String Catalogs, contratos, arquitectura, persistencia o tests. La simplificación contextual de wrappers como `Color(.primaryBrand)` queda expresamente fuera de esta entrega y se abordará después en una rama semántica separada.
+
+### Validación local de la normalización
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Integridad Swift | Los 44 archivos coinciden con `HEAD` al eliminar whitespace. Ambos snapshots parsean y producen la misma salida canónica de `swift-format` con 120 columnas y sin conservar saltos existentes; no cambian literales, comentarios, identificadores, firmas, operadores ni puntuación. El diff Swift es `+487/-1632`, con SHA-256 `06bb784f0c252f09d3cbde848690ca7d97e28a3968b9503f64465daab7905251`. |
+| Xcode MCP — build | Build-for-testing final de `ReleaseGate` aprobado en 3,711 s sobre iPhone 17 Pro Simulator con iOS 27. El log estructurado contiene cero warnings y cero errores. |
+| Xcode MCP — `ReleaseGate` | El snapshot final ejecuta y aprueba 202/202 casos: cero fallos, skips, expected failures o casos no ejecutados. |
+| Revisiones independientes | La reauditoría final de estilo cierra sin hallazgos después de adjudicar los 41 candidatos del detector de recall; permanecen solo excepciones justificadas por closures, function types, construcciones de cuatro o más argumentos, cadenas semánticas, predicates y tuplas complejas. La auditoría semántica confirma equivalencia canónica 44/44. La revisión SwiftUI/accesibilidad comprueba estáticamente 39/39 previews afectadas y no encuentra cambios en árboles declarativos, textos, colores, identificadores o semántica. No se renderizan previews ni se ejecutan VoiceOver, Voice Control, Switch Control, Acceso total con teclado o Accessibility Inspector; no se atribuye cobertura runtime. |
+| Integridad del repositorio | `git diff --check` queda limpio y no hay archivos staged. Solo permanecen tres líneas visuales superiores a 120: la regex de email y dos fixtures JSON atómicas; las tres son excepciones deliberadas. Xcode queda restaurado al destino físico iPhone 11 y al plan `Fast` encontrados en el preflight. |
+
+La implementación permanece local, sin commit, push o PR. El issue #45 continúa abierto y la entrega requiere autorización separada.
+
 ## Núcleo SwiftData de Colección L1 — issue #41
 
 - El [issue #41 — L1: núcleo SwiftData de Colección y outbox atómica](https://github.com/JFrancoG/MangaLibrary/issues/41) no tenía duplicados. La rama `codex/41-l1-swiftdata-collection-core` partió de `main@2d5cb06bd879eb2876ea30e93438fe89a33e7df7`; el merge previo solo añadió gobernanza de estilo y no alteró Swift, proyecto o contratos de L1. La implementación se entrega mediante la [PR #44](https://github.com/JFrancoG/MangaLibrary/pull/44).

@@ -32,9 +32,7 @@ struct SessionPersistenceActorTests {
             expiresAt: Self.issuedAt.addingTimeInterval(7_200)
         )
 
-        let renewed = try #require(
-            try await harness.persistence.replaceAccess(replacement, expected: active.authority)
-        )
+        let renewed = try #require(try await harness.persistence.replaceAccess(replacement, expected: active.authority))
 
         #expect(renewed.access == replacement)
         #expect(renewed.refresh == active.refresh)
@@ -123,10 +121,7 @@ struct SessionPersistenceActorTests {
             service: "com.mangalibrary.tests.persistence.\(UUID().uuidString)",
             legacyServices: []
         )
-        return SessionPersistenceHarness(
-            keychain: keychain,
-            persistence: SessionPersistenceActor(keychain: keychain)
-        )
+        return SessionPersistenceHarness(keychain: keychain, persistence: SessionPersistenceActor(keychain: keychain))
     }
 
     private static let issuedAt = Date(timeIntervalSince1970: 1_700_000_000)

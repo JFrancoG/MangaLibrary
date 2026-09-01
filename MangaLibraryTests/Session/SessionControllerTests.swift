@@ -19,20 +19,14 @@ struct SessionControllerTests {
         let controller = try makeController(loader: loader, storage: storage)
         _ = try await controller.restore()
 
-        let snapshot = try await controller.login(
-            email: "reader@example.invalid",
-            password: "synthetic-passphrase"
-        )
+        let snapshot = try await controller.login(email: "reader@example.invalid", password: "synthetic-passphrase")
 
         #expect(snapshot == .active(Self.remoteAccount))
         #expect(storage.snapshot().record?.userID == Self.userID)
         #expect(storage.snapshot().record?.generation == Self.generation)
         #expect(storage.snapshot().record?.access.value == "fixture-access")
         #expect(storage.snapshot().record?.refresh.value == "fixture-refresh")
-        #expect(
-            await loader.requestPaths()
-                == ["/users/session/login", "/users/session/access", "/users/session/me"]
-        )
+        #expect(await loader.requestPaths() == ["/users/session/login", "/users/session/access", "/users/session/me"])
     }
 
     @Test("A failed identity lookup never persists preceding credentials")
@@ -64,10 +58,7 @@ struct SessionControllerTests {
         _ = try await controller.restore()
 
         let login = Task {
-            try await controller.login(
-                email: "reader@example.invalid",
-                password: "synthetic-passphrase"
-            )
+            try await controller.login(email: "reader@example.invalid", password: "synthetic-passphrase")
         }
         await gate.waitUntilArrived()
         login.cancel()
@@ -88,7 +79,13 @@ struct SessionControllerTests {
         #expect(
             try await controller.restore()
                 == .active(
-                    SessionAccount(id: Self.userID, email: nil, isActive: nil, isAdmin: nil, role: nil)
+                    SessionAccount(
+                        id: Self.userID,
+                        email: nil,
+                        isActive: nil,
+                        isAdmin: nil,
+                        role: nil
+                    )
                 )
         )
         #expect(storage.snapshot().record == session)
@@ -151,9 +148,7 @@ struct SessionControllerTests {
         let clock = TestSessionClock(now: Self.now)
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(60))
         let storage = ControlledSessionPersistenceStorage(record: session)
-        let loader = ScriptedSessionDataLoader(
-            replies: [.data(Self.identityResponse), .network(.statusCode(401))]
-        )
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse), .network(.statusCode(401))])
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
         _ = try await controller.restore()
         clock.advance(by: 120)
@@ -178,9 +173,7 @@ struct SessionControllerTests {
         let clock = TestSessionClock(now: Self.now)
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(60))
         let storage = ControlledSessionPersistenceStorage(record: session)
-        let loader = ScriptedSessionDataLoader(
-            replies: [.data(Self.identityResponse), .network(.statusCode(401))]
-        )
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse), .network(.statusCode(401))])
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
         _ = try await controller.restore()
         clock.advance(by: 120)
@@ -225,10 +218,7 @@ struct SessionControllerTests {
             try await controller.accessCredential()
         }
 
-        let snapshot = try await controller.login(
-            email: "reader@example.invalid",
-            password: "synthetic-passphrase"
-        )
+        let snapshot = try await controller.login(email: "reader@example.invalid", password: "synthetic-passphrase")
 
         #expect(snapshot == .active(Self.remoteAccount))
         #expect(storage.snapshot().record?.generation == Self.generationB)
@@ -288,7 +278,15 @@ struct SessionControllerTests {
         )
         #expect(
             try await relaunched.restore()
-                == .active(SessionAccount(id: Self.userID, email: nil, isActive: nil, isAdmin: nil, role: nil))
+                == .active(
+                    SessionAccount(
+                        id: Self.userID,
+                        email: nil,
+                        isActive: nil,
+                        isAdmin: nil,
+                        role: nil
+                    )
+                )
         )
         #expect(storage.snapshot().record == session)
     }
@@ -325,10 +323,7 @@ struct SessionControllerTests {
         await deletionGate.waitUntilEntered()
 
         await #expect(throws: SessionControllerError.transitionInProgress) {
-            try await controller.login(
-                email: "b@example.invalid",
-                password: "synthetic-passphrase-b"
-            )
+            try await controller.login(email: "b@example.invalid", password: "synthetic-passphrase-b")
         }
         #expect(storage.snapshot().record == session)
         #expect(await loader.requestPaths() == ["/users/session/me"])
@@ -358,10 +353,7 @@ struct SessionControllerTests {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
         let storage = ControlledSessionPersistenceStorage(record: session)
         let gate = SessionRequestGate()
-        let loader = ScriptedSessionDataLoader(
-            replies: [.data(Self.identityResponse)],
-            identityGate: gate
-        )
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)], identityGate: gate)
         let controller = try makeController(loader: loader, storage: storage)
 
         let cancelled = Task { try await controller.restore() }
@@ -388,16 +380,10 @@ struct SessionControllerTests {
         _ = try await controller.restore()
 
         let loginA = Task {
-            try await controller.login(
-                email: "a@example.invalid",
-                password: "synthetic-passphrase-a"
-            )
+            try await controller.login(email: "a@example.invalid", password: "synthetic-passphrase-a")
         }
         await gate.waitUntilArrived()
-        let accountB = try await controller.login(
-            email: "b@example.invalid",
-            password: "synthetic-passphrase-b"
-        )
+        let accountB = try await controller.login(email: "b@example.invalid", password: "synthetic-passphrase-b")
         await gate.open()
 
         #expect(accountB == .active(Self.remoteAccountB))

@@ -21,28 +21,16 @@ struct CatalogFilterOptions: Equatable {
 }
 
 extension CatalogFilterOptions {
-    static let empty = CatalogFilterOptions(
-        demographics: [],
-        genres: [],
-        themes: []
-    )
+    static let empty = CatalogFilterOptions(demographics: [], genres: [], themes: [])
 
-    init(
-        demographics: [String],
-        genres: [String],
-        themes: [String]
-    ) {
+    init(demographics: [String], genres: [String], themes: [String]) {
         demographicsValue = Self.normalized(demographics)
         genresValue = Self.normalized(genres)
         themesValue = Self.normalized(themes)
     }
 
     /// Keeps active selections representable if a refreshed vocabulary omits them.
-    func includingSelections(
-        demographics: Set<String>,
-        genres: Set<String>,
-        themes: Set<String>
-    ) -> Self {
+    func includingSelections(demographics: Set<String>, genres: Set<String>, themes: Set<String>) -> Self {
         Self(
             demographics: demographicsValue + Array(demographics),
             genres: genresValue + Array(genres),

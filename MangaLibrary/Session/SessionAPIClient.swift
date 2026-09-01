@@ -26,41 +26,23 @@ struct SessionAPIClient {
     @concurrent
     func login(email: String, password: String) async throws(any Error) -> SessionCredential {
         let basicValue = Data("\(email):\(password)".utf8).base64EncodedString()
-        let request = request(
-            path: "users/session/login",
-            method: "POST",
-            authorization: "Basic \(basicValue)"
-        )
+        let request = request(path: "users/session/login", method: "POST", authorization: "Basic \(basicValue)")
 
-        return try await fetchCredential(
-            request: request,
-            expectedUse: .refresh
-        )
+        return try await fetchCredential(request: request, expectedUse: .refresh)
     }
 
     /// Exchanges the current refresh credential for a validated access credential.
     @concurrent
     func exchangeAccess(refreshToken: String) async throws(any Error) -> SessionCredential {
-        let request = request(
-            path: "users/session/access",
-            method: "GET",
-            authorization: "Bearer \(refreshToken)"
-        )
+        let request = request(path: "users/session/access", method: "GET", authorization: "Bearer \(refreshToken)")
 
-        return try await fetchCredential(
-            request: request,
-            expectedUse: .access
-        )
+        return try await fetchCredential(request: request, expectedUse: .access)
     }
 
     /// Resolves the stable account identity authorized by an access credential.
     @concurrent
     func fetchIdentity(accessToken: String) async throws(any Error) -> SessionIdentity {
-        let request = request(
-            path: "users/session/me",
-            method: "GET",
-            authorization: "Bearer \(accessToken)"
-        )
+        let request = request(path: "users/session/me", method: "GET", authorization: "Bearer \(accessToken)")
         let data = try await data(for: request)
 
         do {
@@ -85,10 +67,7 @@ struct SessionAPIClient {
         let data = try await data(for: request)
 
         do {
-            let response = try JSONDecoder().decode(
-                DualSessionTokenResponseDTO.self,
-                from: data
-            )
+            let response = try JSONDecoder().decode(DualSessionTokenResponseDTO.self, from: data)
             guard
                 response.token.isEmpty == false,
                 response.tokenType == "Bearer",
@@ -99,18 +78,10 @@ struct SessionAPIClient {
             }
 
             let issuedAt = now()
-            let expiresAt = issuedAt.addingTimeInterval(
-                TimeInterval(response.expiresIn)
-            )
-            guard expiresAt > issuedAt else {
-                throw SessionAPIClientError.contractDrift
-            }
+            let expiresAt = issuedAt.addingTimeInterval(TimeInterval(response.expiresIn))
+            guard expiresAt > issuedAt else { throw SessionAPIClientError.contractDrift }
 
-            return SessionCredential(
-                value: response.token,
-                use: expectedUse,
-                expiresAt: expiresAt
-            )
+            return SessionCredential(value: response.token, use: expectedUse, expiresAt: expiresAt)
         } catch let error as SessionAPIClientError {
             throw error
         } catch {

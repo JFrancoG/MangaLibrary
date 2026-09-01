@@ -28,9 +28,7 @@ enum CatalogJSONFixtures {
         status: String = "finished",
         cover: String = "https://images.example.test/fullmetal-alchemist.jpg"
     ) -> String {
-        let title = includesTitle
-            ? #", "title": "Fullmetal Alchemist""#
-            : ""
+        let title = includesTitle ? #", "title": "Fullmetal Alchemist""# : ""
         let authors = includesAuthors
             ? #""authors": [{"id":"\#(authorID)","firstName":"Hiromu","lastName":"Arakawa","role":"\#(authorRole)"}],"#
             : ""

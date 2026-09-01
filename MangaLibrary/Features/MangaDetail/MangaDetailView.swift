@@ -40,8 +40,7 @@ struct MangaDetailView: View {
                     .foregroundStyle(.textPrimary)
                     .accessibilityHeading(.h1)
 
-                if let titleEnglish = manga.titleEnglish,
-                   titleEnglish != manga.title {
+                if let titleEnglish = manga.titleEnglish, titleEnglish != manga.title {
                     Text(titleEnglish)
                         .font(.title3)
                         .foregroundStyle(.textPrimary)
@@ -54,10 +53,7 @@ struct MangaDetailView: View {
                 }
 
                 LabeledContent("Score") {
-                    Text(
-                        manga.score,
-                        format: .number.precision(.fractionLength(1...2))
-                    )
+                    Text(manga.score, format: .number.precision(.fractionLength(1...2)))
                     .foregroundStyle(.textPrimary)
                 }
                 .foregroundStyle(.textSecondary)
@@ -106,9 +102,7 @@ struct MangaDetailView: View {
         .background(Color(.canvas))
         .scrollPosition($scrollPosition)
         .onChange(of: manga.id) { _, _ in
-            guard horizontalSizeClass == .regular else {
-                return
-            }
+            guard horizontalSizeClass == .regular else { return }
 
             scrollPosition.scrollTo(edge: .top)
         }
@@ -118,10 +112,7 @@ struct MangaDetailView: View {
     }
 
     private var detailCover: some View {
-        MangaCoverView(
-            url: manga.coverURL,
-            presentation: .detail
-        )
+        MangaCoverView(url: manga.coverURL, presentation: .detail)
         .frame(maxWidth: .infinity)
         .scaleEffect(shouldAnimateCover ? coverScale : 1)
         .onAppear {
@@ -153,9 +144,7 @@ struct MangaDetailView: View {
     }
 
     private var hasClassifications: Bool {
-        manga.demographics.isEmpty == false
-            || manga.genres.isEmpty == false
-            || manga.themes.isEmpty == false
+        manga.demographics.isEmpty == false || manga.genres.isEmpty == false || manga.themes.isEmpty == false
     }
 
     private func formattedName(for author: Manga.Author) -> String {

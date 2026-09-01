@@ -33,9 +33,7 @@ struct CatalogRootView: View {
                 await model.loadIfNeeded()
             }
             .task(id: retryRequest) {
-                guard retryRequest != nil else {
-                    return
-                }
+                guard retryRequest != nil else { return }
 
                 await model.retry()
             }
@@ -60,10 +58,7 @@ struct CatalogRootView: View {
     }
 
     private var filters: some View {
-        CatalogFiltersView(
-            model: model,
-            searchText: $searchText
-        )
+        CatalogFiltersView(model: model, searchText: $searchText)
     }
 
     @ViewBuilder
@@ -87,21 +82,13 @@ struct CatalogRootView: View {
     private func catalogSidebar(for navigationMode: CatalogNavigationMode) -> some View {
         sidebar(for: navigationMode)
             .navigationTitle("Catalog")
-            .toolbarTitleDisplayMode(
-                navigationMode == .regularSplit ? .inline : .large
-            )
+            .toolbarTitleDisplayMode(navigationMode == .regularSplit ? .inline : .large)
             .searchable(text: $searchText, prompt: "Search manga")
             .onSubmit(of: .search) {
                 applySearchText()
             }
             .onChange(of: searchText) { previousText, currentText in
-                guard
-                    previousText.isEmpty == false,
-                    currentText.isEmpty,
-                    model.query != .best
-                else {
-                    return
-                }
+                guard previousText.isEmpty == false, currentText.isEmpty, model.query != .best else { return }
 
                 applySearchText()
             }
@@ -228,8 +215,7 @@ struct CatalogRootView: View {
     }
 
     private func applySearchText() {
-        let search = (model.query.advancedSearch ?? CatalogSearch())
-            .replacingTitle(searchText)
+        let search = (model.query.advancedSearch ?? CatalogSearch()).replacingTitle(searchText)
         model.apply(query: .search(search))
         searchText = search.title ?? ""
     }
@@ -246,9 +232,7 @@ struct CatalogRootView: View {
             )
         }
         .labelStyle(.iconOnly)
-        .accessibilityValue(
-            "Active filters: \(model.query.activeFilterCount)"
-        )
+        .accessibilityValue("Active filters: \(model.query.activeFilterCount)")
         .accessibilityIdentifier("catalog.filters")
     }
 
@@ -256,9 +240,7 @@ struct CatalogRootView: View {
         layoutAction(
             .list,
             title: "List",
-            systemImage: layout == .list
-                ? "list.bullet.circle.fill"
-                : "list.bullet",
+            systemImage: layout == .list ? "list.bullet.circle.fill" : "list.bullet",
             accessibilityIdentifier: "catalog.layout.list"
         )
     }
@@ -267,9 +249,7 @@ struct CatalogRootView: View {
         layoutAction(
             .grid,
             title: "Grid",
-            systemImage: layout == .grid
-                ? "square.grid.2x2.fill"
-                : "square.grid.2x2",
+            systemImage: layout == .grid ? "square.grid.2x2.fill" : "square.grid.2x2",
             accessibilityIdentifier: "catalog.layout.grid"
         )
     }
@@ -286,9 +266,7 @@ struct CatalogRootView: View {
             Label(title, systemImage: systemImage)
                 .labelStyle(.iconOnly)
         }
-        .accessibilityAddTraits(
-            layout == targetLayout ? .isSelected : []
-        )
+        .accessibilityAddTraits(layout == targetLayout ? .isSelected : [])
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 }
@@ -298,18 +276,12 @@ extension CatalogRootView {
         loadPage: @escaping CatalogModel.PageLoader,
         loadFilterOptions: @escaping CatalogModel.FilterOptionsLoader
     ) {
-        model = CatalogModel(
-            loadFilterOptions: loadFilterOptions,
-            loadPage: loadPage
-        )
+        model = CatalogModel(loadFilterOptions: loadFilterOptions, loadPage: loadPage)
         layout = .list
         searchText = ""
     }
 
-    init(
-        model: CatalogModel,
-        initialLayout: CatalogLayout = .list
-    ) {
+    init(model: CatalogModel, initialLayout: CatalogLayout = .list) {
         self.model = model
         layout = initialLayout
         searchText = model.query.advancedSearch?.title ?? ""
@@ -319,12 +291,7 @@ extension CatalogRootView {
 #Preview("Catalog content") {
     CatalogRootView(
         model: CatalogPreviewSupport.model(
-            state: .content(
-                .init(
-                    items: CatalogPreviewSupport.mangas,
-                    pagination: .end
-                )
-            )
+            state: .content(.init(items: CatalogPreviewSupport.mangas, pagination: .end))
         )
     )
 }
@@ -336,12 +303,7 @@ extension CatalogRootView {
 #Preview("Catalog grid") {
     CatalogRootView(
         model: CatalogPreviewSupport.model(
-            state: .content(
-                .init(
-                    items: CatalogPreviewSupport.mangas,
-                    pagination: .end
-                )
-            )
+            state: .content(.init(items: CatalogPreviewSupport.mangas, pagination: .end))
         ),
         initialLayout: .grid
     )
@@ -352,19 +314,14 @@ extension CatalogRootView {
 }
 
 #Preview("Catalog error") {
-    CatalogRootView(
-        model: CatalogPreviewSupport.model(state: .failure(.unavailable))
-    )
+    CatalogRootView(model: CatalogPreviewSupport.model(state: .failure(.unavailable)))
 }
 
 #Preview("Catalog additional page error") {
     CatalogRootView(
         model: CatalogPreviewSupport.model(
             state: .content(
-                .init(
-                    items: CatalogPreviewSupport.mangas,
-                    pagination: .failure(page: 2, reason: .unavailable)
-                )
+                .init(items: CatalogPreviewSupport.mangas, pagination: .failure(page: 2, reason: .unavailable))
             )
         )
     )
@@ -373,12 +330,7 @@ extension CatalogRootView {
 #Preview("Catalog search results") {
     CatalogRootView(
         model: CatalogPreviewSupport.model(
-            state: .content(
-                .init(
-                    items: CatalogPreviewSupport.mangas,
-                    pagination: .end
-                )
-            ),
+            state: .content(.init(items: CatalogPreviewSupport.mangas, pagination: .end)),
             query: .advanced(
                 CatalogSearch(
                     title: "Monster",

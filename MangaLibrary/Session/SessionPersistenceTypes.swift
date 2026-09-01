@@ -32,7 +32,12 @@ struct SessionPersistedSession: Equatable, Sendable {
     }
 
     func replacingAccess(with access: SessionCredential) throws(SessionStorageError) -> Self {
-        try Self(userID: userID, generation: generation, access: access, refresh: refresh)
+        try Self(
+            userID: userID,
+            generation: generation,
+            access: access,
+            refresh: refresh
+        )
     }
 }
 
@@ -43,12 +48,14 @@ extension SessionPersistedSession {
         access: SessionCredential,
         refresh: SessionCredential
     ) throws(SessionStorageError) {
-        guard access.use == .access, access.value.isEmpty == false,
-              access.expiresAt.timeIntervalSinceReferenceDate.isFinite,
-              refresh.use == .refresh, refresh.value.isEmpty == false,
-              refresh.expiresAt.timeIntervalSinceReferenceDate.isFinite else {
-            throw SessionStorageError.corruptSessionRecord
-        }
+        guard
+            access.use == .access,
+            access.value.isEmpty == false,
+            access.expiresAt.timeIntervalSinceReferenceDate.isFinite,
+            refresh.use == .refresh,
+            refresh.value.isEmpty == false,
+            refresh.expiresAt.timeIntervalSinceReferenceDate.isFinite
+        else { throw SessionStorageError.corruptSessionRecord }
 
         storedUserID = userID
         storedGeneration = generation

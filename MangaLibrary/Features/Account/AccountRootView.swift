@@ -40,15 +40,11 @@ struct AccountRootView: View {
                 }
         }
         .onChange(of: authenticatedAccountID) {
-            guard authenticatedAccountID != nil else {
-                return
-            }
+            guard authenticatedAccountID != nil else { return }
             path.removeAll()
         }
         .task(id: requestedAction) {
-            guard let action = requestedAction else {
-                return
-            }
+            guard let action = requestedAction else { return }
 
             switch action {
             case .retryRestore:
@@ -141,7 +137,14 @@ struct AccountRootView: View {
                     .controlSize(.large)
                     .buttonSizing(.fitted)
                     .accessibilityIdentifier("account.sign-in.action")
-                    .padding(EdgeInsets(top: 0, leading: 0, bottom: 16, trailing: 0))
+                    .padding(
+                        EdgeInsets(
+                            top: 0,
+                            leading: 0,
+                            bottom: 16,
+                            trailing: 0
+                        )
+                    )
 
                     if allowsRegistration {
                         VStack(spacing: 16) {
@@ -176,10 +179,7 @@ struct AccountRootView: View {
     private func restorationFailureContent(failure: AccountModel.Failure) -> some View {
         ScrollView {
             ContentUnavailableView {
-                Label(
-                    "Session restoration needs attention",
-                    systemImage: "lock.trianglebadge.exclamationmark"
-                )
+                Label("Session restoration needs attention", systemImage: "lock.trianglebadge.exclamationmark")
                 .accessibilityIdentifier("account.restoration-failure")
             } description: {
                 VStack(spacing: 8) {
@@ -269,64 +269,42 @@ struct AccountRootView: View {
     }
 
     private var authenticatedAccountID: UUID? {
-        guard case let .authenticated(account, _) = model.state else {
-            return nil
-        }
+        guard case let .authenticated(account, _) = model.state else { return nil }
         return account.id
     }
 }
 
 #Preview("Account signed out") {
-    AccountRootView(
-        model: AccountPreviewSupport.model(
-            state: .signedOut(failure: nil)
-        )
-    )
+    AccountRootView(model: AccountPreviewSupport.model(state: .signedOut(failure: nil)))
 }
 
 #Preview("Account landing after registration uncertainty") {
     AccountRootView(
         model: AccountPreviewSupport.model(
             state: .signedOut(failure: nil),
-            registrationState: .unconfirmed(
-                .network(.transport(.timedOut))
-            )
+            registrationState: .unconfirmed(.network(.transport(.timedOut)))
         )
     )
 }
 
 #Preview("Account restoring") {
-    AccountRootView(
-        model: AccountPreviewSupport.model(state: .restoring)
-    )
+    AccountRootView(model: AccountPreviewSupport.model(state: .restoring))
 }
 
 #Preview("Account restoration failure") {
-    AccountRootView(
-        model: AccountPreviewSupport.model(
-            state: .restorationFailed(failure: .temporarilyUnavailable)
-        )
-    )
+    AccountRootView(model: AccountPreviewSupport.model(state: .restorationFailed(failure: .temporarilyUnavailable)))
 }
 
 #Preview("Account authenticated") {
     AccountRootView(
-        model: AccountPreviewSupport.model(
-            state: .authenticated(
-                AccountPreviewSupport.account,
-                notice: nil
-            )
-        )
+        model: AccountPreviewSupport.model(state: .authenticated(AccountPreviewSupport.account, notice: nil))
     )
 }
 
 #Preview("Account authenticated without email") {
     AccountRootView(
         model: AccountPreviewSupport.model(
-            state: .authenticated(
-                AccountPreviewSupport.accountWithoutEmail,
-                notice: nil
-            )
+            state: .authenticated(AccountPreviewSupport.accountWithoutEmail, notice: nil)
         )
     )
 }
@@ -334,10 +312,7 @@ struct AccountRootView: View {
 #Preview("Account authenticated with notice") {
     AccountRootView(
         model: AccountPreviewSupport.model(
-            state: .authenticated(
-                AccountPreviewSupport.account,
-                notice: .temporarilyUnavailable
-            )
+            state: .authenticated(AccountPreviewSupport.account, notice: .temporarilyUnavailable)
         )
     )
 }
@@ -345,18 +320,11 @@ struct AccountRootView: View {
 #Preview("Account authentication required") {
     AccountRootView(
         model: AccountPreviewSupport.model(
-            state: .authenticationRequired(
-                userID: AccountPreviewSupport.account.id,
-                failure: .authenticationRequired
-            )
+            state: .authenticationRequired(userID: AccountPreviewSupport.account.id, failure: .authenticationRequired)
         )
     )
 }
 
 #Preview("Account signing out") {
-    AccountRootView(
-        model: AccountPreviewSupport.model(
-            state: .signingOut(AccountPreviewSupport.account)
-        )
-    )
+    AccountRootView(model: AccountPreviewSupport.model(state: .signingOut(AccountPreviewSupport.account)))
 }

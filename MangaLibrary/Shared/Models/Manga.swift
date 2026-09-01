@@ -51,9 +51,6 @@ extension Manga {
 
 extension Manga.Author {
     var nameComponents: PersonNameComponents {
-        PersonNameComponents(
-            givenName: firstName,
-            familyName: lastName
-        )
+        PersonNameComponents(givenName: firstName, familyName: lastName)
     }
 }

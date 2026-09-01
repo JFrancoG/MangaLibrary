@@ -44,17 +44,10 @@ actor ControlledCatalogLoader {
     }
 
     func waitForRequestCount(_ expectedCount: Int) async {
-        guard recordedRequests.count < expectedCount else {
-            return
-        }
+        guard recordedRequests.count < expectedCount else { return }
 
         await withCheckedContinuation { continuation in
-            requestWaiters.append(
-                RequestWaiter(
-                    expectedCount: expectedCount,
-                    continuation: continuation
-                )
-            )
+            requestWaiters.append(RequestWaiter(expectedCount: expectedCount, continuation: continuation))
         }
     }
 
@@ -71,17 +64,10 @@ actor ControlledCatalogLoader {
     }
 
     func waitForCancellation(at requestIndex: Int) async {
-        guard !cancelledRequestIndices.contains(requestIndex) else {
-            return
-        }
+        guard !cancelledRequestIndices.contains(requestIndex) else { return }
 
         await withCheckedContinuation { continuation in
-            cancellationWaiters.append(
-                CancellationWaiter(
-                    requestIndex: requestIndex,
-                    continuation: continuation
-                )
-            )
+            cancellationWaiters.append(CancellationWaiter(requestIndex: requestIndex, continuation: continuation))
         }
     }
 
@@ -95,9 +81,7 @@ actor ControlledCatalogLoader {
 
     private func cancelRequest(at requestIndex: Int) {
         cancelledRequestIndices.insert(requestIndex)
-        continuations.removeValue(forKey: requestIndex)?.resume(
-            throwing: CancellationError()
-        )
+        continuations.removeValue(forKey: requestIndex)?.resume(throwing: CancellationError())
         resumeSatisfiedCancellationWaiters()
     }
 

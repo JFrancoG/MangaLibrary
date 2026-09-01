@@ -136,7 +136,14 @@ struct RegisterView: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .strokeBorder(Color(.controlBorder), lineWidth: 1)
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                .listRowInsets(
+                    EdgeInsets(
+                        top: 4,
+                        leading: 4,
+                        bottom: 4,
+                        trailing: 4
+                    )
+                )
                 .listRowBackground(Color(.canvas))
         } footer: {
             if let emailFailure = viewModel.emailFailure {
@@ -194,7 +201,14 @@ struct RegisterView: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(Color(.controlBorder), lineWidth: 1)
             }
-            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+            .listRowInsets(
+                EdgeInsets(
+                    top: 4,
+                    leading: 4,
+                    bottom: 4,
+                    trailing: 4
+                )
+            )
             .listRowBackground(Color(.canvas))
         } footer: {
             if let passwordFailure = viewModel.passwordFailure {
@@ -281,9 +295,7 @@ private extension RegisterView {
 #Preview("Register") {
     NavigationStack {
         RegisterView(
-            model: AccountPreviewSupport.model(
-                state: .signedOut(failure: nil)
-            ),
+            model: AccountPreviewSupport.model(state: .signedOut(failure: nil)),
             onSignIn: {}
         )
     }
@@ -293,9 +305,7 @@ private extension RegisterView {
 #Preview("Register Spanish") {
     NavigationStack {
         RegisterView(
-            model: AccountPreviewSupport.model(
-                state: .signedOut(failure: nil)
-            ),
+            model: AccountPreviewSupport.model(state: .signedOut(failure: nil)),
             onSignIn: {}
         )
     }
@@ -305,9 +315,7 @@ private extension RegisterView {
 #Preview("Register inline validation") {
     NavigationStack {
         RegisterView(
-            previewModel: AccountPreviewSupport.model(
-                state: .signedOut(failure: nil)
-            ),
+            previewModel: AccountPreviewSupport.model(state: .signedOut(failure: nil)),
             email: "readerexample.invalid",
             password: "short",
             showsValidationErrors: true
@@ -320,10 +328,7 @@ private extension RegisterView {
 #Preview("Register submitting") {
     NavigationStack {
         RegisterView(
-            model: AccountPreviewSupport.model(
-                state: .signedOut(failure: nil),
-                registrationState: .submitting
-            ),
+            model: AccountPreviewSupport.model(state: .signedOut(failure: nil), registrationState: .submitting),
             onSignIn: {}
         )
     }
@@ -346,9 +351,7 @@ private extension RegisterView {
         RegisterView(
             model: AccountPreviewSupport.model(
                 state: .signedOut(failure: nil),
-                registrationState: .unconfirmed(
-                    .network(.transport(.timedOut))
-                )
+                registrationState: .unconfirmed(.network(.transport(.timedOut)))
             ),
             onSignIn: {}
         )
@@ -359,10 +362,7 @@ private extension RegisterView {
 #Preview("Register signing in") {
     NavigationStack {
         RegisterView(
-            model: AccountPreviewSupport.model(
-                state: .signedOut(failure: nil),
-                registrationState: .signingIn
-            ),
+            model: AccountPreviewSupport.model(state: .signedOut(failure: nil), registrationState: .signingIn),
             onSignIn: {}
         )
     }
@@ -373,9 +373,7 @@ private extension RegisterView {
         RegisterView(
             model: AccountPreviewSupport.model(
                 state: .signedOut(failure: nil),
-                registrationState: .created(
-                    loginFailure: .invalidCredentials
-                )
+                registrationState: .created(loginFailure: .invalidCredentials)
             ),
             onSignIn: {}
         )

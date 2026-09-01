@@ -84,7 +84,14 @@ struct SignInView: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .strokeBorder(Color(.controlBorder), lineWidth: 1)
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                .listRowInsets(
+                    EdgeInsets(
+                        top: 4,
+                        leading: 4,
+                        bottom: 4,
+                        trailing: 4
+                    )
+                )
                 .listRowBackground(Color(.canvas))
         } footer: {
             if let emailFailure = viewModel.emailFailure {
@@ -141,7 +148,14 @@ struct SignInView: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(Color(.controlBorder), lineWidth: 1)
             }
-            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+            .listRowInsets(
+                EdgeInsets(
+                    top: 4,
+                    leading: 4,
+                    bottom: 4,
+                    trailing: 4
+                )
+            )
             .listRowBackground(Color(.canvas))
         } footer: {
             if let passwordFailure = viewModel.passwordFailure {
@@ -175,21 +189,13 @@ private extension SignInView {
 
 #Preview("Sign in") {
     NavigationStack {
-        SignInView(
-            model: AccountPreviewSupport.model(
-                state: .signedOut(failure: nil)
-            )
-        )
+        SignInView(model: AccountPreviewSupport.model(state: .signedOut(failure: nil)))
     }
 }
 
 #Preview("Sign in error") {
     NavigationStack {
-        SignInView(
-            model: AccountPreviewSupport.model(
-                state: .signedOut(failure: .invalidCredentials)
-            )
-        )
+        SignInView(model: AccountPreviewSupport.model(state: .signedOut(failure: .invalidCredentials)))
     }
     .environment(\.dynamicTypeSize, .accessibility3)
 }
@@ -197,9 +203,7 @@ private extension SignInView {
 #Preview("Sign in inline validation Spanish AX5") {
     NavigationStack {
         SignInView(
-            previewModel: AccountPreviewSupport.model(
-                state: .signedOut(failure: nil)
-            ),
+            previewModel: AccountPreviewSupport.model(state: .signedOut(failure: nil)),
             email: "readerexample.invalid",
             password: "",
             showsValidationErrors: true
@@ -211,10 +215,6 @@ private extension SignInView {
 
 #Preview("Sign in authenticating") {
     NavigationStack {
-        SignInView(
-            model: AccountPreviewSupport.model(
-                state: .authenticating
-            )
-        )
+        SignInView(model: AccountPreviewSupport.model(state: .authenticating))
     }
 }

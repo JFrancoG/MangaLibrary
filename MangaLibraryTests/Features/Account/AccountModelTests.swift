@@ -13,33 +13,23 @@ struct AccountModelTests {
     @Test("Restore maps the safe session snapshot into account presentation")
     func restorePublishesAuthenticatedAccount() async {
         let session = ControlledAccountSession()
-        await session.setRestoreResult(
-            .success(.active(Self.accountA))
-        )
+        await session.setRestoreResult(.success(.active(Self.accountA)))
         let model = AccountModel(operations: session.operations())
 
         await model.restore()
 
-        #expect(
-            model.state
-                == .authenticated(Self.accountA, notice: nil)
-        )
+        #expect(model.state == .authenticated(Self.accountA, notice: nil))
     }
 
     @Test("Deferred restoration never exposes sign-in and remains retryable")
     func unavailableRestoreRemainsRetryable() async {
         let session = ControlledAccountSession()
-        await session.setRestoreResult(
-            .failure(.temporarilyUnavailable)
-        )
+        await session.setRestoreResult(.failure(.temporarilyUnavailable))
         let model = AccountModel(operations: session.operations())
 
         await model.restore()
 
-        #expect(
-            model.state
-                == .restorationFailed(failure: .temporarilyUnavailable)
-        )
+        #expect(model.state == .restorationFailed(failure: .temporarilyUnavailable))
 
         await session.setRestoreResult(.success(.signedOut))
         await model.restore()
@@ -51,54 +41,29 @@ struct AccountModelTests {
     func signInHasAStableLoadingState() async {
         let session = ControlledAccountSession()
         let gate = AccountOperationGate()
-        await session.setLoginResult(
-            for: "a@example.invalid",
-            result: .success(.active(Self.accountA)),
-            gate: gate
-        )
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        await session.setLoginResult(for: "a@example.invalid", result: .success(.active(Self.accountA)), gate: gate)
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
         let signIn = Task { @MainActor in
-            await model.signIn(
-                email: "a@example.invalid",
-                password: "synthetic-passphrase"
-            )
+            await model.signIn(email: "a@example.invalid", password: "synthetic-passphrase")
         }
         await gate.waitUntilArrived()
         #expect(model.state == .authenticating)
 
         await gate.open()
         await signIn.value
-        #expect(
-            model.state
-                == .authenticated(Self.accountA, notice: nil)
-        )
+        #expect(model.state == .authenticated(Self.accountA, notice: nil))
     }
 
     @Test("Sign in normalizes email at the semantic boundary")
     func signInNormalizesEmail() async {
         let session = ControlledAccountSession()
-        await session.setLoginResult(
-            for: "a@example.invalid",
-            result: .success(.active(Self.accountA))
-        )
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        await session.setLoginResult(for: "a@example.invalid", result: .success(.active(Self.accountA)))
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        await model.signIn(
-            email: "  a@example.invalid\n",
-            password: "synthetic-passphrase"
-        )
+        await model.signIn(email: "  a@example.invalid\n", password: "synthetic-passphrase")
 
-        #expect(
-            model.state
-                == .authenticated(Self.accountA, notice: nil)
-        )
+        #expect(model.state == .authenticated(Self.accountA, notice: nil))
     }
 
     @Test("Invalid sign-in input never starts the remote workflow")
@@ -139,24 +104,12 @@ struct AccountModelTests {
     @Test("Invalid credentials return to signed out with a recoverable reason")
     func invalidCredentialsKeepSignedOutContext() async {
         let session = ControlledAccountSession()
-        await session.setLoginResult(
-            for: "a@example.invalid",
-            result: .failure(.invalidCredentials)
-        )
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        await session.setLoginResult(for: "a@example.invalid", result: .failure(.invalidCredentials))
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        await model.signIn(
-            email: "a@example.invalid",
-            password: "synthetic-passphrase"
-        )
+        await model.signIn(email: "a@example.invalid", password: "synthetic-passphrase")
 
-        #expect(
-            model.state
-                == .signedOut(failure: .invalidCredentials)
-        )
+        #expect(model.state == .signedOut(failure: .invalidCredentials))
     }
 
     @Test("A failed Keychain deletion keeps the authenticated account with a notice")
@@ -169,49 +122,27 @@ struct AccountModelTests {
         )
 
         await model.signOut()
-        #expect(
-            model.state
-                == .authenticated(Self.accountA, notice: .temporarilyUnavailable)
-        )
+        #expect(model.state == .authenticated(Self.accountA, notice: .temporarilyUnavailable))
     }
 
     @Test("A repeated sign-in cannot supersede the active attempt")
     func repeatedSignInKeepsTheActiveAttempt() async {
         let session = ControlledAccountSession()
         let gateA = AccountOperationGate()
-        await session.setLoginResult(
-            for: "a@example.invalid",
-            result: .success(.active(Self.accountA)),
-            gate: gateA
-        )
-        await session.setLoginResult(
-            for: "b@example.invalid",
-            result: .success(.active(Self.accountB))
-        )
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        await session.setLoginResult(for: "a@example.invalid", result: .success(.active(Self.accountA)), gate: gateA)
+        await session.setLoginResult(for: "b@example.invalid", result: .success(.active(Self.accountB)))
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
         let signInA = Task { @MainActor in
-            await model.signIn(
-                email: "a@example.invalid",
-                password: "synthetic-a"
-            )
+            await model.signIn(email: "a@example.invalid", password: "synthetic-a")
         }
         await gateA.waitUntilArrived()
-        await model.signIn(
-            email: "b@example.invalid",
-            password: "synthetic-b"
-        )
+        await model.signIn(email: "b@example.invalid", password: "synthetic-b")
         #expect(model.state == .authenticating)
         await gateA.open()
         await signInA.value
 
-        #expect(
-            model.state
-                == .authenticated(Self.accountA, notice: nil)
-        )
+        #expect(model.state == .authenticated(Self.accountA, notice: nil))
     }
 
     @Test("A cancelled sign-in reconciles with current session authority")
@@ -224,16 +155,10 @@ struct AccountModelTests {
             gate: gate,
             commitsSnapshot: false
         )
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
         let signIn = Task { @MainActor in
-            await model.signIn(
-                email: "a@example.invalid",
-                password: "synthetic-passphrase"
-            )
+            await model.signIn(email: "a@example.invalid", password: "synthetic-passphrase")
         }
         await gate.waitUntilArrived()
         signIn.cancel()
@@ -247,21 +172,11 @@ struct AccountModelTests {
     func restoreDuringSignInDoesNotReplaceItsOperation() async {
         let session = ControlledAccountSession()
         let gate = AccountOperationGate()
-        await session.setLoginResult(
-            for: "a@example.invalid",
-            result: .success(.active(Self.accountA)),
-            gate: gate
-        )
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        await session.setLoginResult(for: "a@example.invalid", result: .success(.active(Self.accountA)), gate: gate)
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
         let signIn = Task { @MainActor in
-            await model.signIn(
-                email: "a@example.invalid",
-                password: "synthetic-passphrase"
-            )
+            await model.signIn(email: "a@example.invalid", password: "synthetic-passphrase")
         }
         await gate.waitUntilArrived()
 
@@ -270,27 +185,18 @@ struct AccountModelTests {
         #expect(model.state == .authenticating)
         await gate.open()
         await signIn.value
-        #expect(
-            model.state
-                == .authenticated(Self.accountA, notice: nil)
-        )
+        #expect(model.state == .authenticated(Self.accountA, notice: nil))
     }
 
     @Test("Registration cancelled before model entry never starts the workflow")
     func cancelledRegistrationBeforeModelEntryNeverStartsRemoteWorkflow() async {
         let session = ControlledAccountSession()
         let entryGate = AccountOperationGate()
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
         let registration = Task { @MainActor in
             await entryGate.suspendUntilOpen()
-            await model.register(
-                email: "reader@example.invalid",
-                password: "synthetic-passphrase"
-            )
+            await model.register(email: "reader@example.invalid", password: "synthetic-passphrase")
         }
         await entryGate.waitUntilArrived()
         registration.cancel()
@@ -305,17 +211,9 @@ struct AccountModelTests {
     @Test("Invalid registration input never starts the remote workflow")
     func invalidRegistrationInputNeverStartsRemoteWorkflow() async {
         let session = ControlledAccountSession()
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        #expect(
-            model.canSubmitRegistration(
-                email: "reader@example.invalid",
-                password: "12345678"
-            )
-        )
+        #expect(model.canSubmitRegistration(email: "reader@example.invalid", password: "12345678"))
         #expect(
             model.registrationValidation(email: "", password: "")
                 == .init(emailFailure: .emailRequired, passwordFailure: .passwordRequired)
@@ -324,28 +222,15 @@ struct AccountModelTests {
             model.registrationValidation(email: "reader@example.invalid", password: "1234567").passwordFailure
                 == .passwordTooShort
         )
-        #expect(
-            !model.canSubmitRegistration(
-                email: "  \n",
-                password: "12345678"
-            )
-        )
+        #expect(!model.canSubmitRegistration(email: "  \n", password: "12345678"))
         #expect(!model.canSubmitRegistration(email: "reader@example", password: "12345678"))
         #expect(!model.canSubmitRegistration(email: "reader..name@example.invalid", password: "12345678"))
-        #expect(
-            !model.canSubmitRegistration(
-                email: "reader@example.invalid",
-                password: "1234567"
-            )
-        )
+        #expect(!model.canSubmitRegistration(email: "reader@example.invalid", password: "1234567"))
 
         await model.register(email: "  \n", password: "12345678")
         await model.register(email: "reader@example", password: "12345678")
         await model.register(email: "reader..name@example.invalid", password: "12345678")
-        await model.register(
-            email: "reader@example.invalid",
-            password: "1234567"
-        )
+        await model.register(email: "reader@example.invalid", password: "1234567")
 
         #expect(await session.remoteCalls().isEmpty)
         #expect(model.registrationState == .idle)
@@ -354,35 +239,17 @@ struct AccountModelTests {
     @Test("Confirmed registration logs in exactly once")
     func confirmedRegistrationLogsInExactlyOnce() async {
         let session = ControlledAccountSession()
-        await session.setRegistrationResult(
-            for: "reader@example.invalid",
-            submission: .confirmed
-        )
-        await session.setLoginResult(
-            for: "reader@example.invalid",
-            result: .success(.active(Self.accountA))
-        )
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        await session.setRegistrationResult(for: "reader@example.invalid", submission: .confirmed)
+        await session.setLoginResult(for: "reader@example.invalid", result: .success(.active(Self.accountA)))
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        await model.register(
-            email: "  reader@example.invalid\n",
-            password: "synthetic-passphrase"
-        )
+        await model.register(email: "  reader@example.invalid\n", password: "synthetic-passphrase")
 
         #expect(
             await session.remoteCalls()
                 == [
-                    .register(
-                        email: "reader@example.invalid",
-                        password: "synthetic-passphrase"
-                    ),
-                    .login(
-                        email: "reader@example.invalid",
-                        password: "synthetic-passphrase"
-                    )
+                    .register(email: "reader@example.invalid", password: "synthetic-passphrase"),
+                    .login(email: "reader@example.invalid", password: "synthetic-passphrase")
                 ]
         )
         #expect(model.state == .authenticated(Self.accountA, notice: nil))
@@ -396,57 +263,30 @@ struct AccountModelTests {
             for: "reader@example.invalid",
             submission: .notSubmitted(.configurationUnavailable)
         )
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        await model.register(
-            email: "reader@example.invalid",
-            password: "synthetic-passphrase"
-        )
+        await model.register(email: "reader@example.invalid", password: "synthetic-passphrase")
 
         #expect(
             await session.remoteCalls()
                 == [
-                    .register(
-                        email: "reader@example.invalid",
-                        password: "synthetic-passphrase"
-                    )
+                    .register(email: "reader@example.invalid", password: "synthetic-passphrase")
                 ]
         )
-        #expect(
-            model.registrationState
-                == .failed(.configurationUnavailable)
-        )
+        #expect(model.registrationState == .failed(.configurationUnavailable))
         #expect(model.state == .signedOut(failure: nil))
     }
 
     @Test("Confirmed account remains created when automatic sign in fails")
     func confirmedRegistrationRemainsCreatedWhenLoginFails() async {
         let session = ControlledAccountSession()
-        await session.setRegistrationResult(
-            for: "reader@example.invalid",
-            submission: .confirmed
-        )
-        await session.setLoginResult(
-            for: "reader@example.invalid",
-            result: .failure(.invalidCredentials)
-        )
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        await session.setRegistrationResult(for: "reader@example.invalid", submission: .confirmed)
+        await session.setLoginResult(for: "reader@example.invalid", result: .failure(.invalidCredentials))
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        await model.register(
-            email: "reader@example.invalid",
-            password: "synthetic-passphrase"
-        )
+        await model.register(email: "reader@example.invalid", password: "synthetic-passphrase")
 
-        #expect(
-            model.registrationState
-                == .created(loginFailure: .invalidCredentials)
-        )
+        #expect(model.registrationState == .created(loginFailure: .invalidCredentials))
         #expect(model.state == .signedOut(failure: nil))
         #expect(await session.remoteCalls().count == 2)
     }
@@ -455,26 +295,17 @@ struct AccountModelTests {
     func confirmedRegistrationRemainsCreatedWhenLoginIsCancelled() async {
         let session = ControlledAccountSession()
         let loginGate = AccountOperationGate()
-        await session.setRegistrationResult(
-            for: "reader@example.invalid",
-            submission: .confirmed
-        )
+        await session.setRegistrationResult(for: "reader@example.invalid", submission: .confirmed)
         await session.setLoginResult(
             for: "reader@example.invalid",
             result: .success(.active(Self.accountA)),
             gate: loginGate,
             commitsSnapshot: false
         )
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
         let registration = Task { @MainActor in
-            await model.register(
-                email: "reader@example.invalid",
-                password: "synthetic-passphrase"
-            )
+            await model.register(email: "reader@example.invalid", password: "synthetic-passphrase")
         }
         await loginGate.waitUntilArrived()
         registration.cancel()
@@ -492,25 +323,16 @@ struct AccountModelTests {
     func cancelledRegistrationLoginReconcilesCommittedSession() async {
         let session = ControlledAccountSession()
         let loginGate = AccountOperationGate()
-        await session.setRegistrationResult(
-            for: "reader@example.invalid",
-            submission: .confirmed
-        )
+        await session.setRegistrationResult(for: "reader@example.invalid", submission: .confirmed)
         await session.setLoginResult(
             for: "reader@example.invalid",
             result: .success(.active(Self.accountA)),
             gate: loginGate
         )
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
         let registration = Task { @MainActor in
-            await model.register(
-                email: "reader@example.invalid",
-                password: "synthetic-passphrase"
-            )
+            await model.register(email: "reader@example.invalid", password: "synthetic-passphrase")
         }
         await loginGate.waitUntilArrived()
         registration.cancel()
@@ -530,27 +352,15 @@ struct AccountModelTests {
             for: "reader@example.invalid",
             submission: .unconfirmed(.network(.transport(.timedOut)))
         )
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        await model.register(
-            email: "reader@example.invalid",
-            password: "synthetic-passphrase"
-        )
+        await model.register(email: "reader@example.invalid", password: "synthetic-passphrase")
 
-        #expect(
-            model.registrationState
-                == .unconfirmed(.network(.transport(.timedOut)))
-        )
+        #expect(model.registrationState == .unconfirmed(.network(.transport(.timedOut))))
         #expect(
             await session.remoteCalls()
                 == [
-                    .register(
-                        email: "reader@example.invalid",
-                        password: "synthetic-passphrase"
-                    )
+                    .register(email: "reader@example.invalid", password: "synthetic-passphrase")
                 ]
         )
     }
@@ -559,35 +369,19 @@ struct AccountModelTests {
     func lateSupersededRegistrationCannotReplaceTheNewerSession() async {
         let session = ControlledAccountSession()
         let registrationGate = AccountOperationGate()
-        await session.setRegistrationResult(
-            for: "a@example.invalid",
-            submission: .confirmed,
-            gate: registrationGate
-        )
-        await session.setLoginResult(
-            for: "b@example.invalid",
-            result: .success(.active(Self.accountB))
-        )
-        let model = AccountModel(
-            initialState: .signedOut(failure: nil),
-            operations: session.operations()
-        )
+        await session.setRegistrationResult(for: "a@example.invalid", submission: .confirmed, gate: registrationGate)
+        await session.setLoginResult(for: "b@example.invalid", result: .success(.active(Self.accountB)))
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
         let registrationA = Task { @MainActor in
-            await model.register(
-                email: "a@example.invalid",
-                password: "synthetic-a"
-            )
+            await model.register(email: "a@example.invalid", password: "synthetic-a")
         }
         await registrationGate.waitUntilArrived()
 
         model.abandonRegistration()
         #expect(model.registrationState == .unconfirmed(.cancelled))
 
-        await model.signIn(
-            email: "b@example.invalid",
-            password: "synthetic-b"
-        )
+        await model.signIn(email: "b@example.invalid", password: "synthetic-b")
         #expect(model.state == .authenticated(Self.accountB, notice: nil))
 
         await registrationGate.open()
@@ -597,14 +391,8 @@ struct AccountModelTests {
         #expect(
             await session.remoteCalls()
                 == [
-                    .register(
-                        email: "a@example.invalid",
-                        password: "synthetic-a"
-                    ),
-                    .login(
-                        email: "b@example.invalid",
-                        password: "synthetic-b"
-                    )
+                    .register(email: "a@example.invalid", password: "synthetic-a"),
+                    .login(email: "b@example.invalid", password: "synthetic-b")
                 ]
         )
     }
@@ -688,11 +476,7 @@ struct CredentialFormViewModelTests {
     func validSignInClearsSecretAndStartsOneOperation() async {
         let session = ControlledAccountSession()
         let gate = AccountOperationGate()
-        await session.setLoginResult(
-            for: "reader@example.invalid",
-            result: .success(.active(Self.account)),
-            gate: gate
-        )
+        await session.setLoginResult(for: "reader@example.invalid", result: .success(.active(Self.account)), gate: gate)
         let accountModel = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
         let viewModel = SignInViewModel(accountModel: accountModel)
         viewModel.email = "  reader@example.invalid\n"
@@ -718,10 +502,7 @@ struct CredentialFormViewModelTests {
     @Test("Leaving sign-in before task entry never starts remote work")
     func leavingSignInBeforeTaskEntryNeverStartsRemoteWork() async {
         let session = ControlledAccountSession()
-        await session.setLoginResult(
-            for: "reader@example.invalid",
-            result: .success(.active(Self.account))
-        )
+        await session.setLoginResult(for: "reader@example.invalid", result: .success(.active(Self.account)))
         let accountModel = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
         let viewModel = SignInViewModel(accountModel: accountModel)
         viewModel.email = "reader@example.invalid"
@@ -781,11 +562,7 @@ struct CredentialFormViewModelTests {
     func leavingRegistrationClearsAndInvalidatesSuspendedWorkflow() async {
         let session = ControlledAccountSession()
         let gate = AccountOperationGate()
-        await session.setRegistrationResult(
-            for: "reader@example.invalid",
-            submission: .confirmed,
-            gate: gate
-        )
+        await session.setRegistrationResult(for: "reader@example.invalid", submission: .confirmed, gate: gate)
         let accountModel = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
         let viewModel = RegisterViewModel(accountModel: accountModel)
         viewModel.email = "reader@example.invalid"
@@ -876,11 +653,7 @@ fileprivate struct EmailValidationCase: Sendable, CustomTestStringConvertible {
             email: "reader name@example.invalid",
             expectedFailure: .invalidEmail
         ),
-        Self(
-            testDescription: "non ASCII local part",
-            email: "lectorañ@example.invalid",
-            expectedFailure: .invalidEmail
-        )
+        Self(testDescription: "non ASCII local part", email: "lectorañ@example.invalid", expectedFailure: .invalidEmail)
     ]
 }
 
@@ -927,11 +700,7 @@ private actor ControlledAccountSession {
         gate: AccountOperationGate? = nil,
         commitsSnapshot: Bool = true
     ) {
-        loginPlans[email] = LoginPlan(
-            result: result,
-            gate: gate,
-            commitsSnapshot: commitsSnapshot
-        )
+        loginPlans[email] = LoginPlan(result: result, gate: gate, commitsSnapshot: commitsSnapshot)
     }
 
     func setRegistrationResult(
@@ -939,10 +708,7 @@ private actor ControlledAccountSession {
         submission: UserRegistrationSubmission,
         gate: AccountOperationGate? = nil
     ) {
-        registrationPlans[email] = RegistrationPlan(
-            submission: submission,
-            gate: gate
-        )
+        registrationPlans[email] = RegistrationPlan(submission: submission, gate: gate)
     }
 
     func remoteCalls() -> [AccountRemoteCall] {
@@ -963,29 +729,17 @@ private actor ControlledAccountSession {
         return result
     }
 
-    private func register(
-        email: String,
-        password: String
-    ) async -> UserRegistrationSubmission {
-        recordedRemoteCalls.append(
-            .register(email: email, password: password)
-        )
-        guard let plan = registrationPlans[email] else {
-            return .notSubmitted(.unavailable)
-        }
+    private func register(email: String, password: String) async -> UserRegistrationSubmission {
+        recordedRemoteCalls.append(.register(email: email, password: password))
+        guard let plan = registrationPlans[email] else { return .notSubmitted(.unavailable) }
         if let gate = plan.gate {
             await gate.suspendUntilOpen()
         }
         return plan.submission
     }
 
-    private func login(
-        email: String,
-        password: String
-    ) async throws(any Error) -> SessionSnapshot {
-        recordedRemoteCalls.append(
-            .login(email: email, password: password)
-        )
+    private func login(email: String, password: String) async throws(any Error) -> SessionSnapshot {
+        recordedRemoteCalls.append(.login(email: email, password: password))
         let plan = try #require(loginPlans[email])
         if let gate = plan.gate {
             await gate.suspendUntilOpen()
@@ -1016,9 +770,7 @@ private actor AccountOperationGate {
     private var releaseContinuation: CheckedContinuation<Void, Never>?
 
     func waitUntilArrived() async {
-        guard didArrive == false else {
-            return
-        }
+        guard didArrive == false else { return }
         await withCheckedContinuation {
             arrivalContinuation = $0
         }
@@ -1028,9 +780,7 @@ private actor AccountOperationGate {
         didArrive = true
         arrivalContinuation?.resume()
         arrivalContinuation = nil
-        guard isOpen == false else {
-            return
-        }
+        guard isOpen == false else { return }
         await withCheckedContinuation {
             releaseContinuation = $0
         }

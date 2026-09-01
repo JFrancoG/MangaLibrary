@@ -14,12 +14,8 @@ struct LibraryColorTests {
     @Test("The source catalog matches the canonical contract")
     func sourceCatalogMatchesContract() throws {
         let contract = try LibraryColorContract.load()
-        let catalogURL = LibraryColorContract.repositoryURL
-            .appending(path: "MangaLibrary/Resources/Assets.xcassets")
-        let entries = try FileManager.default.contentsOfDirectory(
-            at: catalogURL,
-            includingPropertiesForKeys: nil
-        )
+        let catalogURL = LibraryColorContract.repositoryURL.appending(path: "MangaLibrary/Resources/Assets.xcassets")
+        let entries = try FileManager.default.contentsOfDirectory(at: catalogURL, includingPropertiesForKeys: nil)
         let colorSetNames = Set(
             entries
                 .filter { $0.pathExtension == "colorset" }
@@ -30,12 +26,8 @@ struct LibraryColorTests {
         #expect(colorSetNames == expectedNames)
 
         for name in expectedNames.sorted() {
-            let assetURL = catalogURL
-                .appending(path: "\(name).colorset/Contents.json")
-            let asset = try JSONDecoder().decode(
-                ColorAsset.self,
-                from: Data(contentsOf: assetURL)
-            )
+            let assetURL = catalogURL.appending(path: "\(name).colorset/Contents.json")
+            let asset = try JSONDecoder().decode(ColorAsset.self, from: Data(contentsOf: assetURL))
 
             #expect(asset.colors.count == LibraryAppearance.allCases.count)
 
@@ -43,10 +35,7 @@ struct LibraryColorTests {
                 let entry = try #require(
                     asset.colors.first { $0.traits == appearance.assetTraits }
                 )
-                let expected = try contract.components(
-                    for: name,
-                    appearance: appearance
-                )
+                let expected = try contract.components(for: name, appearance: appearance)
                 let actual = try entry.color.sRGBComponents()
 
                 #expect(entry.idiom == "universal")
@@ -63,28 +52,13 @@ struct LibraryColorTests {
         for appearance in LibraryAppearance.allCases {
             let traits = appearance.traitCollection
 
-            #expect(
-                UIColor(
-                    named: "AccentColor",
-                    in: .main,
-                    compatibleWith: traits
-                ) == nil
-            )
+            #expect(UIColor(named: "AccentColor", in: .main, compatibleWith: traits) == nil)
 
             for name in contract.roles.keys.sorted() {
-                let actual = try resolvedComponents(
-                    named: name,
-                    traits: traits
-                )
-                let expected = try contract.components(
-                    for: name,
-                    appearance: appearance
-                )
+                let actual = try resolvedComponents(named: name, traits: traits)
+                let expected = try contract.components(for: name, appearance: appearance)
 
-                #expect(
-                    actual.isApproximatelyEqual(to: expected),
-                    "\(name) differs in \(appearance.rawValue)"
-                )
+                #expect(actual.isApproximatelyEqual(to: expected), "\(name) differs in \(appearance.rawValue)")
             }
         }
     }
@@ -102,18 +76,10 @@ struct LibraryColorTests {
             let mode = try contract.mode(for: appearance)
 
             for pair in pairs {
-                let foreground = try resolvedComponents(
-                    named: pair.foreground,
-                    traits: appearance.traitCollection
-                )
-                let background = try resolvedComponents(
-                    named: pair.background,
-                    traits: appearance.traitCollection
-                )
+                let foreground = try resolvedComponents(named: pair.foreground, traits: appearance.traitCollection)
+                let background = try resolvedComponents(named: pair.background, traits: appearance.traitCollection)
                 let ratio = foreground.contrastRatio(with: background)
-                let target = pair.kind == .text
-                    ? mode.textTarget
-                    : mode.nonTextTarget
+                let target = pair.kind == .text ? mode.textTarget : mode.nonTextTarget
 
                 #expect(
                     ratio >= target,
@@ -126,10 +92,7 @@ struct LibraryColorTests {
         #expect(evaluatedPairCount == contract.auditMethod.semanticPairsTotal)
     }
 
-    private func resolvedComponents(
-        named name: String,
-        traits: UITraitCollection
-    ) throws -> SRGBComponents {
+    private func resolvedComponents(named name: String, traits: UITraitCollection) throws -> SRGBComponents {
         let dynamicColor = try #require(
             UIColor(named: name, in: .main, compatibleWith: traits),
             "Missing compiled color \(name)"
@@ -233,35 +196,20 @@ private struct LibraryColorContract: Decodable {
         .deletingLastPathComponent()
 
     static func load() throws -> Self {
-        let url = repositoryURL.appending(
-            path: "docs/design/library-color-tokens.json"
-        )
-        return try JSONDecoder().decode(
-            Self.self,
-            from: Data(contentsOf: url)
-        )
+        let url = repositoryURL.appending(path: "docs/design/library-color-tokens.json")
+        return try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
     }
 
     var authorizedPairs: [AuthorizedPair] {
         allowedPairGroups.flatMap { group in
             let cartesianPairs = (group.foregrounds ?? []).flatMap { foreground in
                 (group.backgrounds ?? []).map { background in
-                    AuthorizedPair(
-                        kind: group.kind,
-                        foreground: foreground,
-                        background: background
-                    )
+                    AuthorizedPair(kind: group.kind, foreground: foreground, background: background)
                 }
             }
             let explicitPairs: [AuthorizedPair] = (group.explicitPairs ?? []).compactMap { pair in
-                guard pair.count == 2 else {
-                    return nil
-                }
-                return AuthorizedPair(
-                    kind: group.kind,
-                    foreground: pair[0],
-                    background: pair[1]
-                )
+                guard pair.count == 2 else { return nil }
+                return AuthorizedPair(kind: group.kind, foreground: pair[0], background: pair[1])
             }
 
             return cartesianPairs + explicitPairs
@@ -275,17 +223,10 @@ private struct LibraryColorContract: Decodable {
         return mode
     }
 
-    func components(
-        for role: String,
-        appearance: LibraryAppearance
-    ) throws -> SRGBComponents {
-        guard let sourceName = roles[role] else {
-            throw LibraryColorTestError.missingRole(role)
-        }
+    func components(for role: String, appearance: LibraryAppearance) throws -> SRGBComponents {
+        guard let sourceName = roles[role] else { throw LibraryColorTestError.missingRole(role) }
         let mode = try mode(for: appearance)
-        guard let value = mode.colors[sourceName] else {
-            throw LibraryColorTestError.missingColor(sourceName)
-        }
+        guard let value = mode.colors[sourceName] else { throw LibraryColorTestError.missingColor(sourceName) }
         return try SRGBComponents(hex: value.hex)
     }
 }
@@ -354,9 +295,7 @@ private struct ColorDefinition: Decodable {
            let byte = UInt8(value.dropFirst(2), radix: 16) {
             return Double(byte) / 255
         }
-        guard let component = Double(value) else {
-            throw LibraryColorTestError.invalidComponent(value)
-        }
+        guard let component = Double(value) else { throw LibraryColorTestError.invalidComponent(value) }
         return component
     }
 }

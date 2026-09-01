@@ -22,10 +22,7 @@ struct SessionAPIClientTests {
             await recorder.load(request)
         }
 
-        let credential = try await client.login(
-            email: "reader@example.invalid",
-            password: "synthetic-passphrase"
-        )
+        let credential = try await client.login(email: "reader@example.invalid", password: "synthetic-passphrase")
 
         let requests = await recorder.requests()
         #expect(requests.count == 1)
@@ -48,27 +45,20 @@ struct SessionAPIClientTests {
     @Test("Access exchange uses the refresh credential as Bearer")
     func accessExchangeBuildsExactBearerRequest() async throws(any Error) {
         let recorder = SessionRecordedDataLoader(
-            data: Data(
-                #"{"token":"fixture-access","tokenType":"Bearer","expiresIn":3600,"tokenUse":"access"}"#.utf8
-            )
+            data: Data(#"{"token":"fixture-access","tokenType":"Bearer","expiresIn":3600,"tokenUse":"access"}"#.utf8)
         )
         let client = try makeClient { request in
             await recorder.load(request)
         }
 
-        let credential = try await client.exchangeAccess(
-            refreshToken: "fixture-refresh"
-        )
+        let credential = try await client.exchangeAccess(refreshToken: "fixture-refresh")
 
         let requests = await recorder.requests()
         #expect(requests.count == 1)
         let request = try #require(requests.first)
         #expect(request.httpMethod == "GET")
         #expect(request.url?.absoluteString == "https://session.example.test/users/session/access")
-        #expect(
-            request.value(forHTTPHeaderField: "Authorization")
-                == "Bearer fixture-refresh"
-        )
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-refresh")
         #expect(request.httpBody == nil)
         #expect(request.cachePolicy == .reloadIgnoringLocalCacheData)
         #expect(request.value(forHTTPHeaderField: "App-Token") == nil)
@@ -96,43 +86,29 @@ struct SessionAPIClientTests {
             await recorder.load(request)
         }
 
-        let identity = try await client.fetchIdentity(
-            accessToken: "fixture-access"
-        )
+        let identity = try await client.fetchIdentity(accessToken: "fixture-access")
 
         let requests = await recorder.requests()
         #expect(requests.count == 1)
         let request = try #require(requests.first)
         #expect(request.httpMethod == "GET")
         #expect(request.url?.absoluteString == "https://session.example.test/users/session/me")
-        #expect(
-            request.value(forHTTPHeaderField: "Authorization")
-                == "Bearer fixture-access"
-        )
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-access")
         #expect(request.cachePolicy == .reloadIgnoringLocalCacheData)
         #expect(request.value(forHTTPHeaderField: "App-Token") == nil)
-        #expect(
-            identity.id
-                == UUID(uuidString: "11111111-2222-3333-4444-555555555555")
-        )
+        #expect(identity.id == UUID(uuidString: "11111111-2222-3333-4444-555555555555"))
         #expect(identity.email == "reader@example.invalid")
         #expect(identity.isActive)
         #expect(identity.isAdmin == false)
         #expect(identity.role == "user")
     }
 
-    @Test(
-        "Invalid token responses are contract drift",
-        arguments: InvalidSessionTokenResponse.allCases
-    )
+    @Test("Invalid token responses are contract drift", arguments: InvalidSessionTokenResponse.allCases)
     func invalidTokenResponseIsContractDrift(_ response: InvalidSessionTokenResponse) async throws(any Error) {
         let client = try makeClient(returning: response.data)
 
         await #expect(throws: SessionAPIClientError.contractDrift) {
-            try await client.login(
-                email: "reader@example.invalid",
-                password: "synthetic-passphrase"
-            )
+            try await client.login(email: "reader@example.invalid", password: "synthetic-passphrase")
         }
     }
 

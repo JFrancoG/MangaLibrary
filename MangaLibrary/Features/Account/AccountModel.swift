@@ -225,8 +225,11 @@ final class AccountModel {
     }
 
     func signIn(email: String, password: String) async {
-        guard Task.isCancelled == false, activeOperationIdentity == nil,
-              canSubmitSignIn(email: email, password: password) else { return }
+        guard
+            Task.isCancelled == false,
+            activeOperationIdentity == nil,
+            canSubmitSignIn(email: email, password: password)
+        else { return }
 
         let fallback: State
         switch state {

@@ -19,10 +19,7 @@ struct APIConfiguration: Equatable {
 extension APIConfiguration {
     init(baseURL: URL) throws {
         guard
-            let components = URLComponents(
-                url: baseURL,
-                resolvingAgainstBaseURL: false
-            ),
+            let components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false),
             let scheme = components.scheme?.lowercased(),
             scheme == "http" || scheme == "https",
             let host = components.host,

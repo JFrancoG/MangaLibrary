@@ -27,17 +27,12 @@ struct AppComposition {
         configuration.httpShouldSetCookies = false
         configuration.httpCookieStorage = nil
         configuration.urlCredentialStorage = nil
-        configuration.urlCache = URLCache(
-            memoryCapacity: 20 * 1_024 * 1_024,
-            diskCapacity: 0
-        )
+        configuration.urlCache = URLCache(memoryCapacity: 20 * 1_024 * 1_024, diskCapacity: 0)
 
         let session = URLSession(configuration: configuration)
         let httpClient = HTTPClient(session: session)
         let apiConfiguration = try APIConfiguration(
-            baseURL: requiredURL(
-                "https://mymanga-acacademy-5607149ebe3d.herokuapp.com"
-            )
+            baseURL: requiredURL("https://mymanga-acacademy-5607149ebe3d.herokuapp.com")
         )
 
         let sessionClient = SessionAPIClient(
@@ -55,16 +50,11 @@ struct AppComposition {
         return AppComposition(
             modelContainer: modelContainer,
             collectionMutations: collectionMutations,
-            catalogClient: CatalogAPIClient(
-                httpClient: httpClient,
-                configuration: apiConfiguration
-            ),
+            catalogClient: CatalogAPIClient(httpClient: httpClient, configuration: apiConfiguration),
             registerUser: UserRegistrationClient.operation(
                 httpClient: httpClient,
                 configuration: apiConfiguration,
-                appToken: Bundle.main.object(
-                    forInfoDictionaryKey: "MangaLibraryAppToken"
-                ) as? String
+                appToken: Bundle.main.object(forInfoDictionaryKey: "MangaLibraryAppToken") as? String
             ),
             sessionController: sessionController
         )
