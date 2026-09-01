@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-09-01 | ✨ feat(collection): add offline collection flows
 - 2026-09-01 | ✨ feat(collection): add atomic SwiftData core
 - 2026-09-01 | ✨ feat(account): complete S2.2 account flows
 - 2026-08-31 | ✨ feat(account): add fail-closed registration linked to S1

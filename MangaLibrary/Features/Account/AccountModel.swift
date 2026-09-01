@@ -107,7 +107,7 @@ final class AccountModel {
         case restoring
         case restorationFailed(failure: Failure)
         case signedOut(failure: Failure?)
-        case authenticating
+        case authenticating(previousUserID: UUID?)
         case authenticated(SessionAccount, notice: Failure?)
         case authenticationRequired(userID: UUID, failure: Failure?)
         case signingOut(SessionAccount)
@@ -232,9 +232,14 @@ final class AccountModel {
         else { return }
 
         let fallback: State
+        let previousUserID: UUID?
         switch state {
-        case .signedOut, .authenticationRequired:
+        case .signedOut:
             fallback = state
+            previousUserID = nil
+        case let .authenticationRequired(userID, _):
+            fallback = state
+            previousUserID = userID
         case .restoring, .restorationFailed, .authenticating, .authenticated,
              .signingOut:
             return
@@ -242,7 +247,7 @@ final class AccountModel {
 
         let normalizedEmail = Self.normalizedEmail(email)
         let identity = beginOperation()
-        state = .authenticating
+        state = .authenticating(previousUserID: previousUserID)
 
         await resolve(identity: identity, fallback: fallback) {
             try await operations.login(normalizedEmail, password)

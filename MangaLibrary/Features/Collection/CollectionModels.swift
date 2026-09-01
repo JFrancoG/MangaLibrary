@@ -134,8 +134,9 @@ extension MangaLibrarySchema.V1 {
 
 typealias CollectionSnapshot = MangaLibrarySchema.V1.CollectionSnapshot
 typealias CollectionOutboxState = MangaLibrarySchema.V1.CollectionOutboxState
-typealias CollectionEntry = MangaLibrarySchema.V1.CollectionEntry
-typealias CollectionOutboxOperation = MangaLibrarySchema.V1.CollectionOutboxOperation
+typealias CollectionEntry = MangaLibrarySchema.V2.CollectionEntry
+typealias CollectionOutboxOperation = MangaLibrarySchema.V2.CollectionOutboxOperation
+typealias CollectionMangaSnapshot = MangaLibrarySchema.V2.MangaSnapshot
 
 /// A semantic collection edit that can cross into the SwiftData model actor.
 ///
@@ -146,10 +147,13 @@ struct CollectionMutationCommand: Equatable, Sendable {
         case replaceOwnedVolumes([Int64])
         case setReadingVolume(Int64?)
         case setComplete(Bool)
+        case replaceState(ownedVolumes: [Int64], readingVolume: Int64?, isComplete: Bool)
+        case delete
     }
 
     let userID: UUID
     let mangaID: Manga.ID
+    private(set) var mangaSnapshot: CollectionMangaSnapshot? = nil
     let knownTotalVolumes: Int64?
     let change: Change
 }
@@ -171,6 +175,10 @@ enum CollectionMutationError: Error, Equatable, Sendable {
     case volumeExceedsKnownTotal(volume: Int64, total: Int64)
     case completeRequiresKnownTotal
     case knownTotalInvalidatesCurrentState(Int64)
+    case mangaSnapshotRequired
+    case mangaSnapshotIdentityMismatch(expected: Manga.ID, actual: Manga.ID)
+    case collectionEntryNotFound
+    case authenticationRequired
     case sequenceExhausted
     case persistenceConflict
     case cancelled

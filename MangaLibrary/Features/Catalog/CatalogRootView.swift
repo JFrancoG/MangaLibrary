@@ -3,6 +3,7 @@
 //  MangaLibrary
 //
 
+import Foundation
 import SwiftUI
 
 enum CatalogLayout: Hashable {
@@ -23,6 +24,9 @@ struct CatalogRootView: View {
     @State private var layout: CatalogLayout
     @State private var searchText: String
     @State private var filtersPresented = false
+
+    let collectionAccess: CollectionAccess
+    let collectionMutation: CollectionMutation?
 
     var body: some View {
         filterPresentation
@@ -187,7 +191,7 @@ struct CatalogRootView: View {
     @ViewBuilder
     private func compactDetail(for mangaID: Manga.ID) -> some View {
         if let manga = model.manga(id: mangaID) {
-            MangaDetailView(manga: manga)
+            mangaDetail(manga)
         } else {
             unavailableDetail
         }
@@ -196,9 +200,18 @@ struct CatalogRootView: View {
     @ViewBuilder
     private var detail: some View {
         if let manga = model.selectedManga {
-            MangaDetailView(manga: manga)
+            mangaDetail(manga)
         } else {
             unavailableDetail
+        }
+    }
+
+    private func mangaDetail(_ manga: Manga) -> some View {
+        MangaDetailView(manga: manga) {
+            if let collectionMutation {
+                CollectionControlsView(manga: manga, access: collectionAccess, mutation: collectionMutation)
+                    .id(CatalogCollectionControlIdentity(userID: collectionAccess.userID, mangaID: manga.id))
+            }
         }
     }
 
@@ -271,20 +284,31 @@ struct CatalogRootView: View {
     }
 }
 
+private struct CatalogCollectionControlIdentity: Hashable {
+    let userID: UUID?
+    let mangaID: Manga.ID
+}
+
 extension CatalogRootView {
     init(
         loadPage: @escaping CatalogModel.PageLoader,
-        loadFilterOptions: @escaping CatalogModel.FilterOptionsLoader
+        loadFilterOptions: @escaping CatalogModel.FilterOptionsLoader,
+        collectionAccess: CollectionAccess,
+        collectionMutation: CollectionMutation
     ) {
         model = CatalogModel(loadFilterOptions: loadFilterOptions, loadPage: loadPage)
         layout = .list
         searchText = ""
+        self.collectionAccess = collectionAccess
+        self.collectionMutation = collectionMutation
     }
 
     init(model: CatalogModel, initialLayout: CatalogLayout = .list) {
         self.model = model
         layout = initialLayout
         searchText = model.query.advancedSearch?.title ?? ""
+        collectionAccess = .unavailable(.signedOut)
+        collectionMutation = nil
     }
 }
 

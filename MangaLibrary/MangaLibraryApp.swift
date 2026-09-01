@@ -11,7 +11,7 @@ import SwiftUI
 @main
 struct MangaLibraryApp: App {
     private let modelContainer: ModelContainer
-    private let collectionMutations: CollectionMutationActor
+    private let collectionMutation: CollectionMutation
     private let loadCatalogPage: CatalogModel.PageLoader
     private let loadCatalogFilterOptions: CatalogModel.FilterOptionsLoader
     @State private var accountModel: AccountModel
@@ -21,7 +21,8 @@ struct MangaLibraryApp: App {
             MainShellView(
                 loadCatalogPage: loadCatalogPage,
                 loadCatalogFilterOptions: loadCatalogFilterOptions,
-                accountModel: accountModel
+                accountModel: accountModel,
+                collectionMutation: collectionMutation
             )
         }
         .modelContainer(modelContainer)
@@ -36,11 +37,15 @@ extension MangaLibraryApp {
             // fixtures or fall through to production networking.
             do {
                 let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+                let account = AccountPreviewSupport.model(state: .signedOut(failure: nil))
                 modelContainer = container
-                collectionMutations = CollectionMutationActor(modelContainer: container)
+                collectionMutation = CollectionMutation(
+                    actor: CollectionMutationActor(modelContainer: container),
+                    accountModel: account
+                )
                 loadCatalogPage = CatalogPreviewSupport.pageLoader
                 loadCatalogFilterOptions = CatalogPreviewSupport.filterOptionsLoader
-                accountModel = AccountPreviewSupport.model(state: .signedOut(failure: nil))
+                _accountModel = State(initialValue: account)
                 return
             } catch {
                 preconditionFailure("Manga Library could not create its UI testing data store.")
@@ -53,17 +58,18 @@ extension MangaLibraryApp {
         do {
             let composition = try AppComposition.live()
             let catalogClient = composition.catalogClient
+            let account = AccountModel(
+                operations: .live(controller: composition.sessionController, register: composition.registerUser)
+            )
             modelContainer = composition.modelContainer
-            collectionMutations = composition.collectionMutations
+            collectionMutation = CollectionMutation(actor: composition.collectionMutations, accountModel: account)
             loadCatalogPage = { request in
                 try await catalogClient.fetch(request)
             }
             loadCatalogFilterOptions = {
                 try await catalogClient.fetchFilterOptions()
             }
-            accountModel = AccountModel(
-                operations: .live(controller: composition.sessionController, register: composition.registerUser)
-            )
+            _accountModel = State(initialValue: account)
         } catch {
             preconditionFailure("Manga Library could not create its app dependencies.")
         }

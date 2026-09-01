@@ -6,7 +6,7 @@
 import Foundation
 import SwiftUI
 
-struct MangaDetailView: View {
+struct MangaDetailView<AdditionalContent: View>: View {
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.locale) private var locale
@@ -15,6 +15,7 @@ struct MangaDetailView: View {
     @State private var scrollPosition = ScrollPosition(idType: Manga.ID.self)
 
     let manga: Manga
+    let additionalContent: AdditionalContent
 
     var body: some View {
         if horizontalSizeClass == .compact {
@@ -51,6 +52,8 @@ struct MangaDetailView: View {
                         .font(.title3)
                         .foregroundStyle(.textPrimary)
                 }
+
+                additionalContent
 
                 LabeledContent("Score") {
                     Text(manga.score, format: .number.precision(.fractionLength(1...2)))
@@ -185,6 +188,24 @@ struct MangaDetailView: View {
                 .foregroundStyle(.textPrimary)
                 .accessibilityHeading(.h2)
             content()
+        }
+    }
+}
+
+extension MangaDetailView {
+    init(
+        manga: Manga,
+        @ViewBuilder additionalContent: () -> AdditionalContent
+    ) {
+        self.manga = manga
+        self.additionalContent = additionalContent()
+    }
+}
+
+extension MangaDetailView where AdditionalContent == EmptyView {
+    init(manga: Manga) {
+        self.init(manga: manga) {
+            EmptyView()
         }
     }
 }

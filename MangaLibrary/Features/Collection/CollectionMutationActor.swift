@@ -58,8 +58,20 @@ actor CollectionMutationActor {
         newOperationID: UUID
     ) throws(any Error) -> CollectionMutationResult {
         guard command.mangaID > 0 else { throw CollectionMutationError.invalidIdentity }
+        if let mangaSnapshot = command.mangaSnapshot, mangaSnapshot.mangaID != command.mangaID {
+            throw CollectionMutationError.mangaSnapshotIdentityMismatch(
+                expected: command.mangaID,
+                actual: mangaSnapshot.mangaID
+            )
+        }
 
         let entry = try fetchEntry(userID: command.userID, mangaID: command.mangaID)
+        if entry == nil {
+            if case .delete = command.change {
+                throw CollectionMutationError.collectionEntryNotFound
+            }
+            guard command.mangaSnapshot != nil else { throw CollectionMutationError.mangaSnapshotRequired }
+        }
         let currentState = entry?.state ?? CollectionSnapshot(
             ownedVolumes: [],
             readingVolume: nil,
@@ -71,14 +83,15 @@ actor CollectionMutationActor {
 
         let desiredState = try applying(command, to: currentState)
         if let entry {
-            entry.apply(desiredState)
+            entry.apply(desiredState, mangaSnapshot: command.mangaSnapshot)
         } else {
             modelContext.insert(
                 CollectionEntry(
                     userID: command.userID,
                     mangaID: command.mangaID,
                     state: desiredState,
-                    confirmedState: nil
+                    confirmedState: nil,
+                    mangaSnapshot: command.mangaSnapshot
                 )
             )
         }
@@ -158,6 +171,16 @@ actor CollectionMutationActor {
         _ command: CollectionMutationCommand,
         to currentState: CollectionSnapshot
     ) throws(CollectionMutationError) -> CollectionSnapshot {
+        if case .delete = command.change {
+            return CollectionSnapshot(
+                ownedVolumes: currentState.ownedVolumes,
+                readingVolume: currentState.readingVolume,
+                isComplete: currentState.isComplete,
+                knownTotalVolumes: currentState.knownTotalVolumes,
+                isTombstone: true
+            )
+        }
+
         if let newTotal = command.knownTotalVolumes {
             guard newTotal > 0 else { throw .nonPositiveKnownTotal(newTotal) }
             if newTotal != currentState.knownTotalVolumes {
@@ -185,6 +208,18 @@ actor CollectionMutationActor {
                 ownedVolumes = Array(1...knownTotal)
             }
             isComplete = complete
+        case let .replaceState(volumes, volume, complete):
+            try validate(volume: volume, knownTotal: knownTotal)
+            readingVolume = volume
+            if complete {
+                guard let knownTotal, knownTotal > 0 else { throw .completeRequiresKnownTotal }
+                ownedVolumes = Array(1...knownTotal)
+            } else {
+                ownedVolumes = try canonicalOwnedVolumes(volumes, knownTotal: knownTotal)
+            }
+            isComplete = complete
+        case .delete:
+            throw .persistenceConflict
         }
 
         let candidate = CollectionSnapshot(
@@ -192,7 +227,7 @@ actor CollectionMutationActor {
             readingVolume: readingVolume,
             isComplete: isComplete,
             knownTotalVolumes: knownTotal,
-            isTombstone: currentState.isTombstone
+            isTombstone: false
         )
         guard isValidPersistedState(candidate) else { throw .persistenceConflict }
         return candidate

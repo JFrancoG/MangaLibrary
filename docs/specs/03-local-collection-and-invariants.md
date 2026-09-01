@@ -1,8 +1,8 @@
 # Colección local e invariantes
 
 - Estado: aprobado
-- Versión: 1.0
-- Última revisión: 2026-08-17
+- Versión: 1.1
+- Última revisión: 2026-09-01
 
 ## Propósito y alcance
 
@@ -74,8 +74,14 @@ La separación de COL-023 es intencional: leer un volumen y poseerlo son hechos 
 | COL-031 | Activar `complete` canonicaliza los volúmenes en propiedad al rango completo `1...total`. |
 | COL-032 | Si se retira un volumen de una colección completa, `complete` pasa a falso en la misma mutación. |
 | COL-033 | Un estado con `complete == true` y volúmenes distintos de `1...total` nunca se persiste. |
+| COL-034 | En el editor con total conocido, seleccionar manualmente el último volumen pendiente activa `complete`. |
+| COL-035 | En el editor con total conocido, desactivar el control `complete` vacía los volúmenes del borrador sin alterar `readingVolume`. |
 
-Marcar una colección como no completa no borra por sí mismo los volúmenes poseídos.
+El editor L2 presenta `complete` como control de selección total: activarlo
+selecciona `1...total`, desactivarlo vacía la selección y cualquier cambio manual
+vuelve a derivar su valor desde los volúmenes. Fuera de ese borrador editorial,
+una mutación persistente que reciba `complete == false` no infiere por sí sola qué
+volúmenes concretos debería borrar; conserva la lista explícita del comando.
 
 ## Semántica de mutación
 
@@ -111,6 +117,8 @@ Si cambia un total conocido y el estado actual dejaría de ser válido, la actua
 | Total desconocido, marcar completa | El comando falla. |
 | Total `3`, marcar completa | Persiste `complete == true` y `[1, 2, 3]`. |
 | Quitar `2` del estado completo anterior | Persiste `complete == false` y `[1, 3]`. |
+| Editor con total `3`, marcar manualmente `1`, `2` y `3` | El borrador activa `complete`. |
+| Editor completo con total `3`, desactivar `complete` | El borrador conserva la lectura, pasa a `complete == false` y vacía los volúmenes. |
 | Crear dos veces usuario A + manga M | Existe una entrada actualizada, no dos. |
 | Mismo manga para usuarios A y B | Existen dos entradas aisladas y cada consulta devuelve solo la propia. |
 | Dos mutaciones concurrentes de la misma entrada | El actor las serializa y el resultado final cumple todas las invariantes. |

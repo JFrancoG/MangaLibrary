@@ -57,6 +57,7 @@ enum CatalogPreviewSupport {
             themes: [
                 Manga.Classification(id: themeID, name: "Military")
             ],
+            totalVolumes: 27,
             coverURL: nil
         ),
         Manga(

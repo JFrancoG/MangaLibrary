@@ -26,12 +26,14 @@ enum CatalogJSONFixtures {
         authorID: String = "11111111-1111-1111-1111-111111111111",
         authorRole: String = "Story & Art",
         status: String = "finished",
-        cover: String = "https://images.example.test/fullmetal-alchemist.jpg"
+        cover: String = "https://images.example.test/fullmetal-alchemist.jpg",
+        volumesJSON: String? = "27"
     ) -> String {
         let title = includesTitle ? #", "title": "Fullmetal Alchemist""# : ""
         let authors = includesAuthors
             ? #""authors": [{"id":"\#(authorID)","firstName":"Hiromu","lastName":"Arakawa","role":"\#(authorRole)"}],"#
             : ""
+        let volumes = volumesJSON.map { #""volumes": \#($0),"# } ?? ""
 
         return #"""
         {
@@ -46,6 +48,7 @@ enum CatalogJSONFixtures {
           "themes": [{"id":"44444444-4444-4444-4444-444444444444","theme":"Military"}],
           "titleEnglish": "Fullmetal Alchemist",
           "titleJapanese": "鋼の錬金術師",
+          \#(volumes)
           "unknownRemoteField": { "canEvolve": true }\#(title)
         }
         """#

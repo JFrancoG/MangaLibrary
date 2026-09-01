@@ -50,6 +50,7 @@ private struct MangaDTO: Decodable {
     let title: String
     let titleEnglish: String?
     let titleJapanese: String?
+    let volumes: Int64?
 
     func manga() -> Manga {
         Manga(
@@ -64,8 +65,15 @@ private struct MangaDTO: Decodable {
             demographics: demographics.map(\.classification),
             genres: genres.map(\.classification),
             themes: themes.map(\.classification),
+            totalVolumes: validatedTotalVolumes(),
             coverURL: validatedCoverURL()
         )
+    }
+
+    private func validatedTotalVolumes() -> Int64? {
+        guard let volumes, volumes > 0 else { return nil }
+
+        return volumes
     }
 
     private func validatedCoverURL() -> URL? {
