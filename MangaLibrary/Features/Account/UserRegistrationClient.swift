@@ -5,7 +5,7 @@
 
 import Foundation
 
-enum UserRegistrationFailure: Equatable, Sendable {
+enum UserRegistrationFailure: Equatable {
     case configurationUnavailable
     case cancelled
     case network(NetworkError)
@@ -26,7 +26,7 @@ enum UserRegistrationFailure: Equatable, Sendable {
     }
 }
 
-enum UserRegistrationSubmission: Equatable, Sendable {
+enum UserRegistrationSubmission: Equatable {
     case confirmed
     case notSubmitted(UserRegistrationFailure)
     case unconfirmed(UserRegistrationFailure)

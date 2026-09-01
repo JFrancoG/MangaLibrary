@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct SessionAccount: Equatable, Sendable {
+struct SessionAccount: Equatable {
     let id: UUID
     let email: String?
     let isActive: Bool?
@@ -13,14 +13,14 @@ struct SessionAccount: Equatable, Sendable {
     let role: String?
 }
 
-enum SessionSnapshot: Equatable, Sendable {
+enum SessionSnapshot: Equatable {
     case notRestored
     case signedOut
     case active(SessionAccount)
     case authenticationRequired(UUID)
 }
 
-enum SessionControllerError: Error, Equatable, Sendable {
+enum SessionControllerError: Error, Equatable {
     case invalidCredentials
     case authenticationRequired
     case temporarilyUnavailable

@@ -479,7 +479,7 @@ struct SessionControllerTests {
 }
 
 private actor ScriptedSessionDataLoader {
-    enum Reply: Sendable {
+    enum Reply {
         case data(Data)
         case network(NetworkError)
     }

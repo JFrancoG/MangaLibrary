@@ -6,12 +6,12 @@
 import Foundation
 import Observation
 
-struct CollectionIdentity: Hashable, Sendable {
+struct CollectionIdentity: Hashable {
     let userID: UUID
     let mangaID: Manga.ID
 }
 
-struct CollectionEditorSeed: Identifiable, Equatable, Sendable {
+struct CollectionEditorSeed: Identifiable, Equatable {
     let identity: CollectionIdentity
     let title: String?
     let mangaSnapshot: CollectionMangaSnapshot?

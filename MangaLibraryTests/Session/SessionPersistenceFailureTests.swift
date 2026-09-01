@@ -112,19 +112,19 @@ struct SessionPersistenceFailureTests {
     private static let generation = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
 }
 
-enum SessionPersistenceOperation: Equatable, Hashable, Sendable {
+enum SessionPersistenceOperation: Equatable, Hashable {
     case load
     case save
     case removeAll
 }
 
 final class ControlledSessionPersistenceStorage: Sendable {
-    struct Snapshot: Sendable {
+    struct Snapshot {
         let record: SessionPersistedSession?
         let journal: [SessionPersistenceOperation]
     }
 
-    private struct State: Sendable {
+    private struct State {
         var record: SessionPersistedSession?
         var journal: [SessionPersistenceOperation] = []
         var failures: [SessionPersistenceOperation: [SessionStorageError]] = [:]

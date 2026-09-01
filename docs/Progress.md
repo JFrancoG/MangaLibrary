@@ -1,7 +1,26 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-09-01
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1 y L2 entregados; L2 se incorpora mediante la PR #50
+**Última actualización:** 2026-09-02
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1 y L2 entregados; la limpieza de conformidades `Sendable` se incorpora mediante la PR #52
+
+## Limpieza de conformidades `Sendable` redundantes — issue #51
+
+- El [issue #51 — retirar conformidades Sendable explícitas redundantes](https://github.com/JFrancoG/MangaLibrary/issues/51) no tenía un issue, PR o rama equivalente. La rama `codex/51-remove-redundant-sendable-conformances` partió de `main@202d2f73489bfbae415bf88a651348d93357f22c`, limpio y sincronizado con `origin/main`. La implementación se entrega mediante la [PR #52](https://github.com/JFrancoG/MangaLibrary/pull/52).
+- El inventario completo de 78 archivos Swift identificó 42 conformidades explícitas redundantes en tipos de valor internos: 32 en 10 archivos de producto y 10 en 5 archivos de tests. Swift 6.4 infiere esas conformidades porque todos sus miembros o valores asociados son enviables, por lo que retirarlas no cambia comportamiento, API interna, aislamiento ni persistencia.
+- Permanecen exactamente las tres clases sincronizadas de tests que necesitan declarar `Sendable`: `ControlledSessionPersistenceStorage`, `SynchronousPersistenceGate` y `TestSessionClock`. También se conservan todos los atributos `@Sendable` de closures y typealiases que expresan fronteras concurrentes reales.
+- La regla ya está recogida por `ios-development-standards`, `swift-concurrency` y el gate independiente de `review-ios-standards`: los `struct` y `enum` internos confían en la inferencia y una conformidad explícita requiere una frontera pública o genérica demostrada. No se modifica ninguna skill, SDD o ADR.
+
+### Validación local de la limpieza `Sendable`
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Inventario estructural | Cero conformidades explícitas restantes en `struct` o `enum`; exactamente tres clases justificadas. Los atributos `@Sendable` coinciden con `main` y no existen `@unchecked Sendable`, `@preconcurrency` o `nonisolated(unsafe)`. |
+| Xcode MCP — build y diagnósticos | Build aprobado sobre iPhone 17 Simulator con iOS 27; log estructurado e Issue Navigator con cero warnings y cero errores. El proyecto conserva Swift 6, concurrencia estricta completa, aislamiento predeterminado `nonisolated` y warnings como errores. |
+| Xcode MCP — `ReleaseGate` | 241/241 casos aprobados, sin fallos, skips, expected failures o casos no ejecutados. No se añaden tests que solo comprueben una conformidad inferida por el compilador, de acuerdo con SDD 06. |
+| Revisiones independientes | Las auditorías iOS/concurrencia, gobernanza e inventario y `swift-source-style` cierran sin hallazgos. La revisión SwiftUI/accesibilidad no aplica porque no cambia ninguna View, recurso ni semántica de presentación. |
+| Integridad y restauración | El diff funcional queda limitado a 15 archivos Swift y la entrada obligatoria de changelog; `git diff --check` está limpio y no cambian `project.pbxproj`, test plans, targets, dependencias o entitlements. Xcode queda restaurado al scheme `MangaLibrary`, plan `Fast` y destino iPhone 17 Simulator. |
+
+La implementación se versiona inicialmente en `0d39c67` y se entrega mediante la [PR #52](https://github.com/JFrancoG/MangaLibrary/pull/52), cuya fusión cierra el issue #51. El cierre autorizado incluye retirar después la rama local y remota. R1, R2 y las capacidades Deluxe permanecen como unidades separadas.
 
 ## Colección local y offline L2 — issue #49
 

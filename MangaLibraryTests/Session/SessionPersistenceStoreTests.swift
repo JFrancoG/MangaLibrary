@@ -187,7 +187,7 @@ struct SessionPersistenceStoreTests {
     private static let generationB = UUID(uuidString: "BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF")!
 }
 
-struct InvalidSessionEnvelopeFixture: Sendable, CustomTestStringConvertible {
+struct InvalidSessionEnvelopeFixture: CustomTestStringConvertible {
     let testDescription: String
     let payload: Data
 }

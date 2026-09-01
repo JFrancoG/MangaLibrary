@@ -5,7 +5,7 @@
 
 import Foundation
 
-enum SessionStorageError: Error, Equatable, Sendable {
+enum SessionStorageError: Error, Equatable {
     case invalidConfiguration
     case encodingFailure
     case temporarilyUnavailable
@@ -14,7 +14,7 @@ enum SessionStorageError: Error, Equatable, Sendable {
 }
 
 /// The complete versioned session authority stored as one Keychain item.
-struct SessionPersistedSession: Equatable, Sendable {
+struct SessionPersistedSession: Equatable {
     static let currentFormatVersion = 2
 
     private let storedUserID: UUID
@@ -64,16 +64,16 @@ extension SessionPersistedSession {
     }
 }
 
-struct SessionAuthority: Equatable, Sendable {
+struct SessionAuthority: Equatable {
     let userID: UUID
     let generation: UUID
 }
 
-enum SessionRestoration: Equatable, Sendable {
+enum SessionRestoration: Equatable {
     case signedOut
     case active(SessionPersistedSession)
 }
 
-enum SessionPersistenceError: Error, Equatable, Sendable {
+enum SessionPersistenceError: Error, Equatable {
     case transitionBlocked
 }

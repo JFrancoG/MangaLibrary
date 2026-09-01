@@ -15,6 +15,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-09-02 | ♻️ refactor(concurrency): remove redundant Sendable conformances
 - 2026-09-01 | ♻️ refactor(ui): simplify typed color resources
 - 2026-09-01 | 💄 style(swift): normalize source layout
 
@@ -24,6 +25,7 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-02 | 📝 docs(delivery): record Sendable cleanup PR
 - 2026-09-01 | 📝 docs(delivery): record L2 pull request
 - 2026-09-01 | 📝 docs(delivery): record Color cleanup PR
 - 2026-09-01 | 📝 docs(delivery): record Swift style PR

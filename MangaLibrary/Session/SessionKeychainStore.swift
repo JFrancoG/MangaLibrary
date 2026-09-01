@@ -7,7 +7,7 @@ import Foundation
 import Security
 
 /// Stores the complete current session in one non-synchronizable Keychain item.
-struct SessionKeychainStore: Sendable {
+struct SessionKeychainStore {
     static let account = "current-session"
 
     let service: String
