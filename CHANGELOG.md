@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-09-01 | ✨ feat(collection): add atomic SwiftData core
 - 2026-09-01 | ✨ feat(account): complete S2.2 account flows
 - 2026-08-31 | ✨ feat(account): add fail-closed registration linked to S1
 - 2026-08-30 | ✨ feat(session): add recoverable dual-token identity session
@@ -17,6 +18,9 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-01 | 📝 docs(delivery): reconcile L1 status
+- 2026-09-01 | 📝 docs(delivery): record L1 pull request
+- 2026-09-01 | 📝 docs(collection): record L1 validation
 - 2026-09-01 | 📝 docs(governance): route Swift style through reusable audit skill
 - 2026-09-01 | 📝 docs(delivery): record S2.2 pull request
 - 2026-08-31 | 📝 docs(delivery): record S2.1 pull request
@@ -28,6 +32,7 @@ All notable changes to this project are documented in this file.
 
 ### Tests
 
+- 2026-09-01 | ✅ test(collection): cover persistence contract
 - 2026-08-31 | ✅ test(account): cover registration contract, uncertainty and synthetic UI flow
 - 2026-08-30 | ✅ test(session): cover authentication, persistence recovery and Account states
 - 2026-08-28 | ✅ test(catalog): remove tautological query tests

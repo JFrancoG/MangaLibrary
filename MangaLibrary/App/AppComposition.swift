@@ -4,8 +4,11 @@
 //
 
 import Foundation
+import SwiftData
 
 struct AppComposition {
+    let modelContainer: ModelContainer
+    let collectionMutations: CollectionMutationActor
     let catalogClient: CatalogAPIClient
     let registerUser: UserRegistrationClient.Operation
     let sessionController: SessionController
@@ -15,6 +18,8 @@ struct AppComposition {
     /// Previews and tests compose their deterministic loaders outside this root,
     /// so a fixture can never replace the live transport here.
     static func live() throws -> AppComposition {
+        let modelContainer = try MangaLibrarySchema.makeContainer()
+        let collectionMutations = CollectionMutationActor(modelContainer: modelContainer)
         let configuration = URLSessionConfiguration.ephemeral
         configuration.waitsForConnectivity = true
         configuration.timeoutIntervalForRequest = 30
@@ -48,6 +53,8 @@ struct AppComposition {
         )
 
         return AppComposition(
+            modelContainer: modelContainer,
+            collectionMutations: collectionMutations,
             catalogClient: CatalogAPIClient(
                 httpClient: httpClient,
                 configuration: apiConfiguration
