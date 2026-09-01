@@ -99,7 +99,7 @@ struct MangaDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
         }
-        .background(Color(.canvas))
+        .background(.canvas)
         .scrollPosition($scrollPosition)
         .onChange(of: manga.id) { _, _ in
             guard horizontalSizeClass == .regular else { return }

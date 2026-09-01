@@ -64,7 +64,7 @@ struct CatalogFiltersView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color(.canvas))
+            .background(.canvas)
             .navigationTitle("Filters")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

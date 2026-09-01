@@ -23,7 +23,7 @@ struct MangaGridItemView: View {
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(12)
-        .background(Color(.surface))
+        .background(.surface)
         .overlay {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(.controlBorder, lineWidth: 1)

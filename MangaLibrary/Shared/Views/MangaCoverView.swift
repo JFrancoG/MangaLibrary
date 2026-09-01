@@ -37,7 +37,7 @@ struct MangaCoverView: View {
             }
         }
         .frame(width: size.width, height: size.height)
-        .background(Color(.surfaceStrong))
+        .background(.surfaceStrong)
         .compositingGroup()
         .clipShape(.rect(cornerRadius: 8))
         .accessibilityHidden(true)

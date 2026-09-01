@@ -45,7 +45,7 @@ struct MainShellView: View {
             }
             .accessibilityIdentifier("tab.account")
         }
-        .tint(Color(.brandPrimary))
+        .tint(Color.brandPrimary)
         .task {
             await accountModel.restore()
         }
