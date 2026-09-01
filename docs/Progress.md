@@ -1,11 +1,11 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-01
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1 y S2.2 entregados; L1 tiene una implementación local validada bajo el issue #41 y permanece pendiente de entrega
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2 y L1 entregados; L1 se incorpora mediante la PR #44
 
 ## Núcleo SwiftData de Colección L1 — issue #41
 
-- El [issue #41 — L1: núcleo SwiftData de Colección y outbox atómica](https://github.com/JFrancoG/MangaLibrary/issues/41) es la única unidad abierta y no tiene duplicados. La rama `codex/41-l1-swiftdata-collection-core` quedó actualizada por fast-forward y parte de `main@2d5cb06bd879eb2876ea30e93438fe89a33e7df7`; el merge previo solo añadió gobernanza de estilo y no alteró Swift, proyecto o contratos de L1.
+- El [issue #41 — L1: núcleo SwiftData de Colección y outbox atómica](https://github.com/JFrancoG/MangaLibrary/issues/41) no tenía duplicados. La rama `codex/41-l1-swiftdata-collection-core` partió de `main@2d5cb06bd879eb2876ea30e93438fe89a33e7df7`; el merge previo solo añadió gobernanza de estilo y no alteró Swift, proyecto o contratos de L1. La implementación se entrega mediante la [PR #44](https://github.com/JFrancoG/MangaLibrary/pull/44).
 - `AppComposition.live()` crea un único `ModelContainer` persistente y un único `CollectionMutationActor` sobre ese container. `MangaLibraryApp` conserva ambos durante la vida de la app y adjunta el container al `Scene`; la ruta sintética de UI crea una sola composición equivalente en memoria. No se añade un singleton global ni un service locator.
 - `MangaLibrarySchema.V1` declara versión `1.0.0`, modelos anidados y un `SchemaMigrationPlan` explícito sin etapas porque no existe un esquema de producto anterior. La configuración desactiva explícitamente App Group y CloudKit. Los aliases vigentes permiten usar los tipos actuales sin hacer mutable retrospectivamente el esquema V1.
 - Colección refuerza la identidad compuesta usuario + manga y persiste volúmenes propios canónicos, progreso independiente, total conocido, estado completo, último snapshot confirmado y tombstone. Outbox conserva UUID, identidad compuesta, secuencia monotónica, estado deseado, los siete estados normativos, reintento y tombstone, con constraints de unicidad propios.
@@ -26,7 +26,7 @@
 
 ### Estado de entrega de L1
 
-La implementación y su validación local permanecen en el worktree. No se ha autorizado ni realizado commit, push, PR, merge, cierre del issue o borrado de rama. L2 y cualquier integración remota o Deluxe requieren unidades y autorizaciones posteriores.
+La implementación se versiona inicialmente en `f2b0b10` y se entrega mediante la [PR #44](https://github.com/JFrancoG/MangaLibrary/pull/44), cuya fusión cierra el issue #41. El cierre autorizado incluye retirar después la rama local y remota. L2 y cualquier integración remota o Deluxe requieren unidades y autorizaciones posteriores.
 
 ## Corrección de persistencia de sesión — 2026-09-01
 
@@ -632,13 +632,13 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 
 ## Hoja de ruta Advanced
 
-La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden de implementación. El orden operativo parte de dos decisiones ya aprobadas: la colección local se identifica por **usuario + manga** y no existe una política de colección anónima. S1, S2, S2.1 y S2.2 están entregados; L1 tiene una implementación local validada y todavía no entregada. La secuencia completa es:
+La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden de implementación. El orden operativo parte de dos decisiones ya aprobadas: la colección local se identifica por **usuario + manga** y no existe una política de colección anónima. S1, S2, S2.1, S2.2 y L1 están entregados. La secuencia completa es:
 
 1. **S1 — identidad y sesión dual, entregado.** Login Basic hacia refresh JWT, intercambio por access JWT, `/users/session/me`, identidad estable, Keychain para ambos tokens, contraseña solo en memoria, renovación única concurrente, restauración, generaciones de sesión y estados básicos de Cuenta. El logout local cubre el escenario sin operaciones pendientes, pero no acredita todavía el gate Advanced que dependerá de la outbox. La PR #34 introdujo originalmente el ledger descrito por [ADR-0016](adr/0016-versioned-session-ledger-and-keychain-boundary.md); la corrección del 2026-09-01 registrada arriba lo sustituye en el código vigente por un único registro Keychain V2 y borrado condicionado por generación.
 2. **S2 — alta de usuario, entregado.** `POST /users` con `App-Token` inyectado desde configuración local ignorada y alta enlazada con login, entregado mediante la PR #36. Una escritura live continúa necesitando autorización separada. S2 no añade todavía Colección.
 3. **S2.1 — acciones accesibles de Cuenta, entregado.** La PR #38 da jerarquía primaria y secundaria a las acciones sin sesión, incorpora el prompt de alta y conserva objetivos táctiles nativos y contraste adaptativo sin cambiar sesión, red o persistencia.
 4. **S2.2 — formularios de credenciales, entregado mediante la PR #40.** SDD 01 v1.4 y SDD 04 v1.13 definen propiedad de pantalla, gramática conservadora compartida y la compatibilidad exacta del alta con `200` publicado y `201` observado; login y alta presentan errores inline, mantienen los fallos no atribuibles a nivel de formulario, permiten mostrar u ocultar la contraseña con controles SwiftUI sin perder contenido o foco y conservan acciones primarias accesibles. El estado autenticado presenta la identidad segura y el logout con la misma jerarquía visual. No inicia persistencia de producto.
-5. **L1 — núcleo SwiftData de Colección, implementación local validada.** El worktree crea una sola vez el `ModelContainer` live, declara el esquema V1 y persiste Colección y outbox mediante una capacidad `@ModelActor` compartida. La primera mutación valida invariantes y guarda ambos estados atómicamente, sin una ruta local provisional. Issue, commit, PR y entrega continúan abiertos.
+5. **L1 — núcleo SwiftData de Colección, entregado mediante la PR #44.** El composition root crea una sola vez el `ModelContainer` live, declara el esquema V1 y persiste Colección y outbox mediante una capacidad `@ModelActor` compartida. La primera mutación valida invariantes y guarda ambos estados atómicamente, sin una ruta local provisional. L2 continúa como una unidad posterior y separada.
 6. **L2 — Colección local y offline.** Exponer `@Query` restringida a la identidad activa, navegación independiente y alta, edición y eliminación mediante la ruta semántica de L1. Tomos, volumen de lectura, colección completa y tombstones deben sobrevivir al relanzamiento sin depender de red.
 7. **R1 — lectura e importación remota.** Consumir la colección de la persona autenticada al iniciar o restaurar sesión y reconciliarla en SwiftData sin pisar intenciones locales posteriores. Aquí empieza la integración con la persistencia remota; la UI continúa observando exclusivamente el estado local.
 8. **R2 — envío y reconciliación de outbox.** Procesar la outbox persistida mediante POST/DELETE, coalescencia, retry, `blockedAuth`, `blockedOutcome`, reversión y protección frente a respuestas tardías. Antes de implementar GET/DELETE por `{id}` debe resolverse o caracterizarse de forma autorizada la ambigüedad entre ID de manga `int64` e ID de entrada UUID. Las escrituras remotas de Colección comienzan aquí y no se prueban contra producción.
