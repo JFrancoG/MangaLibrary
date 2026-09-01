@@ -29,6 +29,7 @@ All notable changes to this project are documented in this file.
 
 ### Tests
 
+- 2026-09-01 | ✅ test(collection): cover persistence contract
 - 2026-08-31 | ✅ test(account): cover registration contract, uncertainty and synthetic UI flow
 - 2026-08-30 | ✅ test(session): cover authentication, persistence recovery and Account states
 - 2026-08-28 | ✅ test(catalog): remove tautological query tests
