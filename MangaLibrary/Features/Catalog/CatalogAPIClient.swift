@@ -70,22 +70,12 @@ struct CatalogAPIClient {
     /// categories are preserved; malformed arrays become contract drift.
     @concurrent
     func fetchFilterOptions() async throws -> CatalogFilterOptions {
-        async let demographics = fetchFilterValues(
-            path: "list/demographics"
-        )
+        async let demographics = fetchFilterValues(path: "list/demographics")
         async let genres = fetchFilterValues(path: "list/genres")
         async let themes = fetchFilterValues(path: "list/themes")
 
-        let (
-            demographicValues,
-            genreValues,
-            themeValues
-        ) = try await (demographics, genres, themes)
-        return CatalogFilterOptions(
-            demographics: demographicValues,
-            genres: genreValues,
-            themes: themeValues
-        )
+        let (demographicValues, genreValues, themeValues) = try await (demographics, genres, themes)
+        return CatalogFilterOptions(demographics: demographicValues, genres: genreValues, themes: themeValues)
     }
 
     @concurrent

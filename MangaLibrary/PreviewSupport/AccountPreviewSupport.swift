@@ -27,15 +27,8 @@ enum AccountPreviewSupport {
         state: AccountModel.State,
         registrationState: AccountModel.RegistrationState = .idle
     ) -> AccountModel {
-        let session = AccountPreviewSession(
-            snapshot: snapshot(for: state),
-            fallbackAccount: account
-        )
-        return AccountModel(
-            initialState: state,
-            registrationState: registrationState,
-            operations: session.operations()
-        )
+        let session = AccountPreviewSession(snapshot: snapshot(for: state), fallbackAccount: account)
+        return AccountModel(initialState: state, registrationState: registrationState, operations: session.operations())
     }
 
     private static func snapshot(for state: AccountModel.State) -> SessionSnapshot {
@@ -88,9 +81,7 @@ private actor AccountPreviewSession {
     }
 
     private func logout() throws(SessionControllerError) -> SessionSnapshot {
-        guard case .active = snapshot else {
-            throw SessionControllerError.notAuthenticated
-        }
+        guard case .active = snapshot else { throw SessionControllerError.notAuthenticated }
         snapshot = .signedOut
         return snapshot
     }

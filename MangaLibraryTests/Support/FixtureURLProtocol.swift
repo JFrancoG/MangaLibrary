@@ -74,16 +74,9 @@ final class FixtureURLProtocol: URLProtocol {
             )
             send(response: response, body: body)
         case .notFound:
-            sendHTTPResponse(
-                statusCode: 404,
-                body: Data("body-must-not-reach-the-caller".utf8),
-                url: url
-            )
+            sendHTTPResponse(statusCode: 404, body: Data("body-must-not-reach-the-caller".utf8), url: url)
         case .transportFailure:
-            client?.urlProtocol(
-                self,
-                didFailWithError: URLError(.notConnectedToInternet)
-            )
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
         case .cancellation:
             // Deliberately left pending until URLSession cancels the request.
             break
@@ -104,9 +97,7 @@ final class FixtureURLProtocol: URLProtocol {
     }
 
     private static func route(for url: URL?) -> Route? {
-        guard let url else {
-            return nil
-        }
+        guard let url else { return nil }
 
         switch url {
         case Endpoint.success:

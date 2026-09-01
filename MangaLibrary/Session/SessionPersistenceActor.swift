@@ -58,9 +58,7 @@ actor SessionPersistenceActor {
         replacing expected: SessionAuthority? = nil
     ) throws(any Error) -> SessionPersistedSession {
         if let current = try operations.load() {
-            guard let expected, current.authority == expected else {
-                throw SessionPersistenceError.transitionBlocked
-            }
+            guard let expected, current.authority == expected else { throw SessionPersistenceError.transitionBlocked }
         }
 
         try operations.removeAll()

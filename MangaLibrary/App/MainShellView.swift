@@ -21,10 +21,7 @@ struct MainShellView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Catalog", systemImage: "books.vertical", value: .catalog) {
-                CatalogRootView(
-                    loadPage: loadCatalogPage,
-                    loadFilterOptions: loadCatalogFilterOptions
-                )
+                CatalogRootView(loadPage: loadCatalogPage, loadFilterOptions: loadCatalogFilterOptions)
             }
             .accessibilityIdentifier("tab.catalog")
 
@@ -38,10 +35,7 @@ struct MainShellView: View {
                     .accessibilityIdentifier("collection.unavailable")
                     .navigationTitle("Collection")
                 } detail: {
-                    ContentUnavailableView(
-                        "Collection is not available yet",
-                        systemImage: "books.vertical"
-                    )
+                    ContentUnavailableView("Collection is not available yet", systemImage: "books.vertical")
                 }
             }
             .accessibilityIdentifier("tab.collection")
@@ -62,8 +56,6 @@ struct MainShellView: View {
     MainShellView(
         loadCatalogPage: CatalogPreviewSupport.pageLoader,
         loadCatalogFilterOptions: CatalogPreviewSupport.filterOptionsLoader,
-        accountModel: AccountPreviewSupport.model(
-            state: .signedOut(failure: nil)
-        )
+        accountModel: AccountPreviewSupport.model(state: .signedOut(failure: nil))
     )
 }

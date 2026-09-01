@@ -43,10 +43,7 @@ struct CatalogListView: View {
             }
         }
 
-        CatalogPaginationView(
-            pagination: content.pagination,
-            model: model
-        )
+        CatalogPaginationView(pagination: content.pagination, model: model)
         .listRowBackground(Color(.canvas))
         .listRowSeparator(.hidden)
     }
@@ -54,10 +51,7 @@ struct CatalogListView: View {
 
 #Preview("Catalog list") {
     @Previewable @State var selection: Manga.ID?
-    let content = CatalogModel.Content(
-        items: CatalogPreviewSupport.mangas,
-        pagination: .end
-    )
+    let content = CatalogModel.Content(items: CatalogPreviewSupport.mangas, pagination: .end)
     let model = CatalogPreviewSupport.model(state: .content(content))
 
     NavigationStack {

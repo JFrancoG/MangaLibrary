@@ -60,11 +60,7 @@ struct CatalogQueryTests {
 
     @Test("Filter vocabularies retain selections missing from a fresh server list")
     func filterOptionsRetainCurrentSelections() {
-        let options = CatalogFilterOptions(
-            demographics: ["Seinen"],
-            genres: ["Drama"],
-            themes: ["Psychological"]
-        )
+        let options = CatalogFilterOptions(demographics: ["Seinen"], genres: ["Drama"], themes: ["Psychological"])
 
         let displayedOptions = options.includingSelections(
             demographics: ["Josei"],

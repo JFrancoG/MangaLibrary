@@ -65,26 +65,15 @@ extension UserRegistrationClient {
             let body: Data
 
             do {
-                body = try JSONEncoder().encode(
-                    UserRegistrationRequestDTO(
-                        email: email,
-                        password: password
-                    )
-                )
+                body = try JSONEncoder().encode(UserRegistrationRequestDTO(email: email, password: password))
             } catch {
                 return .notSubmitted(.unavailable)
             }
 
-            var request = URLRequest(
-                url: baseURL.appending(path: "users"),
-                cachePolicy: .reloadIgnoringLocalCacheData
-            )
+            var request = URLRequest(url: baseURL.appending(path: "users"), cachePolicy: .reloadIgnoringLocalCacheData)
             request.httpMethod = "POST"
             request.httpBody = body
-            request.setValue(
-                "application/json",
-                forHTTPHeaderField: "Content-Type"
-            )
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue(appToken, forHTTPHeaderField: "App-Token")
 
             let response: HTTPResponse
@@ -115,11 +104,7 @@ extension UserRegistrationClient {
         }
     }
 
-    static func operation(
-        httpClient: HTTPClient,
-        configuration: APIConfiguration,
-        appToken: String?
-    ) -> Operation {
+    static func operation(httpClient: HTTPClient, configuration: APIConfiguration, appToken: String?) -> Operation {
         operation(
             configuration: configuration,
             appToken: appToken,
@@ -132,9 +117,7 @@ extension UserRegistrationClient {
     private static func validated(appToken: String?) -> String? {
         guard let appToken else { return nil }
 
-        let trimmedToken = appToken.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
+        let trimmedToken = appToken.trimmingCharacters(in: .whitespacesAndNewlines)
         guard
             trimmedToken.isEmpty == false,
             !(trimmedToken.hasPrefix("$(") && trimmedToken.hasSuffix(")"))

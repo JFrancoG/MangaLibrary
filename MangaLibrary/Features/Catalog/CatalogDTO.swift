@@ -24,11 +24,7 @@ struct CatalogPageDTO: Decodable {
 
         return CatalogPage(
             items: mangas,
-            metadata: .init(
-                page: metadata.page,
-                per: metadata.per,
-                total: metadata.total
-            )
+            metadata: .init(page: metadata.page, per: metadata.per, total: metadata.total)
         )
     }
 }
@@ -73,9 +69,7 @@ private struct MangaDTO: Decodable {
     }
 
     private func validatedCoverURL() -> URL? {
-        guard let mainPicture else {
-            return nil
-        }
+        guard let mainPicture else { return nil }
         guard
             let components = URLComponents(string: mainPicture),
             let scheme = components.scheme?.lowercased(),

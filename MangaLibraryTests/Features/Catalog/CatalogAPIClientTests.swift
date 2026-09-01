@@ -33,9 +33,7 @@ struct CatalogAPIClientTests {
 
     @Test("Fetch builds the exact public request", arguments: [Int64(1), 2])
     func fetchBuildsExactPublicRequest(page: Int64) async throws {
-        let recorder = RecordedDataLoader(
-            data: CatalogJSONFixtures.page(page: page, total: 40)
-        )
+        let recorder = RecordedDataLoader(data: CatalogJSONFixtures.page(page: page, total: 40))
         let client = try makeClient { request in
             await recorder.load(request)
         }
@@ -44,9 +42,7 @@ struct CatalogAPIClientTests {
 
         let request = try #require(await recorder.requests().first)
         let url = try #require(request.url)
-        let components = try #require(
-            URLComponents(url: url, resolvingAgainstBaseURL: false)
-        )
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
         #expect(request.httpMethod == "GET")
         #expect(components.scheme == "https")
         #expect(components.host == "catalog.example.test")
@@ -65,16 +61,12 @@ struct CatalogAPIClientTests {
 
     @Test("Best manga uses its paginated public operation")
     func bestMangaBuildsExactPublicRequest() async throws {
-        let recorder = RecordedDataLoader(
-            data: CatalogJSONFixtures.page(page: 2, total: 40)
-        )
+        let recorder = RecordedDataLoader(data: CatalogJSONFixtures.page(page: 2, total: 40))
         let client = try makeClient { request in
             await recorder.load(request)
         }
 
-        _ = try await client.fetch(
-            CatalogPageRequest(query: .best, page: 2)
-        )
+        _ = try await client.fetch(CatalogPageRequest(query: .best, page: 2))
 
         let request = try #require(await recorder.requests().first)
         let components = try #require(
@@ -110,9 +102,7 @@ struct CatalogAPIClientTests {
             demographics: ["Seinen", "Josei", "Seinen"]
         )
 
-        _ = try await client.fetch(
-            CatalogPageRequest(query: .advanced(search))
-        )
+        _ = try await client.fetch(CatalogPageRequest(query: .advanced(search)))
 
         let request = try #require(await recorder.requests().first)
         let components = try #require(
@@ -181,13 +171,7 @@ struct CatalogAPIClientTests {
         #expect(options.demographics == ["Seinen", "Shounen"])
         #expect(options.genres == ["Action", "Drama"])
         #expect(options.themes == ["Military", "Space"])
-        #expect(
-            requests.compactMap(\.url?.path).sorted() == [
-                "/list/demographics",
-                "/list/genres",
-                "/list/themes"
-            ]
-        )
+        #expect(requests.compactMap(\.url?.path).sorted() == ["/list/demographics", "/list/genres", "/list/themes"])
         #expect(requests.allSatisfy { $0.httpMethod == "GET" })
         #expect(requests.allSatisfy { $0.url?.query == nil })
         #expect(requests.allSatisfy { $0.httpBody == nil })
@@ -212,9 +196,7 @@ struct CatalogAPIClientTests {
             return Data("[]".utf8)
         }
 
-        await #expect(
-            throws: CatalogAPIClientError.network(.statusCode(503))
-        ) {
+        await #expect(throws: CatalogAPIClientError.network(.statusCode(503))) {
             try await client.fetchFilterOptions()
         }
     }
@@ -252,9 +234,7 @@ struct CatalogAPIClientTests {
         #expect(
             manga.authors == [
                 Manga.Author(
-                    id: try #require(
-                        UUID(uuidString: "11111111-1111-1111-1111-111111111111")
-                    ),
+                    id: try #require(UUID(uuidString: "11111111-1111-1111-1111-111111111111")),
                     firstName: "Hiromu",
                     lastName: "Arakawa",
                     role: .storyAndArt
@@ -264,9 +244,7 @@ struct CatalogAPIClientTests {
         #expect(
             manga.demographics == [
                 Manga.Classification(
-                    id: try #require(
-                        UUID(uuidString: "22222222-2222-2222-2222-222222222222")
-                    ),
+                    id: try #require(UUID(uuidString: "22222222-2222-2222-2222-222222222222")),
                     name: "Shounen"
                 )
             ]
@@ -274,9 +252,7 @@ struct CatalogAPIClientTests {
         #expect(
             manga.genres == [
                 Manga.Classification(
-                    id: try #require(
-                        UUID(uuidString: "33333333-3333-3333-3333-333333333333")
-                    ),
+                    id: try #require(UUID(uuidString: "33333333-3333-3333-3333-333333333333")),
                     name: "Adventure"
                 )
             ]
@@ -284,28 +260,18 @@ struct CatalogAPIClientTests {
         #expect(
             manga.themes == [
                 Manga.Classification(
-                    id: try #require(
-                        UUID(uuidString: "44444444-4444-4444-4444-444444444444")
-                    ),
+                    id: try #require(UUID(uuidString: "44444444-4444-4444-4444-444444444444")),
                     name: "Military"
                 )
             ]
         )
-        #expect(
-            manga.coverURL
-                == URL(string: "https://images.example.test/fullmetal-alchemist.jpg")
-        )
+        #expect(manga.coverURL == URL(string: "https://images.example.test/fullmetal-alchemist.jpg"))
     }
 
-    @Test(
-        "Every valid author role maps to its domain value",
-        arguments: CatalogAuthorRoleMapping.allCases
-    )
+    @Test("Every valid author role maps to its domain value", arguments: CatalogAuthorRoleMapping.allCases)
     func mapsEveryValidAuthorRole(_ mapping: CatalogAuthorRoleMapping) async throws {
         let item = CatalogJSONFixtures.manga(authorRole: mapping.wireValue)
-        let client = try makeClient(
-            returning: CatalogJSONFixtures.page(items: [item])
-        )
+        let client = try makeClient(returning: CatalogJSONFixtures.page(items: [item]))
 
         let page = try await client.fetch(CatalogPageRequest())
         let author = try #require(page.items.first?.authors.first)
@@ -313,15 +279,10 @@ struct CatalogAPIClientTests {
         #expect(author.role == mapping.domainValue)
     }
 
-    @Test(
-        "Every valid publication status maps to its domain value",
-        arguments: CatalogStatusMapping.allCases
-    )
+    @Test("Every valid publication status maps to its domain value", arguments: CatalogStatusMapping.allCases)
     func mapsEveryValidPublicationStatus(_ mapping: CatalogStatusMapping) async throws {
         let item = CatalogJSONFixtures.manga(status: mapping.wireValue)
-        let client = try makeClient(
-            returning: CatalogJSONFixtures.page(items: [item])
-        )
+        let client = try makeClient(returning: CatalogJSONFixtures.page(items: [item]))
 
         let page = try await client.fetch(CatalogPageRequest())
         let manga = try #require(page.items.first)
@@ -333,11 +294,7 @@ struct CatalogAPIClientTests {
     func rejectsIncoherentMetadata(_ mismatch: MetadataMismatch) async throws {
         let metadata = mismatch.values
         let client = try makeClient(
-            returning: CatalogJSONFixtures.page(
-                page: metadata.page,
-                per: metadata.per,
-                total: metadata.total
-            )
+            returning: CatalogJSONFixtures.page(page: metadata.page, per: metadata.per, total: metadata.total)
         )
 
         await #expect(throws: CatalogAPIClientError.contractDrift) {
@@ -348,9 +305,7 @@ struct CatalogAPIClientTests {
     @Test("A missing product field is contract drift")
     func missingConsumedFieldIsContractDrift() async throws {
         let item = CatalogJSONFixtures.manga(includesTitle: false)
-        let client = try makeClient(
-            returning: CatalogJSONFixtures.page(items: [item])
-        )
+        let client = try makeClient(returning: CatalogJSONFixtures.page(items: [item]))
 
         await #expect(throws: CatalogAPIClientError.contractDrift) {
             try await client.fetch(CatalogPageRequest())
@@ -360,9 +315,7 @@ struct CatalogAPIClientTests {
     @Test("A missing required relationship is contract drift")
     func missingRequiredRelationshipIsContractDrift() async throws {
         let item = CatalogJSONFixtures.manga(includesAuthors: false)
-        let client = try makeClient(
-            returning: CatalogJSONFixtures.page(items: [item])
-        )
+        let client = try makeClient(returning: CatalogJSONFixtures.page(items: [item]))
 
         await #expect(throws: CatalogAPIClientError.contractDrift) {
             try await client.fetch(CatalogPageRequest())
@@ -372,19 +325,14 @@ struct CatalogAPIClientTests {
     @Test("An invalid nested identity is contract drift")
     func invalidNestedIdentityIsContractDrift() async throws {
         let item = CatalogJSONFixtures.manga(authorID: "not-a-uuid")
-        let client = try makeClient(
-            returning: CatalogJSONFixtures.page(items: [item])
-        )
+        let client = try makeClient(returning: CatalogJSONFixtures.page(items: [item]))
 
         await #expect(throws: CatalogAPIClientError.contractDrift) {
             try await client.fetch(CatalogPageRequest())
         }
     }
 
-    @Test("Unknown closed manga values are contract drift", arguments: [
-        CatalogClosedValueMutation.authorRole,
-        .status
-    ])
+    @Test("Unknown closed manga values are contract drift", arguments: [CatalogClosedValueMutation.authorRole, .status])
     func unknownClosedMangaValueIsContractDrift(_ mutation: CatalogClosedValueMutation) async throws {
         let item: String
         switch mutation {
@@ -393,9 +341,7 @@ struct CatalogAPIClientTests {
         case .status:
             item = CatalogJSONFixtures.manga(status: "cancelled")
         }
-        let client = try makeClient(
-            returning: CatalogJSONFixtures.page(items: [item])
-        )
+        let client = try makeClient(returning: CatalogJSONFixtures.page(items: [item]))
 
         await #expect(throws: CatalogAPIClientError.contractDrift) {
             try await client.fetch(CatalogPageRequest())
@@ -434,9 +380,7 @@ struct CatalogAPIClientTests {
     @Test("A duplicate identity rejects the whole page")
     func rejectsDuplicateMangaIdentity() async throws {
         let item = CatalogJSONFixtures.manga()
-        let client = try makeClient(
-            returning: CatalogJSONFixtures.page(total: 2, items: [item, item])
-        )
+        let client = try makeClient(returning: CatalogJSONFixtures.page(total: 2, items: [item, item]))
 
         await #expect(throws: CatalogAPIClientError.duplicateMangaID(42)) {
             try await client.fetch(CatalogPageRequest())
@@ -453,9 +397,7 @@ struct CatalogAPIClientTests {
     )
     func rejectsUnsafeCover(_ cover: String) async throws {
         let item = CatalogJSONFixtures.manga(cover: cover)
-        let client = try makeClient(
-            returning: CatalogJSONFixtures.page(items: [item])
-        )
+        let client = try makeClient(returning: CatalogJSONFixtures.page(items: [item]))
 
         let page = try await client.fetch(CatalogPageRequest())
 
@@ -471,10 +413,7 @@ struct CatalogAPIClientTests {
     ) throws -> CatalogAPIClient {
         let baseURL = try #require(URL(string: "https://catalog.example.test"))
 
-        return CatalogAPIClient(
-            configuration: try APIConfiguration(baseURL: baseURL),
-            loadData: loadData
-        )
+        return CatalogAPIClient(configuration: try APIConfiguration(baseURL: baseURL), loadData: loadData)
     }
 }
 
@@ -583,12 +522,7 @@ private actor RoutedDataLoader {
 
     func load(_ request: URLRequest) throws -> Data {
         recordedRequests.append(request)
-        guard
-            let path = request.url?.path,
-            let response = responses[path]
-        else {
-            throw StubError.unexpectedPath
-        }
+        guard let path = request.url?.path, let response = responses[path] else { throw StubError.unexpectedPath }
         return response
     }
 

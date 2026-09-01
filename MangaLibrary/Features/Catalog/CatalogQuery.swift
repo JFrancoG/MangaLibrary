@@ -13,9 +13,7 @@ enum CatalogQuery: Hashable {
     case advanced(CatalogSearch)
 
     var advancedSearch: CatalogSearch? {
-        guard case let .advanced(search) = self else {
-            return nil
-        }
+        guard case let .advanced(search) = self else { return nil }
 
         return search
     }
@@ -144,9 +142,7 @@ extension CatalogSearch {
     }
 
     private static func normalizedText(_ value: String?) -> String? {
-        guard let value, value.isEmpty == false else {
-            return nil
-        }
+        guard let value, value.isEmpty == false else { return nil }
 
         return value
     }

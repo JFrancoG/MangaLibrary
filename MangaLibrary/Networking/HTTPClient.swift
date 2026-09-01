@@ -63,13 +63,9 @@ struct HTTPClient {
 
         try Task.checkCancellation()
 
-        guard let response = result.response as? HTTPURLResponse else {
-            throw NetworkError.invalidResponse
-        }
+        guard let response = result.response as? HTTPURLResponse else { throw NetworkError.invalidResponse }
 
-        guard statusCodes.contains(response.statusCode) else {
-            throw NetworkError.statusCode(response.statusCode)
-        }
+        guard statusCodes.contains(response.statusCode) else { throw NetworkError.statusCode(response.statusCode) }
 
         return HTTPResponse(data: result.data, statusCode: response.statusCode)
     }

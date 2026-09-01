@@ -40,9 +40,7 @@ extension MangaLibraryApp {
                 collectionMutations = CollectionMutationActor(modelContainer: container)
                 loadCatalogPage = CatalogPreviewSupport.pageLoader
                 loadCatalogFilterOptions = CatalogPreviewSupport.filterOptionsLoader
-                accountModel = AccountPreviewSupport.model(
-                    state: .signedOut(failure: nil)
-                )
+                accountModel = AccountPreviewSupport.model(state: .signedOut(failure: nil))
                 return
             } catch {
                 preconditionFailure("Manga Library could not create its UI testing data store.")
@@ -64,10 +62,7 @@ extension MangaLibraryApp {
                 try await catalogClient.fetchFilterOptions()
             }
             accountModel = AccountModel(
-                operations: .live(
-                    controller: composition.sessionController,
-                    register: composition.registerUser
-                )
+                operations: .live(controller: composition.sessionController, register: composition.registerUser)
             )
         } catch {
             preconditionFailure("Manga Library could not create its app dependencies.")

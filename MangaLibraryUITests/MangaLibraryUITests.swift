@@ -40,12 +40,8 @@ final class MangaLibraryUITests: XCTestCase {
         let cancelButton: XCUIElement
         if compactCancelButton.waitForExistence(timeout: 2) {
             cancelButton = compactCancelButton
-            let sheetTop = app.coordinate(
-                withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)
-            )
-            let sheetBottom = app.coordinate(
-                withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)
-            )
+            let sheetTop = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08))
+            let sheetBottom = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9))
             sheetTop.press(forDuration: 0.1, thenDragTo: sheetBottom)
         } else {
             cancelButton = regularCancelButton
@@ -64,24 +60,15 @@ final class MangaLibraryUITests: XCTestCase {
         app.launchArguments.append("-ui-testing")
         app.launch()
 
-        let accountTab = app.buttons
-            .matching(identifier: "tab.account")
-            .firstMatch
+        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
         XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
         accountTab.tap()
 
-        XCTAssertTrue(
-            app.descendants(matching: .any)["account.signed-out"]
-                .waitForExistence(timeout: 2)
-        )
-        let signInAction = app.descendants(matching: .any)
-            .matching(identifier: "account.sign-in.action")
-            .firstMatch
+        XCTAssertTrue(app.descendants(matching: .any)["account.signed-out"].waitForExistence(timeout: 2))
+        let signInAction = app.descendants(matching: .any).matching(identifier: "account.sign-in.action").firstMatch
         XCTAssertTrue(signInAction.waitForExistence(timeout: 2))
 
-        let registerAction = app.descendants(matching: .any)
-            .matching(identifier: "account.register.action")
-            .firstMatch
+        let registerAction = app.descendants(matching: .any).matching(identifier: "account.register.action").firstMatch
         XCTAssertTrue(registerAction.waitForExistence(timeout: 2))
         XCTAssertTrue(signInAction.isHittable)
         XCTAssertTrue(registerAction.isHittable)
@@ -98,10 +85,7 @@ final class MangaLibraryUITests: XCTestCase {
         XCTAssertTrue(registrationPrompt.waitForExistence(timeout: 2))
         XCTAssertLessThan(signInAction.frame.maxY, registrationPrompt.frame.minY)
         XCTAssertLessThan(registrationPrompt.frame.maxY, registerAction.frame.minY)
-        XCTAssertGreaterThanOrEqual(
-            registerAction.frame.minY - registrationPrompt.frame.maxY,
-            12
-        )
+        XCTAssertGreaterThanOrEqual(registerAction.frame.minY - registrationPrompt.frame.maxY, 12)
 
         signInAction.tap()
 
@@ -167,19 +151,13 @@ final class MangaLibraryUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(submit.frame.width, 44)
         XCTAssertGreaterThanOrEqual(submit.frame.height, 44)
         submit.tap()
-        let authenticated = app.descendants(matching: .any)[
-            "account.authenticated"
-        ]
+        let authenticated = app.descendants(matching: .any)["account.authenticated"]
         XCTAssertTrue(authenticated.waitForExistence(timeout: 2))
 
-        let identityEmail = app.descendants(matching: .any)[
-            "account.identity.email"
-        ]
+        let identityEmail = app.descendants(matching: .any)["account.identity.email"]
         XCTAssertTrue(identityEmail.waitForExistence(timeout: 2))
         XCTAssertTrue(identityEmail.label.contains("reader@example.invalid"))
-        XCTAssertFalse(
-            identityEmail.label.contains("ui-account@example.invalid")
-        )
+        XCTAssertFalse(identityEmail.label.contains("ui-account@example.invalid"))
 
         let signOut = app.buttons["account.sign-out"]
         XCTAssertTrue(signOut.waitForExistence(timeout: 2))
@@ -194,15 +172,11 @@ final class MangaLibraryUITests: XCTestCase {
         app.launchArguments.append("-ui-testing")
         app.launch()
 
-        let accountTab = app.buttons
-            .matching(identifier: "tab.account")
-            .firstMatch
+        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
         XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
         accountTab.tap()
 
-        let registerAction = app.descendants(matching: .any)
-            .matching(identifier: "account.register.action")
-            .firstMatch
+        let registerAction = app.descendants(matching: .any).matching(identifier: "account.register.action").firstMatch
         XCTAssertTrue(registerAction.waitForExistence(timeout: 2))
         registerAction.tap()
 
@@ -223,9 +197,7 @@ final class MangaLibraryUITests: XCTestCase {
         XCTAssertTrue(password.waitForExistence(timeout: 2))
         password.tap()
 
-        let dismissStrongPasswordSuggestion = app.buttons
-            .matching(identifier: "xmark")
-            .firstMatch
+        let dismissStrongPasswordSuggestion = app.buttons.matching(identifier: "xmark").firstMatch
         if dismissStrongPasswordSuggestion.waitForExistence(timeout: 1) {
             dismissStrongPasswordSuggestion.tap()
             password.tap()
@@ -276,18 +248,12 @@ final class MangaLibraryUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(submit.frame.width, 44)
         XCTAssertGreaterThanOrEqual(submit.frame.height, 44)
         submit.tap()
-        let authenticated = app.descendants(matching: .any)[
-            "account.authenticated"
-        ]
+        let authenticated = app.descendants(matching: .any)["account.authenticated"]
         XCTAssertTrue(authenticated.waitForExistence(timeout: 5))
 
-        let identityEmail = app.descendants(matching: .any)[
-            "account.identity.email"
-        ]
+        let identityEmail = app.descendants(matching: .any)["account.identity.email"]
         XCTAssertTrue(identityEmail.waitForExistence(timeout: 2))
         XCTAssertTrue(identityEmail.label.contains("reader@example.invalid"))
-        XCTAssertFalse(
-            identityEmail.label.contains("ui-new-account@example.invalid")
-        )
+        XCTAssertFalse(identityEmail.label.contains("ui-new-account@example.invalid"))
     }
 }

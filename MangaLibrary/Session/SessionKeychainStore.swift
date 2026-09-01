@@ -14,10 +14,10 @@ struct SessionKeychainStore: Sendable {
     let legacyServices: [String]
 
     static func live() throws(SessionStorageError) -> Self {
-        guard let bundleIdentifier = Bundle.main.bundleIdentifier,
-              bundleIdentifier.isEmpty == false else {
-            throw SessionStorageError.invalidConfiguration
-        }
+        guard
+            let bundleIdentifier = Bundle.main.bundleIdentifier,
+            bundleIdentifier.isEmpty == false
+        else { throw SessionStorageError.invalidConfiguration }
 
         return Self(
             service: "\(bundleIdentifier).session.current.v2",
@@ -54,9 +54,7 @@ struct SessionKeychainStore: Sendable {
                 query(service: service) as CFDictionary,
                 [kSecValueData: data] as CFDictionary
             )
-            guard updateStatus == errSecSuccess else {
-                throw storageError(for: updateStatus)
-            }
+            guard updateStatus == errSecSuccess else { throw storageError(for: updateStatus) }
         default:
             throw storageError(for: addStatus)
         }
@@ -73,9 +71,7 @@ struct SessionKeychainStore: Sendable {
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         switch status {
         case errSecSuccess:
-            guard let data = result as? Data else {
-                throw SessionStorageError.corruptSessionRecord
-            }
+            guard let data = result as? Data else { throw SessionStorageError.corruptSessionRecord }
             do {
                 return try JSONDecoder().decode(SessionEnvelopeV2.self, from: data).session()
             } catch let error as SessionStorageError {
@@ -102,9 +98,7 @@ struct SessionKeychainStore: Sendable {
                 kSecAttrSynchronizable: kSecAttrSynchronizableAny,
             ]
             let status = SecItemDelete(query as CFDictionary)
-            guard status == errSecSuccess || status == errSecItemNotFound else {
-                throw storageError(for: status)
-            }
+            guard status == errSecSuccess || status == errSecItemNotFound else { throw storageError(for: status) }
         }
     }
 
@@ -118,9 +112,7 @@ struct SessionKeychainStore: Sendable {
     }
 
     private func validateConfiguration() throws(SessionStorageError) {
-        guard service.isEmpty == false else {
-            throw SessionStorageError.invalidConfiguration
-        }
+        guard service.isEmpty == false else { throw SessionStorageError.invalidConfiguration }
     }
 
     private func storageError(for status: OSStatus) -> SessionStorageError {
