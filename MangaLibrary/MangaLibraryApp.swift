@@ -5,10 +5,13 @@
 //  Created by Jesús Franco on 15.08.2026.
 //
 
+import SwiftData
 import SwiftUI
 
 @main
 struct MangaLibraryApp: App {
+    private let modelContainer: ModelContainer
+    private let collectionMutations: CollectionMutationActor
     private let loadCatalogPage: CatalogModel.PageLoader
     private let loadCatalogFilterOptions: CatalogModel.FilterOptionsLoader
     @State private var accountModel: AccountModel
@@ -21,6 +24,7 @@ struct MangaLibraryApp: App {
                 accountModel: accountModel
             )
         }
+        .modelContainer(modelContainer)
     }
 }
 
@@ -30,12 +34,19 @@ extension MangaLibraryApp {
 #if DEBUG
             // UI automation owns one deterministic bootstrap and cannot select
             // fixtures or fall through to production networking.
-            loadCatalogPage = CatalogPreviewSupport.pageLoader
-            loadCatalogFilterOptions = CatalogPreviewSupport.filterOptionsLoader
-            accountModel = AccountPreviewSupport.model(
-                state: .signedOut(failure: nil)
-            )
-            return
+            do {
+                let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+                modelContainer = container
+                collectionMutations = CollectionMutationActor(modelContainer: container)
+                loadCatalogPage = CatalogPreviewSupport.pageLoader
+                loadCatalogFilterOptions = CatalogPreviewSupport.filterOptionsLoader
+                accountModel = AccountPreviewSupport.model(
+                    state: .signedOut(failure: nil)
+                )
+                return
+            } catch {
+                preconditionFailure("Manga Library could not create its UI testing data store.")
+            }
 #else
             preconditionFailure("UI testing data is unavailable in production builds.")
 #endif
@@ -44,6 +55,8 @@ extension MangaLibraryApp {
         do {
             let composition = try AppComposition.live()
             let catalogClient = composition.catalogClient
+            modelContainer = composition.modelContainer
+            collectionMutations = composition.collectionMutations
             loadCatalogPage = { request in
                 try await catalogClient.fetch(request)
             }
