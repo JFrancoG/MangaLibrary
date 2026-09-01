@@ -21,7 +21,7 @@ struct SignInView: View {
             if let failure = viewModel.failure {
                 Section("Unable to sign in") {
                     Label(failure.errorDescriptionResource, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(Color(.dangerInk))
+                    .foregroundStyle(.dangerInk)
                 }
                 .accessibilityIdentifier("account.sign-in.failure")
             }
@@ -33,12 +33,12 @@ struct SignInView: View {
                     } label: {
                         Text("Sign in")
                             .font(.headline)
-                            .foregroundStyle(Color(.onBrandPrimary))
+                            .foregroundStyle(.onBrandPrimary)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .buttonSizing(.fitted)
-                    .tint(Color(.brandPrimary))
+                    .tint(Color.brandPrimary)
                     .accessibilityIdentifier("account.sign-in.submit")
 
                     if viewModel.isAuthenticating {
@@ -52,7 +52,7 @@ struct SignInView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color(.canvas))
+        .background(.canvas)
         .navigationTitle("Sign in")
         .defaultFocus($focusedField, .email)
         .disabled(viewModel.isAuthenticating)
@@ -79,10 +79,10 @@ struct SignInView: View {
                 .accessibilityIdentifier("account.sign-in.email")
                 .padding(.horizontal, 16)
                 .frame(minHeight: 48)
-                .background(Color(.surface), in: .rect(cornerRadius: 12, style: .continuous))
+                .background(.surface, in: .rect(cornerRadius: 12, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(Color(.controlBorder), lineWidth: 1)
+                        .strokeBorder(.controlBorder, lineWidth: 1)
                 }
                 .listRowInsets(
                     EdgeInsets(
@@ -92,12 +92,12 @@ struct SignInView: View {
                         trailing: 4
                     )
                 )
-                .listRowBackground(Color(.canvas))
+                .listRowBackground(Color.canvas)
         } footer: {
             if let emailFailure = viewModel.emailFailure {
                 Label(emailFailure.errorDescriptionResource, systemImage: "exclamationmark.circle.fill")
                 .font(.footnote)
-                .foregroundStyle(Color(.dangerInk))
+                .foregroundStyle(.dangerInk)
                 .accessibilityIdentifier("account.sign-in.email.failure")
             }
         }
@@ -138,15 +138,15 @@ struct SignInView: View {
                 .buttonStyle(.plain)
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(.rect)
-                .tint(Color(.brandPrimary))
+                .tint(Color.brandPrimary)
                 .accessibilityIdentifier("account.sign-in.password-visibility")
             }
             .padding(.horizontal, 16)
             .frame(minHeight: 48)
-            .background(Color(.surface), in: .rect(cornerRadius: 12, style: .continuous))
+            .background(.surface, in: .rect(cornerRadius: 12, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color(.controlBorder), lineWidth: 1)
+                    .strokeBorder(.controlBorder, lineWidth: 1)
             }
             .listRowInsets(
                 EdgeInsets(
@@ -156,12 +156,12 @@ struct SignInView: View {
                     trailing: 4
                 )
             )
-            .listRowBackground(Color(.canvas))
+            .listRowBackground(Color.canvas)
         } footer: {
             if let passwordFailure = viewModel.passwordFailure {
                 Label(passwordFailure.errorDescriptionResource, systemImage: "exclamationmark.circle.fill")
                 .font(.footnote)
-                .foregroundStyle(Color(.dangerInk))
+                .foregroundStyle(.dangerInk)
                 .accessibilityIdentifier("account.sign-in.password.failure")
             }
         }

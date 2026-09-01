@@ -289,7 +289,7 @@ La elección Light/Dark e Increased Contrast es ortogonal. No existe una única 
 
 Xcode 27 genera `ColorResource` y extensiones de `SwiftUI.Color`, que la app usa directamente sin wrapper manual. La generación se limita al framework SwiftUI mediante `ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOL_FRAMEWORKS = SwiftUI`: el rol normativo `Link` coincide con `UIColor.link`, por lo que generar también extensiones UIKit produciría un conflicto de símbolos. La limitación no renombra assets ni desactiva los recursos tipados.
 
-Manga Library no usa un color set `AccentColor`. Las configuraciones Debug y Release del target declaran `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = BrandPrimary`, evitando que `actool` busque el placeholder retirado. `MainShellView` establece además el tint global de SwiftUI con `.tint(Color(.brandPrimary))`, de modo que `BrandPrimary` es el único origen de la identidad cromática y conserva sus cuatro variantes.
+Manga Library no usa un color set `AccentColor`. Las configuraciones Debug y Release del target declaran `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = BrandPrimary`, evitando que `actool` busque el placeholder retirado. `MainShellView` establece además el tint global de SwiftUI con `.tint(Color.brandPrimary)`, de modo que `BrandPrimary` es el único origen de la identidad cromática y conserva sus cuatro variantes.
 
 Asset Catalog empaqueta las variantes y UIKit/SwiftUI seleccionan en runtime la combinación correspondiente a los traits. Esa selección no calcula ni garantiza contraste. `@Environment(\.colorSchemeContrast)` solo debe utilizarse si la estructura necesita un refuerzo adicional; no para anular la preferencia del usuario.
 

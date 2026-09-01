@@ -14,6 +14,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-09-01 | ♻️ refactor(ui): simplify typed color resources
 - 2026-09-01 | 💄 style(swift): normalize source layout
 
 ### Fixed

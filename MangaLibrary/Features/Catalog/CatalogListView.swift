@@ -18,14 +18,14 @@ struct CatalogListView: View {
                 rows
             }
             .scrollContentBackground(.hidden)
-            .background(Color(.canvas))
+            .background(.canvas)
             .accessibilityIdentifier("catalog.content")
         case .regularSplit:
             List(selection: $selection) {
                 rows
             }
             .scrollContentBackground(.hidden)
-            .background(Color(.canvas))
+            .background(.canvas)
             .accessibilityIdentifier("catalog.content")
         }
     }
@@ -37,14 +37,14 @@ struct CatalogListView: View {
                 MangaRowView(manga: manga)
             }
             .accessibilityIdentifier("catalog.row.\(manga.id)")
-            .listRowBackground(Color(.canvas))
+            .listRowBackground(Color.canvas)
             .onAppear {
                 model.requestNextPageIfNeeded(after: manga.id)
             }
         }
 
         CatalogPaginationView(pagination: content.pagination, model: model)
-        .listRowBackground(Color(.canvas))
+        .listRowBackground(Color.canvas)
         .listRowSeparator(.hidden)
     }
 }

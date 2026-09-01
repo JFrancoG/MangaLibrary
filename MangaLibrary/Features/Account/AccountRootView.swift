@@ -131,7 +131,7 @@ struct AccountRootView: View {
                         path.append(.signIn)
                     } label: {
                         accountActionLabel("Sign in")
-                            .foregroundStyle(Color(.onBrandPrimary))
+                            .foregroundStyle(.onBrandPrimary)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
@@ -203,7 +203,7 @@ struct AccountRootView: View {
             VStack(spacing: 24) {
                 Label("Signed in", systemImage: "checkmark.circle.fill")
                     .font(.title2.bold())
-                    .foregroundStyle(Color(.successInk))
+                    .foregroundStyle(.successInk)
                     .frame(maxWidth: .infinity)
                     .accessibilityIdentifier("account.authenticated")
 
@@ -211,21 +211,21 @@ struct AccountRootView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Email")
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color(.textSecondary))
+                            .foregroundStyle(.textSecondary)
 
                         Text(email)
                             .font(.body)
-                            .foregroundStyle(Color(.textPrimary))
+                            .foregroundStyle(.textPrimary)
                             .textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
                             .privacySensitive()
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(20)
-                    .background(Color(.surface), in: .rect(cornerRadius: 16, style: .continuous))
+                    .background(.surface, in: .rect(cornerRadius: 16, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(Color(.separatorDecorative), lineWidth: 1)
+                            .strokeBorder(.separatorDecorative, lineWidth: 1)
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("account.identity.email")
@@ -238,13 +238,13 @@ struct AccountRootView: View {
 
                         Label(notice.errorDescriptionResource, systemImage: "exclamationmark.triangle.fill")
                     }
-                    .foregroundStyle(Color(.dangerInk))
+                    .foregroundStyle(.dangerInk)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(20)
-                    .background(Color(.surface), in: .rect(cornerRadius: 16, style: .continuous))
+                    .background(.surface, in: .rect(cornerRadius: 16, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(Color(.dangerInk), lineWidth: 1)
+                            .strokeBorder(.dangerInk, lineWidth: 1)
                     }
                 }
 
@@ -252,11 +252,11 @@ struct AccountRootView: View {
                     requestedAction = .signOut
                 }
                 .font(.headline)
-                .foregroundStyle(Color(.onDanger))
+                .foregroundStyle(.onDanger)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .buttonSizing(.fitted)
-                .tint(Color(.dangerFill))
+                .tint(Color.dangerFill)
                 .accessibilityIdentifier("account.sign-out")
             }
             .frame(maxWidth: .infinity)
@@ -265,7 +265,7 @@ struct AccountRootView: View {
             .frame(maxWidth: 728)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(.canvas))
+        .background(.canvas)
     }
 
     private var authenticatedAccountID: UUID? {

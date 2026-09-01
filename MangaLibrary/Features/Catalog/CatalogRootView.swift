@@ -102,7 +102,7 @@ struct CatalogRootView: View {
                     .buttonStyle(.bordered)
                     .padding(.horizontal)
                     .padding(.vertical, 8)
-                    .background(Color(.backgroundElevated))
+                    .background(.backgroundElevated)
                 }
             }
             .toolbar {
@@ -119,7 +119,7 @@ struct CatalogRootView: View {
                     }
                 }
             }
-            .background(Color(.canvas))
+            .background(.canvas)
     }
 
     @ViewBuilder

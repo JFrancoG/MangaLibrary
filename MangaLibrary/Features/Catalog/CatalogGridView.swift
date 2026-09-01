@@ -30,7 +30,7 @@ struct CatalogGridView: View {
             .padding(.vertical, 12)
         }
         .contentMargins(16, for: .scrollContent)
-        .background(Color(.canvas))
+        .background(.canvas)
         .accessibilityIdentifier("catalog.grid")
     }
 

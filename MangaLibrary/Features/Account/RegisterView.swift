@@ -21,7 +21,7 @@ struct RegisterView: View {
             content
         }
         .scrollContentBackground(.hidden)
-        .background(Color(.canvas))
+        .background(.canvas)
         .navigationTitle("Create account")
         .defaultFocus($focusedField, .email)
         .disabled(viewModel.isBusy)
@@ -46,7 +46,7 @@ struct RegisterView: View {
             passwordSection
             Section("Unable to create account") {
                 Label(failure.errorDescriptionResource, systemImage: "exclamationmark.triangle")
-                .foregroundStyle(Color(.dangerInk))
+                .foregroundStyle(.dangerInk)
             }
             .accessibilityIdentifier("account.register.failure")
             submitSection
@@ -102,12 +102,12 @@ struct RegisterView: View {
                     onSignIn()
                 } label: {
                     actionLabel("Sign in")
-                        .foregroundStyle(Color(.onBrandPrimary))
+                        .foregroundStyle(.onBrandPrimary)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .buttonSizing(.fitted)
-                .tint(Color(.brandPrimary))
+                .tint(Color.brandPrimary)
                 .accessibilityIdentifier("account.register.sign-in")
                 .frame(maxWidth: .infinity)
                 .listRowInsets(EdgeInsets())
@@ -131,10 +131,10 @@ struct RegisterView: View {
                 .accessibilityIdentifier("account.register.email")
                 .padding(.horizontal, 16)
                 .frame(minHeight: 48)
-                .background(Color(.surface), in: .rect(cornerRadius: 12, style: .continuous))
+                .background(.surface, in: .rect(cornerRadius: 12, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(Color(.controlBorder), lineWidth: 1)
+                        .strokeBorder(.controlBorder, lineWidth: 1)
                 }
                 .listRowInsets(
                     EdgeInsets(
@@ -144,12 +144,12 @@ struct RegisterView: View {
                         trailing: 4
                     )
                 )
-                .listRowBackground(Color(.canvas))
+                .listRowBackground(Color.canvas)
         } footer: {
             if let emailFailure = viewModel.emailFailure {
                 Label(emailFailure.errorDescriptionResource, systemImage: "exclamationmark.circle.fill")
                 .font(.footnote)
-                .foregroundStyle(Color(.dangerInk))
+                .foregroundStyle(.dangerInk)
                 .accessibilityIdentifier("account.register.email.failure")
             }
         }
@@ -191,15 +191,15 @@ struct RegisterView: View {
                 .buttonStyle(.plain)
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(.rect)
-                .tint(Color(.brandPrimary))
+                .tint(Color.brandPrimary)
                 .accessibilityIdentifier("account.register.password-visibility")
             }
             .padding(.horizontal, 16)
             .frame(minHeight: 48)
-            .background(Color(.surface), in: .rect(cornerRadius: 12, style: .continuous))
+            .background(.surface, in: .rect(cornerRadius: 12, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color(.controlBorder), lineWidth: 1)
+                    .strokeBorder(.controlBorder, lineWidth: 1)
             }
             .listRowInsets(
                 EdgeInsets(
@@ -209,12 +209,12 @@ struct RegisterView: View {
                     trailing: 4
                 )
             )
-            .listRowBackground(Color(.canvas))
+            .listRowBackground(Color.canvas)
         } footer: {
             if let passwordFailure = viewModel.passwordFailure {
                 Label(passwordFailure.errorDescriptionResource, systemImage: "exclamationmark.circle.fill")
                 .font(.footnote)
-                .foregroundStyle(Color(.dangerInk))
+                .foregroundStyle(.dangerInk)
                 .accessibilityIdentifier("account.register.password.failure")
             } else {
                 Text("Password must contain at least 8 characters.")
@@ -228,12 +228,12 @@ struct RegisterView: View {
                 focusedField = viewModel.submit(currentFocus: focusedField)
             } label: {
                 actionLabel("Create account")
-                    .foregroundStyle(Color(.onBrandPrimary))
+                    .foregroundStyle(.onBrandPrimary)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .buttonSizing(.fitted)
-            .tint(Color(.brandPrimary))
+            .tint(Color.brandPrimary)
             .accessibilityIdentifier("account.register.submit")
             .frame(maxWidth: .infinity)
             .listRowInsets(EdgeInsets())
@@ -252,11 +252,11 @@ struct RegisterView: View {
             onSignIn()
         } label: {
             actionLabel("Sign in")
-                .foregroundStyle(Color(.onBrandPrimary))
+                .foregroundStyle(.onBrandPrimary)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
-        .tint(Color(.brandPrimary))
+        .tint(Color.brandPrimary)
         .accessibilityIdentifier("account.register.sign-in")
 
         Button {
@@ -266,7 +266,7 @@ struct RegisterView: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.large)
-        .tint(Color(.brandPrimary))
+        .tint(Color.brandPrimary)
         .accessibilityIdentifier("account.register.retry")
     }
 
