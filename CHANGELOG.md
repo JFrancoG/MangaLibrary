@@ -23,6 +23,7 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-01 | 📝 docs(delivery): record Color cleanup PR
 - 2026-09-01 | 📝 docs(delivery): record Swift style PR
 - 2026-09-01 | 📝 docs(delivery): reconcile L1 status
 - 2026-09-01 | 📝 docs(delivery): record L1 pull request

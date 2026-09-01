@@ -5,7 +5,7 @@
 
 ## Simplificación contextual de recursos Color — issue #47
 
-- El [issue #47 — eliminar wrappers Color innecesarios en SwiftUI](https://github.com/JFrancoG/MangaLibrary/issues/47) no tenía issues ni PR equivalentes. La rama `codex/47-remove-redundant-color-wrappers` parte de `main@4df94b8bc480d56bf7d1cf76d4b6021c00672432`, limpio y sincronizado con `origin/main` después de entregar #45.
+- El [issue #47 — eliminar wrappers Color innecesarios en SwiftUI](https://github.com/JFrancoG/MangaLibrary/issues/47) no tenía issues ni PR equivalentes. La rama `codex/47-remove-redundant-color-wrappers` partió de `main@4df94b8bc480d56bf7d1cf76d4b6021c00672432`, limpio y sincronizado con `origin/main` después de entregar #45. La implementación se entrega mediante la [PR #48](https://github.com/JFrancoG/MangaLibrary/pull/48).
 - El inventario completo de 61 archivos Swift localiza 55 wrappers `Color(.token)` en 11 archivos de producción y ninguno en tests. Xcode 27 confirma 40 miembros contextuales seguros para `foregroundStyle`, `background` y `strokeBorder`; los nueve `tint` necesitan `Color.token` para conservar el overload genérico `ShapeStyle`, y los seis `listRowBackground(Color(.canvas))` necesitan `Color.canvas` porque `.canvas` no permite inferir su `View` genérica. Los cuatro `listRowBackground(Color.clear)` existentes expresan esa misma necesidad de tipo y se conservan.
 - La implementación sustituye exactamente los 55 wrappers sin cambiar el asset semántico, el modificador, los argumentos, el orden del árbol SwiftUI, los traits o el comportamiento visual intencionado. No modifica tests, assets, String Catalogs, SDD, ADR, arquitectura, configuración Xcode ni `project.pbxproj`, y no introduce una regla textual global.
 
@@ -21,7 +21,7 @@
 | Revisiones independientes | Las reauditorías iOS, SwiftUI/accesibilidad y `swift-source-style` cierran sin hallazgos sobre el diff Swift final `75ad23e…`. La revisión SwiftUI detecta antes del cierre que nueve miembros desnudos en `tint` seleccionaban `tint(Color?)`; la corrección a `Color.token` restaura el overload genérico `tint<S: ShapeStyle>` del código original. El `ReleaseGate` UI no limpio permanece documentado como limitación ajena al diff, no como gate completo superado. |
 | Restauración Xcode | Scheme `MangaLibrary`, destino físico iPhone 11 y plan `Fast` restaurados y verificados después de la validación. |
 
-La implementación permanece local y sin acciones de entrega. Commit, push, PR, merge, cierre del issue y retirada de rama requieren autorización separada.
+La implementación se versiona inicialmente en `4dbfeed` y se entrega mediante la [PR #48](https://github.com/JFrancoG/MangaLibrary/pull/48), cuya fusión cierra el issue #47. El cierre autorizado incluye retirar después la rama local y remota.
 
 ## Normalización histórica de layout Swift — issue #45
 
