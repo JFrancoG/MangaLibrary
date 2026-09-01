@@ -39,10 +39,9 @@ No elevar plataforma, cambiar toolchain ni adoptar una API preliminar como efect
 
 ## Estilo Swift y legibilidad
 
-- Favorecer el formato horizontal compacto cuando una declaración, llamada, inicializador o condición completa quepa con claridad en 120 columnas.
-- Mantener en una sola línea las firmas y llamadas de hasta tres parámetros, salvo que su longitud o estructura semántica exija separarlas. Con más de tres parámetros, usar formato multilínea consistente.
-- Escribir los `guard` de salida inmediata en una sola línea, incluido `else { return }`, cuando la sentencia completa no supere 120 columnas. Si no cabe, separar sus condiciones sin expandir el `return` trivial a tres líneas.
-- No fragmentar mecánicamente cada argumento, condición o cuerpo trivial. Una expresión atómica puede superar excepcionalmente el objetivo de 120 columnas cuando dividirla reduzca la legibilidad o altere su significado.
+- Para Swift nuevo o modificado aplicar `$ios-development-kit:swift-source-style`. Antes de cerrar una feature o abrir o
+  actualizar una PR, ejecutar su modo `Audit` sobre el diff Swift; si la skill no está disponible, registrar el gate como no
+  realizado y no darlo por superado sin una decisión explícita del propietario.
 
 ## Preflight y protección del trabajo local
 

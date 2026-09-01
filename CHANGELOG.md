@@ -17,6 +17,7 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-01 | 📝 docs(governance): route Swift style through reusable audit skill
 - 2026-09-01 | 📝 docs(delivery): record S2.2 pull request
 - 2026-08-31 | 📝 docs(delivery): record S2.1 pull request
 - 2026-08-31 | 📝 docs(delivery): record S2 pull request
