@@ -1,8 +1,8 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.8
-- Última revisión: 2026-08-31
+- Versión: 1.13
+- Última revisión: 2026-09-01
 
 ## Propósito y alcance
 
@@ -12,30 +12,61 @@ Definir la sesión de usuario y una sincronización local-first de la colección
 
 ### Alta de cuenta S2
 
-El alta usa exclusivamente el contrato vivo `POST /users`: body JSON con
-`email` y `password`, cabecera `App-Token`, status `200` e `Int64` de respuesta
-interpretado solo como confirmación opaca. El `App-Token` procede de una
-configuración local ignorada y queda encerrado en este request; no entra en la
-configuración común de API, Catálogo, sesión, Keychain, ledger, logs o errores.
-Si falta, está vacío o conserva un placeholder sin expandir, la capacidad falla
-antes de transporte y el resto de la app, incluido Catálogo público, continúa
-disponible.
+El alta usa `POST /users` con body JSON `email/password` y cabecera `App-Token`.
+El OpenAPI vivo declara únicamente status `200` con un `Int64` opaco, mientras
+el enunciado aprobado y la ejecución real observada el 31 de agosto de 2026
+devuelven `201 Created`. La app acepta exclusivamente ambas confirmaciones:
+`200` exige decodificar el `Int64`; `201` confirma por el status y no depende de
+un body cuya forma no está caracterizada. Ningún otro `2xx` se generaliza como
+éxito.
+
+El `App-Token` procede de una configuración local ignorada y queda encerrado en
+este request; no entra en la configuración común de API, Catálogo, sesión,
+Keychain, logs o errores. Si falta, está vacío o conserva un placeholder
+sin expandir, la capacidad falla antes de transporte y el resto de la app,
+incluido Catálogo público, continúa disponible.
 
 | ID | Requisito |
 | --- | --- |
-| AUTH-006 | El alta se ofrece solo desde el estado sin sesión; `authenticationRequired` conserva su identidad estable y no permite crear otra cuenta. |
-| AUTH-007 | La validación local normaliza un email no vacío y exige una contraseña de al menos ocho caracteres, sin inventar una gramática que OpenAPI no declara. |
-| AUTH-008 | La contraseña permanece únicamente en el formulario y en la operación suspendida; se limpia al enviar o abandonar y nunca se persiste. |
+| AUTH-006 | El alta se ofrece solo desde `signedOut`. `authenticationRequired` conserva la identidad estable únicamente en memoria durante el proceso actual y no permite crear otra cuenta; tras relanzar sin registro Keychain, la app parte de `signedOut`. |
+| AUTH-007 | La validación local normaliza y comprueba el email con la gramática conservadora S2.2. El alta exige además una contraseña de al menos ocho caracteres; el login solo exige que la contraseña no esté vacía para no excluir cuentas existentes con una política local no declarada por el servidor. |
+| AUTH-008 | La contraseña permanece únicamente en el formulario y en la operación suspendida. El estado oculto usa `SecureField` y el visible `TextField`, ambos de SwiftUI, con el mismo `Binding` y `textContentType`; el cambio conserva el contenido y el foco modelado sin introducir un puente UIKit. Se limpia al enviar o abandonar y nunca se persiste. La continuidad de una sesión AutoFill real requiere validación manual y no se infiere de previews o tests sintéticos. |
 | AUTH-009 | Una confirmación válida inicia exactamente una vez el login S1 existente; no crea otra autoridad de sesión ni otra ruta de persistencia. |
 | AUTH-010 | Un fallo o cancelación después de confirmar el alta conserva «cuenta creada» y ofrece login manual sin repetir `POST /users`. |
 | AUTH-011 | Timeout, cancelación o fallo después de invocar el transporte sin confirmación válida dejan un resultado incierto visible y nunca provocan reintento automático. |
 | AUTH-012 | Cada workflow posee identidad propia. Abandonar un alta aún no confirmada invalida sus efectos de presentación; si ya comenzó el login S1, su cancelación reconcilia primero la autoridad de sesión para no ocultar un commit durable. Una respuesta tardía no sustituye una sesión posterior. |
+| AUTH-013 | Cada presencia en pantalla de login o alta crea su modelo de formulario `@Observable @MainActor`, retenido por la View con `@State`; `AccountRoute` continúa siendo solo un valor de navegación. Cada modelo conserva borradores, campos visitados, visibilidad de contraseña, intención semántica de foco, tarea y limpieza de credenciales. La View conserva únicamente el adaptador `@FocusState` y bindings SwiftUI; `AccountModel` permanece como única autoridad compartida del estado de sesión y del workflow remoto. |
+| AUTH-014 | La incertidumbre remota se explica una sola vez dentro del formulario de alta, sin mostrar status ni detalles técnicos. Volver muestra el landing inicial de Cuenta sin borrar el resultado; al entrar de nuevo en Crear cuenta reaparece la protección y solo una acción explícita prepara otro intento. |
+
+#### Gramática local de credenciales S2.2
+
+Antes de iniciar login o alta, el email se recorta en sus extremos y debe
+coincidir por completo con una gramática local deliberadamente conservadora:
+
+- una parte local ASCII formada por uno o más segmentos separados por un único
+  punto; cada segmento admite letras, dígitos y los caracteres
+  `!#$%&'*+/=?^_{|}~-`;
+- una única `@`;
+- un dominio con al menos dos etiquetas ASCII separadas por puntos; cada
+  etiqueta contiene entre 1 y 63 letras, dígitos o guiones, empieza y termina
+  con una letra o un dígito y nunca queda vacía;
+- ningún espacio, salto de línea, punto inicial o final ni dos puntos
+  consecutivos.
+
+La implementación materializa esta forma mediante Swift Regex y exige una
+coincidencia completa. Es una comprobación de entrada, no una implementación
+exhaustiva de todos los formatos admitidos por los estándares ni evidencia de
+que la dirección exista, pueda recibir correo o pertenezca a una cuenta. El
+servidor conserva la autoridad sobre aceptación, unicidad y credenciales. Un
+fallo local se presenta debajo del campo correspondiente después de abandonarlo
+o intentar enviar; credenciales incorrectas, red, configuración y contrato no se
+atribuyen a un campo y permanecen como error general del formulario.
 
 La persona puede preparar conscientemente un alta nueva después de un resultado
 incierto, pero la preparación no envía nada. La interfaz prioriza probar el
 login porque el servidor no declara idempotency key, `409` ni un DTO de error.
-Un status no declarado o un payload distinto del `Int64` esperado no expone el
-body y conserva el resultado remoto como no confirmado.
+Un status distinto de `200` o `201`, o un payload `200` distinto del `Int64`
+esperado, no expone el body y conserva el resultado remoto como no confirmado.
 
 ### Sesión dual JWT
 
@@ -58,14 +89,31 @@ Las duraciones se modelan con un reloj inyectable para que expiración y renovac
 | AUTH-004 | El estado de sesión visible para UI no expone el valor bruto de ningún token. |
 | AUTH-005 | Los datos locales y operaciones pendientes permanecen particionados por identidad de usuario. |
 
-S1 materializa esta autoridad mediante el [ledger versionado de sesión y la
-frontera Keychain](../adr/0016-versioned-session-ledger-and-keychain-boundary.md).
-El ledger protegido persiste solo versión, UUID, generación opcional, revisión,
-fase y destino de limpieza opcional; email y roles permanecen en memoria. Un
-bundle Keychain sin un ledger activo de la misma generación nunca reactiva
-sesión. La fase `authenticationRequired` conserva el scope UUID sin autorizar
-tokens, mientras `invalidatedCleanupPending` obliga a completar la limpieza
-después del punto de no retorno.
+S1 materializa esta autoridad mediante el [bundle único de sesión en Keychain](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md).
+Un único registro V2 conserva `sessionGeneration`, UUID de usuario,
+access y refresh token con sus expiraciones. El email, roles y demás datos
+descriptivos permanecen en memoria y vuelven a obtenerse mediante `/me` cuando
+la red lo permite. El registro es la única autoridad durable: no existe ledger,
+fase ni revisión paralela en Application Support.
+
+Login completa refresh → access → `/me`, reemplaza el registro Keychain y solo
+después publica la sesión. Al relanzar, un registro íntegro restaura generación e
+identidad mínima; su ausencia significa `signedOut`. Una versión desconocida o
+un payload corrupto fallan cerrados y se intentan retirar sin interpretar campos
+parciales. Si el dispositivo bloqueado hace que el registro
+`WhenUnlockedThisDeviceOnly` esté temporalmente inaccesible, la restauración se
+difiere sin escribir ni borrar.
+
+`authenticationRequired` no se persiste. Un refresh rechazado permanentemente
+deja de autorizar esos tokens, bloquea las operaciones del usuario mediante
+`blockedAuth` e intenta borrar el registro. Mientras el proceso continúa, Cuenta
+conserva el UUID en memoria aunque el borrado falle y nunca vuelve a entregar el
+access rechazado; el fallo de Keychain permanece visible para poder reintentar la
+limpieza. Un relanzamiento sin registro comienza en `signedOut` y el mismo scope
+se recupera cuando un login posterior confirme de nuevo ese UUID. Si el proceso
+termina con el envelope residual todavía presente, un arranque offline no puede
+distinguirlo durablemente sin reintroducir un tombstone; la revalidación remota
+vuelve a exigir autenticación.
 
 ### Renovación
 
@@ -79,73 +127,66 @@ después del punto de no retorno.
 
 Advanced cierra la sesión dentro de la app principal y no depende de capacidades
 Deluxe que todavía no existen. El propietario serializado de sesión es la única
-autoridad para activar generaciones y avanzar transiciones de logout. Logout
-debe:
+autoridad para activar una generación, renovar sus credenciales y eliminar su
+registro. Logout debe:
 
 1. bloquear nuevas mutaciones y comprobar si existen operaciones pendientes;
 2. permitir esperar su resolución o confirmar expresamente su descarte antes de continuar;
-3. persistir una transición de logout en curso ligada a la generación de sesión esperada y a una revisión de transición;
-4. impedir que otra generación se active hasta cancelar válidamente o completar esa transición;
-5. invalidar durablemente la generación esperada solo si continúa siendo la propietaria de esa revisión;
-6. impedir que nuevas peticiones usen sus tokens y hacer que refresh y envíos en curso revaliden la generación antes de aplicar efectos;
-7. mantener cualquier colección y outbox conservadas bajo la identidad que las creó e impedir que una ruta privada resuelva datos de la generación invalidada;
-8. eliminar access y refresh token de Keychain únicamente si todavía pertenecen a la generación esperada y completar cualquier limpieza local pendiente;
-9. al completar el gate, invalidar la selección y rutas de Colección ligadas a esa identidad y generación.
+3. bloquear temporalmente nuevas autorizaciones e impedir que otra generación se active mientras el borrado de la actual esté en curso;
+4. revalidar que el único registro continúe perteneciendo a la generación esperada;
+5. eliminar ese registro Keychain como único commit durable del logout;
+6. solo tras confirmar la eliminación, publicar `signedOut` e invalidar selección y rutas privadas de esa identidad;
+7. hacer que refresh, requests y envíos suspendidos revaliden la generación antes de aplicar efectos;
+8. mantener colección y outbox conservadas bajo la identidad que las creó y no enviarlas bajo otra sesión.
 
 Descartar operaciones pendientes elimina esas intenciones de forma atómica y restaura la colección al último estado confirmado antes de retirar la sesión. La confirmación debe explicar que los cambios locales no sincronizados se perderán.
 
-Un fallo anterior a persistir la invalidación conserva la sesión y Keychain y
-permite reintentar. Una vez persistida, la generación saliente nunca vuelve a
-habilitarse. Si falla la limpieza de Keychain o el proceso termina, la app
-permanece en un estado local bloqueado, completa la limpieza al recuperarse y no
-usa esas credenciales. El estado privado de esa generación deja de resolverse
-desde su invalidación; logout solo se presenta como completado y limpia sus rutas
-cuando termina la limpieza local requerida.
+La eliminación del registro es a la vez invalidación y limpieza; Advanced no
+persiste `logoutPrepared`, `invalidatedCleanupPending`, revisión ni otra fase. Si
+el borrado falla o el proceso termina antes de confirmarlo, logout no completa y
+el envelope todavía presente puede restaurar la sesión; un fallo devuelve además
+la sesión en memoria a su estado activo para poder reintentar. Si el registro ya
+no existe, la restauración permanece en `signedOut`. Una cancelación solo puede
+aceptarse antes de iniciar el borrado; después no existe una transición durable
+que cancelar o recuperar.
 
-En Advanced, cancelar solo es válido antes de persistir la invalidación local y
-retira la transición revisionada sin alterar sesión, datos o navegación. La
-invalidación es el punto de no retorno: después de ese commit, cualquier solicitud
-de cancelación se rechaza y la recuperación completa Keychain, aislamiento y
-rutas.
+Cada efecto transporta la generación esperada. Si el propietario o el envelope
+ya no coinciden, actúa como no-op y no borra credenciales, rutas, datos u
+operaciones de una sesión posterior. La presencia de un envelope íntegro sí es
+la autoridad durable para reconstruir la sesión Advanced de esa generación.
 
-Cada reanudación y efecto destructivo transporta la generación y revisión
-esperadas. Si el propietario ya no coincide, actúa como no-op y no borra
-credenciales, rutas, datos u operaciones de una sesión posterior. La presencia de
-tokens en Keychain no reconstruye por sí sola una sesión activa sin el estado
-durable de la misma generación.
-
-Una operación remota de revocación solo se usa si el OpenAPI vivo la define. La indisponibilidad de red no debe impedir el cierre local de sesión. Advanced no crea App Group, `SessionFence`, envelope, reload de WidgetKit, contexto de WatchConnectivity ni un sustituto no-op para ellos.
+Una operación remota de revocación solo se usa si el OpenAPI vivo la define. La indisponibilidad de red no debe impedir el cierre local de sesión. Advanced no crea App Group, `SessionFence`, envelope compartido Deluxe, reload de WidgetKit, contexto de WatchConnectivity ni un sustituto no-op para ellos.
 
 ### Extensión Deluxe del logout
 
 Cuando una unidad posterior incorpore el bridge Deluxe, el protocolo de
-[ADR-0010](../adr/0010-widgetkit-event-driven-freshness.md) se intercala entre la
-transición persistida y la invalidación local de Advanced:
+[ADR-0010](../adr/0010-widgetkit-event-driven-freshness.md) se intercala antes
+del borrado Keychain de Advanced:
 
-1. persistir la transición de logout en curso;
-2. cerrar y verificar atómicamente el `SessionFence` para la generación esperada —`allowedSessionGeneration == nil`—, sin alterar un fence que ya pertenezca a una sesión posterior;
-3. abortar el logout y conservar sesión y Keychain si el fence no puede cerrarse o verificarse;
-4. después del fence seguro, ejecutar la invalidación local, la limpieza de Keychain y el aislamiento definidos para Advanced;
-5. publicar eventualmente un envelope redactado y solicitar el reload dirigido solo desde un estado compartido seguro;
-6. reemplazar el contexto pendiente de watchOS por una redacción autocontenida mediante `WCSession.updateApplicationContext(_:)`, sin esperar su entrega.
+1. cierra y verifica atómicamente el `SessionFence` para la generación esperada —`allowedSessionGeneration == nil`—, sin alterar un fence que ya pertenezca a una sesión posterior;
+2. aborta el logout y conserva sesión y Keychain si el fence no puede cerrarse o verificarse;
+3. después del fence seguro, elimina el registro Keychain esperado y completa el aislamiento Advanced;
+4. publica eventualmente un envelope redactado y solicita el reload dirigido solo desde un estado compartido seguro;
+5. reemplaza el contexto pendiente de watchOS por una redacción autocontenida mediante `WCSession.updateApplicationContext(_:)`, sin esperar su entrega.
 
 En Deluxe, cerrar y verificar el fence adelanta el punto de no retorno. Antes de
-ese commit puede cancelarse si la sesión local sigue activa; después, la
-transición no es cancelable y la recuperación debe completar la invalidación local
-y Keychain.
+ese commit puede cancelarse si la sesión local sigue activa; después, el fence
+cerrado es el único punto durable de no retorno y la recuperación completa el
+borrado Keychain aunque el proceso termine. No se reintroduce un ledger privado
+de sesión en Advanced.
 
 Logout no espera a que WidgetKit renderice otra timeline ni a que
 WatchConnectivity entregue el contexto. El fence protege nuevas lecturas del
 bridge canónico, mientras WidgetKit y watchOS pueden conservar una representación
 ya cacheada; no se promete una retirada visual instantánea.
 
-La app persiste intención suficiente para recuperar un crash entre fence,
-invalidación local, Keychain y envelope. Un fence ya cerrado nunca vuelve a
-permitir la sesión saliente: la recuperación completa el gate Advanced y
-reintenta la redacción eventual. Una sesión nueva publica su envelope con el
-fence cerrado y solo lo abre y verifica al final.
+Un fence ya cerrado nunca vuelve a permitir la sesión saliente. Si el bundle de
+esa generación todavía existe, la recuperación lo elimina condicionalmente y
+reintenta la redacción eventual; si ya no existe, permanece en `signedOut`. Una
+sesión nueva publica su envelope con el fence cerrado y solo lo abre y verifica
+al final.
 
-La [frontera Advanced/Deluxe](../adr/0013-advanced-logout-and-deluxe-bridge-boundary.md)
+La [frontera vigente](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)
 hace que esta extensión sea obligatoria cuando el bridge existe, pero no una
 precondición para implementar o aceptar Advanced.
 
@@ -286,14 +327,14 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 | Advanced | Alta confirmada y login fallido o cancelado | Conserva «cuenta creada», no repite el alta y ofrece iniciar sesión. |
 | Advanced | Respuesta de alta perdida o cancelada después del envío | Presenta resultado incierto y no reintenta automáticamente. |
 | Advanced | Alta A tardía después de autenticar B | No inicia el login de A ni reemplaza el estado o la sesión de B. |
-| Advanced | Login correcto | Los dos tokens quedan en Keychain; la contraseña no queda persistida. |
+| Advanced | Login correcto | Un único envelope Keychain V2 conserva generación, UUID, ambos tokens y expiraciones; la contraseña no queda persistida. |
 | Advanced | Access expirado y refresh vigente | Una sola renovación abastece peticiones concurrentes y actualiza la sesión aplicable. |
-| Advanced | Refresh no válido | La sesión requiere autenticación y sus operaciones pasan a `blockedAuth`. |
-| Advanced | Logout sin red | La invalidación local queda persistida, Keychain queda limpio y los datos siguen aislados por usuario, sin exigir un bridge Deluxe. |
-| Advanced | Fallo antes de persistir la invalidación | Logout no completa, conserva sesión y Keychain y ofrece reintento. |
-| Advanced | Fallo o crash después de persistir la invalidación | La sesión queda localmente bloqueada, sus rutas no resuelven datos privados, nunca reutiliza sus tokens y la recuperación completa Keychain y la limpieza pendiente. |
-| Advanced | Activación de B durante el logout de A | El propietario no activa B hasta cancelar válidamente o completar la transición revisionada de A. |
-| Advanced | Efecto tardío de A tras activar B | La comprobación de generación y revisión lo convierte en no-op; credenciales, rutas, datos y operaciones de B permanecen intactos. |
+| Advanced | Refresh no válido | El registro deja de autorizar, se intenta eliminar, la sesión requiere autenticación solo en memoria y sus operaciones pasan a `blockedAuth`; tras relanzar sin registro parte de `signedOut`. |
+| Advanced | Logout sin red | El envelope Keychain esperado queda eliminado y los datos siguen aislados por usuario, sin exigir un bridge Deluxe. |
+| Advanced | Fallo al borrar Keychain | Logout no completa, conserva la sesión autorizable y ofrece reintento. |
+| Advanced | Crash durante logout | Si el registro permanece, restaura la sesión; si ya fue eliminado, restaura `signedOut`. No existe limpieza intermedia. |
+| Advanced | Activación de B durante el logout de A | El propietario no activa B hasta que el borrado de A termina con éxito o error. |
+| Advanced | Efecto tardío de A tras activar B | La comprobación de generación lo convierte en no-op; credenciales, rutas, datos y operaciones de B permanecen intactos. |
 | Advanced | Logout con cambios pendientes | Exige esperar o confirmar el descarte; el descarte restaura el último estado confirmado y no deja outbox reproducible bajo otra sesión. |
 | Advanced | Edición sin red | La UI cambia vía SwiftData y queda una operación persistida `queued` o `retry`. |
 | Advanced | Reinicio de app | La intención pendiente conserva UUID, secuencia y posibilidad de envío. |
@@ -306,22 +347,22 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 | Advanced | Rechazo permanente | Se restaura la última versión confirmada y el rechazo queda resuelto de forma observable. |
 | Advanced | Respuesta antigua | No sobrescribe una secuencia local posterior. |
 | Advanced | Cambio de usuario | No muestra ni envía datos u operaciones del usuario anterior. |
-| Advanced | Logout completado | La selección anterior de Colección ya no resuelve un detalle bajo la generación invalidada; sesión y Keychain respetan el gate local. |
-| Advanced | Cancelación antes de la invalidación local | Retira la transición revisionada y conserva sesión, datos y navegación vigentes. |
-| Advanced | Cancelación después de la invalidación local | Se rechaza; la transición no vuelve a activar la sesión y la recuperación completa limpieza y rutas. |
+| Advanced | Logout completado | El registro ya no existe y la selección anterior de Colección no resuelve un detalle bajo la generación eliminada. |
+| Advanced | Cancelación antes del borrado | Conserva envelope, sesión, datos y navegación vigentes. |
+| Advanced | Cancelación después del borrado | No existe transición que cancelar: logout ya completó y la app permanece en `signedOut`. |
 | Deluxe | Mutación local de lectura persistida | La UI observa el commit local completado y después se publica la nueva proyección; la recarga dirigida solo se solicita tras escribirla. |
 | Deluxe | Reconciliación, reversión, restauración o importación visible | Publica el estado local resultante después de persistirlo, sin exponer una versión intermedia. |
 | Deluxe | Evento sin cambio de proyección | No incrementa la revisión, no reemplaza el snapshot y no solicita reload. |
 | Deluxe | Fallo de publicación ordinaria | Conserva el último snapshot válido de la misma sesión todavía vigente y no solicita la recarga del widget. |
 | Deluxe | Fallo al cerrar o verificar el fence | Logout no completa, conserva sesión y Keychain y ofrece reintento sin publicar una falsa redacción. |
-| Deluxe | Cancelación después de verificar el fence cerrado | Se rechaza; la recuperación completa la invalidación local Advanced y Keychain. |
-| Deluxe | Crash entre fence, invalidación local, Keychain y envelope | La recuperación nunca vuelve a permitir A: completa el gate Advanced desde el fence cerrado y puede diferir el envelope redactado. |
+| Deluxe | Cancelación después de verificar el fence cerrado | Se rechaza; el fence como punto durable de no retorno obliga a completar el borrado Keychain. |
+| Deluxe | Crash entre fence, Keychain y envelope | La recuperación nunca vuelve a permitir A: elimina su registro desde el fence cerrado y puede diferir el envelope redactado. |
 | Deluxe | Primera incorporación con una sesión Advanced activa | El bridge empieza cerrado y solo abre tras autorización y revalidación explícitas de esa generación por su propietario. |
 | Deluxe | Watch no alcanzable durante logout | `updateApplicationContext(_:)` reemplaza el contexto pendiente por la redacción; el reloj puede mostrar cache antigua de forma eventual sin alterar el cierre local. |
 | Deluxe | Inicio de una sesión B | Su envelope se publica con el fence cerrado; el fence se abre para B al final y el reload se solicita después. |
 | Deluxe | Sanitización tardía de A | Actúa si el bridge aún permite A y se convierte en no-op si el fence ya pertenece a B. |
 
-Las transiciones, coalescencia, orden y expiración se prueban con Swift Testing. Keychain, SwiftData y recuperación determinista de ciclo de vida usan también Swift Testing con almacenes, adaptadores y procesos controlados. XCTest/XCUITest queda reservado a recorridos conducidos mediante automatización de interfaz; una excepción no UI requeriría una decisión separada.
+Las transiciones, coalescencia, orden y expiración se prueban con Swift Testing. Keychain, SwiftData y los límites binarios de restauración usan también Swift Testing con almacenes, adaptadores y procesos controlados. XCTest/XCUITest queda reservado a recorridos conducidos mediante automatización de interfaz; una excepción no UI requeriría una decisión separada.
 
 ## Limitación multi-dispositivo
 
@@ -352,7 +393,6 @@ WatchOS y WidgetKit consumen proyecciones y no abren nuevos escritores autoritat
 - [ADR-0003: concurrencia y aislamiento](../adr/0003-concurrency-and-default-isolation.md)
 - [ADR-0004: SwiftData local-first y model actors](../adr/0004-swiftdata-local-first-and-model-actors.md)
 - [ADR-0006: autenticación, Keychain y sincronización](../adr/0006-authentication-keychain-and-sync.md)
-- [ADR-0015: flujos nativos, composición live y navegación adaptable](../adr/0015-native-flows-live-composition-and-adaptive-navigation.md)
+- [ADR-0017: flujos nativos y respuesta HTTP con status validado](../adr/0017-validated-http-status-response-boundary.md)
 - [ADR-0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
-- [ADR-0013: frontera de logout Advanced y bridge Deluxe](../adr/0013-advanced-logout-and-deluxe-bridge-boundary.md)
-- [ADR-0016: ledger versionado y frontera Keychain de sesión](../adr/0016-versioned-session-ledger-and-keychain-boundary.md)
+- [ADR-0018: bundle único de sesión en Keychain y logout atómico](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)

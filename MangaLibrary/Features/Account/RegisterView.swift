@@ -6,18 +6,15 @@
 import SwiftUI
 
 struct RegisterView: View {
-    private enum Field: Hashable {
-        case email
-        case password
-    }
-
-    let model: AccountModel
     let onSignIn: () -> Void
 
-    @State private var email = ""
-    @State private var password = ""
-    @State private var registrationTask: Task<Void, Never>?
-    @FocusState private var focusedField: Field?
+    @State private var viewModel: RegisterViewModel
+    @FocusState private var focusedField: RegisterViewModel.FocusedField?
+
+    init(model: AccountModel, onSignIn: @escaping () -> Void) {
+        self.onSignIn = onSignIn
+        _viewModel = State(initialValue: RegisterViewModel(accountModel: model))
+    }
 
     var body: some View {
         Form {
@@ -27,30 +24,29 @@ struct RegisterView: View {
         .background(Color(.canvas))
         .navigationTitle("Create account")
         .defaultFocus($focusedField, .email)
-        .disabled(isBusy)
+        .disabled(viewModel.isBusy)
+        .onChange(of: focusedField) { previousField, currentField in
+            viewModel.focusChanged(from: previousField, to: currentField)
+        }
         .onDisappear {
-            registrationTask?.cancel()
-            registrationTask = nil
-            password = ""
-            focusedField = nil
-            model.abandonRegistration()
+            focusedField = viewModel.disappear(currentFocus: focusedField)
         }
     }
 
     @ViewBuilder
     private var content: some View {
-        switch model.registrationState {
+        switch viewModel.registrationState {
         case .idle:
-            credentialsSection
+            emailSection
+            passwordSection
             submitSection
 
         case let .failed(failure):
-            credentialsSection
+            emailSection
+            passwordSection
             Section("Unable to create account") {
-                Label(
-                    failure.errorDescriptionResource,
-                    systemImage: "exclamationmark.triangle"
-                )
+                Label(failure.errorDescriptionResource, systemImage: "exclamationmark.triangle")
+                .foregroundStyle(Color(.dangerInk))
             }
             .accessibilityIdentifier("account.register.failure")
             submitSection
@@ -69,61 +65,60 @@ struct RegisterView: View {
                     .accessibilityIdentifier("account.register.signing-in")
             }
 
-        case let .unconfirmed(failure):
+        case .unconfirmed:
             Section {
-                Label(
-                    "Account creation couldn't be confirmed",
-                    systemImage: "questionmark.circle"
-                )
-                .accessibilityIdentifier("account.register.unconfirmed")
+                Label("Check your account", systemImage: "questionmark.circle")
+                    .accessibilityIdentifier("account.register.unconfirmed")
 
-                Text(
-                    "The request may have created your account. Try signing in before creating it again."
-                )
-                Text(failure.errorDescriptionResource)
-                    .foregroundStyle(.secondary)
+                Text("It may already be created. Try signing in before creating it again.")
             }
 
             Section {
-                Button("Sign in") {
-                    onSignIn()
-                }
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityIdentifier("account.register.sign-in")
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 16) {
+                        unconfirmedActions
+                    }
+                    .buttonSizing(.flexible)
 
-                Button("Try creating account again") {
-                    model.prepareRegistrationRetry()
-                    focusedField = .email
+                    VStack(spacing: 16) {
+                        unconfirmedActions
+                    }
+                    .buttonSizing(.fitted)
+                    .frame(maxWidth: .infinity)
                 }
-                .accessibilityIdentifier("account.register.retry")
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
 
-        case let .created(loginFailure):
+        case .created:
             Section {
                 Label("Account created", systemImage: "checkmark.circle")
                     .accessibilityIdentifier("account.register.created")
-                Text(
-                    "Your account was created, but Manga Library couldn't sign you in."
-                )
-                if let loginFailure {
-                    Text(loginFailure.errorDescriptionResource)
-                        .foregroundStyle(.secondary)
-                }
+                Text("Sign in to continue.")
             }
 
             Section {
-                Button("Sign in") {
+                Button {
                     onSignIn()
+                } label: {
+                    actionLabel("Sign in")
+                        .foregroundStyle(Color(.onBrandPrimary))
                 }
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityIdentifier("account.register.sign-in")
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .buttonSizing(.fitted)
+                .tint(Color(.brandPrimary))
+                .accessibilityIdentifier("account.register.sign-in")
+                .frame(maxWidth: .infinity)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
         }
     }
 
-    private var credentialsSection: some View {
+    private var emailSection: some View {
         Section {
-            TextField("Email", text: $email)
+            TextField("Email", text: $viewModel.email)
                 .textContentType(.username)
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
@@ -131,71 +126,155 @@ struct RegisterView: View {
                 .submitLabel(.next)
                 .focused($focusedField, equals: .email)
                 .onSubmit {
-                    focusedField = .password
+                    focusedField = viewModel.emailSubmitted()
                 }
                 .accessibilityIdentifier("account.register.email")
-
-            SecureField("Password", text: $password)
-                .textContentType(.newPassword)
-                .submitLabel(.go)
-                .focused($focusedField, equals: .password)
-                .onSubmit {
-                    startRegistration()
+                .padding(.horizontal, 16)
+                .frame(minHeight: 48)
+                .background(Color(.surface), in: .rect(cornerRadius: 12, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color(.controlBorder), lineWidth: 1)
                 }
-                .accessibilityHint(
-                    "Password must contain at least 8 characters."
-                )
-                .accessibilityIdentifier("account.register.password")
-        } header: {
-            Text("Credentials")
+                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                .listRowBackground(Color(.canvas))
         } footer: {
-            Text("Password must contain at least 8 characters.")
+            if let emailFailure = viewModel.emailFailure {
+                Label(emailFailure.errorDescriptionResource, systemImage: "exclamationmark.circle.fill")
+                .font(.footnote)
+                .foregroundStyle(Color(.dangerInk))
+                .accessibilityIdentifier("account.register.email.failure")
+            }
+        }
+    }
+
+    private var passwordSection: some View {
+        Section {
+            HStack(spacing: 8) {
+                Group {
+                    if viewModel.isPasswordVisible {
+                        TextField("Password", text: $viewModel.password)
+                            .focused($focusedField, equals: .revealedPassword)
+                    } else {
+                        SecureField("Password", text: $viewModel.password)
+                            .focused($focusedField, equals: .concealedPassword)
+                    }
+                }
+                .textContentType(.newPassword)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.go)
+                .onSubmit {
+                    focusedField = viewModel.submit(currentFocus: focusedField)
+                }
+                .accessibilityHint("Password must contain at least 8 characters.")
+                .accessibilityIdentifier("account.register.password")
+                .privacySensitive()
+
+                Button {
+                    focusedField = viewModel.togglePasswordVisibility(currentFocus: focusedField)
+                } label: {
+                    Label {
+                        Text(viewModel.passwordVisibilityLabel)
+                    } icon: {
+                        Image(systemName: viewModel.isPasswordVisible ? "eye.slash" : "eye")
+                    }
+                    .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.plain)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(.rect)
+                .tint(Color(.brandPrimary))
+                .accessibilityIdentifier("account.register.password-visibility")
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 48)
+            .background(Color(.surface), in: .rect(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color(.controlBorder), lineWidth: 1)
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+            .listRowBackground(Color(.canvas))
+        } footer: {
+            if let passwordFailure = viewModel.passwordFailure {
+                Label(passwordFailure.errorDescriptionResource, systemImage: "exclamationmark.circle.fill")
+                .font(.footnote)
+                .foregroundStyle(Color(.dangerInk))
+                .accessibilityIdentifier("account.register.password.failure")
+            } else {
+                Text("Password must contain at least 8 characters.")
+            }
         }
     }
 
     private var submitSection: some View {
         Section {
-            Button("Create account") {
-                startRegistration()
+            Button {
+                focusedField = viewModel.submit(currentFocus: focusedField)
+            } label: {
+                actionLabel("Create account")
+                    .foregroundStyle(Color(.onBrandPrimary))
             }
-            .disabled(canSubmit == false)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .buttonSizing(.fitted)
+            .tint(Color(.brandPrimary))
             .accessibilityIdentifier("account.register.submit")
+            .frame(maxWidth: .infinity)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
         }
     }
 
-    private var canSubmit: Bool {
-        switch model.registrationState {
-        case .idle, .failed:
-            model.canSubmitRegistration(email: email, password: password)
-        case .submitting, .signingIn, .created, .unconfirmed:
-            false
-        }
+    private func actionLabel(_ title: LocalizedStringResource) -> some View {
+        Text(title)
+            .font(.headline)
     }
 
-    private var isBusy: Bool {
-        switch model.registrationState {
-        case .submitting, .signingIn:
-            true
-        case .idle, .failed, .created, .unconfirmed:
-            false
+    @ViewBuilder
+    private var unconfirmedActions: some View {
+        Button {
+            onSignIn()
+        } label: {
+            actionLabel("Sign in")
+                .foregroundStyle(Color(.onBrandPrimary))
         }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+        .tint(Color(.brandPrimary))
+        .accessibilityIdentifier("account.register.sign-in")
+
+        Button {
+            focusedField = viewModel.prepareRetry()
+        } label: {
+            actionLabel("Create account again")
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .tint(Color(.brandPrimary))
+        .accessibilityIdentifier("account.register.retry")
     }
 
-    private func startRegistration() {
-        guard canSubmit else { return }
+}
 
-        let submittedEmail = email
-        let submittedPassword = password
-        password = ""
-        focusedField = nil
-
-        registrationTask?.cancel()
-        registrationTask = Task { @MainActor [model] in
-            await model.register(
-                email: submittedEmail,
-                password: submittedPassword
+private extension RegisterView {
+    init(
+        previewModel model: AccountModel,
+        email: String,
+        password: String,
+        showsValidationErrors: Bool,
+        onSignIn: @escaping () -> Void = {}
+    ) {
+        self.onSignIn = onSignIn
+        _viewModel = State(
+            initialValue: RegisterViewModel(
+                accountModel: model,
+                email: email,
+                password: password,
+                showsValidationErrors: showsValidationErrors
             )
-        }
+        )
     }
 }
 
@@ -223,6 +302,21 @@ struct RegisterView: View {
     .environment(\.locale, Locale(identifier: "es"))
 }
 
+#Preview("Register inline validation") {
+    NavigationStack {
+        RegisterView(
+            previewModel: AccountPreviewSupport.model(
+                state: .signedOut(failure: nil)
+            ),
+            email: "readerexample.invalid",
+            password: "short",
+            showsValidationErrors: true
+        )
+    }
+    .environment(\.locale, Locale(identifier: "en"))
+    .environment(\.dynamicTypeSize, .accessibility3)
+}
+
 #Preview("Register submitting") {
     NavigationStack {
         RegisterView(
@@ -247,7 +341,7 @@ struct RegisterView: View {
     }
 }
 
-#Preview("Register unconfirmed Spanish AX5") {
+#Preview("Register unconfirmed Spanish") {
     NavigationStack {
         RegisterView(
             model: AccountPreviewSupport.model(
@@ -260,7 +354,6 @@ struct RegisterView: View {
         )
     }
     .environment(\.locale, Locale(identifier: "es"))
-    .environment(\.dynamicTypeSize, .accessibility5)
 }
 
 #Preview("Register signing in") {

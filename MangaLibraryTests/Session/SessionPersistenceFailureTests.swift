@@ -10,204 +10,90 @@ import Testing
 
 @Suite("Session persistence failure boundaries", .tags(.fast))
 struct SessionPersistenceFailureTests {
-    @Test("A failed ledger activation never publishes or retains its new bundle")
-    func failedActivationRemovesTheOrphanBundle() async throws(any Error) {
+    @Test("A failed activation never publishes a partial session")
+    func failedActivationLeavesStorageEmpty() async throws(any Error) {
         let storage = ControlledSessionPersistenceStorage()
-        storage.failNext(.writeLedger, with: .fileSystemFailure)
-        let persistence = SessionPersistenceActor(
-            operations: storage.operations()
-        )
-        let bundle = try makeBundle(generation: Self.generationA)
+        storage.failNext(.save, with: .keychainFailure(-34_018))
+        let persistence = SessionPersistenceActor(operations: storage.operations())
+        let session = try makeSession()
 
-        await #expect(throws: SessionStorageError.fileSystemFailure) {
+        await #expect(throws: SessionStorageError.keychainFailure(-34_018)) {
             try await persistence.activate(
-                userID: Self.userA,
-                generation: Self.generationA,
-                access: bundle.access,
-                refresh: bundle.refresh
+                userID: session.userID,
+                generation: session.generation,
+                access: session.access,
+                refresh: session.refresh
             )
         }
 
-        let snapshot = storage.snapshot()
-        #expect(snapshot.ledger == nil)
-        #expect(snapshot.bundles.isEmpty)
-        #expect(
-            snapshot.journal == [
-                .readLedger,
-                .removeAllBundles,
-                .writeBundle,
-                .writeLedger,
-                .removeBundle,
-            ]
-        )
+        #expect(storage.snapshot().record == nil)
     }
 
-    @Test("An unavailable protected ledger defers restoration with zero mutation")
-    func unavailableProtectedLedgerDoesNotTriggerCleanup() async throws(any Error) {
-        let bundle = try makeBundle(generation: Self.generationA)
-        let ledger = SessionLedgerRecord.active(
-            userID: Self.userA,
-            generation: Self.generationA,
-            revision: 4
-        )
-        let storage = ControlledSessionPersistenceStorage(
-            ledger: ledger,
-            bundles: [Self.generationA: bundle]
-        )
-        storage.failNext(.readLedger, with: .temporarilyUnavailable)
-        let persistence = SessionPersistenceActor(
-            operations: storage.operations()
-        )
+    @Test("An unavailable Keychain is never interpreted as signed out")
+    func unavailableRestorePreservesTheRecord() async throws(any Error) {
+        let session = try makeSession()
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        storage.failNext(.load, with: .temporarilyUnavailable)
+        let persistence = SessionPersistenceActor(operations: storage.operations())
 
         await #expect(throws: SessionStorageError.temporarilyUnavailable) {
             try await persistence.restore()
         }
 
-        let snapshot = storage.snapshot()
-        #expect(snapshot.ledger == ledger)
-        #expect(snapshot.bundles == [Self.generationA: bundle])
-        #expect(snapshot.journal == [.readLedger])
+        #expect(storage.snapshot().record == session)
+        #expect(storage.snapshot().journal == [.load])
     }
 
-    @Test("An unavailable protected bundle defers restoration with zero mutation")
-    func unavailableProtectedBundleDoesNotTriggerCleanup() async throws(any Error) {
-        let bundle = try makeBundle(generation: Self.generationA)
-        let ledger = SessionLedgerRecord.active(
-            userID: Self.userA,
-            generation: Self.generationA,
-            revision: 4
+    @Test("A corrupt Keychain record is removed and fails closed")
+    func corruptRestoreDeletesTheUnusableRecord() async throws(any Error) {
+        let storage = ControlledSessionPersistenceStorage(record: try makeSession())
+        storage.failNext(.load, with: .corruptSessionRecord)
+        let persistence = SessionPersistenceActor(operations: storage.operations())
+
+        #expect(try await persistence.restore() == .signedOut)
+        #expect(storage.snapshot().record == nil)
+        #expect(storage.snapshot().journal == [.load, .removeAll])
+    }
+
+    @Test("A failed access update preserves the complete previous session")
+    func failedRefreshWriteKeepsThePreviousRecord() async throws(any Error) {
+        let session = try makeSession()
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        storage.failNext(.save, with: .keychainFailure(-34_018))
+        let persistence = SessionPersistenceActor(operations: storage.operations())
+        let renewedAccess = SessionCredential(
+            value: "synthetic-access-renewed",
+            use: .access,
+            expiresAt: Self.issuedAt.addingTimeInterval(7_200)
         )
-        let storage = ControlledSessionPersistenceStorage(
-            ledger: ledger,
-            bundles: [Self.generationA: bundle]
-        )
-        storage.failNext(.readBundle, with: .temporarilyUnavailable)
-        let persistence = SessionPersistenceActor(
-            operations: storage.operations()
-        )
+
+        await #expect(throws: SessionStorageError.keychainFailure(-34_018)) {
+            try await persistence.replaceAccess(renewedAccess, expected: session.authority)
+        }
+
+        #expect(storage.snapshot().record == session)
+    }
+
+    @Test("A failed logout deletion retains the session and can be retried")
+    func failedDeletionLeavesTheCurrentGenerationRetryable() async throws(any Error) {
+        let session = try makeSession()
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        storage.failNext(.removeAll, with: .temporarilyUnavailable)
+        let persistence = SessionPersistenceActor(operations: storage.operations())
 
         await #expect(throws: SessionStorageError.temporarilyUnavailable) {
-            try await persistence.restore()
+            try await persistence.remove(expected: session.authority)
         }
+        #expect(storage.snapshot().record == session)
 
-        let snapshot = storage.snapshot()
-        #expect(snapshot.ledger == ledger)
-        #expect(snapshot.bundles == [Self.generationA: bundle])
-        #expect(snapshot.journal == [.readLedger, .readBundle])
+        #expect(try await persistence.remove(expected: session.authority))
+        #expect(storage.snapshot().record == nil)
     }
 
-    @Test("A corrupt protected bundle fails closed and preserves only its scope")
-    func corruptProtectedBundleRequiresAuthentication() async throws(any Error) {
-        let bundle = try makeBundle(generation: Self.generationA)
-        let ledger = SessionLedgerRecord.active(
-            userID: Self.userA,
-            generation: Self.generationA,
-            revision: 4
-        )
-        let storage = ControlledSessionPersistenceStorage(
-            ledger: ledger,
-            bundles: [Self.generationA: bundle]
-        )
-        storage.failNext(.readBundle, with: .corruptSecretBundle)
-        let persistence = SessionPersistenceActor(
-            operations: storage.operations()
-        )
-
-        #expect(
-            try await persistence.restore()
-                == .authenticationRequired(Self.userA)
-        )
-
-        let snapshot = storage.snapshot()
-        #expect(
-            snapshot.ledger
-                == .authenticationRequired(userID: Self.userA, revision: 6)
-        )
-        #expect(snapshot.bundles.isEmpty)
-        #expect(
-            snapshot.journal == [
-                .readLedger,
-                .readBundle,
-                .writeLedger,
-                .removeBundle,
-                .readLedger,
-                .writeLedger,
-            ]
-        )
-    }
-
-    @Test("Logout reserves both revisions before its first durable mutation")
-    func logoutRevisionCannotWrap() async throws(any Error) {
-        let bundle = try makeBundle(generation: Self.generationA)
-        let ledger = SessionLedgerRecord.active(
-            userID: Self.userA,
-            generation: Self.generationA,
-            revision: UInt64.max - 1
-        )
-        let storage = ControlledSessionPersistenceStorage(
-            ledger: ledger,
-            bundles: [Self.generationA: bundle]
-        )
-        let persistence = SessionPersistenceActor(
-            operations: storage.operations()
-        )
-        let authority = SessionAuthority(
-            userID: Self.userA,
-            generation: Self.generationA,
-            revision: UInt64.max - 1
-        )
-
-        await #expect(throws: SessionPersistenceError.revisionExhausted) {
-            try await persistence.prepareLogout(expected: authority)
-        }
-
-        let snapshot = storage.snapshot()
-        #expect(snapshot.ledger == ledger)
-        #expect(snapshot.bundles == [Self.generationA: bundle])
-        #expect(snapshot.journal == [.readLedger])
-    }
-
-    @Test("A cleanup failure after invalidation never reopens the session")
-    func recoveryResumesAfterThePointOfNoReturn() async throws(any Error) {
-        let storage = ControlledSessionPersistenceStorage()
-        let persistence = SessionPersistenceActor(
-            operations: storage.operations()
-        )
-        let bundle = try makeBundle(generation: Self.generationA)
-        let active = try await persistence.activate(
-            userID: Self.userA,
-            generation: Self.generationA,
-            access: bundle.access,
-            refresh: bundle.refresh
-        )
-        let prepared = try #require(
-            try await persistence.prepareLogout(expected: active.authority)
-        )
-        storage.failNext(.removeBundle, with: .temporarilyUnavailable)
-
-        await #expect(throws: SessionStorageError.temporarilyUnavailable) {
-            try await persistence.completeLogout(expected: prepared)
-        }
-
-        let pending = try #require(storage.snapshot().ledger)
-        #expect(pending.phase == .invalidatedCleanupPending)
-        #expect(pending.cleanupCompletion == .signedOut)
-        #expect(storage.snapshot().bundles[Self.generationA] == bundle)
-        #expect(
-            try await persistence.cancelLogout(expected: prepared) == nil
-        )
-
-        let relaunched = SessionPersistenceActor(
-            operations: storage.operations()
-        )
-        #expect(try await relaunched.restore() == .signedOut)
-        #expect(storage.snapshot().ledger == nil)
-        #expect(storage.snapshot().bundles.isEmpty)
-    }
-
-    private func makeBundle(generation: UUID) throws(SessionStorageError) -> SessionSecretBundle {
-        try SessionSecretBundle(
-            generation: generation,
+    private func makeSession() throws(SessionStorageError) -> SessionPersistedSession {
+        try SessionPersistedSession(
+            userID: Self.userID,
+            generation: Self.generation,
             access: SessionCredential(
                 value: "synthetic-access",
                 use: .access,
@@ -222,192 +108,92 @@ struct SessionPersistenceFailureTests {
     }
 
     private static let issuedAt = Date(timeIntervalSince1970: 1_700_000_000)
-    private static let userA = UUID(
-        uuidString: "11111111-2222-3333-4444-555555555555"
-    )!
-    private static let generationA = UUID(
-        uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"
-    )!
+    private static let userID = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
+    private static let generation = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
+}
+
+enum SessionPersistenceOperation: Equatable, Hashable, Sendable {
+    case load
+    case save
+    case removeAll
 }
 
 final class ControlledSessionPersistenceStorage: Sendable {
-    enum Operation: Hashable, Sendable {
-        case readLedger
-        case writeLedger
-        case removeLedger
-        case readBundle
-        case writeBundle
-        case removeBundle
-        case removeAllBundles
-    }
-
     struct Snapshot: Sendable {
-        let ledger: SessionLedgerRecord?
-        let bundles: [UUID: SessionSecretBundle]
-        let journal: [Operation]
+        let record: SessionPersistedSession?
+        let journal: [SessionPersistenceOperation]
     }
 
     private struct State: Sendable {
-        var ledger: SessionLedgerRecord?
-        var bundles: [UUID: SessionSecretBundle]
-        var nextFailure: (Operation, SessionStorageError)?
-        var operationGates: [Operation: [SessionStorageOperationGate]] = [:]
-        var journal: [Operation] = []
+        var record: SessionPersistedSession?
+        var journal: [SessionPersistenceOperation] = []
+        var failures: [SessionPersistenceOperation: [SessionStorageError]] = [:]
+        var cancellations: Set<SessionPersistenceOperation> = []
     }
 
     private let state: Mutex<State>
-    private let operationLock = Mutex<Void>(())
+    private let removeAllGate: SynchronousPersistenceGate?
 
-    init(ledger: SessionLedgerRecord? = nil, bundles: [UUID: SessionSecretBundle] = [:]) {
-        state = Mutex(
-            State(
-                ledger: ledger,
-                bundles: bundles,
-                nextFailure: nil
-            )
-        )
+    init(record: SessionPersistedSession? = nil, removeAllGate: SynchronousPersistenceGate? = nil) {
+        state = Mutex(State(record: record))
+        self.removeAllGate = removeAllGate
     }
 
     func operations() -> SessionPersistenceActor.Operations {
         SessionPersistenceActor.Operations(
-            readLedger: { [self] in
-                try perform(.readLedger) { $0.ledger }
-            },
-            writeLedger: { [self] record in
-                try perform(.writeLedger) { $0.ledger = record }
-            },
-            removeLedger: { [self] in
-                try perform(.removeLedger) { $0.ledger = nil }
-            },
-            readBundle: { [self] generation in
-                try perform(.readBundle) { $0.bundles[generation] }
-            },
-            writeBundle: { [self] bundle in
-                try perform(.writeBundle) {
-                    $0.bundles[bundle.generation] = bundle
-                }
-            },
-            removeBundle: { [self] generation in
-                try perform(.removeBundle) {
-                    $0.bundles[generation] = nil
-                }
-            },
-            removeAllBundles: { [self] in
-                try perform(.removeAllBundles) { $0.bundles.removeAll() }
+            load: { [self] in try perform(.load) { $0.record } },
+            save: { [self] record in try perform(.save) { $0.record = record } },
+            removeAll: { [self] in
+                removeAllGate?.pause()
+                try perform(.removeAll) { $0.record = nil }
             }
         )
     }
 
-    func failNext(_ operation: Operation, with error: SessionStorageError) {
-        state.withLock {
-            $0.nextFailure = (operation, error)
-        }
+    func failNext(_ operation: SessionPersistenceOperation, with error: SessionStorageError) {
+        state.withLock { $0.failures[operation, default: []].append(error) }
     }
 
-    func gateNext(_ operation: Operation) -> SessionStorageOperationGate {
-        let gate = SessionStorageOperationGate()
-        state.withLock {
-            $0.operationGates[operation, default: []].append(gate)
-        }
-        return gate
+    func cancelCurrentTaskAfter(_ operation: SessionPersistenceOperation) {
+        _ = state.withLock { $0.cancellations.insert(operation) }
     }
 
     func snapshot() -> Snapshot {
-        state.withLock {
-            Snapshot(
-                ledger: $0.ledger,
-                bundles: $0.bundles,
-                journal: $0.journal
-            )
-        }
+        state.withLock { Snapshot(record: $0.record, journal: $0.journal) }
     }
 
-    private func perform<Result>(
-        _ operation: Operation,
-        body: (inout State) -> Result
-    ) throws(any Error) -> Result {
-        try operationLock.withLock { _ in
-            let (gate, failure) = state.withLock { state in
-                state.journal.append(operation)
-                let gate = state.operationGates[operation]?.removeFirst()
-                if state.operationGates[operation]?.isEmpty == true {
-                    state.operationGates[operation] = nil
-                }
-
-                let failure: SessionStorageError?
-                if
-                    let planned = state.nextFailure,
-                    planned.0 == operation
-                {
-                    state.nextFailure = nil
-                    failure = planned.1
-                } else {
-                    failure = nil
-                }
-                return (gate, failure)
+    private func perform<Value>(
+        _ operation: SessionPersistenceOperation,
+        body: (inout State) -> Value
+    ) throws(any Error) -> Value {
+        let (value, shouldCancel) = try state.withLock { state in
+            state.journal.append(operation)
+            if var failures = state.failures[operation], failures.isEmpty == false {
+                let error = failures.removeFirst()
+                state.failures[operation] = failures
+                throw error
             }
-
-            gate?.arriveAndWait()
-            if let failure {
-                throw failure
-            }
-            return state.withLock { body(&$0) }
+            return (body(&state), state.cancellations.remove(operation) != nil)
         }
+        if shouldCancel { withUnsafeCurrentTask { $0?.cancel() } }
+        return value
     }
 }
 
-final class SessionStorageOperationGate: Sendable {
-    private struct State: Sendable {
-        var didArrive = false
-        var isOpen = false
-        var arrivalWaiters: [CheckedContinuation<Void, Never>] = []
+final class SynchronousPersistenceGate: Sendable {
+    private let entered = Atomic(false)
+    private let isOpen = Atomic(false)
+
+    func pause() {
+        entered.store(true, ordering: .releasing)
+        while isOpen.load(ordering: .acquiring) == false {}
     }
 
-    private let state = Mutex(State())
-    private let releaseCondition = NSCondition()
-
-    func waitUntilArrived() async {
-        guard state.withLock({ $0.didArrive }) == false else {
-            return
-        }
-
-        await withCheckedContinuation { continuation in
-            let shouldResume = state.withLock { state in
-                guard state.didArrive == false else {
-                    return true
-                }
-                state.arrivalWaiters.append(continuation)
-                return false
-            }
-            if shouldResume {
-                continuation.resume()
-            }
-        }
+    func waitUntilEntered() async {
+        while entered.load(ordering: .acquiring) == false { await Task.yield() }
     }
 
     func open() {
-        state.withLock {
-            $0.isOpen = true
-        }
-        releaseCondition.lock()
-        releaseCondition.broadcast()
-        releaseCondition.unlock()
-    }
-
-    fileprivate func arriveAndWait() {
-        let waiters = state.withLock { state in
-            state.didArrive = true
-            defer { state.arrivalWaiters.removeAll() }
-            return state.arrivalWaiters
-        }
-        for waiter in waiters {
-            waiter.resume()
-        }
-
-        releaseCondition.lock()
-        while state.withLock({ $0.isOpen == false }) {
-            releaseCondition.wait()
-        }
-        releaseCondition.unlock()
+        isOpen.store(true, ordering: .releasing)
     }
 }

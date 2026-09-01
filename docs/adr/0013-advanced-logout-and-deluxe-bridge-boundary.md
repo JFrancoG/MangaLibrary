@@ -1,9 +1,9 @@
 # ADR-0013: Frontera de logout Advanced y bridge Deluxe
 
-**Estado:** Accepted
+**Estado:** Superseded
 **Fecha:** 2026-08-25
 **Supersede:** —
-**Superseded by:** —
+**Superseded by:** [ADR-0018](0018-single-keychain-session-bundle-and-atomic-logout.md)
 **Complementa:** [ADR-0006](0006-authentication-keychain-and-sync.md), [ADR-0007](0007-watchos-widgetkit-and-data-bridges.md) y [ADR-0010](0010-widgetkit-event-driven-freshness.md)
 
 ## Contexto

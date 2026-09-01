@@ -52,23 +52,6 @@
         }
       }
     },
-    "Account creation couldn't be confirmed" : {
-      "comment" : "Title for a registration request whose remote result is uncertain.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Account creation couldn't be confirmed"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se ha podido confirmar la creación de la cuenta"
-          }
-        }
-      }
-    },
     "Active filters: %lld" : {
       "comment" : "Number of active non-title filter dimensions announced for the filters button.",
       "localizations" : {
@@ -273,6 +256,23 @@
         }
       }
     },
+    "Check your account" : {
+      "comment" : "Title for guidance after a registration request has an uncertain remote result.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check your account"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comprueba tu cuenta"
+          }
+        }
+      }
+    },
     "Choose a manga from the catalog to see its details." : {
       "comment" : "Guidance in the empty detail column before a catalog selection.",
       "localizations" : {
@@ -409,6 +409,23 @@
         }
       }
     },
+    "Create account again" : {
+      "comment" : "Deliberate secondary action that prepares a new registration form after an uncertain result.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create account again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crear cuenta de nuevo"
+          }
+        }
+      }
+    },
     "Creating account" : {
       "comment" : "Progress label while the registration request is in flight.",
       "localizations" : {
@@ -422,23 +439,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Creando la cuenta"
-          }
-        }
-      }
-    },
-    "Credentials" : {
-      "comment" : "A section that contains the user's email and password.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Credentials"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Credenciales"
           }
         }
       }
@@ -528,6 +528,40 @@
         }
       }
     },
+    "Enter a valid email address." : {
+      "comment" : "Inline error below an email field when its local format is invalid.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a valid email address."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduce una dirección de correo electrónico válida."
+          }
+        }
+      }
+    },
+    "Enter an email address." : {
+      "comment" : "Inline error below a required email field when it is empty.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter an email address."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduce una dirección de correo electrónico."
+          }
+        }
+      }
+    },
     "Enter your credentials to continue." : {
       "comment" : "A description for the sign in screen.",
       "localizations" : {
@@ -541,6 +575,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Introduce tus credenciales para continuar."
+          }
+        }
+      }
+    },
+    "Enter your password." : {
+      "comment" : "Inline error below a required password field when it is empty.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter your password."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Introduce tu contraseña."
           }
         }
       }
@@ -579,40 +630,6 @@
         }
       }
     },
-    "Finish removing expired credentials before signing in again." : {
-      "comment" : "A description of the cleanup process for a user who has expired credentials.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finish removing expired credentials before signing in again."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Termina de eliminar las credenciales caducadas antes de volver a iniciar sesión."
-          }
-        }
-      }
-    },
-    "Finish removing the signed-out session from this device." : {
-      "comment" : "A description of the action to be taken to finish removing the signed-out session from this device.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finish removing the signed-out session from this device."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Termina de eliminar de este dispositivo los datos de la sesión cerrada."
-          }
-        }
-      }
-    },
     "Finished" : {
       "comment" : "Status label for a completed manga.",
       "localizations" : {
@@ -626,23 +643,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Finalizado"
-          }
-        }
-      }
-    },
-    "Finishing secure session cleanup" : {
-      "comment" : "A label that describes the progress of a session cleanup.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finishing secure session cleanup"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finalizando la limpieza segura de la sesión"
           }
         }
       }
@@ -698,36 +698,36 @@
         }
       }
     },
-    "Keep me signed in" : {
-      "comment" : "A button that keeps a user signed in after signing out.",
+    "Hide password" : {
+      "comment" : "Accessibility label for the button that masks a currently visible password.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep me signed in"
+            "value" : "Hide password"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mantener la sesión iniciada"
+            "value" : "Ocultar contraseña"
           }
         }
       }
     },
-    "Keeping session active" : {
-      "comment" : "Progress label while cancelling a prepared sign-out before local invalidation.",
+    "It may already be created. Try signing in before creating it again." : {
+      "comment" : "Safety guidance when a registration response is uncertain and must not be retried automatically.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keeping session active"
+            "value" : "It may already be created. Try signing in before creating it again."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Manteniendo la sesión activa"
+            "value" : "Es posible que ya esté creada. Prueba a iniciar sesión antes de volver a crearla."
           }
         }
       }
@@ -920,7 +920,7 @@
       }
     },
     "Password must contain at least 8 characters." : {
-      "comment" : "Visible registration password requirement and accessibility hint.",
+      "comment" : "Visible registration password requirement and inline validation error.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1072,23 +1072,6 @@
         }
       }
     },
-    "Retry cleanup" : {
-      "comment" : "A button that retries a session cleanup.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Retry cleanup"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reintentar limpieza"
-          }
-        }
-      }
-    },
     "Retry restoration" : {
       "comment" : "Button that retries restoring protected session state before sign-in is allowed.",
       "localizations" : {
@@ -1119,23 +1102,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reintenta la restauración antes de iniciar sesión."
-          }
-        }
-      }
-    },
-    "Retry sign out" : {
-      "comment" : "A button that retries signing out.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Retry sign out"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reintentar cierre de sesión"
           }
         }
       }
@@ -1225,23 +1191,6 @@
         }
       }
     },
-    "Session cleanup needs attention" : {
-      "comment" : "A title for a view that displays a session cleanup error.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Session cleanup needs attention"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La limpieza de la sesión requiere atención"
-          }
-        }
-      }
-    },
     "Session notice" : {
       "comment" : "A section that displays a notice about the user's session.",
       "localizations" : {
@@ -1272,6 +1221,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La restauración de la sesión requiere atención"
+          }
+        }
+      }
+    },
+    "Show password" : {
+      "comment" : "Accessibility label for the button that reveals a currently masked password.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show password"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar contraseña"
           }
         }
       }
@@ -1391,23 +1357,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cerrar sesión"
-          }
-        }
-      }
-    },
-    "Sign out needs attention" : {
-      "comment" : "A label that reads \"Sign out needs attention\".",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign out needs attention"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El cierre de sesión requiere atención"
           }
         }
       }
@@ -1667,23 +1616,6 @@
         }
       }
     },
-    "The request may have created your account. Try signing in before creating it again." : {
-      "comment" : "Safety guidance when a registration response is uncertain and must not be retried automatically.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The request may have created your account. Try signing in before creating it again."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Es posible que la solicitud haya creado tu cuenta. Prueba a iniciar sesión antes de crearla de nuevo."
-          }
-        }
-      }
-    },
     "The server response has an unexpected format." : {
       "comment" : "Safe description when required catalog fields or metadata do not match the contract.",
       "localizations" : {
@@ -1769,23 +1701,6 @@
         }
       }
     },
-    "The session is still active and can be kept safely." : {
-      "comment" : "A description of the state of the user's session.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The session is still active and can be kept safely."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La sesión sigue activa y puede conservarse de forma segura."
-          }
-        }
-      }
-    },
     "Themes" : {
       "comment" : "Heading for exact theme-name filter options.",
       "localizations" : {
@@ -1854,23 +1769,6 @@
         }
       }
     },
-    "Try creating account again" : {
-      "comment" : "Deliberate secondary action that prepares a new registration form after an uncertain result.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Try creating account again"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Intentar crear la cuenta de nuevo"
-          }
-        }
-      }
-    },
     "Unable to create account" : {
       "comment" : "Heading for a registration failure known to have occurred before submission.",
       "localizations" : {
@@ -1901,23 +1799,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No se ha podido iniciar sesión"
-          }
-        }
-      }
-    },
-    "Your account was created, but Manga Library couldn't sign you in." : {
-      "comment" : "Guidance after registration succeeds but automatic sign-in does not complete.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your account was created, but Manga Library couldn't sign you in."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tu cuenta se ha creado, pero Manga Library no ha podido iniciar sesión."
           }
         }
       }

@@ -37,7 +37,7 @@ enum UserRegistrationSubmission: Equatable, Sendable {
 /// The App-Token remains scoped to this client and is never forwarded to the
 /// session or catalog clients. A missing local value fails before transport.
 struct UserRegistrationClient {
-    typealias DataLoader = @Sendable (URLRequest) async throws(any Error) -> Data
+    typealias ResponseLoader = @Sendable (URLRequest) async throws(any Error) -> HTTPResponse
     typealias Operation = @Sendable (String, String) async -> UserRegistrationSubmission
 }
 
@@ -45,7 +45,7 @@ extension UserRegistrationClient {
     static func operation(
         configuration: APIConfiguration,
         appToken: String?,
-        loadData: @escaping DataLoader
+        loadResponse: @escaping ResponseLoader
     ) -> Operation {
         guard let appToken = validated(appToken: appToken) else {
             return { _, _ in
@@ -87,10 +87,10 @@ extension UserRegistrationClient {
             )
             request.setValue(appToken, forHTTPHeaderField: "App-Token")
 
-            let data: Data
+            let response: HTTPResponse
 
             do {
-                data = try await loadData(request)
+                response = try await loadResponse(request)
             } catch is CancellationError {
                 return .unconfirmed(.cancelled)
             } catch let error as NetworkError {
@@ -99,11 +99,18 @@ extension UserRegistrationClient {
                 return .unconfirmed(.unavailable)
             }
 
-            do {
-                _ = try JSONDecoder().decode(Int64.self, from: data)
+            switch response.statusCode {
+            case 201:
                 return .confirmed
-            } catch {
-                return .unconfirmed(.contractDrift)
+            case 200:
+                do {
+                    _ = try JSONDecoder().decode(Int64.self, from: response.data)
+                    return .confirmed
+                } catch {
+                    return .unconfirmed(.contractDrift)
+                }
+            default:
+                return .unconfirmed(.network(.statusCode(response.statusCode)))
             }
         }
     }
@@ -116,8 +123,8 @@ extension UserRegistrationClient {
         operation(
             configuration: configuration,
             appToken: appToken,
-            loadData: { request in
-                try await httpClient.data(for: request)
+            loadResponse: { request in
+                try await httpClient.response(for: request, accepting: [200, 201])
             }
         )
     }

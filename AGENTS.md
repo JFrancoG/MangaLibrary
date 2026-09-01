@@ -32,9 +32,17 @@ Un issue no puede cambiar por sí solo un requisito o una decisión aceptada. Ac
 - `@MainActor` explícito para propietarios observables y estado o efectos de presentación que lo requieran; no usarlo como supresión general.
 - Warnings de Swift, Clang y DocC son errores en todos los targets y configuraciones.
 - Sin dependencias externas. Una excepción requiere propuesta, alternativas, riesgos y un ADR aprobado antes de incorporarla.
+- La UI de producto se implementa con SwiftUI. No introducir UIKit, AppKit ni puentes `Representable` salvo bloqueo demostrado del framework declarativo y autorización explícita previa del propietario.
 - iPhone e iPad pertenecen al target principal. watchOS y WidgetKit se añaden solo después del Advanced Release Gate.
 
 No elevar plataforma, cambiar toolchain ni adoptar una API preliminar como efecto lateral de otra tarea.
+
+## Estilo Swift y legibilidad
+
+- Favorecer el formato horizontal compacto cuando una declaración, llamada, inicializador o condición completa quepa con claridad en 120 columnas.
+- Mantener en una sola línea las firmas y llamadas de hasta tres parámetros, salvo que su longitud o estructura semántica exija separarlas. Con más de tres parámetros, usar formato multilínea consistente.
+- Escribir los `guard` de salida inmediata en una sola línea, incluido `else { return }`, cuando la sentencia completa no supere 120 columnas. Si no cabe, separar sus condiciones sin expandir el `return` trivial a tres líneas.
+- No fragmentar mecánicamente cada argumento, condición o cuerpo trivial. Una expresión atómica puede superar excepcionalmente el objetivo de 120 columnas cuando dividirla reduzca la legibilidad o altere su significado.
 
 ## Preflight y protección del trabajo local
 

@@ -1,8 +1,8 @@
 # Arquitectura y composición
 
 - Estado: aprobado
-- Versión: 1.3
-- Última revisión: 2026-08-28
+- Versión: 1.4
+- Última revisión: 2026-08-31
 
 ## Propósito y alcance
 
@@ -22,7 +22,7 @@ Definir la organización arquitectónica de Manga Library, sus límites de aisla
 - Swift Testing es la base de la estrategia híbrida; XCTest se reserva para capacidades que lo requieran.
 - La navegación principal usa componentes SwiftUI nativos, rutas tipadas y estado propiedad de la feature que presenta el destino.
 
-Estas decisiones se desarrollan en [ADR-0002](../adr/0002-feature-first-and-composition-root.md), [ADR-0003](../adr/0003-concurrency-and-default-isolation.md), [ADR-0004](../adr/0004-swiftdata-local-first-and-model-actors.md) y [ADR-0015](../adr/0015-native-flows-live-composition-and-adaptive-navigation.md).
+Estas decisiones se desarrollan en [ADR-0002](../adr/0002-feature-first-and-composition-root.md), [ADR-0003](../adr/0003-concurrency-and-default-isolation.md), [ADR-0004](../adr/0004-swiftdata-local-first-and-model-actors.md) y [ADR-0017](../adr/0017-validated-http-status-response-boundary.md).
 
 ## Organización lógica
 
@@ -47,10 +47,23 @@ Esta lista define responsabilidades, no obliga a crear una carpeta, protocolo o 
 | App | composition root | recursos únicos de proceso, `ModelContainer`, configuración HTTP y factories |
 | Sesión | actor de sesión y coordinador asociado | Keychain, refresh y sync de una identidad; invalida tareas al completar logout o cambio de usuario |
 | Feature | raíz de Catálogo, Colección o Cuenta | modelo observable, selección y navegación propias; cancela o invalida trabajo al terminar el flujo |
-| Presencia de View | SwiftUI mediante `@State` y `.task` | estado visual efímero y tareas que solo tienen sentido mientras la View está presente |
+| Presencia de View | SwiftUI mediante `@State` y `.task` | estado visual efímero o modelo observable creado por la propia View, y tareas que solo tienen sentido mientras está presente |
 | Operación | tarea estructurada o actor receptor | request, comando o lote acotado; propaga cancelación y devuelve valores por frontera |
 
-Una View mantiene estado visual pequeño. Un modelo `@Observable @MainActor` aparece cuando posee consulta remota, transiciones, cancelación, coordinación o navegación no trivial; no es obligatorio para reflejar una lectura `@Query`. Un actor o contexto posee invariantes y recursos mutables persistentes.
+Una View puede mantener estado local de presentación pequeño y propio de su
+identidad, incluidos adaptadores del framework como `@FocusState`. Un modelo
+`@Observable @MainActor` aparece cuando la pantalla posee consulta remota,
+transiciones, cancelación, coordinación o navegación no trivial; no es
+obligatorio para reflejar una lectura `@Query`. Un actor o contexto posee
+invariantes y recursos mutables persistentes.
+
+Cuando una pantalla crea un modelo `@Observable` de su propio ciclo de vida, lo
+conserva mediante `@State` para estabilizar su identidad. Un modelo compartido
+que llega por inicializador se mantiene como referencia ordinaria: Observation
+registra sus lecturas sin necesidad de convertirlo en `@State`, y `@Bindable` se
+usa solo cuando la View necesita proyectar bindings sobre ese objeto. La
+obligación concreta de extraer la presentación no trivial de credenciales queda
+acotada por ARCH-021 y AUTH-013.
 
 Las dependencias locales obligatorias se pasan por inicializador o factory. Environment se reserva a capacidades compartidas deliberadamente por un subárbol. Ningún scope puede conservar tareas o estado de otro usuario después de finalizar.
 
@@ -70,7 +83,7 @@ Las dependencias locales obligatorias se pasan por inicializador o factory. Envi
 | ARCH-010 | La implementación no debe introducir capas de repository, interactor, mapper o protocol por convención si no separan una variación, efecto o frontera comprobable. |
 | ARCH-011 | Una extensión Deluxe no debe abrir directamente el almacén privado de ejecución de otro proceso; recibe una proyección mediante el puente aprobado. |
 | ARCH-012 | Todo target debe tratar warnings como errores y no depender de paquetes externos. |
-| ARCH-013 | Cada flujo debe conservar una única fuente observable: estado remoto o de workflow en un modelo de feature, estado visual efímero en la View, estado persistido en SwiftData y sesión/sync en sus actores propietarios. |
+| ARCH-013 | Cada flujo debe conservar una sola fuente por responsabilidad y declarar su propietario. Una View puede poseer estado local de presentación; un modelo de pantalla puede poseer presentación o workflow no trivial cuando el flujo lo defina; SwiftData posee estado persistido y los actores de sesión/sync sus recursos aislados. El mismo estado no se duplica entre esos límites. |
 | ARCH-014 | Un modelo observable no debe duplicar una colección que la View ya obtiene con `@Query`. |
 | ARCH-015 | Environment distribuye capacidades tipadas de ámbito apropiado; no contiene selección de navegación, modelos vivos ni un contenedor consultable como service locator. |
 | ARCH-016 | La navegación pasa `Manga.ID`, un valor estable `Hashable` y `Sendable`; no pasa `PersistentIdentifier`, DTO, tokens, `@Model` vivos ni clientes de infraestructura. |
@@ -78,6 +91,7 @@ Las dependencias locales obligatorias se pasan por inicializador o factory. Envi
 | ARCH-018 | Catálogo y Colección poseen localmente su selección. Catálogo usa un `NavigationStack` tipado en compacto y un `NavigationSplitView` en regular; Colección adopta su contenedor nativo al implementarse sin compartir rutas con Catálogo. Cuenta posee un `NavigationStack` lineal para autenticación. |
 | ARCH-019 | No se crea un router global mientras no exista una necesidad aprobada de deep links, restauración o navegación transversal programática. |
 | ARCH-020 | Un cambio de identidad completado invalida la selección y rutas de Colección de la sesión anterior; un intento de logout cancelado no las borra. |
+| ARCH-021 | Cada presencia en pantalla de un formulario de credenciales crea un modelo `@Observable @MainActor` y su View lo retiene con `@State`; `AccountRoute` continúa siendo solo un valor de navegación. Ese modelo conserva borradores, validación presentada, visibilidad de contraseña, intención de foco, tarea y limpieza; `AccountModel` sigue siendo la única autoridad compartida de sesión y workflow remoto, y la View se limita a renderizar, enlazar y adaptar `@FocusState`. |
 
 ## Propiedad del estado y flujo por feature
 
@@ -85,7 +99,7 @@ Las dependencias locales obligatorias se pasan por inicializador o factory. Envi
 | --- | --- | --- | --- |
 | Catálogo | API remota verificada | Modelo de consulta `@Observable @MainActor` | cliente tipado → modelo de feature → View |
 | Colección | SwiftData local | `@Query` para lectura y capacidad `@ModelActor` para mutación | `@Query` → View; intención → comando por valor → actor → SwiftData |
-| Cuenta | Sesión segura | actor de sesión y estado de presentación seguro | actor → modelo de cuenta → View |
+| Cuenta | Sesión segura y borradores efímeros de cada formulario | actor de sesión y `AccountModel` para sesión/workflow remoto; modelo de formulario por presencia en pantalla para presentación de credenciales | actor ↔ `AccountModel` ↔ modelo de formulario → View; intención de View → modelo de formulario → `AccountModel` |
 | Sincronización | outbox SwiftData y confirmación remota | coordinador actor | outbox → red → reconciliación → SwiftData → `@Query` |
 
 La API, SwiftData y los datos de preview no son implementaciones equivalentes de un `MangaRepository`: representan autoridades y grados de completitud diferentes. Una preview construye directamente el estado o la capacidad mínima que necesita; no convierte una colección local parcial ni un fixture en la fuente del catálogo remoto paginado.
@@ -185,4 +199,4 @@ La red nunca escribe directamente en estado de View. El detalle operativo está 
 - [ADR-0002: feature-first y composition root](../adr/0002-feature-first-and-composition-root.md)
 - [ADR-0003: concurrencia y aislamiento predeterminado](../adr/0003-concurrency-and-default-isolation.md)
 - [ADR-0004: SwiftData local-first y model actors](../adr/0004-swiftdata-local-first-and-model-actors.md)
-- [ADR-0015: flujos nativos, composición live y navegación adaptable](../adr/0015-native-flows-live-composition-and-adaptive-navigation.md)
+- [ADR-0017: flujos nativos y respuesta HTTP con status validado](../adr/0017-validated-http-status-response-boundary.md)

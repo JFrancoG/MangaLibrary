@@ -101,6 +101,41 @@ struct AccountModelTests {
         )
     }
 
+    @Test("Invalid sign-in input never starts the remote workflow")
+    func invalidSignInInputNeverStartsRemoteWorkflow() async {
+        let session = ControlledAccountSession()
+        await session.setLoginResult(for: "readerexample.invalid", result: .success(.active(Self.accountA)))
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
+
+        #expect(model.canSubmitSignIn(email: "reader@example.invalid", password: "x"))
+        #expect(
+            model.signInValidation(email: "", password: "")
+                == .init(emailFailure: .emailRequired, passwordFailure: .passwordRequired)
+        )
+        #expect(
+            model.signInValidation(email: "readerexample.invalid", password: "synthetic-passphrase").emailFailure
+                == .invalidEmail
+        )
+        #expect(!model.canSubmitSignIn(email: "readerexample.invalid", password: "synthetic-passphrase"))
+        #expect(!model.canSubmitSignIn(email: "reader@example.invalid", password: ""))
+
+        await model.signIn(email: "readerexample.invalid", password: "synthetic-passphrase")
+
+        #expect(await session.remoteCalls().isEmpty)
+        #expect(model.state == .signedOut(failure: nil))
+    }
+
+    @Test("Credential email validation follows the conservative S2.2 grammar", arguments: EmailValidationCase.all)
+    fileprivate func validatesCredentialEmail(testCase: EmailValidationCase) {
+        let session = ControlledAccountSession()
+        let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
+
+        #expect(
+            model.signInValidation(email: testCase.email, password: "synthetic-passphrase").emailFailure
+                == testCase.expectedFailure
+        )
+    }
+
     @Test("Invalid credentials return to signed out with a recoverable reason")
     func invalidCredentialsKeepSignedOutContext() async {
         let session = ControlledAccountSession()
@@ -124,17 +159,10 @@ struct AccountModelTests {
         )
     }
 
-    @Test("Post-invalidation failure remains cleaning until retry succeeds")
-    func signOutCleanupCanBeRetried() async {
+    @Test("A failed Keychain deletion keeps the authenticated account with a notice")
+    func signOutFailureKeepsTheActiveSession() async {
         let session = ControlledAccountSession()
-        await session.setLogoutResult(
-            .failure(.temporarilyUnavailable),
-            failureSnapshot: .cleaning(
-                userID: Self.accountA.id,
-                completion: .signedOut
-            )
-        )
-        await session.setRetryCleanupResult(.success(.signedOut))
+        await session.setLogoutResult(.failure(.temporarilyUnavailable))
         let model = AccountModel(
             initialState: .authenticated(Self.accountA, notice: nil),
             operations: session.operations()
@@ -143,44 +171,7 @@ struct AccountModelTests {
         await model.signOut()
         #expect(
             model.state
-                == .cleaning(
-                    userID: Self.accountA.id,
-                    completion: .signedOut,
-                    failure: .temporarilyUnavailable
-                )
-        )
-
-        await model.retryCleanup()
-        #expect(model.state == .signedOut(failure: nil))
-    }
-
-    @Test("Resolving prepared logout admits only one decision")
-    func preparedLogoutDecisionCannotCompete() async {
-        let session = ControlledAccountSession()
-        let gate = AccountOperationGate()
-        await session.setCancelLogoutResult(
-            .success(.active(Self.accountA)),
-            gate: gate
-        )
-        let model = AccountModel(
-            initialState: .logoutPrepared(Self.accountA, failure: nil),
-            operations: session.operations()
-        )
-
-        let cancel = Task { @MainActor in
-            await model.cancelLogout()
-        }
-        await gate.waitUntilArrived()
-
-        #expect(model.state == .resolvingLogout(Self.accountA))
-        await model.retryLogout()
-        #expect(model.state == .resolvingLogout(Self.accountA))
-
-        await gate.open()
-        await cancel.value
-        #expect(
-            model.state
-                == .authenticated(Self.accountA, notice: nil)
+                == .authenticated(Self.accountA, notice: .temporarilyUnavailable)
         )
     }
 
@@ -326,11 +317,21 @@ struct AccountModelTests {
             )
         )
         #expect(
+            model.registrationValidation(email: "", password: "")
+                == .init(emailFailure: .emailRequired, passwordFailure: .passwordRequired)
+        )
+        #expect(
+            model.registrationValidation(email: "reader@example.invalid", password: "1234567").passwordFailure
+                == .passwordTooShort
+        )
+        #expect(
             !model.canSubmitRegistration(
                 email: "  \n",
                 password: "12345678"
             )
         )
+        #expect(!model.canSubmitRegistration(email: "reader@example", password: "12345678"))
+        #expect(!model.canSubmitRegistration(email: "reader..name@example.invalid", password: "12345678"))
         #expect(
             !model.canSubmitRegistration(
                 email: "reader@example.invalid",
@@ -339,6 +340,8 @@ struct AccountModelTests {
         )
 
         await model.register(email: "  \n", password: "12345678")
+        await model.register(email: "reader@example", password: "12345678")
+        await model.register(email: "reader..name@example.invalid", password: "12345678")
         await model.register(
             email: "reader@example.invalid",
             password: "1234567"
@@ -622,6 +625,265 @@ struct AccountModelTests {
     )
 }
 
+@Suite("Credential form presentation", .tags(.fast))
+@MainActor
+struct CredentialFormViewModelTests {
+    @Test("Invalid sign-in reveals both field errors without remote work")
+    func invalidSignInRevealsErrorsWithoutRemoteWork() async {
+        let session = ControlledAccountSession()
+        let accountModel = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
+        let viewModel = SignInViewModel(accountModel: accountModel)
+        viewModel.email = "readerexample.invalid"
+
+        let focus = viewModel.submit(currentFocus: .email)
+
+        #expect(focus == .email)
+        #expect(viewModel.emailFailure == .invalidEmail)
+        #expect(viewModel.passwordFailure == .passwordRequired)
+        #expect(await session.remoteCalls().isEmpty)
+    }
+
+    @Test("Sign-in keeps the password and modeled focus when visibility changes")
+    func signInVisibilityPreservesPasswordAndFocus() {
+        let session = ControlledAccountSession()
+        let accountModel = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
+        let viewModel = SignInViewModel(accountModel: accountModel)
+        viewModel.email = "invalid"
+        viewModel.password = "synthetic-passphrase"
+
+        viewModel.focusChanged(from: .email, to: .concealedPassword)
+        let focus = viewModel.togglePasswordVisibility(currentFocus: .concealedPassword)
+
+        #expect(viewModel.emailFailure == .invalidEmail)
+        #expect(viewModel.password == "synthetic-passphrase")
+        #expect(viewModel.isPasswordVisible)
+        #expect(focus == .revealedPassword)
+    }
+
+    @Test("Leaving sign-in clears an unsent draft and its validation presentation")
+    func leavingSignInClearsUnsentDraft() {
+        let session = ControlledAccountSession()
+        let accountModel = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
+        let viewModel = SignInViewModel(accountModel: accountModel)
+        viewModel.email = "readerexample.invalid"
+        viewModel.password = "synthetic-passphrase"
+
+        let visibleFocus = viewModel.togglePasswordVisibility(currentFocus: .concealedPassword)
+        let invalidFocus = viewModel.submit(currentFocus: visibleFocus)
+        #expect(invalidFocus == .email)
+        #expect(viewModel.isPasswordVisible)
+        #expect(viewModel.emailFailure == .invalidEmail)
+
+        let clearedFocus = viewModel.disappear(currentFocus: invalidFocus)
+        viewModel.focusChanged(from: invalidFocus, to: clearedFocus)
+
+        #expect(clearedFocus == nil)
+        #expect(viewModel.password.isEmpty)
+        #expect(!viewModel.isPasswordVisible)
+        #expect(viewModel.emailFailure == nil)
+        #expect(viewModel.passwordFailure == nil)
+    }
+
+    @Test("Valid sign-in clears the secret and starts one semantic operation")
+    func validSignInClearsSecretAndStartsOneOperation() async {
+        let session = ControlledAccountSession()
+        let gate = AccountOperationGate()
+        await session.setLoginResult(
+            for: "reader@example.invalid",
+            result: .success(.active(Self.account)),
+            gate: gate
+        )
+        let accountModel = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
+        let viewModel = SignInViewModel(accountModel: accountModel)
+        viewModel.email = "  reader@example.invalid\n"
+        viewModel.password = "synthetic-passphrase"
+
+        let focus = viewModel.submit(currentFocus: .concealedPassword)
+
+        #expect(focus == nil)
+        #expect(viewModel.password.isEmpty)
+        #expect(!viewModel.isPasswordVisible)
+        await gate.waitUntilArrived()
+        #expect(
+            await session.remoteCalls()
+                == [.login(email: "reader@example.invalid", password: "synthetic-passphrase")]
+        )
+        #expect(accountModel.state == .authenticating)
+
+        await gate.open()
+        await viewModel.waitForPendingOperation()
+        #expect(accountModel.state == .authenticated(Self.account, notice: nil))
+    }
+
+    @Test("Leaving sign-in before task entry never starts remote work")
+    func leavingSignInBeforeTaskEntryNeverStartsRemoteWork() async {
+        let session = ControlledAccountSession()
+        await session.setLoginResult(
+            for: "reader@example.invalid",
+            result: .success(.active(Self.account))
+        )
+        let accountModel = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
+        let viewModel = SignInViewModel(accountModel: accountModel)
+        viewModel.email = "reader@example.invalid"
+        viewModel.password = "synthetic-passphrase"
+
+        _ = viewModel.submit(currentFocus: .concealedPassword)
+        _ = viewModel.disappear(currentFocus: nil)
+        await viewModel.waitForPendingOperation()
+
+        #expect(await session.remoteCalls().isEmpty)
+        #expect(accountModel.state == .signedOut(failure: nil))
+    }
+
+    @Test("Invalid registration focuses password and never reaches remote work")
+    func invalidRegistrationFocusesPasswordWithoutRemoteWork() async {
+        let session = ControlledAccountSession()
+        let accountModel = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
+        let viewModel = RegisterViewModel(accountModel: accountModel)
+        viewModel.email = "reader@example.invalid"
+        viewModel.password = "short"
+
+        let focus = viewModel.submit(currentFocus: .email)
+
+        #expect(focus == .concealedPassword)
+        #expect(viewModel.emailFailure == nil)
+        #expect(viewModel.passwordFailure == .passwordTooShort)
+        #expect(await session.remoteCalls().isEmpty)
+    }
+
+    @Test("Leaving registration clears an unsent draft and its validation presentation")
+    func leavingRegistrationClearsUnsentDraft() {
+        let session = ControlledAccountSession()
+        let accountModel = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
+        let viewModel = RegisterViewModel(accountModel: accountModel)
+        viewModel.email = "readerexample.invalid"
+        viewModel.password = "short"
+
+        let visibleFocus = viewModel.togglePasswordVisibility(currentFocus: .concealedPassword)
+        let invalidFocus = viewModel.submit(currentFocus: visibleFocus)
+        #expect(invalidFocus == .email)
+        #expect(viewModel.isPasswordVisible)
+        #expect(viewModel.emailFailure == .invalidEmail)
+        #expect(viewModel.passwordFailure == .passwordTooShort)
+
+        let clearedFocus = viewModel.disappear(currentFocus: invalidFocus)
+        viewModel.focusChanged(from: invalidFocus, to: clearedFocus)
+
+        #expect(clearedFocus == nil)
+        #expect(viewModel.password.isEmpty)
+        #expect(!viewModel.isPasswordVisible)
+        #expect(viewModel.emailFailure == nil)
+        #expect(viewModel.passwordFailure == nil)
+        #expect(accountModel.registrationState == .idle)
+    }
+
+    @Test("Leaving registration clears credentials and invalidates the suspended workflow")
+    func leavingRegistrationClearsAndInvalidatesSuspendedWorkflow() async {
+        let session = ControlledAccountSession()
+        let gate = AccountOperationGate()
+        await session.setRegistrationResult(
+            for: "reader@example.invalid",
+            submission: .confirmed,
+            gate: gate
+        )
+        let accountModel = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
+        let viewModel = RegisterViewModel(accountModel: accountModel)
+        viewModel.email = "reader@example.invalid"
+        viewModel.password = "synthetic-passphrase"
+
+        let submittedFocus = viewModel.submit(currentFocus: .concealedPassword)
+        #expect(submittedFocus == nil)
+        #expect(viewModel.password.isEmpty)
+        await gate.waitUntilArrived()
+        #expect(accountModel.registrationState == .submitting)
+
+        let abandonedFocus = viewModel.disappear(currentFocus: .concealedPassword)
+        #expect(abandonedFocus == nil)
+        #expect(viewModel.password.isEmpty)
+        #expect(accountModel.registrationState == .unconfirmed(.cancelled))
+
+        await gate.open()
+        await viewModel.waitForPendingOperation()
+        #expect(accountModel.registrationState == .unconfirmed(.cancelled))
+        #expect(
+            await session.remoteCalls()
+                == [.register(email: "reader@example.invalid", password: "synthetic-passphrase")]
+        )
+    }
+
+    private static let account = SessionAccount(
+        id: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!,
+        email: "reader@example.invalid",
+        isActive: true,
+        isAdmin: false,
+        role: "user"
+    )
+}
+
+fileprivate struct EmailValidationCase: Sendable, CustomTestStringConvertible {
+    let testDescription: String
+    let email: String
+    let expectedFailure: AccountModel.CredentialValidationFailure?
+
+    static let all = [
+        Self(testDescription: "simple address", email: "reader@example.invalid", expectedFailure: nil),
+        Self(
+            testDescription: "trimmed tagged subdomain address",
+            email: "  reader.name+tag@sub.example.invalid\n",
+            expectedFailure: nil
+        ),
+        Self(
+            testDescription: "allowed local punctuation",
+            email: "reader!#$%&'*+/=?^_{|}~-@example.invalid",
+            expectedFailure: nil
+        ),
+        Self(
+            testDescription: "maximum domain label length",
+            email: "reader@"
+                + String(repeating: "a", count: 63)
+                + ".invalid",
+            expectedFailure: nil
+        ),
+        Self(testDescription: "empty address", email: " \n", expectedFailure: .emailRequired),
+        Self(testDescription: "missing at sign", email: "readerexample.invalid", expectedFailure: .invalidEmail),
+        Self(testDescription: "repeated at sign", email: "reader@@example.invalid", expectedFailure: .invalidEmail),
+        Self(
+            testDescription: "empty local segment",
+            email: "reader..name@example.invalid",
+            expectedFailure: .invalidEmail
+        ),
+        Self(testDescription: "domain without separator", email: "reader@example", expectedFailure: .invalidEmail),
+        Self(testDescription: "empty domain segment", email: "reader@example..invalid", expectedFailure: .invalidEmail),
+        Self(
+            testDescription: "domain label starts with hyphen",
+            email: "reader@-example.invalid",
+            expectedFailure: .invalidEmail
+        ),
+        Self(
+            testDescription: "domain label ends with hyphen",
+            email: "reader@example-.invalid",
+            expectedFailure: .invalidEmail
+        ),
+        Self(
+            testDescription: "domain label exceeds maximum length",
+            email: "reader@"
+                + String(repeating: "a", count: 64)
+                + ".invalid",
+            expectedFailure: .invalidEmail
+        ),
+        Self(
+            testDescription: "embedded whitespace",
+            email: "reader name@example.invalid",
+            expectedFailure: .invalidEmail
+        ),
+        Self(
+            testDescription: "non ASCII local part",
+            email: "lectorañ@example.invalid",
+            expectedFailure: .invalidEmail
+        )
+    ]
+}
+
 private actor ControlledAccountSession {
     private struct RegistrationPlan: Sendable {
         let submission: UserRegistrationSubmission
@@ -640,10 +902,6 @@ private actor ControlledAccountSession {
     private var loginPlans: [String: LoginPlan] = [:]
     private var recordedRemoteCalls: [AccountRemoteCall] = []
     private var logoutResult: Result<SessionSnapshot, SessionControllerError> = .success(.signedOut)
-    private var logoutFailureSnapshot: SessionSnapshot?
-    private var cancelLogoutResult: Result<SessionSnapshot, SessionControllerError> = .success(.signedOut)
-    private var cancelLogoutGate: AccountOperationGate?
-    private var retryCleanupResult: Result<SessionSnapshot, SessionControllerError> = .success(.signedOut)
 
     nonisolated func operations() -> AccountModel.Operations {
         AccountModel.Operations(
@@ -655,10 +913,7 @@ private actor ControlledAccountSession {
             register: { [self] email, password in
                 await register(email: email, password: password)
             },
-            logout: { [self] in try await logout() },
-            retryLogout: { [self] in try await retryLogout() },
-            cancelLogout: { [self] in try await cancelLogout() },
-            retryCleanup: { [self] in try await retryCleanup() }
+            logout: { [self] in try await logout() }
         )
     }
 
@@ -694,24 +949,8 @@ private actor ControlledAccountSession {
         recordedRemoteCalls
     }
 
-    func setLogoutResult(
-        _ result: Result<SessionSnapshot, SessionControllerError>,
-        failureSnapshot: SessionSnapshot? = nil
-    ) {
+    func setLogoutResult(_ result: Result<SessionSnapshot, SessionControllerError>) {
         logoutResult = result
-        logoutFailureSnapshot = failureSnapshot
-    }
-
-    func setRetryCleanupResult(_ result: Result<SessionSnapshot, SessionControllerError>) {
-        retryCleanupResult = result
-    }
-
-    func setCancelLogoutResult(
-        _ result: Result<SessionSnapshot, SessionControllerError>,
-        gate: AccountOperationGate? = nil
-    ) {
-        cancelLogoutResult = result
-        cancelLogoutGate = gate
     }
 
     private func currentSnapshot() -> SessionSnapshot {
@@ -759,33 +998,7 @@ private actor ControlledAccountSession {
     }
 
     private func logout() throws(any Error) -> SessionSnapshot {
-        do {
-            let result = try logoutResult.get()
-            snapshot = result
-            return result
-        } catch {
-            if let logoutFailureSnapshot {
-                snapshot = logoutFailureSnapshot
-            }
-            throw error
-        }
-    }
-
-    private func retryLogout() throws(any Error) -> SessionSnapshot {
-        try logout()
-    }
-
-    private func cancelLogout() async throws(any Error) -> SessionSnapshot {
-        if let cancelLogoutGate {
-            await cancelLogoutGate.suspendUntilOpen()
-        }
-        let result = try cancelLogoutResult.get()
-        snapshot = result
-        return result
-    }
-
-    private func retryCleanup() throws(any Error) -> SessionSnapshot {
-        let result = try retryCleanupResult.get()
+        let result = try logoutResult.get()
         snapshot = result
         return result
     }

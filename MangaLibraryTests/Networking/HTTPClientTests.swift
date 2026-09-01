@@ -21,6 +21,57 @@ struct HTTPClientTests {
         #expect(data == FixtureURLProtocol.successBody)
     }
 
+    @Test("Registration accepts the declared 200 integer through the live adapter")
+    func registrationAcceptsDeclaredOKInteger() async throws {
+        let session = FixtureURLProtocol.makeSession()
+        defer { session.invalidateAndCancel() }
+        let client = HTTPClient(session: session)
+        let configuration = try APIConfiguration(baseURL: FixtureURLProtocol.Endpoint.registrationOKBase)
+        let register = UserRegistrationClient.operation(
+            httpClient: client,
+            configuration: configuration,
+            appToken: "synthetic-app-token"
+        )
+
+        let submission = await register("reader@example.invalid", "synthetic-passphrase")
+
+        #expect(submission == .confirmed)
+    }
+
+    @Test("Registration accepts the observed 201 Created without requiring a body")
+    func registrationAcceptsCreatedWithoutBody() async throws {
+        let session = FixtureURLProtocol.makeSession()
+        defer { session.invalidateAndCancel() }
+        let client = HTTPClient(session: session)
+        let configuration = try APIConfiguration(baseURL: FixtureURLProtocol.Endpoint.registrationCreatedBase)
+        let register = UserRegistrationClient.operation(
+            httpClient: client,
+            configuration: configuration,
+            appToken: "synthetic-app-token"
+        )
+
+        let submission = await register("reader@example.invalid", "synthetic-passphrase")
+
+        #expect(submission == .confirmed)
+    }
+
+    @Test("Registration does not generalize success to an undeclared 202")
+    func registrationRejectsAcceptedStatus() async throws {
+        let session = FixtureURLProtocol.makeSession()
+        defer { session.invalidateAndCancel() }
+        let client = HTTPClient(session: session)
+        let configuration = try APIConfiguration(baseURL: FixtureURLProtocol.Endpoint.registrationAcceptedBase)
+        let register = UserRegistrationClient.operation(
+            httpClient: client,
+            configuration: configuration,
+            appToken: "synthetic-app-token"
+        )
+
+        let submission = await register("reader@example.invalid", "synthetic-passphrase")
+
+        #expect(submission == .unconfirmed(.network(.statusCode(202))))
+    }
+
     @Test("Rejects a non-HTTP response")
     func rejectsNonHTTPResponse() async {
         let session = FixtureURLProtocol.makeSession()

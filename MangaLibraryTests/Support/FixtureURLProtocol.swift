@@ -13,6 +13,9 @@ import Foundation
 final class FixtureURLProtocol: URLProtocol {
     enum Endpoint {
         static let success = requiredURL("https://success.mangalibrary.invalid/data")
+        static let registrationOKBase = requiredURL("https://registration-ok.mangalibrary.invalid")
+        static let registrationCreatedBase = requiredURL("https://registration-created.mangalibrary.invalid")
+        static let registrationAcceptedBase = requiredURL("https://registration-accepted.mangalibrary.invalid")
         static let nonHTTPResponse = requiredURL("https://non-http.mangalibrary.invalid/data")
         static let notFound = requiredURL("https://not-found.mangalibrary.invalid/data")
         static let transportFailure = requiredURL("https://transport.mangalibrary.invalid/data")
@@ -55,6 +58,12 @@ final class FixtureURLProtocol: URLProtocol {
         switch route {
         case .success:
             sendHTTPResponse(statusCode: 200, body: Self.successBody, url: url)
+        case .registrationOK:
+            sendHTTPResponse(statusCode: 200, body: Data("42".utf8), url: url)
+        case .registrationCreated:
+            sendHTTPResponse(statusCode: 201, body: Data(), url: url)
+        case .registrationAccepted:
+            sendHTTPResponse(statusCode: 202, body: Data("42".utf8), url: url)
         case .nonHTTPResponse:
             let body = Data("non-http".utf8)
             let response = URLResponse(
@@ -85,6 +94,9 @@ final class FixtureURLProtocol: URLProtocol {
 
     private enum Route {
         case success
+        case registrationOK
+        case registrationCreated
+        case registrationAccepted
         case nonHTTPResponse
         case notFound
         case transportFailure
@@ -99,6 +111,12 @@ final class FixtureURLProtocol: URLProtocol {
         switch url {
         case Endpoint.success:
             return .success
+        case Endpoint.registrationOKBase.appending(path: "users"):
+            return .registrationOK
+        case Endpoint.registrationCreatedBase.appending(path: "users"):
+            return .registrationCreated
+        case Endpoint.registrationAcceptedBase.appending(path: "users"):
+            return .registrationAccepted
         case Endpoint.nonHTTPResponse:
             return .nonHTTPResponse
         case Endpoint.notFound:

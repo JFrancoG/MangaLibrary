@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.14
-**Fecha:** 2026-08-31
+**Versión:** 1.15
+**Fecha:** 2026-09-01
 
 ## Propósito
 
@@ -36,8 +36,8 @@ filtros Include Tags de Swift Testing: `Fast` incluye el tag `fast`, aplicado a
 directas y deterministas. `Integration` incluye el tag `integration`, aplicado
 a `HTTPClientTests`, que atraviesa la frontera real de `URLSession` mediante un
 `URLProtocol` limitado a su sesión, y a `SessionPersistenceActorTests` y
-`SessionPersistenceStoreTests`, que recorren la coordinación durable, Keychain
-aislado y filesystem temporal. `UI` contiene únicamente
+`SessionPersistenceStoreTests`, que recorren la coordinación serializada y el
+único bundle Keychain V2 en un service aislado. `UI` contiene únicamente
 `MangaLibraryUITests`. Toda suite nueva se clasifica en `Fast`, `Integration` o
 `UI` mediante su target y, cuando corresponda, su tag, en el mismo cambio que
 la introduce. No se filtra por nombres de funciones o suites.
@@ -52,8 +52,8 @@ DocC y la evidencia no automatizable aplicable. No se atribuyen a un
 ### Aplicabilidad por gate
 
 Los planes seleccionan únicamente suites y targets que pertenecen al gate en
-evaluación. Advanced prueba la sesión local, Keychain, outbox, aislamiento,
-navegación y recuperación definidos por SDD 04 sin exigir App Group,
+evaluación. Advanced prueba el bundle Keychain V2, refresh, logout binario,
+outbox, aislamiento y navegación definidos por SDD 04 sin exigir App Group,
 `SessionFence`, WidgetKit o WatchConnectivity. Deluxe vuelve a ejecutar Advanced
 y añade las suites del bridge compartido, sus targets y sus entitlements.
 
@@ -70,9 +70,10 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 - mapeo de errores de transporte, sesión y dominio;
 - máquina de estados de autenticación y sincronización;
 - exclusión serializada de activación durante logout y efectos condicionados por
-  generación y revisión de transición;
-- punto de no retorno y rechazo de cancelación tras invalidación local o fence
-  Deluxe cerrado y verificado;
+  la generación del bundle Keychain vigente;
+- logout Advanced binario: un fallo de borrado conserva la sesión y un éxito
+  publica `signedOut`, sin fase durable intermedia;
+- punto de no retorno y rechazo de cancelación tras un fence Deluxe cerrado y verificado;
 - coalescencia, reintento, cancelación e idempotencia de mutaciones;
 - `Codable & Sendable`, compatibilidad y estados del snapshot Deluxe;
 - `publicationGeneration`, `sessionGeneration`, revisión `UInt64` estrictamente monotónica y persistida sin wrap y rotación de epoch con fence cerrado;
@@ -89,11 +90,15 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 - CRUD SwiftData con un `ModelContainer` aislado y verificación desde otro contexto;
 - migración mediante un store temporal en disco creado con el esquema anterior;
 - transporte HTTP mediante un `URLProtocol` limitado a la `URLSession` de test: bytes exactos, respuesta no HTTP, status inesperado, fallo de transporte y cancelación;
-- ciclo de access/refresh token con un almacén Keychain sustituible y sin credenciales reales;
-- crash y recuperación del logout de A, bloqueo de una activación B concurrente y
-  efectos tardíos de A convertidos en no-op después de activar B;
-- cancelación antes de cada punto de no retorno y recuperación obligatoria cuando
-  se solicita después;
+- ciclo de access/refresh token con un único bundle Keychain V2 sustituible y sin credenciales reales;
+- atributos no sincronizables y no migrables, account fijo sin PII, formato cerrado
+  y rechazo seguro de una versión desconocida o un bundle corrupto;
+- crash antes y después del borrado binario de A, bloqueo de una activación B
+  concurrente y efectos tardíos de A convertidos en no-op después de activar B;
+- fallo de borrado que conserva A activa y permite reintentar, y cancelación
+  reconciliada después de que el commit Keychain haya terminado;
+- rechazo permanente que borra el bundle, publica `authenticationRequired` solo en
+  el proceso vigente y restaura `signedOut` tras un relanzamiento;
 - reinicio con outbox pendiente, pérdida de red, bloqueo de autenticación y rechazo permanente;
 - escritura y lectura concurrentes del snapshot y portadas en App Group, fallo de disco, manifest anterior, retención y limpieza, en directorios temporales y después en sandbox o dispositivo autorizado;
 - recuperación tras crash en la secuencia fence cerrado → invalidación/Keychain → envelope redactado → reload;
@@ -129,7 +134,7 @@ personales o de producción.
 
 Reloj, UUID, red, aleatoriedad y almacenamiento se inyectarán cuando afecten al resultado. No se usarán sleeps como sincronización ni se serializará una suite para ocultar estado compartido. Los oráculos procederán de contratos, fixtures controlados o cálculos independientes.
 
-Los tests de frescura de WidgetKit observarán los límites sustituibles de publicación, almacenamiento y recarga. Comprobarán que cada mutación, reconciliación, reversión, restauración, importación o redacción aplicable parte de un commit local completado o transición persistida y solicita una sola vez `reloadTimelines(ofKind:)` con el `kind` esperado únicamente después de dejar el bridge seguro.
+Los tests de frescura de WidgetKit observarán los límites sustituibles de publicación, almacenamiento y recarga. Comprobarán que cada mutación, reconciliación, reversión, restauración, importación o redacción aplicable parte de un commit local completado o fence seguro verificado y solicita una sola vez `reloadTimelines(ofKind:)` con el `kind` esperado únicamente después de dejar el bridge seguro.
 
 En las suites Deluxe, un evento sin cambio visible no publicará ni solicitará reload. Un fallo ordinario conservará el manifest anterior de la misma sesión vigente. Un fallo al cerrar o verificar el `SessionFence` abortará logout y conservará sesión y Keychain; después de un fence seguro, un crash entre invalidación, limpieza de Keychain y envelope redactado se recuperará sin volver a autorizar A. Se probará también que el provider rechaza una lectura si los fences anterior y posterior difieren, que B no es visible antes de abrir su fence y que una sanitización tardía de A no altera B.
 
@@ -194,7 +199,7 @@ La prueba de assets no acredita por sí sola la interfaz. Que una pareja opaca s
 
 - build limpio y cero warnings;
 - `Fast`, `Integration` y flujos UI críticos aprobados;
-- catálogo, colección local, autenticación y sincronización cumplen sus contratos Advanced; logout demuestra invalidación local durable, punto de no retorno, exclusión de otra activación y efectos tardíos condicionados sin depender de un bridge Deluxe;
+- catálogo, colección local, autenticación y sincronización cumplen sus contratos Advanced; logout demuestra borrado condicional del bundle Keychain, conservación de la sesión ante fallo, exclusión de otra activación y efectos tardíos condicionados sin depender de un bridge Deluxe;
 - accesibilidad y adaptación verificadas en la matriz acordada;
 - documentación y evidencia actualizadas.
 
@@ -202,8 +207,8 @@ La prueba de assets no acredita por sí sola la interfaz. Que una pareja opaca s
 
 - Advanced continúa en verde;
 - widget y watchOS satisfacen la [SDD Deluxe](05-deluxe-watch-and-widget.md);
-- el `SessionFence` se cierra después de persistir la transición y antes de invalidar la sesión o limpiar Keychain conforme a [ADR 0013](../adr/0013-advanced-logout-and-deluxe-bridge-boundary.md), sin reutilizar la ausencia previa del bridge como evidencia;
-- un fence cerrado y verificado hace no cancelable la transición y obliga a completar el cierre local Advanced;
+- el `SessionFence` se cierra y verifica antes de borrar condicionalmente el bundle Keychain conforme a [ADR 0018](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md), sin reutilizar la ausencia previa del bridge como evidencia;
+- un fence cerrado y verificado hace no cancelable la transición Deluxe y obliga a completar el borrado Keychain y la redacción compartida;
 - la primera incorporación del bridge permanece cerrada hasta que el propietario de sesión autoriza y el publicador revalida una generación Advanced activa;
 - snapshot, configuración estática, generaciones, `SessionFence`, redacción fail-closed, `updateApplicationContext(_:)`, portadas, `.never` y reload dirigido tienen evidencia proporcional;
 - la evidencia valida causalidad y contenido sin sleeps ni afirmaciones de latencia en tiempo real;
@@ -226,6 +231,5 @@ Un simulador no sustituye evidencia física cuando la capacidad dependa de hardw
 - [ADR 0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
 - [ADR 0011: excepción acotada para el warning de App Intents](../adr/0011-bounded-xcode-app-intents-warning-exception.md)
 - [Documentación y DocC](07-documentation-and-docc.md)
-- [ADR 0015: flujos nativos, composición live y navegación adaptable](../adr/0015-native-flows-live-composition-and-adaptive-navigation.md)
-- [ADR 0013: frontera de logout Advanced y bridge Deluxe](../adr/0013-advanced-logout-and-deluxe-bridge-boundary.md)
-- [ADR 0016: ledger versionado y frontera Keychain de sesión](../adr/0016-versioned-session-ledger-and-keychain-boundary.md)
+- [ADR 0017: flujos nativos y respuesta HTTP con status validado](../adr/0017-validated-http-status-response-boundary.md)
+- [ADR 0018: bundle único de sesión en Keychain y logout atómico](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)

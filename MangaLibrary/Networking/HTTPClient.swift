@@ -5,6 +5,12 @@
 
 import Foundation
 
+/// The validated bytes and status returned by one HTTP request.
+struct HTTPResponse {
+    let data: Data
+    let statusCode: Int
+}
+
 /// An immutable, app-scoped boundary around an injected `URLSession`.
 ///
 /// The client performs transport and HTTP validation only. Decoding, retries,
@@ -26,6 +32,19 @@ struct HTTPClient {
     ///   `.transport(.unknown)` when URL loading produces a non-URL error.
     @concurrent
     func data(for request: URLRequest, expecting statusCode: Int = 200) async throws -> Data {
+        try await response(for: request, accepting: [statusCode]).data
+    }
+
+    /// Loads one request and exposes its status only after HTTP validation.
+    ///
+    /// - Parameters:
+    ///   - request: The fully composed request to load.
+    ///   - statusCodes: The exact statuses accepted by the caller.
+    /// - Returns: Validated response bytes and their HTTP status.
+    /// - Throws: `CancellationError`, ``NetworkError``, or
+    ///   `.transport(.unknown)` when URL loading produces a non-URL error.
+    @concurrent
+    func response(for request: URLRequest, accepting statusCodes: Set<Int>) async throws -> HTTPResponse {
         let result: (data: Data, response: URLResponse)
 
         do {
@@ -48,11 +67,11 @@ struct HTTPClient {
             throw NetworkError.invalidResponse
         }
 
-        guard response.statusCode == statusCode else {
+        guard statusCodes.contains(response.statusCode) else {
             throw NetworkError.statusCode(response.statusCode)
         }
 
-        return result.data
+        return HTTPResponse(data: result.data, statusCode: response.statusCode)
     }
 }
 

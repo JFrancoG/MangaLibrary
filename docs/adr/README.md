@@ -21,10 +21,12 @@ sus compromisos.
 | [0010](0010-widgetkit-event-driven-freshness.md) | Frescura dirigida por eventos para WidgetKit | Accepted | 2026-08-18 |
 | [0011](0011-bounded-xcode-app-intents-warning-exception.md) | Excepción acotada para el warning de App Intents de Xcode | Accepted | 2026-08-25 |
 | [0012](0012-private-repository-and-sanitized-practice-source.md) | Repositorio privado y fuente docente saneada | Accepted | 2026-08-25 |
-| [0013](0013-advanced-logout-and-deluxe-bridge-boundary.md) | Frontera de logout Advanced y bridge Deluxe | Accepted | 2026-08-25 |
+| [0013](0013-advanced-logout-and-deluxe-bridge-boundary.md) | Frontera de logout Advanced y bridge Deluxe | Superseded | 2026-08-25 |
 | [0014](0014-native-flows-live-composition-and-direct-doubles.md) | Flujos nativos, composición live y dobles directos | Superseded | 2026-08-27 |
-| [0015](0015-native-flows-live-composition-and-adaptive-navigation.md) | Flujos nativos, composición live y navegación adaptable | Accepted | 2026-08-28 |
-| [0016](0016-versioned-session-ledger-and-keychain-boundary.md) | Ledger versionado y frontera Keychain de sesión | Accepted | 2026-08-30 |
+| [0015](0015-native-flows-live-composition-and-adaptive-navigation.md) | Flujos nativos, composición live y navegación adaptable | Superseded | 2026-08-28 |
+| [0016](0016-versioned-session-ledger-and-keychain-boundary.md) | Ledger versionado y frontera Keychain de sesión | Superseded | 2026-08-30 |
+| [0017](0017-validated-http-status-response-boundary.md) | Flujos nativos y respuesta HTTP con status validado | Accepted | 2026-08-31 |
+| [0018](0018-single-keychain-session-bundle-and-atomic-logout.md) | Bundle único de sesión en Keychain y logout atómico | Accepted | 2026-09-01 |
 
 ## Inmutabilidad y supersesión
 
