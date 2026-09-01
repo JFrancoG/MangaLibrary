@@ -661,7 +661,7 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 - S1 entrega identidad, sesión dual y Keychain de producto mediante la PR #34. Su estado y evidencia originales viven en la sección correspondiente; la corrección Keychain V2 del 2026-09-01 queda registrada separadamente arriba.
 - La entrega original de S2 no acreditó una escritura live; la observación manual posterior de `201` y su compatibilidad quedan registradas en S2.2 sin exponer datos de cuenta.
 - S2.2 entrega mediante la PR #40 la validación y presentación de credenciales, la corrección HTTP y la autoridad Keychain V2 reconciliadas en el issue #39; no incorpora persistencia de producto.
-- L1 materializa localmente `ModelContainer`, esquema V1, modelos SwiftData, outbox y primera mutación atómica, pero todavía no está entregado. No existen UI funcional de Colección, `@Query` de producto, worker ni sincronización remota.
+- L1 entrega mediante la PR #44 `ModelContainer`, esquema V1, modelos SwiftData, outbox y primera mutación atómica. No existen UI funcional de Colección, `@Query` de producto, worker ni sincronización remota.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La evidencia física histórica comprende la instalación y visualización del icono observada por el propietario y las comprobaciones sintéticas de la implementación S1 original. La corrección vigente añade 30/30 casos de sesión aprobados en el iPhone 11, incluido el service Keychain V2 aislado, además de build y lanzamiento del producto; no usa credenciales ni red live. No existe todavía evidencia de accesibilidad física, App Group, WatchConnectivity o integración live.
 - No se ha autorizado publicación DocC ni GitHub Pages.
