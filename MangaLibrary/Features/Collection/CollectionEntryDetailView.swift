@@ -10,7 +10,7 @@ struct CollectionEntryDetailView: View {
     @State private var editorSeed: CollectionEditorSeed?
 
     let entry: CollectionEntry
-    let userID: UUID
+    let scope: CollectionUserScope
     let restriction: CollectionAccess.MutationRestriction?
     let mutation: CollectionMutation
 
@@ -18,12 +18,8 @@ struct CollectionEntryDetailView: View {
         if let mangaSnapshot = entry.mangaSnapshot {
             let manga = mangaSnapshot.manga(knownTotalVolumes: entry.knownTotalVolumes)
             MangaDetailView(manga: manga) {
-                CollectionControlsView(
-                    manga: manga,
-                    access: .user(userID, restriction: restriction),
-                    mutation: mutation
-                )
-                .id(CollectionIdentity(userID: userID, mangaID: manga.id))
+                CollectionControlsView(manga: manga, access: .user(scope, restriction: restriction), mutation: mutation)
+                .id(CollectionIdentity(userID: scope.userID, mangaID: manga.id))
             }
         } else {
             ScrollView {
@@ -44,9 +40,9 @@ struct CollectionEntryDetailView: View {
 
                     if let restriction {
                         CollectionReadOnlyBanner(restriction: restriction)
-                    } else {
+                    } else if let authority = scope.authority {
                         Button("Edit Collection", systemImage: "pencil") {
-                            editorSeed = seed
+                            editorSeed = seed(authority: authority)
                         }
                         .buttonStyle(.borderedProminent)
                         .accessibilityIdentifier("collection.edit.\(entry.mangaID)")
@@ -65,13 +61,17 @@ struct CollectionEntryDetailView: View {
                     editorSeed = nil
                 }
             }
+            .onChange(of: scope.authority) { _, _ in
+                editorSeed = nil
+            }
             .accessibilityIdentifier("collection.missing-details.\(entry.mangaID)")
         }
     }
 
-    private var seed: CollectionEditorSeed {
+    private func seed(authority: SessionAuthority) -> CollectionEditorSeed {
         CollectionEditorSeed(
-            identity: CollectionIdentity(userID: userID, mangaID: entry.mangaID),
+            identity: CollectionIdentity(userID: scope.userID, mangaID: entry.mangaID),
+            authority: authority,
             title: nil,
             mangaSnapshot: nil,
             state: entry.state,

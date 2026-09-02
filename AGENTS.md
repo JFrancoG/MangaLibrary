@@ -93,7 +93,7 @@ Preservar todo trabajo ajeno o previo. No usar `stash`, `reset`, `clean`, cambio
 - Usar URLSession, URLComponents y DTO `Codable` tipados; validar respuesta HTTP antes de decodificar.
 - Mapear errores de transporte a infraestructura y dominio antes de presentarlos.
 - No probar contra producción ni depender de red real en tests.
-- Guardar access y refresh token en Keychain; nunca guardar contraseña.
+- Guardar el JWT único de sesión en Keychain; nunca guardar contraseña.
 - Inyectar cualquier App-Token o configuración sensible mediante un archivo local ignorado.
 - Redactar tokens, contraseñas, cuentas, correos, rutas privadas y payloads sensibles de logs, issues, fixtures, capturas, DocC, presentación y vídeo.
 - Un entitlement, App Group, Keychain group, backend write o activación live requiere alcance y autorización explícitos.

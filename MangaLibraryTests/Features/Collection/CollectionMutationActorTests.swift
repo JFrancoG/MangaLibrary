@@ -18,7 +18,7 @@ struct CollectionMutationActorTests {
         await #expect(throws: CollectionMutationError.mangaSnapshotRequired) {
             try await actor.apply(
                 CollectionMutationCommand(
-                    userID: Self.userA,
+                    authority: Self.authority(for: Self.userA),
                     mangaID: Self.mangaA,
                     knownTotalVolumes: nil,
                     change: .replaceOwnedVolumes([1])
@@ -41,7 +41,7 @@ struct CollectionMutationActorTests {
         ) {
             try await actor.apply(
                 CollectionMutationCommand(
-                    userID: Self.userA,
+                    authority: Self.authority(for: Self.userA),
                     mangaID: Self.mangaA,
                     mangaSnapshot: mismatchedSnapshot,
                     knownTotalVolumes: nil,
@@ -315,7 +315,7 @@ struct CollectionMutationActorTests {
         )
         let deleted = try await actor.apply(
             CollectionMutationCommand(
-                userID: Self.userA,
+                authority: Self.authority(for: Self.userA),
                 mangaID: Self.mangaA,
                 knownTotalVolumes: 3,
                 change: .delete
@@ -835,7 +835,7 @@ struct CollectionMutationActorTests {
         change: CollectionMutationCommand.Change
     ) -> CollectionMutationCommand {
         CollectionMutationCommand(
-            userID: userID,
+            authority: Self.authority(for: userID),
             mangaID: mangaID,
             mangaSnapshot: CollectionMangaSnapshot(manga: manga(id: mangaID)),
             knownTotalVolumes: knownTotalVolumes,
@@ -862,6 +862,10 @@ struct CollectionMutationActorTests {
 
     private static let userA = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
     private static let userB = UUID(uuidString: "66666666-7777-8888-9999-AAAAAAAAAAAA")!
+
+    private static func authority(for userID: UUID) -> SessionAuthority {
+        SessionAuthority(userID: userID, generation: UUID(uuidString: "C011EC71-0000-0000-0000-000000000001")!)
+    }
     private static let mangaA: Manga.ID = 42
     private static let mangaB: Manga.ID = 84
     private static let operationA = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!

@@ -11,12 +11,10 @@ import Testing
 struct SessionAPIClientTests {
     private static let now = Date(timeIntervalSince1970: 1_700_000_000)
 
-    @Test("Login completes the exact Basic request and returns a refresh credential")
+    @Test("JWT login completes the exact Basic request and returns one session credential")
     func loginBuildsExactBasicRequest() async throws(any Error) {
         let recorder = SessionRecordedDataLoader(
-            data: Data(
-                #"{"token":"fixture-refresh","tokenType":"Bearer","expiresIn":2592000,"tokenUse":"refresh"}"#.utf8
-            )
+            data: Data(#"{"token":"fixture-jwt","tokenType":"Bearer","expiresIn":86400}"#.utf8)
         )
         let client = try makeClient { request in
             await recorder.load(request)
@@ -28,7 +26,7 @@ struct SessionAPIClientTests {
         #expect(requests.count == 1)
         let request = try #require(requests.first)
         #expect(request.httpMethod == "POST")
-        #expect(request.url?.absoluteString == "https://session.example.test/users/session/login")
+        #expect(request.url?.absoluteString == "https://session.example.test/users/jwt/login")
         #expect(
             request.value(forHTTPHeaderField: "Authorization")
                 == "Basic cmVhZGVyQGV4YW1wbGUuaW52YWxpZDpzeW50aGV0aWMtcGFzc3BocmFzZQ=="
@@ -37,34 +35,33 @@ struct SessionAPIClientTests {
         #expect(request.cachePolicy == .reloadIgnoringLocalCacheData)
         #expect(request.value(forHTTPHeaderField: "Content-Type") == nil)
         #expect(request.value(forHTTPHeaderField: "App-Token") == nil)
-        #expect(credential.value == "fixture-refresh")
-        #expect(credential.use == .refresh)
-        #expect(credential.expiresAt == Self.now.addingTimeInterval(2_592_000))
+        #expect(credential.value == "fixture-jwt")
+        #expect(credential.expiresAt == Self.now.addingTimeInterval(86_400))
     }
 
-    @Test("Access exchange uses the refresh credential as Bearer")
-    func accessExchangeBuildsExactBearerRequest() async throws(any Error) {
+    @Test("JWT refresh uses the current session credential as Bearer")
+    func jwtRefreshBuildsExactBearerRequest() async throws(any Error) {
         let recorder = SessionRecordedDataLoader(
-            data: Data(#"{"token":"fixture-access","tokenType":"Bearer","expiresIn":3600,"tokenUse":"access"}"#.utf8)
+            data: Data(#"{"token":"fixture-renewed-jwt","tokenType":"Bearer","expiresIn":86400}"#.utf8)
         )
         let client = try makeClient { request in
             await recorder.load(request)
         }
 
-        let credential = try await client.exchangeAccess(refreshToken: "fixture-refresh")
+        let credential = try await client.refresh(token: "fixture-jwt")
 
         let requests = await recorder.requests()
         #expect(requests.count == 1)
         let request = try #require(requests.first)
-        #expect(request.httpMethod == "GET")
-        #expect(request.url?.absoluteString == "https://session.example.test/users/session/access")
-        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-refresh")
+        #expect(request.httpMethod == "POST")
+        #expect(request.url?.absoluteString == "https://session.example.test/users/jwt/refresh")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-jwt")
         #expect(request.httpBody == nil)
         #expect(request.cachePolicy == .reloadIgnoringLocalCacheData)
+        #expect(request.value(forHTTPHeaderField: "Content-Type") == nil)
         #expect(request.value(forHTTPHeaderField: "App-Token") == nil)
-        #expect(credential.value == "fixture-access")
-        #expect(credential.use == .access)
-        #expect(credential.expiresAt == Self.now.addingTimeInterval(3_600))
+        #expect(credential.value == "fixture-renewed-jwt")
+        #expect(credential.expiresAt == Self.now.addingTimeInterval(86_400))
     }
 
     @Test("Current-user lookup maps the required remote identity")
@@ -86,15 +83,17 @@ struct SessionAPIClientTests {
             await recorder.load(request)
         }
 
-        let identity = try await client.fetchIdentity(accessToken: "fixture-access")
+        let identity = try await client.fetchIdentity(accessToken: "fixture-jwt")
 
         let requests = await recorder.requests()
         #expect(requests.count == 1)
         let request = try #require(requests.first)
         #expect(request.httpMethod == "GET")
-        #expect(request.url?.absoluteString == "https://session.example.test/users/session/me")
-        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-access")
+        #expect(request.url?.absoluteString == "https://session.example.test/users/jwt/me")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-jwt")
+        #expect(request.httpBody == nil)
         #expect(request.cachePolicy == .reloadIgnoringLocalCacheData)
+        #expect(request.value(forHTTPHeaderField: "Content-Type") == nil)
         #expect(request.value(forHTTPHeaderField: "App-Token") == nil)
         #expect(identity.id == UUID(uuidString: "11111111-2222-3333-4444-555555555555"))
         #expect(identity.email == "reader@example.invalid")
@@ -147,7 +146,7 @@ struct SessionAPIClientTests {
         }
 
         await #expect(throws: SessionAPIClientError.network(error)) {
-            try await client.exchangeAccess(refreshToken: "fixture-refresh")
+            try await client.refresh(token: "fixture-jwt")
         }
     }
 
@@ -182,7 +181,6 @@ struct SessionAPIClientTests {
 enum InvalidSessionTokenResponse: CaseIterable, CustomTestStringConvertible {
     case missingRequiredField
     case unexpectedTokenType
-    case unexpectedTokenUse
     case emptyToken
     case zeroLifetime
 
@@ -190,15 +188,13 @@ enum InvalidSessionTokenResponse: CaseIterable, CustomTestStringConvertible {
         let payload: String
         switch self {
         case .missingRequiredField:
-            payload = #"{"token":"fixture-refresh","tokenType":"Bearer","expiresIn":2592000}"#
+            payload = #"{"token":"fixture-jwt","tokenType":"Bearer"}"#
         case .unexpectedTokenType:
-            payload = #"{"token":"fixture-refresh","tokenType":"Basic","expiresIn":2592000,"tokenUse":"refresh"}"#
-        case .unexpectedTokenUse:
-            payload = #"{"token":"fixture-refresh","tokenType":"Bearer","expiresIn":2592000,"tokenUse":"access"}"#
+            payload = #"{"token":"fixture-jwt","tokenType":"Basic","expiresIn":86400}"#
         case .emptyToken:
-            payload = #"{"token":"","tokenType":"Bearer","expiresIn":2592000,"tokenUse":"refresh"}"#
+            payload = #"{"token":"","tokenType":"Bearer","expiresIn":86400}"#
         case .zeroLifetime:
-            payload = #"{"token":"fixture-refresh","tokenType":"Bearer","expiresIn":0,"tokenUse":"refresh"}"#
+            payload = #"{"token":"fixture-jwt","tokenType":"Bearer","expiresIn":0}"#
         }
 
         return Data(payload.utf8)
@@ -208,7 +204,6 @@ enum InvalidSessionTokenResponse: CaseIterable, CustomTestStringConvertible {
         switch self {
         case .missingRequiredField: "missing required field"
         case .unexpectedTokenType: "unexpected token type"
-        case .unexpectedTokenUse: "unexpected token use"
         case .emptyToken: "empty token"
         case .zeroLifetime: "zero lifetime"
         }

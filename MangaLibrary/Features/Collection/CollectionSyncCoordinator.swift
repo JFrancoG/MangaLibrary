@@ -24,7 +24,7 @@ enum CollectionSyncError: Error, Equatable {
 /// inside the sole synchronous SwiftData transaction.
 actor CollectionSyncCoordinator {
     typealias Authorize = @Sendable () async throws(any Error) -> SessionRequestAuthorization
-    typealias ValidateAuthorization = @Sendable (SessionRequestAuthorization) async -> Bool
+    typealias ValidateAuthorization = @Sendable (SessionRequestAuthorization) async throws(any Error) -> Bool
     typealias RecoverAuthorization = @Sendable (
         SessionRequestAuthorization
     ) async throws(any Error) -> SessionRequestAuthorization
@@ -73,7 +73,12 @@ actor CollectionSyncCoordinator {
         let identity = OperationIdentity()
         let task = Task { [authorize, validateAuthorization, recoverAuthorization, fetchRemote, importRemote] in
             try Task.checkCancellation()
-            var authorization = try await authorize()
+            var authorization: SessionRequestAuthorization
+            do {
+                authorization = try await authorize()
+            } catch let error as SessionAuthorizationRecoveryError {
+                throw Self.authenticationIncompatibility(from: error)
+            }
             try Task.checkCancellation()
             let remoteEntries: [CollectionRemoteEntry]
             do {
@@ -82,7 +87,9 @@ actor CollectionSyncCoordinator {
                 guard case let .network(.statusCode(statusCode)) = error else { throw error }
                 switch statusCode {
                 case 403:
-                    guard await validateAuthorization(authorization) else { throw CollectionSyncError.sessionChanged }
+                    guard try await validateAuthorization(authorization) else {
+                        throw CollectionSyncError.sessionChanged
+                    }
                     Self.logAuthorizationDenied(statusCode: statusCode, attempt: 1)
                     throw CollectionSyncError.authorizationDenied(
                         origin: .collectionSnapshot(attempt: 1),
@@ -93,24 +100,14 @@ actor CollectionSyncCoordinator {
                     do {
                         authorization = try await recoverAuthorization(authorization)
                     } catch let recoveryError as SessionAuthorizationRecoveryError {
-                        switch recoveryError {
-                        case let .identityRejected(identityStatusCode):
-                            Self.logAuthenticationIncompatible(
-                                origin: .renewedSessionIdentity,
-                                statusCode: identityStatusCode
-                            )
-                            throw CollectionSyncError.authenticationIncompatible(
-                                origin: .renewedSessionIdentity,
-                                statusCode: identityStatusCode
-                            )
-                        }
+                        throw Self.authenticationIncompatibility(from: recoveryError)
                     }
                     try Task.checkCancellation()
                     do {
                         remoteEntries = try await fetchRemote(authorization.accessToken)
                     } catch let retryError as CollectionAPIClientError {
                         guard case let .network(.statusCode(retryStatusCode)) = retryError else { throw retryError }
-                        guard await validateAuthorization(authorization) else {
+                        guard try await validateAuthorization(authorization) else {
                             throw CollectionSyncError.sessionChanged
                         }
                         switch retryStatusCode {
@@ -139,9 +136,19 @@ actor CollectionSyncCoordinator {
             }
             try Task.checkCancellation()
 
-            guard await validateAuthorization(authorization) else { throw CollectionSyncError.sessionChanged }
+            guard try await validateAuthorization(authorization) else { throw CollectionSyncError.sessionChanged }
             try Task.checkCancellation()
-            try await importRemote(remoteEntries, authorization.commitAuthorization)
+            do {
+                try await importRemote(remoteEntries, authorization.commitAuthorization)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch CollectionRemoteImportError.cancelled {
+                throw CancellationError()
+            } catch {
+                let importError = error
+                guard try await validateAuthorization(authorization) else { throw CollectionSyncError.sessionChanged }
+                throw importError
+            }
         }
         let flight = Flight(identity: identity, task: task)
         activeFlight = flight
@@ -171,7 +178,7 @@ actor CollectionSyncCoordinator {
 
     private static func logAuthenticationRecovery(statusCode: Int) {
         logger.notice(
-            "R1 access rejected: origin=collectionSnapshot status=\(statusCode, privacy: .public) attempt=1 action=refresh"
+            "R1 access rejected: origin=collectionSnapshot status=\(statusCode, privacy: .public) attempt=1 action=recoverAuthorization"
         )
     }
 
@@ -187,6 +194,16 @@ actor CollectionSyncCoordinator {
             )
         }
     }
+
+    private static func authenticationIncompatibility(
+        from error: SessionAuthorizationRecoveryError
+    ) -> CollectionSyncError {
+        switch error {
+        case let .identityRejected(statusCode):
+            logAuthenticationIncompatible(origin: .renewedSessionIdentity, statusCode: statusCode)
+            return .authenticationIncompatible(origin: .renewedSessionIdentity, statusCode: statusCode)
+        }
+    }
 }
 
 extension CollectionSyncCoordinator {
@@ -194,7 +211,7 @@ extension CollectionSyncCoordinator {
         self.init(
             authorize: { try await sessionController.requestAuthorization() },
             validateAuthorization: { authorization in
-                await sessionController.authorizes(authorization)
+                try await sessionController.authorizes(authorization)
             },
             recoverAuthorization: { authorization in
                 try await sessionController.recoverAuthorization(after: authorization)

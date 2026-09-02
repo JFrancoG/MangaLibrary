@@ -22,9 +22,9 @@ struct CollectionRootView: View {
                 .navigationTitle("Collection")
                 .accessibilityIdentifier("collection.unavailable")
             }
-        case let .user(userID, restriction):
-            CollectionUserRootView(userID: userID, restriction: restriction, mutation: mutation)
-                .id(userID)
+        case let .user(scope, restriction):
+            CollectionUserRootView(scope: scope, restriction: restriction, mutation: mutation)
+                .id(scope.userID)
         }
     }
 }

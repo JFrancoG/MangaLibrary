@@ -151,11 +151,13 @@ struct CollectionMutationCommand: Equatable {
         case delete
     }
 
-    let userID: UUID
+    let authority: SessionAuthority
     let mangaID: Manga.ID
     private(set) var mangaSnapshot: CollectionMangaSnapshot? = nil
     let knownTotalVolumes: Int64?
     let change: Change
+
+    var userID: UUID { authority.userID }
 }
 
 /// The committed collection and outbox identity returned by one mutation.

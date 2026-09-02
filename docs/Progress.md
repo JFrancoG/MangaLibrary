@@ -1,7 +1,41 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-02
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2 y R1 entregados; la corrección crítica #55 se entrega mediante la PR #56 y permanece pendiente atribuir live el status histórico exacto
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2 y R1 entregados; #55 está entregada mediante la PR #56 y #58 queda implementada y validada localmente, pendiente de autorización de entrega
+
+## Compatibilidad JWT única con Colección — issue #58
+
+- El [issue #58 — Auth: migrar a JWT único compatible con Colección](https://github.com/JFrancoG/MangaLibrary/issues/58) se abrió sin duplicados y permanece abierto. La rama `codex/58-jwt-collection-auth` parte de `main@80ac1bb665c4a4cfc380b3d8617aa276ced83cc0` y se trabaja en un worktree aislado para no mezclar ni modificar la rama R2 `codex/57-r2-outbox-sync`, que ya contenía trabajo local sin entregar.
+- La evidencia live manual atribuye por fin el status inmediato: el access del flujo dual obtiene `200` en `GET /users/session/me`, pero `GET /collection/manga` devuelve `401`, también después de renovarlo. Los JWT de `POST /users/jwt/login` y `POST /users/jwt/refresh` obtienen `200` tanto en `GET /users/jwt/me` como en Colección; ambos declararon 86.400 segundos. No se conservan tokens, credenciales, cuenta, UUID, cabeceras completas ni cuerpos.
+- El OpenAPI vivo y el snapshot versionado continúan coincidiendo con SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b` y siguen publicando ambas familias como válidas. La causa más probable es una configuración o middleware de autenticación de Colección que solo reconoce la familia JWT única; no se dispone de configuración interna del backend para demostrar qué componente exacto produce la deriva.
+- ADR-0019 adopta el JWT único y supersede ADR-0006 y ADR-0018. SDD 00 v1.9, SDD 04 v1.17, SDD 05 v1.6 y SDD 06 v1.20 sustituyen la autoridad dual, conservan el límite Advanced/Deluxe y definen la validación proporcional. El contrato se documenta como deriva runtime, sin alterar ni reinterpretar su snapshot.
+- Sesión ejecuta `jwt/login` → `jwt/me`, persiste solo UUID, generación, JWT y expiración en un envelope Keychain V3, y renueva con `jwt/refresh` → `jwt/me` cinco minutos antes de vencer. V1/V2 se retiran de forma fail-closed y requieren un login nuevo; nunca se reinterpretan como JWT clásico. La contraseña sigue siendo efímera y no se decodifican claims.
+- Cada autorización y commit queda cercado por UUID, generación, revisión opaca de credencial, JWT exacto y expiración. Activar o renovar rota la revisión aunque el servidor repita el mismo texto. Los refresh concurrentes son single-flight; los resultados A→B tardíos no alcanzan otra sesión y una recuperación A→B se une a un refresh B→C ya iniciado antes de devolver, por lo que nunca publica B como credencial intermedia.
+- R1 conserva la política de #55: el primer `401` de Colección fuerza una renovación validada y un único retry del GET; un segundo `401` conserva sesión y muestra incompatibilidad. `403` conserva sesión sin refresh ni retry. Un rechazo permanente de `jwt/refresh`, un JWT vencido o una identidad distinta sí producen `authenticationRequired`. Los fallos Keychain seguros sobreviven a cancelación y se presentan en Cuenta para la autoridad exacta, incluso como aviso no bloqueante cuando el JWT anterior mantiene el snapshot activo.
+- La autoridad completa llega también a los editores y comandos locales. Una sheet de la generación A no puede escribir Colección u outbox después de activar B con el mismo UUID; una rotación de credencial dentro de la misma generación puede resolver una capacidad nueva antes del commit. No se implementa R2, no se llama a POST/DELETE de Colección y no se introduce una escritura live.
+
+### RED / GREEN y validación local de #58
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Swift Testing — RED / GREEN | El RED inicial no compiló porque la sesión aún carecía de `refresh(token:)`. Las regresiones nuevas cubren requests JWT exactos, V3 y retirada V2, ventana preventiva, expiración, identidad, single-flight, texto JWT repetido, carreras A→B/ABA/B→C, cancelación y fallos de carga, reemplazo o limpieza Keychain. Los cuatro últimos bordes pasan 4/4; `SessionController` + `AccountModel`, 120/120; selección afectada de Cuenta, Colección y Sesión, 278/278. |
+| Xcode MCP — `ReleaseGate` | 379/379 resultados aprobados en iPhone 17 Simulator con iOS 27: cero fallos, skips, expected failures o casos no ejecutados. Incluye los smokes UI sintéticos; ningún test usa una cuenta, credencial o red de producción. |
+| Xcode MCP — build y diagnósticos | Build-for-testing y build normal aprobados con warnings como errores; el log estructurado final no contiene warnings ni errores propios. |
+| `Scripts/validate-docc.sh` | Ocho escenarios deterministas del clasificador y archive Release aprobados, con warnings DocC como errores y solo la emisión externa exacta acotada por ADR-0011. El archive permanece local y no se publica. |
+| UI y revisiones independientes | Cuenta conserva el estado autenticado y presenta por separado incompatibilidad de Colección, permiso insuficiente o fallo de persistencia. Las previews afectadas se revisan en Large, XXX Large y AX5, incluido detalle read-only. Las auditorías iOS, concurrencia, seguridad, testing, SwiftUI/accesibilidad y `swift-source-style` cierran sin hallazgos P0–P3. No se atribuye cobertura de VoiceOver, Voice Control, Switch Control, Acceso total con teclado, dispositivo físico o Accessibility Inspector. |
+| Privacidad e integridad | `git diff --check`, el detector de estilo y los escaneos de logs, secretos y escapes de concurrencia quedan limpios. No cambian `project.pbxproj`, targets, test plans, dependencias ni entitlements. El checkout R2 original permanece preservado. |
+
+La evidencia automatizada demuestra que la composición de producción entrega el
+mismo JWT sintético a identidad y al GET R1, que un retry correcto mantiene la
+sesión y que un segundo rechazo ya no forma un bucle de credenciales. La evidencia
+manual demuestra por separado que la familia JWT única es aceptada live por
+Colección. Todavía falta reinstalar o ejecutar esta versión concreta, iniciar
+sesión de nuevo tras retirar V2 y confirmar el recorrido completo en el iPhone;
+sin acceso al backend no puede atribuirse el middleware interno ni garantizarse
+que su configuración no vuelva a cambiar.
+
+No se ha hecho commit, push, PR, merge, cierre de issue ni borrado de rama; esas
+acciones continúan detrás de la autorización de entrega del propietario.
 
 ## Corrección crítica del bucle de reautenticación R1 — issue #55
 
@@ -186,7 +220,7 @@ La implementación se versiona inicialmente en `f2b0b10` y se entrega mediante l
 ## Corrección de persistencia de sesión — 2026-09-01
 
 - Durante el login manual posterior al alta, el diagnóstico local saneado alcanzó la activación de sesión y registró `stage=write-ledger` con `code=file-system-failure`. Esa evidencia sitúa el fallo histórico en la escritura del ledger de Application Support, después del pipeline remoto refresh → access → `/me`; no registra status HTTP, email, credenciales, tokens, payloads ni rutas privadas.
-- La corrección posterior no reescribe la entrega original de S1 mediante la PR #34, documentada más abajo. Sustituye en el estado vigente el ledger y los bundles Keychain V1 por un único ítem Keychain V2 `WhenUnlockedThisDeviceOnly`, no sincronizable y con `kSecAttrAccount = current-session`, fijo y no identificador. Su valor versionado reúne UUID, generación, access y refresh con sus expiraciones; no persiste email, contraseña o roles. La limpieza también retira el namespace Keychain V1 conocido.
+- La corrección posterior no reescribe la entrega original de S1 mediante la PR #34, documentada más abajo. Sustituyó entonces el ledger y los bundles Keychain V1 por un único ítem Keychain V2 `WhenUnlockedThisDeviceOnly`, no sincronizable y con `kSecAttrAccount = current-session`, fijo y no identificador. Su valor versionado reunía UUID, generación, access y refresh con sus expiraciones; no persistía email, contraseña o roles. La limpieza también retiraba el namespace Keychain V1 conocido. ADR-0019 y la corrección #58 sustituyen después esta autoridad dual por el JWT único y V3 sin reescribir la evidencia histórica de esa entrega.
 - Login activa una generación únicamente después de guardar el registro completo. Refresh reemplaza el mismo ítem solo si continúa perteneciendo a la generación esperada y conserva el refresh vigente; un fallo de escritura deja intacta la sesión anterior.
 - Logout relee y compara UUID y generación antes de borrar. Solo publica `signedOut` cuando la eliminación condicionada termina; un fallo conserva la sesión activa y permite repetir logout. Una eliminación o refresh tardíos de A se convierten en no-op cuando B ya es la autoridad.
 - Un refresh expirado o rechazado permanentemente deja de autorizar inmediatamente la generación en memoria y proyecta `authenticationRequired(userID)`. Después intenta retirar su registro; si Keychain falla, la incidencia permanece visible y el proceso no vuelve a entregar el access rechazado, aunque el envelope residual solo podrá distinguirse tras relanzar mediante otra revalidación remota. Sin registro, la restauración termina en `signedOut`.
@@ -789,7 +823,7 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 
 La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden de implementación. El orden operativo parte de dos decisiones ya aprobadas: la colección local se identifica por **usuario + manga** y no existe una política de colección anónima. S1, S2, S2.1, S2.2, L1 y L2 están entregados; L2 se incorpora mediante la PR #50. La secuencia completa es:
 
-1. **S1 — identidad y sesión dual, entregado.** Login Basic hacia refresh JWT, intercambio por access JWT, `/users/session/me`, identidad estable, Keychain para ambos tokens, contraseña solo en memoria, renovación única concurrente, restauración, generaciones de sesión y estados básicos de Cuenta. El logout local cubre el escenario sin operaciones pendientes, pero no acredita todavía el gate Advanced que dependerá de la outbox. La PR #34 introdujo originalmente el ledger descrito por [ADR-0016](adr/0016-versioned-session-ledger-and-keychain-boundary.md); la corrección del 2026-09-01 registrada arriba lo sustituye en el código vigente por un único registro Keychain V2 y borrado condicionado por generación.
+1. **S1 — identidad y sesión JWT única, entregado; corrección #58 pendiente de entrega.** La PR #34 introdujo originalmente el flujo dual y el ledger descrito por [ADR-0016](adr/0016-versioned-session-ledger-and-keychain-boundary.md); la corrección del 2026-09-01 lo sustituyó por Keychain V2. ADR-0019 adopta ahora `jwt/login` → `jwt/me`, un único envelope Keychain V3, renovación preventiva mediante `jwt/refresh`, contraseña solo en memoria, single-flight, generaciones de sesión y estados básicos de Cuenta. El logout local cubre el escenario sin operaciones pendientes, pero no acredita todavía el gate Advanced que dependerá de la outbox.
 2. **S2 — alta de usuario, entregado.** `POST /users` con `App-Token` inyectado desde configuración local ignorada y alta enlazada con login, entregado mediante la PR #36. Una escritura live continúa necesitando autorización separada. S2 no añade todavía Colección.
 3. **S2.1 — acciones accesibles de Cuenta, entregado.** La PR #38 da jerarquía primaria y secundaria a las acciones sin sesión, incorpora el prompt de alta y conserva objetivos táctiles nativos y contraste adaptativo sin cambiar sesión, red o persistencia.
 4. **S2.2 — formularios de credenciales, entregado mediante la PR #40.** SDD 01 v1.4 y SDD 04 v1.13 definen propiedad de pantalla, gramática conservadora compartida y la compatibilidad exacta del alta con `200` publicado y `201` observado; login y alta presentan errores inline, mantienen los fallos no atribuibles a nivel de formulario, permiten mostrar u ocultar la contraseña con controles SwiftUI sin perder contenido o foco y conservan acciones primarias accesibles. El estado autenticado presenta la identidad segura y el logout con la misma jerarquía visual. No inicia persistencia de producto.
@@ -813,12 +847,12 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
 - Catálogo C1–C4, D1, Q1, P1 y Library Red están entregados. La limpieza posterior de tests tautológicos de consulta está en `main@1839c29` y no cambia comportamiento de producto.
-- S1 entrega identidad, sesión dual y Keychain de producto mediante la PR #34. Su estado y evidencia originales viven en la sección correspondiente; la corrección Keychain V2 del 2026-09-01 queda registrada separadamente arriba.
+- S1 conserva como historia la sesión dual de la PR #34 y la corrección Keychain V2 del 2026-09-01. El código vigente de la rama #58 usa el JWT único y Keychain V3 conforme a ADR-0019; su entrega sigue pendiente de autorización.
 - La entrega original de S2 no acreditó una escritura live; la observación manual posterior de `201` y su compatibilidad quedan registradas en S2.2 sin exponer datos de cuenta.
-- S2.2 entrega mediante la PR #40 la validación y presentación de credenciales, la corrección HTTP y la autoridad Keychain V2 reconciliadas en el issue #39; no incorpora persistencia de producto.
+- S2.2 entregó mediante la PR #40 la validación y presentación de credenciales y la autoridad Keychain V2 vigente en ese momento; #58 cambia solo la infraestructura de sesión a JWT único/V3 y no altera el workflow visual ni incorpora persistencia de producto.
 - L1 entrega mediante la PR #44 `ModelContainer`, esquema V1, modelos SwiftData, outbox y primera mutación atómica. L2 entrega mediante la PR #50 el esquema V2, `@Query`, presentación offline y UI de Colección. R1 entrega mediante la PR #54 la lectura e importación remota con reconciliación local-first; el worker y los envíos continúan reservados a R2.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
-- La evidencia física histórica comprende la instalación y visualización del icono observada por el propietario y las comprobaciones sintéticas de la implementación S1 original. La corrección vigente añade 30/30 casos de sesión aprobados en el iPhone 11, incluido el service Keychain V2 aislado, además de build y lanzamiento del producto; no usa credenciales ni red live. No existe todavía evidencia de accesibilidad física, App Group, WatchConnectivity o integración live.
+- La evidencia física histórica comprende la instalación y visualización del icono observada por el propietario y las comprobaciones sintéticas de S1 y Keychain V2. #58 se valida en simulador con Keychain V3 aislado y no constituye por sí sola una repetición física ni una prueba automatizada contra producción. No existe todavía evidencia de accesibilidad física, App Group o WatchConnectivity.
 - No se ha autorizado publicación DocC ni GitHub Pages.
 
 ## Pendiente externo

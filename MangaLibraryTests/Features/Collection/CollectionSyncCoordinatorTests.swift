@@ -5,6 +5,7 @@
 
 import Foundation
 import SwiftData
+import Synchronization
 import Testing
 @testable import MangaLibrary
 
@@ -106,6 +107,34 @@ struct CollectionSyncCoordinatorTests {
         #expect(await imports.events().isEmpty)
     }
 
+    @Test("A model-actor cancellation remains cancellation without authorization revalidation")
+    func remoteImportCancellationDoesNotBecomeAnAuthorizationFailure() async throws(any Error) {
+        let authority = SessionAuthority(userID: Self.userA, generation: Self.generationA)
+        let validationCount = Mutex(0)
+        let importCount = Mutex(0)
+        let coordinator = CollectionSyncCoordinator(
+            authorize: {
+                Self.authorization(authority: authority, accessToken: "fixture-access-A")
+            },
+            validateAuthorization: { _ in
+                validationCount.withLock { $0 += 1 }
+                return true
+            },
+            fetchRemote: { _ in [Self.remoteEntry] },
+            importRemote: { _, _ in
+                importCount.withLock { $0 += 1 }
+                throw CollectionRemoteImportError.cancelled
+            }
+        )
+
+        await #expect(throws: CancellationError.self) {
+            try await coordinator.importAuthenticatedCollection()
+        }
+
+        #expect(validationCount.withLock { $0 } == 1)
+        #expect(importCount.withLock { $0 } == 1)
+    }
+
     @Test("A generation invalidated after validation cannot cross the SwiftData commit boundary")
     func invalidationAtCommitBoundaryPreventsImport() async throws(any Error) {
         let authority = SessionAuthority(userID: Self.userA, generation: Self.generationA)
@@ -134,6 +163,38 @@ struct CollectionSyncCoordinatorTests {
         let context = ModelContext(container)
         #expect(try context.fetchCount(FetchDescriptor<CollectionEntry>()) == 0)
         #expect(try context.fetchCount(FetchDescriptor<CollectionOutboxOperation>()) == 0)
+    }
+
+    @Test("A JWT replacement in the same generation invalidates the prior commit capability")
+    func credentialReplacementAtCommitBoundaryPreventsImport() async throws(any Error) {
+        let authority = SessionAuthority(userID: Self.userA, generation: Self.generationA)
+        let gate = SessionCommitGate(activeAuthority: authority)
+        let authorization = SessionRequestAuthorization(
+            authority: authority,
+            accessToken: "fixture-access-B",
+            commitAuthorization: gate.authorization(for: authority)
+        )
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let actor = CollectionMutationActor(modelContainer: container)
+        let coordinator = CollectionSyncCoordinator(
+            authorize: { authorization },
+            validateAuthorization: { _ in true },
+            fetchRemote: { _ in [Self.remoteEntry] },
+            importRemote: { entries, commitAuthorization in
+                gate.activate(authority)
+                try await actor.importRemote(entries, authorization: commitAuthorization)
+            }
+        )
+
+        await #expect(throws: CollectionRemoteImportError.sessionChanged) {
+            try await coordinator.importAuthenticatedCollection()
+        }
+
+        let context = ModelContext(container)
+        #expect(try context.fetchCount(FetchDescriptor<CollectionEntry>()) == 0)
+        #expect(try context.fetchCount(FetchDescriptor<CollectionOutboxOperation>()) == 0)
+        let replacementAuthorization = gate.authorization(for: authority)
+        #expect(try replacementAuthorization.perform { true })
     }
 
     @Test("A Collection 403 keeps the request authorized without refresh or retry")
@@ -357,6 +418,71 @@ struct CollectionSyncCoordinatorTests {
         #expect(await imports.events().isEmpty)
     }
 
+    @Test("Preventive refresh identity rejection exposes backend incompatibility before Collection")
+    func initialAuthorizationRejectedByIdentityIsIncompatible() async throws(any Error) {
+        let fetch = ScriptedCollectionFetch(replies: [])
+        let imports = CollectionImportRecorder()
+        let coordinator = CollectionSyncCoordinator(
+            authorize: {
+                throw SessionAuthorizationRecoveryError.identityRejected(statusCode: 401)
+            },
+            validateAuthorization: { _ in true },
+            fetchRemote: { accessToken in try await fetch.load(accessToken: accessToken) },
+            importRemote: { entries, commitAuthorization in
+                await imports.record(entries: entries, userID: commitAuthorization.authority.userID)
+            }
+        )
+
+        await #expect(
+            throws: CollectionSyncError.authenticationIncompatible(origin: .renewedSessionIdentity, statusCode: 401)
+        ) {
+            try await coordinator.importAuthenticatedCollection()
+        }
+
+        #expect(await fetch.accessTokens().isEmpty)
+        #expect(await imports.events().isEmpty)
+    }
+
+    @Test("JWT login authorizes the first Collection snapshot with the same credential")
+    func jwtLoginAuthorizesCollectionImport() async throws(any Error) {
+        let storage = ControlledSessionPersistenceStorage()
+        let sessionLoader = R1SessionDataLoader(replies: [.data(Self.loginJWTResponse), .data(Self.identityResponse)])
+        let controller = try makeSessionController(loader: sessionLoader, storage: storage)
+        _ = try await controller.restore()
+        #expect(
+            try await controller.login(email: "reader@example.invalid", password: "synthetic-passphrase")
+                == .active(Self.accountA)
+        )
+        let collectionLoader = R1CollectionDataLoader(replies: [.data(Self.remoteSnapshotResponse)])
+        let client = try makeCollectionClient(loader: collectionLoader)
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let coordinator = CollectionSyncCoordinator(
+            sessionController: controller,
+            client: client,
+            mutationActor: CollectionMutationActor(modelContainer: container)
+        )
+
+        try await coordinator.importAuthenticatedCollection()
+
+        let context = ModelContext(container)
+        let entries = try context.fetch(FetchDescriptor<CollectionEntry>())
+        let sessionRequests = await sessionLoader.recordedRequests()
+        let loginRequest = try #require(sessionRequests.first)
+        let identityRequest = try #require(sessionRequests.last)
+        #expect(entries.map(\.mangaID) == [42])
+        #expect(storage.snapshot().record?.access.value == "fixture-login-jwt")
+        #expect(sessionRequests.compactMap { $0.url?.path } == ["/users/jwt/login", "/users/jwt/me"])
+        #expect(loginRequest.httpMethod == "POST")
+        #expect(
+            loginRequest.value(forHTTPHeaderField: "Authorization")
+                == "Basic cmVhZGVyQGV4YW1wbGUuaW52YWxpZDpzeW50aGV0aWMtcGFzc3BocmFzZQ=="
+        )
+        #expect(identityRequest.httpMethod == "GET")
+        #expect(identityRequest.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-login-jwt")
+        #expect(await collectionLoader.authorizationHeaders() == ["Bearer fixture-login-jwt"])
+        #expect(await controller.currentSnapshot() == .active(Self.accountA))
+    }
+
     @Test("The live 403 composition keeps the active session and its persisted envelope")
     func liveForbiddenResponseKeepsTheSessionEnvelope() async throws(any Error) {
         let session = try makePersistedSession()
@@ -382,9 +508,9 @@ struct CollectionSyncCoordinatorTests {
         let authorization = try await controller.requestAuthorization()
         #expect(await controller.currentSnapshot() == .active(Self.accountA))
         #expect(storage.snapshot().record == session)
-        #expect(await controller.authorizes(authorization))
+        #expect(try await controller.authorizes(authorization))
         #expect(await collectionLoader.requestCount() == 1)
-        #expect(await sessionLoader.requestPaths() == ["/users/session/me"])
+        #expect(await sessionLoader.requestPaths() == ["/users/jwt/me"])
     }
 
     @Test("A live 401 refreshes validates identity retries once and imports")
@@ -422,16 +548,50 @@ struct CollectionSyncCoordinatorTests {
         #expect(entries.map(\.mangaID) == [42])
         #expect(await controller.currentSnapshot() == .active(Self.accountA))
         #expect(storage.snapshot().record?.access.value == "fixture-access-renewed")
-        #expect(storage.snapshot().record?.refresh == session.refresh)
-        #expect(await controller.authorizes(currentAuthorization))
-        #expect(
-            await sessionLoader.requestPaths()
-                == ["/users/session/me", "/users/session/access", "/users/session/me"]
-        )
+        #expect(storage.snapshot().record?.authority == session.authority)
+        #expect(try await controller.authorizes(currentAuthorization))
+        #expect(await sessionLoader.requestPaths() == ["/users/jwt/me", "/users/jwt/refresh", "/users/jwt/me"])
         #expect(
             await collectionLoader.authorizationHeaders()
                 == ["Bearer fixture-access-A", "Bearer fixture-access-renewed"]
         )
+    }
+
+    @Test("JWT expiry at the R1 commit boundary prevents import and converges session state")
+    func expirationAtImportCommitRequiresAuthentication() async throws(any Error) {
+        let clock = Mutex(Self.now)
+        let session = try makePersistedSession()
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let sessionLoader = R1SessionDataLoader(replies: [.data(Self.identityResponse)])
+        let controller = try makeSessionController(
+            loader: sessionLoader,
+            storage: storage,
+            now: { clock.withLock { $0 } }
+        )
+        _ = try await controller.restore()
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let actor = CollectionMutationActor(modelContainer: container)
+        let coordinator = CollectionSyncCoordinator(
+            authorize: { try await controller.requestAuthorization() },
+            validateAuthorization: { authorization in
+                try await controller.authorizes(authorization)
+            },
+            fetchRemote: { _ in [Self.remoteEntry] },
+            importRemote: { entries, authorization in
+                clock.withLock { $0 = $0.addingTimeInterval(601) }
+                try await actor.importRemote(entries, authorization: authorization)
+            }
+        )
+
+        await #expect(throws: CollectionSyncError.sessionChanged) {
+            try await coordinator.importAuthenticatedCollection()
+        }
+
+        let context = ModelContext(container)
+        #expect(try context.fetchCount(FetchDescriptor<CollectionEntry>()) == 0)
+        #expect(try context.fetchCount(FetchDescriptor<CollectionOutboxOperation>()) == 0)
+        #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userA))
+        #expect(storage.snapshot().record == nil)
     }
 
     @Test("A 401 observed during failed logout forces refresh before the session is reused")
@@ -475,15 +635,12 @@ struct CollectionSyncCoordinatorTests {
 
         #expect(await controller.currentSnapshot() == .active(Self.accountA))
         #expect(storage.snapshot().record == session)
-        #expect(await controller.authorizes(rejectedAuthorization) == false)
+        #expect(try await controller.authorizes(rejectedAuthorization) == false)
         let renewedAuthorization = try await controller.requestAuthorization()
         #expect(renewedAuthorization.accessToken == "fixture-access-renewed")
-        #expect(await controller.authorizes(renewedAuthorization))
+        #expect(try await controller.authorizes(renewedAuthorization))
         #expect(storage.snapshot().record?.access.value == "fixture-access-renewed")
-        #expect(
-            await sessionLoader.requestPaths()
-                == ["/users/session/me", "/users/session/access", "/users/session/me"]
-        )
+        #expect(await sessionLoader.requestPaths() == ["/users/jwt/me", "/users/jwt/refresh", "/users/jwt/me"])
     }
 
     @Test("An empty live snapshot with confirmed pending and orphaned state never changes authentication")
@@ -505,7 +662,7 @@ struct CollectionSyncCoordinatorTests {
         )
         _ = try await seedActor.apply(
             CollectionMutationCommand(
-                userID: Self.userA,
+                authority: SessionAuthority(userID: Self.userA, generation: Self.generationA),
                 mangaID: 84,
                 knownTotalVolumes: 3,
                 change: .replaceOwnedVolumes([1, 2])
@@ -551,7 +708,7 @@ struct CollectionSyncCoordinatorTests {
         let currentAuthorization = try await controller.requestAuthorization()
         #expect(await controller.currentSnapshot() == .active(Self.accountA))
         #expect(storage.snapshot().record == session)
-        #expect(await controller.authorizes(currentAuthorization))
+        #expect(try await controller.authorizes(currentAuthorization))
         #expect(await collectionLoader.requestCount() == 1)
     }
 
@@ -624,6 +781,7 @@ struct CollectionSyncCoordinatorTests {
     private static let orphanRemoteID = UUID(uuidString: "10000000-0000-0000-0000-000000000003")!
     private static let pendingOperationID = UUID(uuidString: "20000000-0000-0000-0000-000000000001")!
     private static let accountA = SessionAccount(
+        authority: SessionAuthority(userID: userA, generation: generationA),
         id: userA,
         email: "reader@example.invalid",
         isActive: true,
@@ -642,7 +800,10 @@ struct CollectionSyncCoordinatorTests {
         """#.utf8
     )
     private static let renewedAccessResponse = Data(
-        #"{"token":"fixture-access-renewed","tokenType":"Bearer","expiresIn":3600,"tokenUse":"access"}"#.utf8
+        #"{"token":"fixture-access-renewed","tokenType":"Bearer","expiresIn":86400}"#.utf8
+    )
+    private static let loginJWTResponse = Data(
+        #"{"token":"fixture-login-jwt","tokenType":"Bearer","expiresIn":86400}"#.utf8
     )
     private static let remoteSnapshotResponse = Data(
         #"""
@@ -685,32 +846,24 @@ struct CollectionSyncCoordinatorTests {
         try SessionPersistedSession(
             userID: Self.userA,
             generation: Self.generationA,
-            access: SessionCredential(
-                value: "fixture-access-A",
-                use: .access,
-                expiresAt: Self.now.addingTimeInterval(600)
-            ),
-            refresh: SessionCredential(
-                value: "fixture-refresh-A",
-                use: .refresh,
-                expiresAt: Self.now.addingTimeInterval(2_592_000)
-            )
+            access: SessionCredential(value: "fixture-access-A", expiresAt: Self.now.addingTimeInterval(600))
         )
     }
 
     private func makeSessionController(
         loader: R1SessionDataLoader,
-        storage: ControlledSessionPersistenceStorage
+        storage: ControlledSessionPersistenceStorage,
+        now: @escaping @Sendable () -> Date = { Self.now }
     ) throws(any Error) -> SessionController {
         let baseURL = try #require(URL(string: "https://session.example.test"))
         return SessionController(
             apiClient: SessionAPIClient(
                 configuration: try APIConfiguration(baseURL: baseURL),
                 loadData: { request in try await loader.load(request) },
-                now: { Self.now }
+                now: now
             ),
             persistence: SessionPersistenceActor(operations: storage.operations()),
-            now: { Self.now },
+            now: now,
             makeGeneration: { Self.generationA }
         )
     }
@@ -783,6 +936,10 @@ private actor R1SessionDataLoader {
 
     func requestPaths() -> [String] {
         requests.compactMap(\.url?.path)
+    }
+
+    func recordedRequests() -> [URLRequest] {
+        requests
     }
 }
 

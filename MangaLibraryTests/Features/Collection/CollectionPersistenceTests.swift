@@ -25,7 +25,7 @@ struct CollectionPersistenceTests {
         )
         _ = try await actor.apply(
             CollectionMutationCommand(
-                userID: Self.userA,
+                authority: Self.authorityA,
                 mangaID: 84,
                 knownTotalVolumes: 3,
                 change: .delete
@@ -139,7 +139,7 @@ struct CollectionPersistenceTests {
             let actor = CollectionMutationActor(modelContainer: reopened)
             _ = try await actor.apply(
                 CollectionMutationCommand(
-                    userID: Self.userA,
+                    authority: Self.authorityA,
                     mangaID: expectedManga.id,
                     knownTotalVolumes: expectedManga.totalVolumes,
                     change: .replaceState(ownedVolumes: [2, 3], readingVolume: 2, isComplete: false)
@@ -174,7 +174,7 @@ struct CollectionPersistenceTests {
             let actor = CollectionMutationActor(modelContainer: editedStore)
             _ = try await actor.apply(
                 CollectionMutationCommand(
-                    userID: Self.userA,
+                    authority: Self.authorityA,
                     mangaID: expectedManga.id,
                     knownTotalVolumes: expectedManga.totalVolumes,
                     change: .delete
@@ -218,7 +218,7 @@ struct CollectionPersistenceTests {
 
     private func command(userID: UUID, manga: Manga, ownedVolumes: [Int64]) -> CollectionMutationCommand {
         CollectionMutationCommand(
-            userID: userID,
+            authority: userID == Self.userA ? Self.authorityA : Self.authorityB,
             mangaID: manga.id,
             mangaSnapshot: CollectionMangaSnapshot(manga: manga),
             knownTotalVolumes: manga.totalVolumes,
@@ -313,6 +313,14 @@ struct CollectionPersistenceTests {
 
     private static let userA = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
     private static let userB = UUID(uuidString: "66666666-7777-8888-9999-AAAAAAAAAAAA")!
+    private static let authorityA = SessionAuthority(
+        userID: userA,
+        generation: UUID(uuidString: "A0A0A0A0-0000-0000-0000-000000000001")!
+    )
+    private static let authorityB = SessionAuthority(
+        userID: userB,
+        generation: UUID(uuidString: "B0B0B0B0-0000-0000-0000-000000000002")!
+    )
     private static let operationA = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
     private static let operationB = UUID(uuidString: "BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF")!
     private static let operationC = UUID(uuidString: "CCCCCCCC-DDDD-EEEE-FFFF-000000000000")!

@@ -20,7 +20,7 @@ struct CollectionRemoteImportTests {
         )
         let localResult = try await actor.apply(
             CollectionMutationCommand(
-                userID: Self.userID,
+                authority: Self.authority(for: Self.userID),
                 mangaID: 42,
                 knownTotalVolumes: 3,
                 change: .replaceState(ownedVolumes: [1, 2], readingVolume: 2, isComplete: false)
@@ -67,7 +67,7 @@ struct CollectionRemoteImportTests {
         )
         let localResult = try await actor.apply(
             CollectionMutationCommand(
-                userID: Self.userID,
+                authority: Self.authority(for: Self.userID),
                 mangaID: 84,
                 knownTotalVolumes: 3,
                 change: .replaceOwnedVolumes([1, 2])
@@ -100,10 +100,7 @@ struct CollectionRemoteImportTests {
         let priorStore = try readRemoteStore(container)
 
         await #expect(throws: rejectedBatch.expectedError) {
-            try await actor.importRemote(
-                rejectedBatch.entries,
-                authorization: Self.authorization(for: Self.userID)
-            )
+            try await actor.importRemote(rejectedBatch.entries, authorization: Self.authorization(for: Self.userID))
         }
 
         #expect(try readRemoteStore(container) == priorStore)
@@ -383,10 +380,7 @@ struct CollectionRemoteImportTests {
         )
 
         await #expect(throws: CollectionRemoteImportError.completeRequiresKnownTotal) {
-            try await actor.importRemote(
-                [invalid],
-                authorization: Self.authorization(for: Self.userID)
-            )
+            try await actor.importRemote([invalid], authorization: Self.authorization(for: Self.userID))
         }
         #expect(try readRemoteStore(container).entries.isEmpty)
         #expect(try readRemoteStore(container).operations.isEmpty)
@@ -423,9 +417,13 @@ struct CollectionRemoteImportTests {
     }
 
     private static func authorization(for userID: UUID) -> SessionCommitAuthorization {
-        let authority = SessionAuthority(userID: userID, generation: UUID())
+        let authority = authority(for: userID)
         let gate = SessionCommitGate(activeAuthority: authority)
         return gate.authorization(for: authority)
+    }
+
+    private static func authority(for userID: UUID) -> SessionAuthority {
+        SessionAuthority(userID: userID, generation: UUID(uuidString: "C011EC71-0000-0000-0000-000000000001")!)
     }
 
     private func remoteEntry(

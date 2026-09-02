@@ -1,9 +1,9 @@
 # ADR-0006: Autenticación, Keychain y sincronización
 
-**Estado:** Accepted
+**Estado:** Superseded
 **Fecha:** 2026-08-17
 **Supersede:** —
-**Superseded by:** —
+**Superseded by:** [ADR-0019](0019-single-jwt-session-and-keychain-v3.md)
 **Complementado por:** [ADR-0013: Frontera de logout Advanced y bridge Deluxe](0013-advanced-logout-and-deluxe-bridge-boundary.md)
 
 ## Contexto

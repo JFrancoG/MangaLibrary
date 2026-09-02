@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.19
+**Versión:** 1.20
 **Fecha:** 2026-09-02
 
 ## Propósito
@@ -38,7 +38,7 @@ deterministas. `Integration` incluye el tag `integration`, aplicado a
 `HTTPClientTests`, que atraviesa la frontera real de `URLSession` mediante un
 `URLProtocol` limitado a su sesión; a `SessionPersistenceActorTests` y
 `SessionPersistenceStoreTests`, que recorren la coordinación serializada y el
-único bundle Keychain V2 en un service aislado; y a
+único envelope Keychain V3 en un service aislado; y a
 `CollectionMutationActorTests`, `CollectionMutationAuthorizationTests`,
 `CollectionPersistenceTests` y `CollectionEditorModelTests`, que recorren el
 container real, la capacidad autenticada, migración y reapertura; y a
@@ -59,7 +59,7 @@ DocC y la evidencia no automatizable aplicable. No se atribuyen a un
 ### Aplicabilidad por gate
 
 Los planes seleccionan únicamente suites y targets que pertenecen al gate en
-evaluación. Advanced prueba el bundle Keychain V2, refresh, logout binario,
+evaluación. Advanced prueba el envelope Keychain V3, refresh JWT, logout binario,
 outbox, aislamiento y navegación definidos por SDD 04 sin exigir App Group,
 `SessionFence`, WidgetKit o WatchConnectivity. Deluxe vuelve a ejecutar Advanced
 y añade las suites del bridge compartido, sus targets y sus entitlements.
@@ -97,15 +97,45 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 - CRUD SwiftData con un `ModelContainer` aislado y verificación desde otro contexto;
 - migración mediante un store temporal en disco creado con el esquema anterior;
 - transporte HTTP mediante un `URLProtocol` limitado a la `URLSession` de test: bytes exactos, respuesta no HTTP, status inesperado, fallo de transporte y cancelación;
-- ciclo de access/refresh token con un único bundle Keychain V2 sustituible y sin credenciales reales;
-- restauración con access expirado que comparte el refresh, valida `/me` una sola
-  vez y reutiliza la identidad comprobada sin un segundo rechazo destructivo;
+- ciclo JWT único con `/users/jwt/login`, `/users/jwt/refresh` y
+  `/users/jwt/me`, un único envelope Keychain V3 sustituible y sin credenciales
+  reales; cada refresh validado rota una revisión opaca no persistida, incluso si
+  el texto JWT se repite, y las capacidades anteriores dejan de autorizar;
+- restauración dentro de la ventana preventiva que comparte el refresh, valida
+  `/users/jwt/me` una sola vez y reutiliza la identidad comprobada sin un
+  segundo rechazo destructivo; el borde exterior, interior y un JWT ya expirado
+  se prueban con reloj inyectado; login y refresh tampoco persisten un JWT que
+  expire mientras `/users/jwt/me` está suspendido, y un fallo transitorio no
+  conserva autoridad si el JWT anterior expira durante el vuelo; las suspensiones
+  y fallos de escritura Keychain prueban además que una credencial expirada nunca
+  se publica, que el envelope anterior solo se conserva mientras siga vigente y
+  que un registro residual tras una limpieza fallida puede sustituirse mediante
+  un login posterior; la expiración después de restaurar con `/jwt/me` `200` o
+  fallo transitorio, después de resolver una autorización y durante transporte
+  impide emitir o aplicar efectos con el JWT vencido; login y refresh que reciben
+  un JWT ya vencido en el siguiente preflight no lo envían a `/jwt/me`;
 - atributos no sincronizables y no migrables, account fijo sin PII, formato cerrado
-  y rechazo seguro de una versión desconocida o un bundle corrupto;
+  y rechazo seguro de V1/V2, una versión desconocida o un envelope corrupto;
 - crash antes y después del borrado binario de A, bloqueo de una activación B
   concurrente y efectos tardíos de A convertidos en no-op después de activar B;
 - fallo de borrado que conserva A activa y permite reintentar, y cancelación
   reconciliada después de que el commit Keychain haya terminado;
+- fallo de borrado de logout que cruza la expiración: conserva el envelope
+  residual y el error de limpieza, pero proyecta `authenticationRequired` y no
+  reactiva la gate;
+- logout e invalidación rechazados con `transitionInProgress` mientras un refresh
+  espera el reemplazo Keychain; al reanudarse no divergen el JWT activo en
+  memoria y el envelope durable;
+- vuelos single-flight con handshakes deterministas que demuestran que el segundo
+  waiter se ha unido antes de liberar el transporte; un vuelo completado de A no
+  entrega su JWT después de activar B; una recuperación A→B suspendida se une a
+  un reemplazo B→C ya iniciado y ambos consumidores reciben únicamente C;
+- cancelación anterior a un fallo compartido de carga, guardado, reemplazo o
+  limpieza Keychain: la operación conserva `temporarilyUnavailable` o
+  `persistenceUnavailable`, y Cuenta lo aplica o enriquece únicamente para UUID
+  y generación exactos aunque se cancele el reconciliador activo; si el snapshot
+  exacto sigue activo tras fallar un reemplazo, la sesión permanece autenticada
+  y Cuenta muestra el aviso de persistencia;
 - rechazo permanente que borra el bundle, publica `authenticationRequired` solo en
   el proceso vigente y restaura `signedOut` tras un relanzamiento;
 - reinicio con outbox pendiente, pérdida de red, bloqueo de autenticación y rechazo permanente;
@@ -115,16 +145,35 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 - coordinador R1 con autoridad inyectada, cancelación y reemplazo de ejecución,
   trigger tardío ya cancelado, revalidación rápida y gate linealizable durante
   el commit; `403` vigente conserva sesión y Keychain sin refresh ni retry; el
-  primer `401` fuerza una renovación single-flight ligada a generación y access,
-  revalida `/me` antes de publicar el access y ejecuta un único segundo GET; la
+  primer `401` fuerza una renovación single-flight ligada a generación y JWT,
+  revalida `/users/jwt/me` antes de publicar el JWT y ejecuta un único segundo GET; la
   composición real cliente + sesión + coordinador + SwiftData cubre tanto ese
   éxito como el `401` observado durante un logout cuyo borrado falla; el refresh rechazado
   permanentemente produce `authenticationRequired`; un segundo `401` o un `403`
   del retry conserva la sesión y expone una categoría de Colección; las carreras
-  A→B, ABA y logout fallido no reactivan el access rechazado ni afectan a una
+  A→B, ABA y logout fallido no reactivan el JWT rechazado ni afectan a una
   sesión o credencial posterior; un refresh A suspendido, seguido de logout A y
   login B, no bloquea la autorización ni la recuperación de B y termina cercado
   al reanudarse;
+- refresh preventivo rechazado por `/users/jwt/me` durante la autorización
+  inicial R1: expone incompatibilidad de identidad renovada y no ejecuta fetch ni
+  importación;
+- JWT que vence entre la revalidación R1 y el commit SwiftData: la gate rechaza
+  el lote, el coordinador vuelve a Sesión, invalida la credencial y no modifica
+  colección ni outbox;
+- mutación local iniciada desde Cuenta autenticada cuando el JWT acaba de
+  expirar, incluso después de emitir la capacidad y antes de la segunda cerca:
+  no crea estado ni outbox, fuerza invalidación de sesión y reconcilia Cuenta
+  como `authenticationRequired` sin dejar una presentación falsamente
+  autenticada; los fallos de limpieza `temporarilyUnavailable` y
+  `persistenceUnavailable` conservan su categoría segura;
+- editor/comando de generación A enviado tras activar B con el mismo UUID: el
+  wrapper no solicita capacidad y el model actor también rechaza directamente
+  una capacidad válida de B, sin crear entrada ni outbox; una revisión nueva de
+  la misma generación permite solo el retry previo al commit ya definido;
+- composición `jwt/login` → `jwt/me` → envelope V3 → autorización R1 que
+  demuestra que el mismo JWT sintético llega como Bearer al primer snapshot de
+  Colección;
 - importación R1 sobre un `ModelContainer` V2 aislado, observada desde otro
   contexto: snapshot presente, intención pendiente, ausencia remota, aislamiento
   por usuario, canonicalización, error tipado del lote inválido y rollback real
@@ -249,7 +298,7 @@ La prueba de assets no acredita por sí sola la interfaz. Que una pareja opaca s
 
 - Advanced continúa en verde;
 - widget y watchOS satisfacen la [SDD Deluxe](05-deluxe-watch-and-widget.md);
-- el `SessionFence` se cierra y verifica antes de borrar condicionalmente el bundle Keychain conforme a [ADR 0018](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md), sin reutilizar la ausencia previa del bridge como evidencia;
+- el `SessionFence` se cierra y verifica antes de borrar condicionalmente el envelope Keychain conforme a [ADR 0019](../adr/0019-single-jwt-session-and-keychain-v3.md), sin reutilizar la ausencia previa del bridge como evidencia;
 - un fence cerrado y verificado hace no cancelable la transición Deluxe y obliga a completar el borrado Keychain y la redacción compartida;
 - la primera incorporación del bridge permanece cerrada hasta que el propietario de sesión autoriza y el publicador revalida una generación Advanced activa;
 - snapshot, configuración estática, generaciones, `SessionFence`, redacción fail-closed, `updateApplicationContext(_:)`, portadas, `.never` y reload dirigido tienen evidencia proporcional;
@@ -275,3 +324,4 @@ Un simulador no sustituye evidencia física cuando la capacidad dependa de hardw
 - [Documentación y DocC](07-documentation-and-docc.md)
 - [ADR 0017: flujos nativos y respuesta HTTP con status validado](../adr/0017-validated-http-status-response-boundary.md)
 - [ADR 0018: bundle único de sesión en Keychain y logout atómico](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)
+- [ADR 0019: JWT único de sesión y envelope Keychain V3](../adr/0019-single-jwt-session-and-keychain-v3.md)
