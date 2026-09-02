@@ -1,8 +1,8 @@
 # Arquitectura y composición
 
 - Estado: aprobado
-- Versión: 1.4
-- Última revisión: 2026-08-31
+- Versión: 1.5
+- Última revisión: 2026-09-02
 
 ## Propósito y alcance
 
@@ -120,7 +120,12 @@ La composición live puede cambiar la configuración concreta sin cambiar las fu
 
 ## Navegación
 
-`MainShellView` es la raíz estable del producto. Posee únicamente `selectedTab: AppTab` y contiene tres destinos estables con el estilo predeterminado de `TabView`:
+`MainShellView` es la raíz estable del producto. Posee `selectedTab: AppTab` y el
+aviso efímero y opcional de sincronización de Colección ligado a la identidad
+autenticada. Ese aviso no replica la sesión ni la colección: se limpia al cambiar
+la identidad o completar una sincronización y solo adapta a presentación el error
+tipado del coordinador. La raíz contiene tres destinos estables con el estilo
+predeterminado de `TabView`:
 
 1. **Catálogo**: `NavigationStack` tipado por `Manga.ID` en presentación compacta y `NavigationSplitView` con lista o cuadrícula y detalle en regular.
 2. **Colección**: navegación local e independiente con el mismo detalle compartido; su contenedor adaptable se concreta al implementar la feature.

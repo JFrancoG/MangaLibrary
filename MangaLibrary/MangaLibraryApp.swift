@@ -33,7 +33,8 @@ struct MangaLibraryApp: App {
 
 extension MangaLibraryApp {
     init() {
-        if ProcessInfo.processInfo.arguments.contains("-ui-testing") {
+        let processArguments = ProcessInfo.processInfo.arguments
+        if processArguments.contains("-ui-testing") {
 #if DEBUG
             // UI automation owns one deterministic bootstrap and cannot select
             // fixtures or fall through to production networking.
@@ -47,7 +48,11 @@ extension MangaLibraryApp {
                     accountModel: account,
                     sessionAuthorization: .deterministic
                 )
-                collectionSynchronization = Self.uiTestingCollectionSynchronization(actor: mutationActor)
+                if processArguments.contains("-ui-testing-collection-authorization-denied") {
+                    collectionSynchronization = Self.uiTestingCollectionAuthorizationFailure()
+                } else {
+                    collectionSynchronization = Self.uiTestingCollectionSynchronization(actor: mutationActor)
+                }
                 loadCatalogPage = CatalogPreviewSupport.pageLoader
                 loadCatalogFilterOptions = CatalogPreviewSupport.filterOptionsLoader
                 _accountModel = State(initialValue: account)
@@ -109,6 +114,12 @@ extension MangaLibraryApp {
                 [remoteEntry],
                 authorization: commitGate.authorization(for: authority)
             )
+        })
+    }
+
+    private static func uiTestingCollectionAuthorizationFailure() -> CollectionSynchronization {
+        CollectionSynchronization(operation: {
+            throw CollectionSyncError.authorizationDenied(origin: .collectionSnapshot(attempt: 1), statusCode: 403)
         })
     }
 #endif

@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.17
+**Versión:** 1.19
 **Fecha:** 2026-09-02
 
 ## Propósito
@@ -98,6 +98,8 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 - migración mediante un store temporal en disco creado con el esquema anterior;
 - transporte HTTP mediante un `URLProtocol` limitado a la `URLSession` de test: bytes exactos, respuesta no HTTP, status inesperado, fallo de transporte y cancelación;
 - ciclo de access/refresh token con un único bundle Keychain V2 sustituible y sin credenciales reales;
+- restauración con access expirado que comparte el refresh, valida `/me` una sola
+  vez y reutiliza la identidad comprobada sin un segundo rechazo destructivo;
 - atributos no sincronizables y no migrables, account fijo sin PII, formato cerrado
   y rechazo seguro de una versión desconocida o un bundle corrupto;
 - crash antes y después del borrado binario de A, bloqueo de una activación B
@@ -112,10 +114,17 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
   identidad, enum, payload o duplicados incompatibles con el snapshot completo;
 - coordinador R1 con autoridad inyectada, cancelación y reemplazo de ejecución,
   trigger tardío ya cancelado, revalidación rápida y gate linealizable durante
-  el commit, rechazo `401`/`403` ligado al access exacto, refresh concurrente y
-  carreras A→B o ABA del mismo usuario sin efectos tardíos sobre la sesión nueva;
-  el rechazo concurrente con logout fallido tampoco reactiva ese token ni bloquea
-  un access distinto ya renovado;
+  el commit; `403` vigente conserva sesión y Keychain sin refresh ni retry; el
+  primer `401` fuerza una renovación single-flight ligada a generación y access,
+  revalida `/me` antes de publicar el access y ejecuta un único segundo GET; la
+  composición real cliente + sesión + coordinador + SwiftData cubre tanto ese
+  éxito como el `401` observado durante un logout cuyo borrado falla; el refresh rechazado
+  permanentemente produce `authenticationRequired`; un segundo `401` o un `403`
+  del retry conserva la sesión y expone una categoría de Colección; las carreras
+  A→B, ABA y logout fallido no reactivan el access rechazado ni afectan a una
+  sesión o credencial posterior; un refresh A suspendido, seguido de logout A y
+  login B, no bloquea la autorización ni la recuperación de B y termina cercado
+  al reanudarse;
 - importación R1 sobre un `ModelContainer` V2 aislado, observada desde otro
   contexto: snapshot presente, intención pendiente, ausencia remota, aislamiento
   por usuario, canonicalización, error tipado del lote inválido y rollback real
@@ -130,7 +139,7 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 ### Interfaz
 
 XCUITest se limita a los menores recorridos deterministas que demuestren wiring
-crítico no cubierto con Swift Testing. En el alcance actual ejecuta cinco:
+crítico no cubierto con Swift Testing. En el alcance actual ejecuta seis:
 
 - bootstrap mock Debug → primera fila de Catálogo → detalle de la misma
   `Manga.ID`;
@@ -146,6 +155,9 @@ crítico no cubierto con Swift Testing. En el alcance actual ejecuta cinco:
   observada por `@Query` → detalle de Catálogo → alta por la capacidad de
   producción → segunda fila local observada por `@Query` en Colección, con un
   único `ModelContainer` real en memoria y sin red, Keychain o disco live.
+- bootstrap mock Debug → login sintético → fallo R1 de autorización → formulario
+  cerrado, Cuenta todavía autenticada y aviso seguro de Colección visible, sin
+  red, Keychain, disco live ni transición a `authenticationRequired`.
 
 Un flujo UI adicional solo se incorpora cuando exista un riesgo observable que
 no pueda caracterizarse con estado, modelo, integración o preview, y se elimina

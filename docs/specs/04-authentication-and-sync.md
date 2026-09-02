@@ -1,7 +1,7 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.14
+- Versión: 1.16
 - Última revisión: 2026-09-02
 
 ## Propósito y alcance
@@ -104,6 +104,10 @@ parciales. Si el dispositivo bloqueado hace que el registro
 `WhenUnlockedThisDeviceOnly` esté temporalmente inaccesible, la restauración se
 difiere sin escribir ni borrar.
 
+Si la restauración necesita renovar un access expirado, esa renovación valida
+`/me` antes de reemplazar el envelope y publica directamente la identidad ya
+comprobada. La restauración no repite un segundo `/me` sobre la misma credencial.
+
 `authenticationRequired` no se persiste. Un refresh rechazado permanentemente
 deja de autorizar esos tokens, bloquea las operaciones del usuario mediante
 `blockedAuth` e intenta borrar el registro. Mientras el proceso continúa, Cuenta
@@ -119,7 +123,7 @@ vuelve a exigir autenticación.
 
 - Una petición que necesita autorización obtiene credenciales válidas desde el límite de sesión, no directamente desde una View.
 - Las solicitudes concurrentes que detectan la misma expiración comparten una única renovación en curso.
-- El resultado de refresh se acepta solo si todavía pertenece a la sesión que lo inició.
+- El resultado de refresh se acepta solo si todavía pertenece a la sesión que lo inició y `/me` confirma la misma identidad antes de persistirlo o publicarlo.
 - Un fallo recuperable conserva una sesión bloqueada para red sin borrar ni mezclar la colección local.
 - Una imposibilidad permanente de renovar requiere autenticación del usuario y coloca las operaciones afectadas en `blockedAuth`.
 
@@ -339,14 +343,36 @@ transacción no comienza; si el commit gana, logout o invalidación esperan y se
 linealizan después. Esta gate no persiste estado, no cruza procesos y no es el
 `SessionFence` durable reservado a Deluxe.
 
-Un `401` o `403` del GET protegido invalida únicamente la request cuya generación
-y access exactos continúan activos y solo cuando no existe una renovación en
-curso. Un rechazo tardío de un token sustituido o de la generación A se convierte
-en `sessionChanged` y no afecta al access renovado ni a la sesión B. Si el rechazo
-vigente exige reautenticación, Cuenta reconcilia el snapshot autoritativo de
-sesión. Si coincide con un logout ya iniciado, la transición recuerda esa request
-exacta: un fallo al retirar Keychain no vuelve a autorizar su token, pero tampoco
-invalida otro access que una renovación ya hubiera publicado para la generación.
+La respuesta de autenticación o autorización se clasifica contra la generación y
+el access exactos de la request. Un rechazo tardío de un token sustituido o de la
+generación A se convierte en `sessionChanged` y no afecta al access renovado ni a
+la sesión B.
+
+Un primer `401` vigente fuerza una renovación single-flight aunque el access aún
+no haya vencido. La renovación queda ligada a la generación y al access rechazado,
+revalida con `/users/session/me` que el access nuevo representa la misma identidad
+y permite un único segundo `GET /collection/manga`. Solo un rechazo permanente del
+refresh conduce a `authenticationRequired` y retira el envelope conforme a
+ADR-0018. Si `/me` no acepta el access recién emitido, o Colección devuelve otro
+`401` después de que `/me` lo acepte, se clasifica una incompatibilidad del backend:
+la sesión, Keychain, colección y outbox permanecen intactos y no existe un tercer
+intento. Toda renovación, incluida la iniciada por expiración ordinaria, valida esa
+identidad antes de persistir o publicar el access nuevo; por ello una recuperación
+R1 que comparte un refresh ya en curso nunca puede observar una credencial todavía
+no validada. Un vuelo residual solo se comparte si todavía sustituye la generación
+y el access vigentes; al activar una sesión posterior se ignora, y su resultado
+tardío queda cercado como `sessionChanged` sin bloquear la autorización nueva.
+
+Un `403` vigente, incluido el segundo intento, representa autorización insuficiente
+para Colección; no demuestra que access o refresh sean inválidos. Conserva sesión,
+Keychain, colección y outbox, y no inicia refresh ni otro retry. Cuenta mantiene su
+estado autenticado y muestra un aviso seguro distinto para permiso denegado o
+incompatibilidad de autenticación del endpoint. El diagnóstico de Colección conserva
+únicamente el origen constante, el status y el intento; el rechazo permanente del
+refresh registra `origin=refreshExchange`, status y acción. Ninguno conserva URL
+completa, cabeceras, tokens, body, email o UUID. Esta recuperación es protocolaria y
+acotada al GET seguro: R1 no incorpora backoff, repetición general ni una acción
+manual de retry.
 
 La importación usa la misma instancia de `CollectionMutationActor` y una única
 transacción SwiftData para el snapshot completo. Primero valida y canonicaliza
@@ -379,8 +405,9 @@ volumen propio o de lectura no positivo, un valor superior al total conocido o
 además las invariantes completas de la SDD 03 y nunca descarta valores para
 fabricar un estado aceptable. Red, autenticación, deriva de contrato, cancelación
 o persistencia fallida no borran el estado local ni convierten la red en fuente
-de UI. R1 no añade retry automático, presentación nueva de sincronización ni
-resolución visible de conflictos.
+de UI. Salvo la recuperación protocolaria única de un `401` y el aviso mínimo que
+evita pedir credenciales válidas, R1 no añade retry automático, presentación de
+progreso ni resolución visible de conflictos.
 
 ## Arranque y reconciliación Advanced
 
@@ -422,8 +449,12 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 | Advanced | Snapshot R1 ausente | Retira solo una entrada confirmada sin intención pendiente; conserva una intención pendiente con ausencia confirmada y falla cerrado ante un huérfano sin base ni outbox. |
 | Advanced | Lote R1 inválido, cancelado o no persistible | No aplica ninguna parte y conserva colección y outbox previas. |
 | Advanced | Respuesta R1 de una generación anterior | No modifica la colección ni la outbox de la sesión vigente. |
-| Advanced | `401`/`403` R1 de la request vigente | Invalida solo su generación y access exactos, no importa el lote y proyecta la reautenticación autoritativa. |
-| Advanced | Rechazo R1 tardío tras refresh o sesión B | No invalida el access renovado ni la sesión posterior y no modifica SwiftData. |
+| Advanced | Primer `401` R1 de la request vigente | Fuerza una única renovación single-flight, revalida la identidad y repite una sola vez el GET seguro. |
+| Advanced | Refresh rechazado permanentemente durante la recuperación R1 | Retira el envelope exacto y proyecta `authenticationRequired`; no ejecuta el segundo GET. |
+| Advanced | Segundo `401` R1 con access renovado aceptado por `/me` | Conserva sesión, Keychain, colección y outbox, no realiza un tercer intento y presenta incompatibilidad del endpoint. |
+| Advanced | `403` R1 de una request vigente | Conserva sesión, Keychain, colección y outbox, no renueva ni repite y presenta autorización insuficiente de Colección. |
+| Advanced | Rechazo R1 tardío tras refresh o sesión B | Se convierte en `sessionChanged`, no invalida el access renovado ni la sesión posterior y no modifica SwiftData. |
+| Advanced | Vuelo de refresh A residual después de activar B | La autorización y una recuperación `401` de B ignoran el vuelo no coincidente; A termina como `sessionChanged` y no modifica ni bloquea B. |
 | Advanced | Error transitorio | La operación pasa por `retry` y no duplica efectos visibles. |
 | Advanced | Efecto remoto aplicado y respuesta perdida | La reconciliación reconoce el estado deseado, pasa a `confirmed` y no repite el request. |
 | Advanced | Resultado remoto inconcluso | Pasa a `blockedOutcome`, conserva ambos estados para resolver y no revierte ni reintenta automáticamente. |
@@ -468,9 +499,9 @@ WatchOS y WidgetKit consumen proyecciones y no abren nuevos escritores autoritat
 - Una operación con UUID estable mejora la idempotencia local, pero no garantiza idempotencia del servidor si su contrato no la soporta.
 - La recuperación después de un cierre durante `sending` debe reconciliar antes de repetir; si no puede demostrar el resultado, conserva `blockedOutcome` para resolución visible.
 - R1 no implementa `POST`, `DELETE`, `GET /collection/manga/{id}`, worker,
-  envío, retry/backoff, transición de estados, reactivación `blockedAuth`,
-  resolución `blockedOutcome`, reversión ni UI de conflictos; esas capacidades
-  pertenecen a R2 y al cierre posterior de Advanced.
+  envío, retry/backoff general, transición de estados, reactivación `blockedAuth`,
+  resolución `blockedOutcome`, reversión, acción manual de retry ni UI de
+  conflictos; esas capacidades pertenecen a R2 y al cierre posterior de Advanced.
 
 ## Especificaciones y decisiones relacionadas
 
