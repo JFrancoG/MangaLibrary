@@ -1,11 +1,11 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-02
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2 y R1 entregados; la corrección crítica #55 está implementada y validada localmente, pendiente de comprobación live y entrega
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2 y R1 entregados; la corrección crítica #55 se entrega mediante la PR #56 y permanece pendiente atribuir live el status histórico exacto
 
 ## Corrección crítica del bucle de reautenticación R1 — issue #55
 
-- El [issue #55 — R1: corregir el bucle de reautenticación tras un rechazo de Colección](https://github.com/JFrancoG/MangaLibrary/issues/55) se abrió después de comprobar que no existía otro issue o PR equivalente. La rama local `codex/55-r1-collection-auth-loop` parte de `main@6695f106e9de90a44d98bf2d127ddabf1a8948c9`, limpio y sincronizado con `origin/main`; este trabajo no tiene commit, push ni PR.
+- El [issue #55 — R1: corregir el bucle de reautenticación tras un rechazo de Colección](https://github.com/JFrancoG/MangaLibrary/issues/55) se abrió después de comprobar que no existía otro issue o PR equivalente. La rama `codex/55-r1-collection-auth-loop` parte de `main@6695f106e9de90a44d98bf2d127ddabf1a8948c9`, limpio y sincronizado con `origin/main` en el preflight aprobado.
 - La causa inmediata queda demostrada por el flujo de producto: login llegaba a sesión activa y el trigger R1 posterior convertía cualquier `401` o `403` de `GET /collection/manga` en invalidación destructiva del mismo envelope Keychain. La instrumentación LLDB temporal no consiguió atribuir de forma inequívoca un único status a una reproducción nueva, por lo que el código live exacto continúa sin confirmar y no se inventa. El contrato vivo y el snapshot siguen coincidiendo con SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`; solo publican `200` para la operación y no documentan la política de error.
 - SDD 01 v1.5 asigna al shell un aviso efímero ligado a identidad. SDD 04 v1.16 separa autenticación de autorización, obliga a validar `/me` antes de publicar cualquier access renovado, cerca generaciones y vuelos residuales y limita R1 a un retry seguro. SDD 06 v1.19 define las pruebas separadas. No cambia el contrato OpenAPI y no hace falta otro ADR porque se corrige una política normativa, no se introduce una excepción arquitectónica.
 - Un `403` de Colección conserva sesión, Keychain, colección y outbox, no renueva ni repite y presenta permiso insuficiente. Un primer `401` vigente fuerza refresh single-flight ligado a generación y access, valida la misma identidad en `/me` y repite el GET una vez. Solo un rechazo permanente del refresh conduce a `authenticationRequired`; un rechazo del access nuevo en `/me`, un segundo `401` o un `403` en el retry conserva la sesión y expone incompatibilidad o autorización de Colección.
@@ -28,6 +28,10 @@
 ### Límite de evidencia live
 
 La corrección elimina el bucle para ambos status posibles y deja instrumentación segura para distinguirlos en la próxima reproducción, pero esta sesión no dispuso de nuevas credenciales ni de una reproducción física. Sigue pendiente capturar el status real y confirmar la política backend: un `403` apuntaría principalmente a permisos, `isActive` o política específica de Colección; un `401` aceptado antes por `/me` apuntaría a una configuración Bearer o validación incoherente entre endpoints. No se hicieron escrituras live ni se imprimió material sensible.
+
+La implementación se versiona inicialmente en `506153a` y se entrega mediante la
+[PR #56](https://github.com/JFrancoG/MangaLibrary/pull/56), cuya fusión cierra el
+issue #55. El cierre autorizado incluye retirar después la rama local y remota.
 
 ## Lectura e importación remota R1 — issue #53
 
