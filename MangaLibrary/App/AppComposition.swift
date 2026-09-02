@@ -9,6 +9,7 @@ import SwiftData
 struct AppComposition {
     let modelContainer: ModelContainer
     let collectionMutations: CollectionMutationActor
+    let collectionSynchronization: CollectionSynchronization
     let catalogClient: CatalogAPIClient
     let registerUser: UserRegistrationClient.Operation
     let sessionController: SessionController
@@ -46,10 +47,17 @@ struct AppComposition {
             now: { Date() },
             makeGeneration: { UUID() }
         )
+        let collectionClient = CollectionAPIClient(httpClient: httpClient, configuration: apiConfiguration)
+        let collectionSyncCoordinator = CollectionSyncCoordinator(
+            sessionController: sessionController,
+            client: collectionClient,
+            mutationActor: collectionMutations
+        )
 
         return AppComposition(
             modelContainer: modelContainer,
             collectionMutations: collectionMutations,
+            collectionSynchronization: CollectionSynchronization(coordinator: collectionSyncCoordinator),
             catalogClient: CatalogAPIClient(httpClient: httpClient, configuration: apiConfiguration),
             registerUser: UserRegistrationClient.operation(
                 httpClient: httpClient,

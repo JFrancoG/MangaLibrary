@@ -14,6 +14,34 @@ import SwiftData
 /// the context back to its last committed state.
 @ModelActor
 actor CollectionMutationActor {
+    /// Applies a local intent while its exact session generation remains valid.
+    ///
+    /// Authority validation and the complete SwiftData transaction share one
+    /// synchronous critical section, closing the session-check-to-commit race.
+    func apply(
+        _ command: CollectionMutationCommand,
+        authorization: SessionCommitAuthorization,
+        newOperationID: UUID = UUID()
+    ) throws(CollectionMutationError) -> CollectionMutationResult {
+        guard authorization.authority.userID == command.userID else {
+            throw .authenticationRequired
+        }
+
+        do {
+            return try authorization.perform {
+                try apply(command, newOperationID: newOperationID)
+            }
+        } catch let error as CollectionMutationError {
+            throw error
+        } catch is SessionCommitAuthorizationError {
+            modelContext.rollback()
+            throw .authenticationRequired
+        } catch {
+            modelContext.rollback()
+            throw .persistenceConflict
+        }
+    }
+
     /// Applies one semantic edit to a user and manga pair.
     ///
     /// A queued operation for the same pair keeps its UUID and receives a higher

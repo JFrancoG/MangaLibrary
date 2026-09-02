@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.16
-**Fecha:** 2026-09-01
+**Versión:** 1.17
+**Fecha:** 2026-09-02
 
 ## Propósito
 
@@ -41,7 +41,10 @@ deterministas. `Integration` incluye el tag `integration`, aplicado a
 único bundle Keychain V2 en un service aislado; y a
 `CollectionMutationActorTests`, `CollectionMutationAuthorizationTests`,
 `CollectionPersistenceTests` y `CollectionEditorModelTests`, que recorren el
-container real, la capacidad autenticada, migración y reapertura. `UI` contiene
+container real, la capacidad autenticada, migración y reapertura; y a
+`CollectionAPIClientTests`, `CollectionRemotePipelineTests`, `CollectionSyncCoordinatorTests` y
+`CollectionRemoteImportTests`, que cubren el transporte, la gate de commit de
+sesión y la importación atómica R1 con red sintética y un container V2 aislado. `UI` contiene
 únicamente `MangaLibraryUITests`. Toda suite nueva se clasifica en `Fast`,
 `Integration` o `UI` mediante su target y, cuando corresponda, su tag, en el
 mismo cambio que la introduce. No se filtra por nombres de funciones o suites.
@@ -104,6 +107,19 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 - rechazo permanente que borra el bundle, publica `authenticationRequired` solo en
   el proceso vigente y restaura `signedOut` tras un relanzamiento;
 - reinicio con outbox pendiente, pérdida de red, bloqueo de autenticación y rechazo permanente;
+- cliente R1 con request `GET /collection/manga` exacto, Bearer sintético,
+  status `200`, DTO compartido, `readingVolume` ausente o nulo y rechazo de
+  identidad, enum, payload o duplicados incompatibles con el snapshot completo;
+- coordinador R1 con autoridad inyectada, cancelación y reemplazo de ejecución,
+  trigger tardío ya cancelado, revalidación rápida y gate linealizable durante
+  el commit, rechazo `401`/`403` ligado al access exacto, refresh concurrente y
+  carreras A→B o ABA del mismo usuario sin efectos tardíos sobre la sesión nueva;
+  el rechazo concurrente con logout fallido tampoco reactiva ese token ni bloquea
+  un access distinto ya renovado;
+- importación R1 sobre un `ModelContainer` V2 aislado, observada desde otro
+  contexto: snapshot presente, intención pendiente, ausencia remota, aislamiento
+  por usuario, canonicalización, error tipado del lote inválido y rollback real
+  después de la primera mutación de un único commit;
 - escritura y lectura concurrentes del snapshot y portadas en App Group, fallo de disco, manifest anterior, retención y limpieza, en directorios temporales y después en sandbox o dispositivo autorizado;
 - recuperación tras crash en la secuencia fence cerrado → invalidación/Keychain → envelope redactado → reload;
 - doble lectura con sustitución concurrente del fence; sesión B cuyo envelope precede a la apertura; sanitización tardía de A convertida en no-op tras abrir B;
@@ -126,8 +142,9 @@ crítico no cubierto con Swift Testing. En el alcance actual ejecuta cinco:
 - bootstrap mock Debug → Cuenta → alta con credenciales sintéticas → login S1
   inyectado → identidad sintética fija distinta del email introducido, sin leer
   `App-Token`, usar Keychain, persistir ni alcanzar red live.
-- bootstrap mock Debug → login sintético → detalle de Catálogo → alta por la
-  capacidad de producción → fila observada por `@Query` en Colección, con un
+- bootstrap mock Debug → login sintético → trigger R1 con fila remota
+  observada por `@Query` → detalle de Catálogo → alta por la capacidad de
+  producción → segunda fila local observada por `@Query` en Colección, con un
   único `ModelContainer` real en memoria y sin red, Keychain o disco live.
 
 Un flujo UI adicional solo se incorpora cuando exista un riesgo observable que
@@ -140,6 +157,12 @@ personales o de producción.
 ## Determinismo
 
 Reloj, UUID, red, aleatoriedad y almacenamiento se inyectarán cuando afecten al resultado. No se usarán sleeps como sincronización ni se serializará una suite para ocultar estado compartido. Los oráculos procederán de contratos, fixtures controlados o cálculos independientes.
+
+Las suites R1 usan tokens, generaciones y respuestas exclusivamente sintéticos,
+un loader controlado y un container real aislado por caso. Verifican el efecto
+persistido desde un `ModelContext` independiente y no acceden a Keychain, cuentas,
+red o almacenamiento de producción. La clasificación documenta cobertura
+prevista y no acredita por sí misma ninguna ejecución.
 
 Los tests de frescura de WidgetKit observarán los límites sustituibles de publicación, almacenamiento y recarga. Comprobarán que cada mutación, reconciliación, reversión, restauración, importación o redacción aplicable parte de un commit local completado o fence seguro verificado y solicita una sola vez `reloadTimelines(ofKind:)` con el `kind` esperado únicamente después de dejar el bridge seguro.
 

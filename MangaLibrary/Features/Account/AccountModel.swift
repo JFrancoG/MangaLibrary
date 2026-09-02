@@ -272,6 +272,43 @@ final class AccountModel {
         await resolve(identity: identity, fallback: fallback, operation: operations.logout)
     }
 
+    /// Reconciles a session transition discovered by background Collection work.
+    ///
+    /// Transport and contract failures remain invisible to this local-first
+    /// feature. Only an authoritative loss or replacement of the expected
+    /// session changes Account presentation.
+    func reconcileSessionAfterCollectionSync(expectedUserID: UUID) async {
+        guard
+            Task.isCancelled == false,
+            activeOperationIdentity == nil,
+            case let .authenticated(account, _) = state,
+            account.id == expectedUserID
+        else { return }
+
+        let identity = beginOperation()
+        defer { finish(identity) }
+        let snapshot = await operations.currentSnapshot()
+        guard
+            Task.isCancelled == false,
+            isCurrent(identity),
+            case let .authenticated(currentAccount, _) = state,
+            currentAccount.id == expectedUserID
+        else { return }
+
+        switch snapshot {
+        case .notRestored:
+            break
+        case .signedOut:
+            apply(snapshot, failure: .notAuthenticated)
+        case let .active(activeAccount) where activeAccount.id == expectedUserID:
+            break
+        case .active:
+            apply(snapshot, failure: .sessionChanged)
+        case .authenticationRequired:
+            apply(snapshot, failure: .authenticationRequired)
+        }
+    }
+
     private func resolve(
         identity: OperationIdentity,
         fallback: State,

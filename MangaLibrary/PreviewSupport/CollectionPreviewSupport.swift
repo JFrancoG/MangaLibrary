@@ -18,7 +18,8 @@ enum CollectionPreviewSupport {
             loadCatalogPage: CatalogPreviewSupport.pageLoader,
             loadCatalogFilterOptions: CatalogPreviewSupport.filterOptionsLoader,
             accountModel: context.accountModel,
-            collectionMutation: context.mutation
+            collectionMutation: context.mutation,
+            collectionSynchronization: .disabled
         )
     }
 
@@ -219,7 +220,8 @@ enum CollectionPreviewSupport {
         let accountModel = AccountPreviewSupport.model(state: state)
         let mutation = CollectionMutation(
             actor: CollectionMutationActor(modelContainer: container),
-            accountModel: accountModel
+            accountModel: accountModel,
+            sessionAuthorization: .deterministic
         )
 
         return CollectionPreviewContext(accountModel: accountModel, mutation: mutation)

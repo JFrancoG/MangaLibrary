@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-09-02 | ✨ feat(collection): import remote snapshot
 - 2026-09-01 | ✨ feat(collection): add offline collection flows
 - 2026-09-01 | ✨ feat(collection): add atomic SwiftData core
 - 2026-09-01 | ✨ feat(account): complete S2.2 account flows
@@ -25,6 +26,7 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-02 | 📝 docs(delivery): record R1 pull request
 - 2026-09-02 | 📝 docs(delivery): record Sendable cleanup PR
 - 2026-09-01 | 📝 docs(delivery): record L2 pull request
 - 2026-09-01 | 📝 docs(delivery): record Color cleanup PR
