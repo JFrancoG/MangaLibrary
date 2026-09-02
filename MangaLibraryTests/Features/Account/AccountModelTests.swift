@@ -125,6 +125,56 @@ struct AccountModelTests {
         #expect(model.state == .authenticated(Self.accountA, notice: .temporarilyUnavailable))
     }
 
+    @Test("Collection sync publishes an authoritative reauthentication requirement")
+    func collectionSyncReconcilesAuthenticationRequired() async {
+        let session = ControlledAccountSession()
+        await session.setCurrentSnapshot(.authenticationRequired(Self.accountA.id))
+        let model = AccountModel(
+            initialState: .authenticated(Self.accountA, notice: nil),
+            operations: session.operations()
+        )
+
+        await model.reconcileSessionAfterCollectionSync(expectedUserID: Self.accountA.id)
+
+        #expect(
+            model.state
+                == .authenticationRequired(
+                    userID: Self.accountA.id,
+                    failure: .authenticationRequired
+                )
+        )
+    }
+
+    @Test("A stale reconciliation cannot replace a newer generation of the same account")
+    func collectionSyncReconciliationRejectsSameUserABA() async {
+        let session = ControlledAccountSession()
+        let gate = AccountOperationGate()
+        await session.gateCurrentSnapshot(
+            returning: .authenticationRequired(Self.accountA.id),
+            gate: gate
+        )
+        await session.setLogoutResult(.success(.signedOut))
+        await session.setLoginResult(
+            for: "a@example.invalid",
+            result: .success(.active(Self.accountA))
+        )
+        let model = AccountModel(
+            initialState: .authenticated(Self.accountA, notice: nil),
+            operations: session.operations()
+        )
+
+        let reconciliation = Task { @MainActor in
+            await model.reconcileSessionAfterCollectionSync(expectedUserID: Self.accountA.id)
+        }
+        await gate.waitUntilArrived()
+        await model.signOut()
+        await model.signIn(email: "a@example.invalid", password: "synthetic-passphrase")
+        await gate.open()
+        await reconciliation.value
+
+        #expect(model.state == .authenticated(Self.accountA, notice: nil))
+    }
+
     @Test("A repeated sign-in cannot supersede the active attempt")
     func repeatedSignInKeepsTheActiveAttempt() async {
         let session = ControlledAccountSession()
@@ -675,6 +725,8 @@ private actor ControlledAccountSession {
     private var loginPlans: [String: LoginPlan] = [:]
     private var recordedRemoteCalls: [AccountRemoteCall] = []
     private var logoutResult: Result<SessionSnapshot, SessionControllerError> = .success(.signedOut)
+    private var currentSnapshotGate: AccountOperationGate?
+    private var gatedSnapshot: SessionSnapshot?
 
     nonisolated func operations() -> AccountModel.Operations {
         AccountModel.Operations(
@@ -692,6 +744,15 @@ private actor ControlledAccountSession {
 
     func setRestoreResult(_ result: Result<SessionSnapshot, SessionControllerError>) {
         restoreResult = result
+    }
+
+    func setCurrentSnapshot(_ snapshot: SessionSnapshot) {
+        self.snapshot = snapshot
+    }
+
+    func gateCurrentSnapshot(returning snapshot: SessionSnapshot, gate: AccountOperationGate) {
+        gatedSnapshot = snapshot
+        currentSnapshotGate = gate
     }
 
     func setLoginResult(
@@ -719,8 +780,14 @@ private actor ControlledAccountSession {
         logoutResult = result
     }
 
-    private func currentSnapshot() -> SessionSnapshot {
-        snapshot
+    private func currentSnapshot() async -> SessionSnapshot {
+        let result = gatedSnapshot ?? snapshot
+        if let currentSnapshotGate {
+            await currentSnapshotGate.suspendUntilOpen()
+            self.currentSnapshotGate = nil
+            gatedSnapshot = nil
+        }
+        return result
     }
 
     private func restore() throws(any Error) -> SessionSnapshot {

@@ -62,6 +62,11 @@ actor SessionController {
         let task: Task<SessionCredential, any Error>
     }
 
+    private struct RejectedRequest {
+        let authority: SessionAuthority
+        let accessToken: String
+    }
+
     private enum PendingTransition: Equatable {
         case logout(SessionAuthority)
         case authenticationInvalidation(SessionAuthority)
@@ -71,13 +76,16 @@ actor SessionController {
     private let persistence: SessionPersistenceActor
     private let now: Clock
     private let makeGeneration: GenerationFactory
+    private let commitGate = SessionCommitGate()
 
     private var state = State.notRestored
     private var restoreFlight: RestoreFlight?
     private var refreshFlight: RefreshFlight?
+    private var activeRefreshIdentity: OperationIdentity?
     private var activeLoginIdentity: OperationIdentity?
     private var committingLoginIdentity: OperationIdentity?
     private var pendingTransition: PendingTransition?
+    private var rejectedRequestDuringTransition: RejectedRequest?
 
     init(
         apiClient: SessionAPIClient,
@@ -154,6 +162,8 @@ actor SessionController {
                 isAdmin: remoteIdentity.isAdmin,
                 role: remoteIdentity.role
             )
+            commitGate.activate(persisted.authority)
+            rejectedRequestDuringTransition = nil
             state = .active(AuthenticatedState(session: persisted, account: account))
             clearLogin(identity)
             return .active(account)
@@ -189,12 +199,77 @@ actor SessionController {
         }
 
         let identity = OperationIdentity()
+        activeRefreshIdentity = identity
         let task = Task<SessionCredential, any Error> {
-            try await self.performRefresh(expected: authenticated)
+            try await self.performRefresh(expected: authenticated, identity: identity)
         }
         let flight = RefreshFlight(identity: identity, task: task)
         refreshFlight = flight
         return try await awaitRefresh(flight: flight)
+    }
+
+    /// Authorizes one remote request and captures the exact session generation.
+    ///
+    /// A caller can use ``authorizes(_:)`` as a fast rejection after suspension;
+    /// the returned commit capability is the authoritative persistence fence.
+    func requestAuthorization() async throws(any Error) -> SessionRequestAuthorization {
+        guard pendingTransition == nil else { throw SessionControllerError.transitionInProgress }
+        guard case let .active(authenticated) = state else {
+            if case .authenticationRequired = state { throw SessionControllerError.authenticationRequired }
+
+            throw SessionControllerError.notAuthenticated
+        }
+        let expectedAuthority = authenticated.session.authority
+        let credential = try await accessCredential()
+        guard pendingTransition == nil, isActive(authority: expectedAuthority) else {
+            throw SessionControllerError.sessionChanged
+        }
+
+        return SessionRequestAuthorization(
+            authority: expectedAuthority,
+            accessToken: credential.value,
+            commitAuthorization: commitGate.authorization(for: expectedAuthority)
+        )
+    }
+
+    /// Revalidates that a suspended request still belongs to the active generation.
+    func authorizes(_ authority: SessionAuthority) -> Bool {
+        pendingTransition == nil
+            && isActive(authority: authority)
+            && commitGate.authorizes(authority)
+    }
+
+    /// Returns a commit capability only for the currently active local scope.
+    func commitAuthorization(for userID: UUID) -> SessionCommitAuthorization? {
+        guard
+            pendingTransition == nil,
+            case let .active(authenticated) = state,
+            authenticated.session.userID == userID,
+            commitGate.authorizes(authenticated.session.authority)
+        else { return nil }
+
+        return commitGate.authorization(for: authenticated.session.authority)
+    }
+
+    /// Invalidates only the exact access credential rejected by a protected request.
+    func rejectAuthorization(_ authorization: SessionRequestAuthorization) async throws(any Error) {
+        guard
+            case let .active(authenticated) = state,
+            authenticated.session.authority == authorization.authority,
+            authenticated.session.access.value == authorization.accessToken
+        else { throw SessionControllerError.sessionChanged }
+
+        if pendingTransition != nil {
+            rejectedRequestDuringTransition = RejectedRequest(
+                authority: authorization.authority,
+                accessToken: authorization.accessToken
+            )
+            commitGate.invalidate(authorization.authority)
+            return
+        }
+        guard activeRefreshIdentity == nil else { throw SessionControllerError.sessionChanged }
+
+        try await requireAuthentication(expected: authorization.authority)
     }
 
     /// Signs out by deleting the exact current Keychain generation.
@@ -205,6 +280,7 @@ actor SessionController {
 
         let transition = PendingTransition.logout(authenticated.session.authority)
         pendingTransition = transition
+        commitGate.invalidate(authenticated.session.authority)
         do {
             guard try await persistence.remove(expected: authenticated.session.authority) else {
                 throw SessionControllerError.sessionChanged
@@ -215,6 +291,7 @@ actor SessionController {
             }
 
             pendingTransition = nil
+            rejectedRequestDuringTransition = nil
             state = .signedOut
             return .signedOut
         } catch {
@@ -269,8 +346,10 @@ actor SessionController {
     }
 
     private func performRefresh(
-        expected authenticated: AuthenticatedState
+        expected authenticated: AuthenticatedState,
+        identity: OperationIdentity
     ) async throws(any Error) -> SessionCredential {
+        defer { clearActiveRefresh(identity) }
         let access: SessionCredential
         do {
             access = try await apiClient.exchangeAccess(refreshToken: authenticated.session.refresh.value)
@@ -303,6 +382,7 @@ actor SessionController {
 
         let transition = PendingTransition.authenticationInvalidation(authority)
         pendingTransition = transition
+        commitGate.invalidate(authority)
         do {
             guard try await persistence.remove(expected: authority) else {
                 throw SessionControllerError.sessionChanged
@@ -313,6 +393,7 @@ actor SessionController {
             }
 
             pendingTransition = nil
+            rejectedRequestDuringTransition = nil
             state = .authenticationRequired(authority)
         } catch {
             requireAuthenticationInMemory(ifCurrent: authority)
@@ -350,8 +431,12 @@ actor SessionController {
     private func apply(_ restoration: SessionRestoration) {
         switch restoration {
         case .signedOut:
+            commitGate.invalidateAll()
+            rejectedRequestDuringTransition = nil
             state = .signedOut
         case let .active(session):
+            commitGate.activate(session.authority)
+            rejectedRequestDuringTransition = nil
             state = .active(
                 AuthenticatedState(
                     session: session,
@@ -387,6 +472,7 @@ actor SessionController {
 
     private func requireAuthenticationInMemory(ifCurrent authority: SessionAuthority) {
         guard isActive(authority: authority) else { return }
+        commitGate.invalidate(authority)
         state = .authenticationRequired(authority)
     }
 
@@ -400,7 +486,21 @@ actor SessionController {
     }
 
     private func clearPendingTransition(_ transition: PendingTransition) {
-        if pendingTransition == transition { pendingTransition = nil }
+        guard pendingTransition == transition else { return }
+
+        pendingTransition = nil
+        if let rejectedRequestDuringTransition {
+            self.rejectedRequestDuringTransition = nil
+            if case let .active(authenticated) = state,
+               authenticated.session.authority == rejectedRequestDuringTransition.authority,
+               authenticated.session.access.value == rejectedRequestDuringTransition.accessToken {
+                requireAuthenticationInMemory(ifCurrent: rejectedRequestDuringTransition.authority)
+                return
+            }
+        }
+        if case let .active(authenticated) = state {
+            commitGate.activate(authenticated.session.authority)
+        }
     }
 
     private func clearRestore(_ identity: OperationIdentity) {
@@ -409,6 +509,10 @@ actor SessionController {
 
     private func clearRefresh(_ identity: OperationIdentity) {
         if refreshFlight?.identity === identity { refreshFlight = nil }
+    }
+
+    private func clearActiveRefresh(_ identity: OperationIdentity) {
+        if activeRefreshIdentity === identity { activeRefreshIdentity = nil }
     }
 
     private func map(_ error: any Error, invalidCredentialsOnUnauthorized: Bool = false) -> SessionControllerError {

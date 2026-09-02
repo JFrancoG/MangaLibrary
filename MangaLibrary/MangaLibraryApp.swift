@@ -12,6 +12,7 @@ import SwiftUI
 struct MangaLibraryApp: App {
     private let modelContainer: ModelContainer
     private let collectionMutation: CollectionMutation
+    private let collectionSynchronization: CollectionSynchronization
     private let loadCatalogPage: CatalogModel.PageLoader
     private let loadCatalogFilterOptions: CatalogModel.FilterOptionsLoader
     @State private var accountModel: AccountModel
@@ -22,7 +23,8 @@ struct MangaLibraryApp: App {
                 loadCatalogPage: loadCatalogPage,
                 loadCatalogFilterOptions: loadCatalogFilterOptions,
                 accountModel: accountModel,
-                collectionMutation: collectionMutation
+                collectionMutation: collectionMutation,
+                collectionSynchronization: collectionSynchronization
             )
         }
         .modelContainer(modelContainer)
@@ -38,11 +40,14 @@ extension MangaLibraryApp {
             do {
                 let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
                 let account = AccountPreviewSupport.model(state: .signedOut(failure: nil))
+                let mutationActor = CollectionMutationActor(modelContainer: container)
                 modelContainer = container
                 collectionMutation = CollectionMutation(
-                    actor: CollectionMutationActor(modelContainer: container),
-                    accountModel: account
+                    actor: mutationActor,
+                    accountModel: account,
+                    sessionAuthorization: .deterministic
                 )
+                collectionSynchronization = Self.uiTestingCollectionSynchronization(actor: mutationActor)
                 loadCatalogPage = CatalogPreviewSupport.pageLoader
                 loadCatalogFilterOptions = CatalogPreviewSupport.filterOptionsLoader
                 _accountModel = State(initialValue: account)
@@ -62,7 +67,14 @@ extension MangaLibraryApp {
                 operations: .live(controller: composition.sessionController, register: composition.registerUser)
             )
             modelContainer = composition.modelContainer
-            collectionMutation = CollectionMutation(actor: composition.collectionMutations, accountModel: account)
+            collectionMutation = CollectionMutation(
+                actor: composition.collectionMutations,
+                accountModel: account,
+                sessionAuthorization: CollectionSessionAuthorization(
+                    sessionController: composition.sessionController
+                )
+            )
+            collectionSynchronization = composition.collectionSynchronization
             loadCatalogPage = { request in
                 try await catalogClient.fetch(request)
             }
@@ -74,4 +86,30 @@ extension MangaLibraryApp {
             preconditionFailure("Manga Library could not create its app dependencies.")
         }
     }
+
+#if DEBUG
+    private static func uiTestingCollectionSynchronization(
+        actor: CollectionMutationActor
+    ) -> CollectionSynchronization {
+        let authority = SessionAuthority(
+            userID: AccountPreviewSupport.account.id,
+            generation: UUID(uuid: (85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85))
+        )
+        let commitGate = SessionCommitGate(activeAuthority: authority)
+        let remoteEntry = CollectionRemoteEntry(
+            remoteID: UUID(uuid: (102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102)),
+            manga: CatalogPreviewSupport.mangas[1],
+            ownedVolumes: [1],
+            readingVolume: nil,
+            isComplete: false
+        )
+
+        return CollectionSynchronization(operation: {
+            try await actor.importRemote(
+                [remoteEntry],
+                authorization: commitGate.authorization(for: authority)
+            )
+        })
+    }
+#endif
 }

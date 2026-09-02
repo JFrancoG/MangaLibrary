@@ -64,6 +64,34 @@ extension AccountModel.State {
     }
 }
 
+/// Resolves a generation-scoped commit capability for Collection persistence.
+struct CollectionSessionAuthorization {
+    typealias Operation = @Sendable (UUID) async -> SessionCommitAuthorization?
+
+    static let denied = Self { _ in nil }
+    static let deterministic = Self { userID in
+        let authority = SessionAuthority(userID: userID, generation: deterministicGeneration)
+        let gate = SessionCommitGate(activeAuthority: authority)
+        return gate.authorization(for: authority)
+    }
+
+    private static let deterministicGeneration = UUID(
+        uuidString: "C011EC71-0000-0000-0000-000000000001"
+    )!
+
+    private let operation: Operation
+
+    func callAsFunction(_ userID: UUID) async -> SessionCommitAuthorization? {
+        await operation(userID)
+    }
+}
+
+extension CollectionSessionAuthorization {
+    init(sessionController: SessionController) {
+        self.init { userID in await sessionController.commitAuthorization(for: userID) }
+    }
+}
+
 /// Revalidates session authority before delegating to the sole model actor.
 ///
 /// The capability stores no session snapshot. A sheet that outlives an account
@@ -83,15 +111,22 @@ struct CollectionMutation {
 }
 
 extension CollectionMutation {
-    init(actor: CollectionMutationActor, accountModel: AccountModel) {
+    init(
+        actor: CollectionMutationActor,
+        accountModel: AccountModel,
+        sessionAuthorization: CollectionSessionAuthorization
+    ) {
         operation = {
             (command: CollectionMutationCommand) async throws(CollectionMutationError) -> CollectionMutationResult in
-            guard await accountModel.authorizesCollectionMutation(userID: command.userID) else {
+            guard
+                await accountModel.authorizesCollectionMutation(userID: command.userID),
+                let authorization = await sessionAuthorization(command.userID)
+            else {
                 throw CollectionMutationError.authenticationRequired
             }
 
             do {
-                return try await actor.apply(command)
+                return try await actor.apply(command, authorization: authorization)
             } catch let error as CollectionMutationError {
                 throw error
             } catch {

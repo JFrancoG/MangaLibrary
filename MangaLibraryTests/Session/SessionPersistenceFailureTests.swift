@@ -133,16 +133,25 @@ final class ControlledSessionPersistenceStorage: Sendable {
 
     private let state: Mutex<State>
     private let removeAllGate: SynchronousPersistenceGate?
+    private let saveGate: SynchronousPersistenceGate?
 
-    init(record: SessionPersistedSession? = nil, removeAllGate: SynchronousPersistenceGate? = nil) {
+    init(
+        record: SessionPersistedSession? = nil,
+        removeAllGate: SynchronousPersistenceGate? = nil,
+        saveGate: SynchronousPersistenceGate? = nil
+    ) {
         state = Mutex(State(record: record))
         self.removeAllGate = removeAllGate
+        self.saveGate = saveGate
     }
 
     func operations() -> SessionPersistenceActor.Operations {
         SessionPersistenceActor.Operations(
             load: { [self] in try perform(.load) { $0.record } },
-            save: { [self] record in try perform(.save) { $0.record = record } },
+            save: { [self] record in
+                saveGate?.pause()
+                try perform(.save) { $0.record = record }
+            },
             removeAll: { [self] in
                 removeAllGate?.pause()
                 try perform(.removeAll) { $0.record = nil }

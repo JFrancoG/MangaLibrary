@@ -82,7 +82,8 @@ struct CollectionMutationAuthorizationTests {
         let accountModel = AccountPreviewSupport.model(state: .authenticated(Self.accountA, notice: nil))
         let mutation = CollectionMutation(
             actor: CollectionMutationActor(modelContainer: container),
-            accountModel: accountModel
+            accountModel: accountModel,
+            sessionAuthorization: .deterministic
         )
 
         _ = try await mutation(Self.command)
@@ -101,11 +102,49 @@ struct CollectionMutationAuthorizationTests {
         let accountModel = AccountPreviewSupport.model(state: denial.state)
         let mutation = CollectionMutation(
             actor: CollectionMutationActor(modelContainer: container),
-            accountModel: accountModel
+            accountModel: accountModel,
+            sessionAuthorization: .deterministic
         )
 
         await #expect(throws: CollectionMutationError.authenticationRequired) {
             try await mutation(Self.command)
+        }
+
+        let context = ModelContext(container)
+        #expect(try context.fetchCount(FetchDescriptor<CollectionEntry>()) == 0)
+        #expect(try context.fetchCount(FetchDescriptor<CollectionOutboxOperation>()) == 0)
+    }
+
+    @Test("Presentation authentication cannot bypass a rejected session generation")
+    func sessionGenerationDenialPreventsMutation() async throws {
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let accountModel = AccountPreviewSupport.model(state: .authenticated(Self.accountA, notice: nil))
+        let mutation = CollectionMutation(
+            actor: CollectionMutationActor(modelContainer: container),
+            accountModel: accountModel,
+            sessionAuthorization: .denied
+        )
+
+        await #expect(throws: CollectionMutationError.authenticationRequired) {
+            try await mutation(Self.command)
+        }
+
+        let context = ModelContext(container)
+        #expect(try context.fetchCount(FetchDescriptor<CollectionEntry>()) == 0)
+        #expect(try context.fetchCount(FetchDescriptor<CollectionOutboxOperation>()) == 0)
+    }
+
+    @Test("A local commit consumes authority again inside the SwiftData transaction")
+    func invalidationBeforeLocalCommitPreventsMutation() async throws {
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let authority = SessionAuthority(userID: Self.userA, generation: UUID())
+        let commitGate = SessionCommitGate(activeAuthority: authority)
+        let authorization = commitGate.authorization(for: authority)
+        commitGate.invalidate(authority)
+        let actor = CollectionMutationActor(modelContainer: container)
+
+        await #expect(throws: CollectionMutationError.authenticationRequired) {
+            try await actor.apply(Self.command, authorization: authorization)
         }
 
         let context = ModelContext(container)

@@ -1,7 +1,43 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-02
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1 y L2 entregados; la limpieza de conformidades `Sendable` se incorpora mediante la PR #52
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1 y L2 entregados; R1 está implementada y validada mediante el issue #53, con su ciclo de entrega autorizado y en curso
+
+## Trabajo actual: lectura e importación remota R1 — issue #53
+
+- El [issue #53 — R1: implementar lectura e importación remota de Colección](https://github.com/JFrancoG/MangaLibrary/issues/53) se abrió después de comprobar que no existían issues, PR o ramas equivalentes. La rama `codex/53-r1-remote-collection-import` parte de `main@a68a3ecc40387dad519ea35ef115f13f0e5b988f`, limpio y sincronizado con `origin/main` en el preflight aprobado.
+- `/docs` volvió a descubrir `/openapi/openapi.json`. Su forma canónica saneada coincide con el snapshot versionado y conserva SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`; no se realizó una petición funcional autenticada ni se usaron cuentas, tokens o datos live.
+- R1 consume únicamente `GET /collection/manga` con Bearer vigente y status exacto `200`, reutiliza el DTO real de Manga e interpreta el array como snapshot remoto completo. La raíz estable lo inicia al restaurar o confirmar sesión, sin esperar a que se visite Colección, y la UI continúa observando exclusivamente SwiftData mediante `@Query`.
+- El coordinador mantiene la red fuera de `CollectionMutationActor`, propaga cancelación y exige que la misma generación siga autorizada antes de aplicar. La importación valida el lote entero y usa la instancia compartida del actor y un único commit; error, deriva, duplicado, cancelación o fallo de persistencia conservan store y outbox previos.
+- Sin intención pendiente, una presencia remota sustituye estado, base confirmada y presentación; con intención pendiente solo actualiza base y presentación. Una ausencia retira únicamente estado confirmado sin pendiente, conserva y registra la base ausente cuando hay pendiente y falla cerrado ante un huérfano sin confirmación ni outbox.
+- R1 valida el UUID remoto pero reconcilia por usuario + manga y no persiste ni interpreta todavía ese UUID como `{id}`. `POST`, `DELETE`, GET individual, worker, envío, retry, transiciones `blockedAuth`/`blockedOutcome`, reversión, UI de conflictos, escrituras live y todo Deluxe permanecen fuera y corresponden a R2 o fases posteriores.
+
+### RED / GREEN y validación local de R1
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Swift Testing — RED / GREEN | El RED inicial falla al compilar por la ausencia deliberada de las superficies R1. El GREEN focal cubre request, DTO, importación, rollback, sesión y carreras; las regresiones finales de logout/401, payload, `401`/`403`, cancelación postmutación y trigger UI aprueban sus selecciones sin fallos. Todos los tokens, UUID, respuestas y containers son sintéticos. |
+| Contrato e invariantes | `/docs` descubre el OpenAPI vivo y el snapshot saneado conserva el mismo hash. La ruta rechaza UUID o manga duplicados, UUID wire o enums malformados, identidad y volúmenes no positivos, valores superiores al total, complete sin total, huérfanos y fallo o cancelación parcial; el store y la outbox se comparan desde otro contexto después del rollback. |
+| Sesión y concurrencia | La gate de commit linealiza invalidación y transacción sin cruzar procesos. Los tests cubren A→B y ABA, refresh concurrente, rechazo ligado a generación + access exactos, logout fallido concurrente con `401`, sustitución de vuelo, trigger precancelado y mutación local suspendida. |
+| Xcode MCP — build y diagnósticos | Build-for-testing final aprobado en 3,625 s sobre iPhone 17 Simulator con iOS 27. El log estructurado y el Issue Navigator devuelven cero warnings y cero errores. |
+| Xcode MCP — `ReleaseGate` | 293/293 resultados aprobados, sin fallos, skips, expected failures o casos no ejecutados. Incluye el flujo UI Debug que confirma login sintético → trigger R1 → fila remota observada por `@Query` y después una mutación local por la capacidad de producción; no usa red, Keychain ni disco live. |
+| `Scripts/validate-docc.sh` | Ocho escenarios deterministas del clasificador aprobados; archive Release generado con warnings DocC como errores y exactamente una emisión externa acotada por ADR 0011 para Xcode build `27A5252f`. El archive permanece local y no se publica. |
+| Integridad y estilo | `git diff --check` y el Audit del diff Swift quedan limpios. `project.pbxproj` conserva SHA-256 `ee6cd588ee1ba5666a71b8b42cbc19338af70025072d35a4efe1acb14732ab76`; no cambian test plans, targets, dependencias ni entitlements. Xcode queda restaurado al scheme `MangaLibrary`, plan `Fast` y destino iPhone 17 Simulator. |
+| Revisiones independientes | Las revisiones finales iOS/arquitectura/concurrencia y especificación/tests cierran sin hallazgos P0–P3 sobre el snapshot validado. La revisión SwiftUI/accesibilidad no encuentra cambios visuales o semánticos que justifiquen render; no se ejecutan VoiceOver, Voice Control, Switch Control, Acceso total con teclado ni Accessibility Inspector. |
+
+### Riesgo transversal y estado de entrega de R1
+
+SDD 03 exige que una colección completa materialice `1...total`, pero el contrato
+no publica un máximo para `totalVolumes`. Un total positivo extremo puede agotar
+recursos en R1 y en las rutas L1/L2 preexistentes que aplican la misma invariante.
+Fijar una cota solo en R1 inventaría una política incoherente; su resolución
+requiere una decisión normativa transversal, error tipado y cobertura local,
+remota y de UI. No se oculta como gate superado ni se amplía este diff con una
+cota arbitraria.
+
+El propietario autoriza el ciclo completo de commit, push, PR, merge, cierre del
+issue y retirada de la rama. R1 permanece en entrega hasta que la PR se fusione,
+el issue quede cerrado y la rama desaparezca local y remotamente.
 
 ## Limpieza de conformidades `Sendable` redundantes — issue #51
 
@@ -729,7 +765,7 @@ La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden d
 4. **S2.2 — formularios de credenciales, entregado mediante la PR #40.** SDD 01 v1.4 y SDD 04 v1.13 definen propiedad de pantalla, gramática conservadora compartida y la compatibilidad exacta del alta con `200` publicado y `201` observado; login y alta presentan errores inline, mantienen los fallos no atribuibles a nivel de formulario, permiten mostrar u ocultar la contraseña con controles SwiftUI sin perder contenido o foco y conservan acciones primarias accesibles. El estado autenticado presenta la identidad segura y el logout con la misma jerarquía visual. No inicia persistencia de producto.
 5. **L1 — núcleo SwiftData de Colección, entregado mediante la PR #44.** El composition root crea una sola vez el `ModelContainer` live, declara el esquema V1 y persiste Colección y outbox mediante una capacidad `@ModelActor` compartida. La primera mutación valida invariantes y guarda ambos estados atómicamente, sin una ruta local provisional.
 6. **L2 — Colección local y offline, entregada mediante la PR #50.** `@Query` queda restringida a la identidad activa y excluye tombstones; Colección posee navegación independiente y alta, edición y eliminación mediante la ruta semántica de L1. El esquema V2 añade presentación offline con migración lightweight, y tomos, lectura, colección completa, tombstones y aislamiento A/B sobreviven a reapertura sin red.
-7. **R1 — lectura e importación remota.** Consumir la colección de la persona autenticada al iniciar o restaurar sesión y reconciliarla en SwiftData sin pisar intenciones locales posteriores. Aquí empieza la integración con la persistencia remota; la UI continúa observando exclusivamente el estado local.
+7. **R1 — lectura e importación remota, implementada y validada mediante el issue #53, con entrega en curso.** Consume la colección de la persona autenticada al iniciar o restaurar sesión y reconcilia el snapshot completo en SwiftData sin pisar intenciones locales posteriores. Aquí empieza la integración con la persistencia remota; la UI continúa observando exclusivamente el estado local. No se considera entregada hasta fusionar su PR, cerrar el issue y retirar la rama.
 8. **R2 — envío y reconciliación de outbox.** Procesar la outbox persistida mediante POST/DELETE, coalescencia, retry, `blockedAuth`, `blockedOutcome`, reversión y protección frente a respuestas tardías. Antes de implementar GET/DELETE por `{id}` debe resolverse o caracterizarse de forma autorizada la ambigüedad entre ID de manga `int64` e ID de entrada UUID. Las escrituras remotas de Colección comienzan aquí y no se prueban contra producción.
 9. **Advanced Release Gate.** Completar el logout con operaciones pendientes, aislamiento A→B, recuperación después de crash y toda la evidencia de catálogo, Cuenta, Colección, sincronización, iPhone/iPad, accesibilidad, build, tests y DocC.
 10. **Deluxe.** Iniciar WidgetKit, watchOS, App Group, `SessionFence` y los puentes de datos únicamente después de que Advanced quede aceptado.
@@ -750,7 +786,7 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 - S1 entrega identidad, sesión dual y Keychain de producto mediante la PR #34. Su estado y evidencia originales viven en la sección correspondiente; la corrección Keychain V2 del 2026-09-01 queda registrada separadamente arriba.
 - La entrega original de S2 no acreditó una escritura live; la observación manual posterior de `201` y su compatibilidad quedan registradas en S2.2 sin exponer datos de cuenta.
 - S2.2 entrega mediante la PR #40 la validación y presentación de credenciales, la corrección HTTP y la autoridad Keychain V2 reconciliadas en el issue #39; no incorpora persistencia de producto.
-- L1 entrega mediante la PR #44 `ModelContainer`, esquema V1, modelos SwiftData, outbox y primera mutación atómica. L2 entrega mediante la PR #50 el esquema V2, `@Query`, presentación offline y UI de Colección. No existen todavía worker ni sincronización remota.
+- L1 entrega mediante la PR #44 `ModelContainer`, esquema V1, modelos SwiftData, outbox y primera mutación atómica. L2 entrega mediante la PR #50 el esquema V2, `@Query`, presentación offline y UI de Colección. R1 está implementada y validada mediante el issue #53, con el ciclo de entrega autorizado y en curso; el worker y los envíos continúan reservados a R2.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La evidencia física histórica comprende la instalación y visualización del icono observada por el propietario y las comprobaciones sintéticas de la implementación S1 original. La corrección vigente añade 30/30 casos de sesión aprobados en el iPhone 11, incluido el service Keychain V2 aislado, además de build y lanzamiento del producto; no usa credenciales ni red live. No existe todavía evidencia de accesibilidad física, App Group, WatchConnectivity o integración live.
 - No se ha autorizado publicación DocC ni GitHub Pages.

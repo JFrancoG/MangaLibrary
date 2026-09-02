@@ -126,6 +126,23 @@ extension MangaLibrarySchema.V2 {
                 self.mangaSnapshot = mangaSnapshot
             }
         }
+
+        /// Adopts a remote state when no later local intent owns the visible value.
+        func applyRemote(_ state: MangaLibrarySchema.V1.CollectionSnapshot, mangaSnapshot: MangaSnapshot) {
+            apply(state, mangaSnapshot: mangaSnapshot)
+            confirmedState = state
+        }
+
+        /// Advances only the server baseline while a later local intent stays visible.
+        func reconcileRemote(_ state: MangaLibrarySchema.V1.CollectionSnapshot, mangaSnapshot: MangaSnapshot) {
+            confirmedState = state
+            self.mangaSnapshot = mangaSnapshot
+        }
+
+        /// Records that the latest full remote snapshot no longer contains this manga.
+        func confirmRemoteAbsence() {
+            confirmedState = nil
+        }
     }
 
     /// The current outbox operation. Its persisted shape is unchanged from V1.

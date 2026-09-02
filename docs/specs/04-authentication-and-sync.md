@@ -1,8 +1,8 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.13
-- Última revisión: 2026-09-01
+- Versión: 1.14
+- Última revisión: 2026-09-02
 
 ## Propósito y alcance
 
@@ -306,15 +306,91 @@ Una cancelación por finalización de proceso no equivale a rechazo: tras recupe
 - Si una respuesta no puede vincularse inequívocamente con usuario, manga, UUID y secuencia local, no modifica el estado confirmado.
 - Ningún mensaje de error conserva tokens o contraseña.
 
-## Arranque y reconciliación
+## Lectura e importación remota R1
+
+R1 incorpora únicamente la lectura autenticada `GET /collection/manga` y la
+importación de su resultado en el `ModelContainer` V2 existente. La petición usa
+el access vigente como Bearer, no lleva body, query ni `App-Token` y solo acepta
+el status exacto `200`. El array recibido representa un snapshot remoto completo,
+no una página, delta o confirmación de envíos locales.
+
+El DTO de entrada reutiliza el wire contract compartido de `MangaDTO`, acepta
+`readingVolume` ausente o `null` y valida antes de persistir la identidad UUID de
+la entrada, la identidad del manga, los enums cerrados y el resto del payload.
+Dos entradas con el mismo UUID remoto o con el mismo manga invalidan el lote. R1
+no persiste ni interpreta todavía ese UUID como el parámetro `{id}` de las
+operaciones individuales: la identidad local de reconciliación continúa siendo
+**usuario + manga** y la ambigüedad contractual permanece bloqueada para R2.
+
+La raíz estable inicia la capacidad al restaurar o confirmar una sesión
+autenticada, sin depender de visitar la tab Colección. La UI puede seguir
+mostrando inmediatamente SwiftData mediante `@Query`. Una autorización interna
+de sesión obtiene access y generación sin exponerlos a SwiftUI; el coordinador
+actor mantiene la red fuera del model actor, propaga cancelación, reemplaza una
+ejecución anterior y revalida la misma generación inmediatamente antes de
+importar. Abandonar la identidad cancela su ejecución. Una respuesta tardía,
+reemplazada o perteneciente a A después de activar B no aplica efectos.
+
+La revalidación previa es solo un rechazo rápido. La garantía de commit usa una
+gate de proceso ligada a la autoridad exacta: invalidación de sesión y
+transacción SwiftData adquieren el mismo `Mutex`, y la autorización se mantiene
+durante toda la sección síncrona sin `await`. Si la invalidación gana, la
+transacción no comienza; si el commit gana, logout o invalidación esperan y se
+linealizan después. Esta gate no persiste estado, no cruza procesos y no es el
+`SessionFence` durable reservado a Deluxe.
+
+Un `401` o `403` del GET protegido invalida únicamente la request cuya generación
+y access exactos continúan activos y solo cuando no existe una renovación en
+curso. Un rechazo tardío de un token sustituido o de la generación A se convierte
+en `sessionChanged` y no afecta al access renovado ni a la sesión B. Si el rechazo
+vigente exige reautenticación, Cuenta reconcilia el snapshot autoritativo de
+sesión. Si coincide con un logout ya iniciado, la transición recuerda esa request
+exacta: un fallo al retirar Keychain no vuelve a autorizar su token, pero tampoco
+invalida otro access que una renovación ya hubiera publicado para la generación.
+
+La importación usa la misma instancia de `CollectionMutationActor` y una única
+transacción SwiftData para el snapshot completo. Primero valida y canonicaliza
+todo el lote; solo después modifica el contexto y ejecuta un único commit. Un
+UUID o manga duplicado, un payload inválido, cancelación observada o fallo de
+persistencia aborta el lote entero y conserva colección y outbox previas. R1 no
+crea, coalesce, reactiva, envía ni cambia el estado de ninguna operación de
+outbox.
+
+Para cada pareja usuario + manga, una outbox en cualquier estado distinto de
+`confirmed` representa una intención local pendiente. La reconciliación aplica
+estas reglas:
+
+- si la entrada remota está presente y no existe intención pendiente, el estado
+  local, la base confirmada y el snapshot de presentación adoptan la versión
+  remota;
+- si está presente y existe intención pendiente, solo se actualizan la base
+  confirmada y los datos remotos de presentación; el estado local optimista, su
+  tombstone y la outbox permanecen intactos;
+- si está ausente y no existe intención pendiente, se retira la entrada local
+  cuya existencia remota anterior estaba confirmada;
+- si está ausente y existe intención pendiente, se conserva el estado local y
+  la outbox y se registra la ausencia como nueva base confirmada;
+- una entrada local huérfana, sin base confirmada ni outbox, no se borra por
+  inferencia: invalida la importación y hace fallar cerrado el lote.
+
+Los volúmenes en propiedad se deduplican y ordenan de forma canónica. Cualquier
+volumen propio o de lectura no positivo, un valor superior al total conocido o
+`completeCollection == true` sin un total válido invalida el lote; la ruta aplica
+además las invariantes completas de la SDD 03 y nunca descarta valores para
+fabricar un estado aceptable. Red, autenticación, deriva de contrato, cancelación
+o persistencia fallida no borran el estado local ni convierten la red en fuente
+de UI. R1 no añade retry automático, presentación nueva de sincronización ni
+resolución visible de conflictos.
+
+## Arranque y reconciliación Advanced
 
 Al iniciar una sesión válida:
 
 1. la UI puede mostrar de inmediato la colección local del usuario;
-2. el sistema recupera el estado remoto mediante operaciones verificadas en OpenAPI;
-3. aplica confirmaciones remotas sin pisar ciegamente una secuencia local posterior;
-4. reactiva operaciones `blockedAuth` del mismo usuario;
-5. procesa la outbox ordenadamente.
+2. R1 recupera el snapshot remoto completo mediante la operación verificada en OpenAPI;
+3. R1 lo importa atómicamente sin pisar una intención local posterior;
+4. solo R2 reactiva operaciones `blockedAuth` del mismo usuario;
+5. solo R2 procesa la outbox ordenadamente y materializa sus transiciones.
 
 El servidor es autoridad después de confirmar, pero una lectura remota no debe borrar sin análisis intenciones locales posteriores pendientes.
 
@@ -341,6 +417,13 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 | Advanced | Varias ediciones del mismo manga | Se coalescen sin perder la intención más reciente ni permitir respuestas fuera de orden. |
 | Advanced | Ediciones de mangas distintos | Mantienen identidades y secuencias independientes. |
 | Advanced | Borrado sin red | La entrada se oculta y la tombstone persiste hasta resolverla. |
+| Advanced | Snapshot R1 presente sin intención pendiente | Estado local, base confirmada y presentación adoptan la versión remota mediante un único commit. |
+| Advanced | Snapshot R1 presente con intención pendiente | Conserva estado local, tombstone y outbox; actualiza únicamente la base confirmada y la presentación remota. |
+| Advanced | Snapshot R1 ausente | Retira solo una entrada confirmada sin intención pendiente; conserva una intención pendiente con ausencia confirmada y falla cerrado ante un huérfano sin base ni outbox. |
+| Advanced | Lote R1 inválido, cancelado o no persistible | No aplica ninguna parte y conserva colección y outbox previas. |
+| Advanced | Respuesta R1 de una generación anterior | No modifica la colección ni la outbox de la sesión vigente. |
+| Advanced | `401`/`403` R1 de la request vigente | Invalida solo su generación y access exactos, no importa el lote y proyecta la reautenticación autoritativa. |
+| Advanced | Rechazo R1 tardío tras refresh o sesión B | No invalida el access renovado ni la sesión posterior y no modifica SwiftData. |
 | Advanced | Error transitorio | La operación pasa por `retry` y no duplica efectos visibles. |
 | Advanced | Efecto remoto aplicado y respuesta perdida | La reconciliación reconoce el estado deseado, pasa a `confirmed` y no repite el request. |
 | Advanced | Resultado remoto inconcluso | Pasa a `blockedOutcome`, conserva ambos estados para resolver y no revierte ni reintenta automáticamente. |
@@ -384,6 +467,10 @@ WatchOS y WidgetKit consumen proyecciones y no abren nuevos escritores autoritat
 - No se presupone un endpoint de revocación, idempotency key o resolución de conflictos que OpenAPI no declare.
 - Una operación con UUID estable mejora la idempotencia local, pero no garantiza idempotencia del servidor si su contrato no la soporta.
 - La recuperación después de un cierre durante `sending` debe reconciliar antes de repetir; si no puede demostrar el resultado, conserva `blockedOutcome` para resolución visible.
+- R1 no implementa `POST`, `DELETE`, `GET /collection/manga/{id}`, worker,
+  envío, retry/backoff, transición de estados, reactivación `blockedAuth`,
+  resolución `blockedOutcome`, reversión ni UI de conflictos; esas capacidades
+  pertenecen a R2 y al cierre posterior de Advanced.
 
 ## Especificaciones y decisiones relacionadas
 

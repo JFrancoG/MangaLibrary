@@ -218,7 +218,11 @@ struct CollectionEditorModelTests {
             )
         )
         let signedOutAccount = AccountPreviewSupport.model(state: .signedOut(failure: nil))
-        let mutation = CollectionMutation(actor: actor, accountModel: signedOutAccount)
+        let mutation = CollectionMutation(
+            actor: actor,
+            accountModel: signedOutAccount,
+            sessionAuthorization: .deterministic
+        )
         let model = CollectionEditorModel(
             seed: CollectionEditorSeed(
                 identity: CollectionIdentity(userID: AccountPreviewSupport.account.id, mangaID: manga.id),
@@ -245,7 +249,8 @@ struct CollectionEditorModelTests {
         let account = AccountPreviewSupport.model(state: .authenticated(AccountPreviewSupport.account, notice: nil))
         let mutation = CollectionMutation(
             actor: CollectionMutationActor(modelContainer: container),
-            accountModel: account
+            accountModel: account,
+            sessionAuthorization: .deterministic
         )
         let manga = makeManga(total: total)
         let seed = CollectionEditorSeed(

@@ -102,6 +102,14 @@ final class MangaLibraryUITests: XCTestCase {
         signInSubmit.tap()
         XCTAssertTrue(app.descendants(matching: .any)["account.authenticated"].waitForExistence(timeout: 2))
 
+        let collectionTab = app.buttons.matching(identifier: "tab.collection").firstMatch
+        XCTAssertTrue(collectionTab.waitForExistence(timeout: 2))
+        collectionTab.tap()
+
+        let importedManga = app.buttons["collection.row.2"]
+        XCTAssertTrue(importedManga.waitForExistence(timeout: 5))
+        XCTAssertTrue(importedManga.label.contains("A deliberately long manga title"))
+
         let catalogTab = app.buttons.matching(identifier: "tab.catalog").firstMatch
         XCTAssertTrue(catalogTab.waitForExistence(timeout: 2))
         catalogTab.tap()
@@ -140,8 +148,6 @@ final class MangaLibraryUITests: XCTestCase {
         save.tap()
         XCTAssertTrue(save.waitForNonExistence(timeout: 2))
 
-        let collectionTab = app.buttons.matching(identifier: "tab.collection").firstMatch
-        XCTAssertTrue(collectionTab.waitForExistence(timeout: 2))
         collectionTab.tap()
 
         let savedManga = app.buttons["collection.row.1"]
