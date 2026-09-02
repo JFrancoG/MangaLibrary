@@ -1,11 +1,11 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-02
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2 y R1 entregados; #55 está entregada mediante la PR #56 y #58 queda implementada y validada localmente, pendiente de autorización de entrega
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2 y R1 entregados; #55 está entregada mediante la PR #56 y la corrección JWT única #58 se entrega mediante la PR #59
 
 ## Compatibilidad JWT única con Colección — issue #58
 
-- El [issue #58 — Auth: migrar a JWT único compatible con Colección](https://github.com/JFrancoG/MangaLibrary/issues/58) se abrió sin duplicados y permanece abierto. La rama `codex/58-jwt-collection-auth` parte de `main@80ac1bb665c4a4cfc380b3d8617aa276ced83cc0` y se trabaja en un worktree aislado para no mezclar ni modificar la rama R2 `codex/57-r2-outbox-sync`, que ya contenía trabajo local sin entregar.
+- El [issue #58 — Auth: migrar a JWT único compatible con Colección](https://github.com/JFrancoG/MangaLibrary/issues/58) se abrió sin duplicados y permanece abierto. La rama `codex/58-jwt-collection-auth` parte de `main@80ac1bb665c4a4cfc380b3d8617aa276ced83cc0`, se implementó en un worktree aislado para preservar R2 y se publica mediante la [PR #59](https://github.com/JFrancoG/MangaLibrary/pull/59).
 - La evidencia live manual atribuye por fin el status inmediato: el access del flujo dual obtiene `200` en `GET /users/session/me`, pero `GET /collection/manga` devuelve `401`, también después de renovarlo. Los JWT de `POST /users/jwt/login` y `POST /users/jwt/refresh` obtienen `200` tanto en `GET /users/jwt/me` como en Colección; ambos declararon 86.400 segundos. No se conservan tokens, credenciales, cuenta, UUID, cabeceras completas ni cuerpos.
 - El OpenAPI vivo y el snapshot versionado continúan coincidiendo con SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b` y siguen publicando ambas familias como válidas. La causa más probable es una configuración o middleware de autenticación de Colección que solo reconoce la familia JWT única; no se dispone de configuración interna del backend para demostrar qué componente exacto produce la deriva.
 - ADR-0019 adopta el JWT único y supersede ADR-0006 y ADR-0018. SDD 00 v1.9, SDD 04 v1.17, SDD 05 v1.6 y SDD 06 v1.20 sustituyen la autoridad dual, conservan el límite Advanced/Deluxe y definen la validación proporcional. El contrato se documenta como deriva runtime, sin alterar ni reinterpretar su snapshot.
@@ -34,8 +34,9 @@ sesión de nuevo tras retirar V2 y confirmar el recorrido completo en el iPhone;
 sin acceso al backend no puede atribuirse el middleware interno ni garantizarse
 que su configuración no vuelva a cambiar.
 
-No se ha hecho commit, push, PR, merge, cierre de issue ni borrado de rama; esas
-acciones continúan detrás de la autorización de entrega del propietario.
+La implementación se versiona inicialmente en `4c5c5bb` y se entrega mediante la
+[PR #59](https://github.com/JFrancoG/MangaLibrary/pull/59). El issue y la rama
+permanecen abiertos porque su cierre y borrado requieren autorización separada.
 
 ## Corrección crítica del bucle de reautenticación R1 — issue #55
 
@@ -823,7 +824,7 @@ ADR 0011 sustituye el bloqueo indefinido por un límite ejecutable: cero diagnó
 
 La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden de implementación. El orden operativo parte de dos decisiones ya aprobadas: la colección local se identifica por **usuario + manga** y no existe una política de colección anónima. S1, S2, S2.1, S2.2, L1 y L2 están entregados; L2 se incorpora mediante la PR #50. La secuencia completa es:
 
-1. **S1 — identidad y sesión JWT única, entregado; corrección #58 pendiente de entrega.** La PR #34 introdujo originalmente el flujo dual y el ledger descrito por [ADR-0016](adr/0016-versioned-session-ledger-and-keychain-boundary.md); la corrección del 2026-09-01 lo sustituyó por Keychain V2. ADR-0019 adopta ahora `jwt/login` → `jwt/me`, un único envelope Keychain V3, renovación preventiva mediante `jwt/refresh`, contraseña solo en memoria, single-flight, generaciones de sesión y estados básicos de Cuenta. El logout local cubre el escenario sin operaciones pendientes, pero no acredita todavía el gate Advanced que dependerá de la outbox.
+1. **S1 — identidad y sesión JWT única, entregado mediante la PR #59.** La PR #34 introdujo originalmente el flujo dual y el ledger descrito por [ADR-0016](adr/0016-versioned-session-ledger-and-keychain-boundary.md); la corrección del 2026-09-01 lo sustituyó por Keychain V2. ADR-0019 adopta ahora `jwt/login` → `jwt/me`, un único envelope Keychain V3, renovación preventiva mediante `jwt/refresh`, contraseña solo en memoria, single-flight, generaciones de sesión y estados básicos de Cuenta. El logout local cubre el escenario sin operaciones pendientes, pero no acredita todavía el gate Advanced que dependerá de la outbox.
 2. **S2 — alta de usuario, entregado.** `POST /users` con `App-Token` inyectado desde configuración local ignorada y alta enlazada con login, entregado mediante la PR #36. Una escritura live continúa necesitando autorización separada. S2 no añade todavía Colección.
 3. **S2.1 — acciones accesibles de Cuenta, entregado.** La PR #38 da jerarquía primaria y secundaria a las acciones sin sesión, incorpora el prompt de alta y conserva objetivos táctiles nativos y contraste adaptativo sin cambiar sesión, red o persistencia.
 4. **S2.2 — formularios de credenciales, entregado mediante la PR #40.** SDD 01 v1.4 y SDD 04 v1.13 definen propiedad de pantalla, gramática conservadora compartida y la compatibilidad exacta del alta con `200` publicado y `201` observado; login y alta presentan errores inline, mantienen los fallos no atribuibles a nivel de formulario, permiten mostrar u ocultar la contraseña con controles SwiftUI sin perder contenido o foco y conservan acciones primarias accesibles. El estado autenticado presenta la identidad segura y el logout con la misma jerarquía visual. No inicia persistencia de producto.
@@ -847,7 +848,7 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 
 - El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
 - Catálogo C1–C4, D1, Q1, P1 y Library Red están entregados. La limpieza posterior de tests tautológicos de consulta está en `main@1839c29` y no cambia comportamiento de producto.
-- S1 conserva como historia la sesión dual de la PR #34 y la corrección Keychain V2 del 2026-09-01. El código vigente de la rama #58 usa el JWT único y Keychain V3 conforme a ADR-0019; su entrega sigue pendiente de autorización.
+- S1 conserva como historia la sesión dual de la PR #34 y la corrección Keychain V2 del 2026-09-01. La PR #59 entrega el JWT único y Keychain V3 conforme a ADR-0019.
 - La entrega original de S2 no acreditó una escritura live; la observación manual posterior de `201` y su compatibilidad quedan registradas en S2.2 sin exponer datos de cuenta.
 - S2.2 entregó mediante la PR #40 la validación y presentación de credenciales y la autoridad Keychain V2 vigente en ese momento; #58 cambia solo la infraestructura de sesión a JWT único/V3 y no altera el workflow visual ni incorpora persistencia de producto.
 - L1 entrega mediante la PR #44 `ModelContainer`, esquema V1, modelos SwiftData, outbox y primera mutación atómica. L2 entrega mediante la PR #50 el esquema V2, `@Query`, presentación offline y UI de Colección. R1 entrega mediante la PR #54 la lectura e importación remota con reconciliación local-first; el worker y los envíos continúan reservados a R2.

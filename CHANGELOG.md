@@ -28,6 +28,7 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-02 | 📝 docs(delivery): record single-JWT PR
 - 2026-09-02 | 📝 docs(session): adopt single-JWT authority and Keychain V3
 - 2026-09-02 | 📝 docs(delivery): record auth loop PR
 - 2026-09-02 | 📝 docs(delivery): record R1 pull request
