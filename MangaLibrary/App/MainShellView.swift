@@ -24,7 +24,7 @@ struct MainShellView: View {
 
     var body: some View {
         let collectionAccess = accountModel.state.collectionAccess
-        let authenticatedUserID = accountModel.state.authenticatedUserID
+        let authenticatedAuthority = accountModel.state.authenticatedAuthority
 
         TabView(selection: $selectedTab) {
             Tab("Catalog", systemImage: "books.vertical", value: .catalog) {
@@ -51,19 +51,22 @@ struct MainShellView: View {
         .task {
             await accountModel.restore()
         }
-        .task(id: authenticatedUserID) {
+        .task(id: authenticatedAuthority) {
             collectionNotice = nil
-            guard let authenticatedUserID else { return }
+            guard let authenticatedAuthority else { return }
 
             do {
                 try await collectionSynchronization()
             } catch is CancellationError {
                 return
             } catch {
-                await accountModel.reconcileSessionAfterCollectionSync(expectedUserID: authenticatedUserID)
-                guard !Task.isCancelled, accountModel.state.authenticatedUserID == authenticatedUserID else { return }
+                await accountModel.reconcileSession(expectedAuthority: authenticatedAuthority, cause: error)
+                guard
+                    !Task.isCancelled,
+                    accountModel.state.authenticatedAuthority == authenticatedAuthority
+                else { return }
 
-                collectionNotice = Self.collectionNotice(for: error, userID: authenticatedUserID)
+                collectionNotice = Self.collectionNotice(for: error, userID: authenticatedAuthority.userID)
             }
         }
     }
@@ -83,10 +86,10 @@ struct MainShellView: View {
 }
 
 private extension AccountModel.State {
-    var authenticatedUserID: UUID? {
+    var authenticatedAuthority: SessionAuthority? {
         guard case let .authenticated(account, _) = self else { return nil }
 
-        return account.id
+        return account.authority
     }
 }
 

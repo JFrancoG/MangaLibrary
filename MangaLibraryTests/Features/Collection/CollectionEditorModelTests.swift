@@ -107,7 +107,7 @@ struct CollectionEditorModelTests {
     @Test("A compatible published total enriches an existing unknown collection")
     func compatiblePublishedTotalBecomesEditable() throws {
         let seed = CollectionEditorSeed.catalog(
-            userID: AccountPreviewSupport.account.id,
+            authority: AccountPreviewSupport.account.authority,
             manga: makeManga(total: 4),
             existingState: CollectionSnapshot(
                 ownedVolumes: [1, 3],
@@ -151,7 +151,7 @@ struct CollectionEditorModelTests {
     )
     func conflictingPublishedTotalPreservesSavedMetadata(existingState: CollectionSnapshot) throws {
         let seed = CollectionEditorSeed.catalog(
-            userID: AccountPreviewSupport.account.id,
+            authority: AccountPreviewSupport.account.authority,
             manga: makeManga(total: 4),
             existingState: existingState
         )
@@ -177,6 +177,7 @@ struct CollectionEditorModelTests {
         let existingModel = CollectionEditorModel(
             seed: CollectionEditorSeed(
                 identity: context.model.seed.identity,
+                authority: context.model.seed.authority,
                 title: context.model.seed.title,
                 mangaSnapshot: context.model.seed.mangaSnapshot,
                 state: savedState,
@@ -210,7 +211,7 @@ struct CollectionEditorModelTests {
         let actor = CollectionMutationActor(modelContainer: container)
         _ = try await actor.apply(
             CollectionMutationCommand(
-                userID: AccountPreviewSupport.account.id,
+                authority: AccountPreviewSupport.account.authority,
                 mangaID: manga.id,
                 mangaSnapshot: CollectionMangaSnapshot(manga: manga),
                 knownTotalVolumes: manga.totalVolumes,
@@ -226,6 +227,7 @@ struct CollectionEditorModelTests {
         let model = CollectionEditorModel(
             seed: CollectionEditorSeed(
                 identity: CollectionIdentity(userID: AccountPreviewSupport.account.id, mangaID: manga.id),
+                authority: AccountPreviewSupport.account.authority,
                 title: manga.title,
                 mangaSnapshot: CollectionMangaSnapshot(manga: manga),
                 state: initialState,
@@ -255,6 +257,7 @@ struct CollectionEditorModelTests {
         let manga = makeManga(total: total)
         let seed = CollectionEditorSeed(
             identity: CollectionIdentity(userID: AccountPreviewSupport.account.id, mangaID: manga.id),
+            authority: AccountPreviewSupport.account.authority,
             title: manga.title,
             mangaSnapshot: CollectionMangaSnapshot(manga: manga),
             state: CollectionSnapshot(

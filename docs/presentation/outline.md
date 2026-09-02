@@ -1,7 +1,7 @@
 # Outline de presentación
 
 **Estado:** borrador público
-**Última revisión:** 2026-08-18
+**Última revisión:** 2026-09-02
 **Objetivo:** explicar decisiones y evidencia de Manga Library sin depender de notas privadas.
 
 ## 1. Problema y alcance
@@ -37,7 +37,7 @@
 
 ## 6. Autenticación y sincronización
 
-- Sesión dual JWT en Keychain; nunca contraseña persistida.
+- Sesión JWT única y envelope Keychain V3; nunca contraseña persistida.
 - Outbox, coalescencia, reintentos, tombstones y limitación multi-dispositivo.
 - Logout sin mezcla de cuentas y sin secretos en logs.
 

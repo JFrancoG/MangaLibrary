@@ -1,9 +1,9 @@
 # ADR-0018: Bundle único de sesión en Keychain y logout atómico
 
-**Estado:** Accepted
+**Estado:** Superseded
 **Fecha:** 2026-09-01
 **Supersede:** [ADR-0013](0013-advanced-logout-and-deluxe-bridge-boundary.md) y [ADR-0016](0016-versioned-session-ledger-and-keychain-boundary.md)
-**Superseded by:** —
+**Superseded by:** [ADR-0019](0019-single-jwt-session-and-keychain-v3.md)
 **Complementa:** [ADR-0006](0006-authentication-keychain-and-sync.md) y [ADR-0010](0010-widgetkit-event-driven-freshness.md)
 
 ## Contexto

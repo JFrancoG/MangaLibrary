@@ -76,7 +76,10 @@ enum CollectionPreviewSupport {
         )
 
         return CollectionUserRootView(
-            userID: AccountPreviewSupport.account.id,
+            scope: CollectionUserScope(
+                userID: AccountPreviewSupport.account.id,
+                authority: AccountPreviewSupport.account.authority
+            ),
             restriction: nil,
             mutation: context.mutation
         )
@@ -119,7 +122,10 @@ enum CollectionPreviewSupport {
         return NavigationStack {
             CollectionEntryDetailView(
                 entry: entry,
-                userID: AccountPreviewSupport.account.id,
+                scope: CollectionUserScope(
+                    userID: AccountPreviewSupport.account.id,
+                    authority: AccountPreviewSupport.account.authority
+                ),
                 restriction: nil,
                 mutation: context.mutation
             )
@@ -136,7 +142,10 @@ enum CollectionPreviewSupport {
         return NavigationStack {
             CollectionEntryDetailView(
                 entry: entry,
-                userID: AccountPreviewSupport.account.id,
+                scope: CollectionUserScope(
+                    userID: AccountPreviewSupport.account.id,
+                    authority: AccountPreviewSupport.account.authority
+                ),
                 restriction: nil,
                 mutation: context.mutation
             )
@@ -168,6 +177,7 @@ enum CollectionPreviewSupport {
         return CollectionEditorView(
             seed: CollectionEditorSeed(
                 identity: CollectionIdentity(userID: AccountPreviewSupport.account.id, mangaID: manga.id),
+                authority: AccountPreviewSupport.account.authority,
                 title: manga.title,
                 mangaSnapshot: CollectionMangaSnapshot(manga: manga),
                 state: state,
@@ -194,6 +204,7 @@ enum CollectionPreviewSupport {
         return CollectionEditorView(
             seed: CollectionEditorSeed(
                 identity: CollectionIdentity(userID: AccountPreviewSupport.account.id, mangaID: manga.id),
+                authority: AccountPreviewSupport.account.authority,
                 title: manga.title,
                 mangaSnapshot: CollectionMangaSnapshot(manga: manga),
                 state: state,

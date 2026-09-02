@@ -6,8 +6,13 @@
 import Foundation
 
 enum AccountPreviewSupport {
+    private static let userID = UUID(uuidString: "A11CE000-0000-4000-8000-000000000001")!
+    private static let userWithoutEmailID = UUID(uuidString: "A11CE000-0000-4000-8000-000000000002")!
+    private static let generation = UUID(uuidString: "C011EC71-0000-4000-8000-000000000001")!
+
     static let account = SessionAccount(
-        id: UUID(uuidString: "A11CE000-0000-4000-8000-000000000001")!,
+        authority: SessionAuthority(userID: userID, generation: generation),
+        id: userID,
         email: "reader@example.invalid",
         isActive: true,
         isAdmin: false,
@@ -15,7 +20,8 @@ enum AccountPreviewSupport {
     )
 
     static let accountWithoutEmail = SessionAccount(
-        id: UUID(uuidString: "A11CE000-0000-4000-8000-000000000002")!,
+        authority: SessionAuthority(userID: userWithoutEmailID, generation: generation),
+        id: userWithoutEmailID,
         email: nil,
         isActive: true,
         isAdmin: false,

@@ -75,7 +75,7 @@ primero se revisa la deriva semántica y su impacto en las SDD, DTOs y fixtures.
 | `bearerAuth` | 9 | Sesión, identidad y colección |
 | `appTokenAuth` | 1 | Alta de usuario mediante cabecera `App-Token` |
 
-La sesión dual que adopta el producto está compuesta por:
+El contrato publica dos familias de sesión Bearer:
 
 1. `POST /users/session/login`, con Basic Auth, devuelve un refresh JWT de
    treinta días;
@@ -89,8 +89,30 @@ declara OAuth, scopes ni una garantía de que un refresh token sea rechazado por
 todos los recursos mediante una restricción machine-readable; esa separación
 aparece en las descripciones y debe respetarse en el cliente.
 
-Los flujos legacy y JWT de un solo token siguen presentes, pero no sustituyen la
-decisión de sesión dual de la [SDD 04][sdd-04].
+La familia JWT única usa `POST /users/jwt/login` con Basic Auth,
+`POST /users/jwt/refresh` con el JWT vigente como Bearer y
+`GET /users/jwt/me`. `JWTTokenResponse` entrega `token`, `tokenType` y
+`expiresIn`, sin `tokenUse` ni otro secreto de refresh. El flujo legacy también
+permanece publicado.
+
+### Deriva runtime observada en la autorización de Colección
+
+El 2 de septiembre de 2026, la aplicación y pruebas manuales autorizadas
+caracterizaron una incompatibilidad no descrita por el OpenAPI:
+
+- un access dual obtiene `200` en `GET /users/session/me`, pero
+  `GET /collection/manga` lo rechaza con `401`, también después de renovarlo;
+- un JWT de `POST /users/jwt/login` obtiene `200` en
+  `GET /users/jwt/me` y `GET /collection/manga`;
+- el JWT devuelto por `POST /users/jwt/refresh` también obtiene `200` en
+  Colección;
+- login y refresh JWT observados declaran 86.400 segundos de vigencia.
+
+La evidencia no conserva cabeceras completas, tokens, credenciales, cuenta,
+UUID ni bodies. El snapshot y su checksum no cambian porque siguen
+representando fielmente el contrato publicado. La [SDD 04][sdd-04] y
+[ADR-0019][adr-0019] adoptan el JWT único como única sesión de producto debido
+al comportamiento live, sin mezclarlo con la familia dual.
 
 ### Deriva runtime observada en el alta
 
@@ -221,4 +243,5 @@ privacidad, enlaces y revisión iOS/API.
 [live-contract]: https://mymanga-acacademy-5607149ebe3d.herokuapp.com/openapi/openapi.json
 [snapshot]: ../../Contracts/OpenAPI/openapi.json
 [sdd-04]: ../specs/04-authentication-and-sync.md
+[adr-0019]: ../adr/0019-single-jwt-session-and-keychain-v3.md
 [practice-statement]: ../sources/Practica_Mis_Mangas_SDP_2026.md#creación-de-usuario

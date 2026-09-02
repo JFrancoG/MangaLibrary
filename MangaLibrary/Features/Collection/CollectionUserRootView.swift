@@ -12,7 +12,7 @@ struct CollectionUserRootView: View {
 
     @State private var selectedMangaID: Manga.ID?
 
-    let userID: UUID
+    let scope: CollectionUserScope
     let restriction: CollectionAccess.MutationRestriction?
     let mutation: CollectionMutation
 
@@ -83,11 +83,11 @@ struct CollectionUserRootView: View {
         if let entry = entries.first(where: { $0.mangaID == mangaID }) {
             CollectionEntryDetailView(
                 entry: entry,
-                userID: userID,
+                scope: scope,
                 restriction: restriction,
                 mutation: mutation
             )
-            .id(CollectionIdentity(userID: userID, mangaID: mangaID))
+            .id(CollectionIdentity(userID: scope.userID, mangaID: mangaID))
         } else {
             ContentUnavailableView(
                 "Collection item unavailable",
@@ -115,12 +115,12 @@ struct CollectionUserRootView: View {
 }
 
 extension CollectionUserRootView {
-    init(userID: UUID, restriction: CollectionAccess.MutationRestriction?, mutation: CollectionMutation) {
-        self.userID = userID
+    init(scope: CollectionUserScope, restriction: CollectionAccess.MutationRestriction?, mutation: CollectionMutation) {
+        self.scope = scope
         self.restriction = restriction
         self.mutation = mutation
         _entries = Query(
-            filter: CollectionEntry.activePredicate(userID: userID),
+            filter: CollectionEntry.activePredicate(userID: scope.userID),
             sort: [SortDescriptor(\CollectionEntry.mangaID)]
         )
     }

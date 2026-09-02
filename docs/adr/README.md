@@ -14,7 +14,7 @@ sus compromisos.
 | [0003](0003-concurrency-and-default-isolation.md) | Concurrencia y aislamiento predeterminado | Accepted | 2026-08-17 |
 | [0004](0004-swiftdata-local-first-and-model-actors.md) | SwiftData local-first y actores de modelo | Accepted | 2026-08-17 |
 | [0005](0005-hybrid-testing-strategy.md) | Estrategia híbrida de pruebas | Accepted | 2026-08-17 |
-| [0006](0006-authentication-keychain-and-sync.md) | Autenticación, Keychain y sincronización | Accepted | 2026-08-17 |
+| [0006](0006-authentication-keychain-and-sync.md) | Autenticación, Keychain y sincronización | Superseded | 2026-08-17 |
 | [0007](0007-watchos-widgetkit-and-data-bridges.md) | Puentes de datos para watchOS y WidgetKit | Accepted | 2026-08-17 |
 | [0008](0008-selective-docc-and-publishing-boundaries.md) | DocC selectivo y límites de publicación | Superseded | 2026-08-17 |
 | [0009](0009-native-source-owned-features-and-local-navigation.md) | Flujos nativos por fuente y navegación local | Superseded | 2026-08-17 |
@@ -26,7 +26,8 @@ sus compromisos.
 | [0015](0015-native-flows-live-composition-and-adaptive-navigation.md) | Flujos nativos, composición live y navegación adaptable | Superseded | 2026-08-28 |
 | [0016](0016-versioned-session-ledger-and-keychain-boundary.md) | Ledger versionado y frontera Keychain de sesión | Superseded | 2026-08-30 |
 | [0017](0017-validated-http-status-response-boundary.md) | Flujos nativos y respuesta HTTP con status validado | Accepted | 2026-08-31 |
-| [0018](0018-single-keychain-session-bundle-and-atomic-logout.md) | Bundle único de sesión en Keychain y logout atómico | Accepted | 2026-09-01 |
+| [0018](0018-single-keychain-session-bundle-and-atomic-logout.md) | Bundle único de sesión en Keychain y logout atómico | Superseded | 2026-09-01 |
+| [0019](0019-single-jwt-session-and-keychain-v3.md) | JWT único de sesión y envelope Keychain V3 | Accepted | 2026-09-02 |
 
 ## Inmutabilidad y supersesión
 

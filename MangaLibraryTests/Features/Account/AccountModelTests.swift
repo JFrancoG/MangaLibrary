@@ -134,37 +134,153 @@ struct AccountModelTests {
             operations: session.operations()
         )
 
-        await model.reconcileSessionAfterCollectionSync(expectedUserID: Self.accountA.id)
-
-        #expect(
-            model.state
-                == .authenticationRequired(
-                    userID: Self.accountA.id,
-                    failure: .authenticationRequired
-                )
+        await model.reconcileSession(
+            expectedAuthority: Self.accountA.authority,
+            cause: CollectionSyncError.sessionChanged
         )
+
+        #expect(model.state == .authenticationRequired(userID: Self.accountA.id, failure: .authenticationRequired))
+    }
+
+    @Test("Collection reconciliation preserves a session persistence failure")
+    func collectionSyncReconciliationPresentsPersistenceFailure() async {
+        let session = ControlledAccountSession()
+        await session.setCurrentSnapshot(.authenticationRequired(Self.accountA.id))
+        let model = AccountModel(
+            initialState: .authenticated(Self.accountA, notice: nil),
+            operations: session.operations()
+        )
+
+        await model.reconcileSession(
+            expectedAuthority: Self.accountA.authority,
+            cause: SessionControllerError.temporarilyUnavailable
+        )
+
+        #expect(model.state == .authenticationRequired(userID: Self.accountA.id, failure: .temporarilyUnavailable))
+    }
+
+    @Test("Collection reconciliation presents a persistence failure while the exact session remains active")
+    func collectionSyncReconciliationPresentsActivePersistenceFailure() async {
+        let session = ControlledAccountSession()
+        await session.setCurrentSnapshot(.active(Self.accountA))
+        let model = AccountModel(
+            initialState: .authenticated(Self.accountA, notice: nil),
+            operations: session.operations()
+        )
+
+        await model.reconcileSession(
+            expectedAuthority: Self.accountA.authority,
+            cause: SessionControllerError.temporarilyUnavailable
+        )
+
+        #expect(model.state == .authenticated(Self.accountA, notice: .temporarilyUnavailable))
+    }
+
+    @Test("A late persistence failure enriches an existing reauthentication requirement")
+    func collectionSyncReconciliationEnrichesPersistenceFailure() async {
+        let session = ControlledAccountSession()
+        await session.setCurrentSnapshot(.authenticationRequired(Self.accountA.id))
+        let model = AccountModel(
+            initialState: .authenticated(Self.accountA, notice: nil),
+            operations: session.operations()
+        )
+        await model.reconcileSession(expectedAuthority: Self.accountA.authority)
+
+        await model.reconcileSession(
+            expectedAuthority: Self.accountA.authority,
+            cause: SessionControllerError.persistenceUnavailable
+        )
+
+        #expect(model.state == .authenticationRequired(userID: Self.accountA.id, failure: .persistenceUnavailable))
+    }
+
+    @Test("A cancelled exact-authority reconciliation still publishes a late persistence failure")
+    func cancelledCollectionSyncReconciliationEnrichesPersistenceFailure() async {
+        let session = ControlledAccountSession()
+        await session.setCurrentSnapshot(.authenticationRequired(Self.accountA.id))
+        let model = AccountModel(
+            initialState: .authenticated(Self.accountA, notice: nil),
+            operations: session.operations()
+        )
+        await model.reconcileSession(expectedAuthority: Self.accountA.authority)
+        let gate = AccountOperationGate()
+        let reconciliation = Task { @MainActor in
+            await gate.suspendUntilOpen()
+            await model.reconcileSession(
+                expectedAuthority: Self.accountA.authority,
+                cause: SessionControllerError.persistenceUnavailable
+            )
+        }
+        await gate.waitUntilArrived()
+        reconciliation.cancel()
+        await gate.open()
+        await reconciliation.value
+
+        #expect(model.state == .authenticationRequired(userID: Self.accountA.id, failure: .persistenceUnavailable))
+    }
+
+    @Test("A concurrent persistence failure enriches the active session reconciliation")
+    func concurrentCollectionSyncReconciliationPreservesPersistenceFailure() async {
+        let session = ControlledAccountSession()
+        let gate = AccountOperationGate()
+        await session.gateCurrentSnapshot(returning: .authenticationRequired(Self.accountA.id), gate: gate)
+        let model = AccountModel(
+            initialState: .authenticated(Self.accountA, notice: nil),
+            operations: session.operations()
+        )
+        let genericReconciliation = Task { @MainActor in
+            await model.reconcileSession(expectedAuthority: Self.accountA.authority)
+        }
+        await gate.waitUntilArrived()
+
+        await model.reconcileSession(
+            expectedAuthority: Self.accountA.authority,
+            cause: SessionControllerError.persistenceUnavailable
+        )
+        await gate.open()
+        await genericReconciliation.value
+
+        #expect(model.state == .authenticationRequired(userID: Self.accountA.id, failure: .persistenceUnavailable))
+    }
+
+    @Test("A merged persistence failure survives cancellation of the active reconciliation")
+    func cancelledActiveCollectionSyncReconciliationPreservesPersistenceFailure() async {
+        let session = ControlledAccountSession()
+        let gate = AccountOperationGate()
+        await session.gateCurrentSnapshot(returning: .authenticationRequired(Self.accountA.id), gate: gate)
+        let model = AccountModel(
+            initialState: .authenticated(Self.accountA, notice: nil),
+            operations: session.operations()
+        )
+        let genericReconciliation = Task { @MainActor in
+            await model.reconcileSession(expectedAuthority: Self.accountA.authority)
+        }
+        await gate.waitUntilArrived()
+        await model.reconcileSession(
+            expectedAuthority: Self.accountA.authority,
+            cause: SessionControllerError.temporarilyUnavailable
+        )
+        genericReconciliation.cancel()
+        await gate.open()
+        await genericReconciliation.value
+
+        #expect(model.state == .authenticationRequired(userID: Self.accountA.id, failure: .temporarilyUnavailable))
     }
 
     @Test("A stale reconciliation cannot replace a newer generation of the same account")
     func collectionSyncReconciliationRejectsSameUserABA() async {
         let session = ControlledAccountSession()
         let gate = AccountOperationGate()
-        await session.gateCurrentSnapshot(
-            returning: .authenticationRequired(Self.accountA.id),
-            gate: gate
-        )
+        await session.gateCurrentSnapshot(returning: .authenticationRequired(Self.accountA.id), gate: gate)
         await session.setLogoutResult(.success(.signedOut))
-        await session.setLoginResult(
-            for: "a@example.invalid",
-            result: .success(.active(Self.accountA))
-        )
+        await session.setLoginResult(for: "a@example.invalid", result: .success(.active(Self.replacementAccountA)))
         let model = AccountModel(
             initialState: .authenticated(Self.accountA, notice: nil),
             operations: session.operations()
         )
 
         let reconciliation = Task { @MainActor in
-            await model.reconcileSessionAfterCollectionSync(expectedUserID: Self.accountA.id)
+            await model.reconcileSession(expectedAuthority: Self.accountA.authority)
         }
         await gate.waitUntilArrived()
         await model.signOut()
@@ -172,7 +288,7 @@ struct AccountModelTests {
         await gate.open()
         await reconciliation.value
 
-        #expect(model.state == .authenticated(Self.accountA, notice: nil))
+        #expect(model.state == .authenticated(Self.replacementAccountA, notice: nil))
     }
 
     @Test("A repeated sign-in cannot supersede the active attempt")
@@ -448,6 +564,10 @@ struct AccountModelTests {
     }
 
     private static let accountA = SessionAccount(
+        authority: SessionAuthority(
+            userID: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,
+            generation: UUID(uuidString: "AAAAAAAA-0000-0000-0000-000000000001")!
+        ),
         id: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,
         email: "a@example.invalid",
         isActive: true,
@@ -455,11 +575,26 @@ struct AccountModelTests {
         role: "user"
     )
     private static let accountB = SessionAccount(
+        authority: SessionAuthority(
+            userID: UUID(uuidString: "66666666-7777-8888-9999-AAAAAAAAAAAA")!,
+            generation: UUID(uuidString: "BBBBBBBB-0000-0000-0000-000000000002")!
+        ),
         id: UUID(uuidString: "66666666-7777-8888-9999-AAAAAAAAAAAA")!,
         email: "b@example.invalid",
         isActive: true,
         isAdmin: false,
         role: "user"
+    )
+    private static let replacementAccountA = SessionAccount(
+        authority: SessionAuthority(
+            userID: accountA.id,
+            generation: UUID(uuidString: "CCCCCCCC-0000-0000-0000-000000000003")!
+        ),
+        id: accountA.id,
+        email: accountA.email,
+        isActive: accountA.isActive,
+        isAdmin: accountA.isAdmin,
+        role: accountA.role
     )
 }
 
@@ -639,6 +774,10 @@ struct CredentialFormViewModelTests {
     }
 
     private static let account = SessionAccount(
+        authority: SessionAuthority(
+            userID: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!,
+            generation: UUID(uuidString: "CCCCCCCC-0000-0000-0000-000000000003")!
+        ),
         id: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!,
         email: "reader@example.invalid",
         isActive: true,

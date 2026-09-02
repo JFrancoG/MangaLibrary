@@ -19,30 +19,30 @@ struct SessionAPIClient {
     let loadData: DataLoader
     let now: Clock
 
-    /// Authenticates Basic credentials and returns only a validated refresh credential.
+    /// Authenticates Basic credentials and returns one validated session JWT.
     ///
     /// The password exists only for this suspended operation. It is never
     /// retained by the client or included in any error.
     @concurrent
     func login(email: String, password: String) async throws(any Error) -> SessionCredential {
         let basicValue = Data("\(email):\(password)".utf8).base64EncodedString()
-        let request = request(path: "users/session/login", method: "POST", authorization: "Basic \(basicValue)")
+        let request = request(path: "users/jwt/login", method: "POST", authorization: "Basic \(basicValue)")
 
-        return try await fetchCredential(request: request, expectedUse: .refresh)
+        return try await fetchCredential(request: request)
     }
 
-    /// Exchanges the current refresh credential for a validated access credential.
+    /// Renews a still-valid session JWT into another credential of the same family.
     @concurrent
-    func exchangeAccess(refreshToken: String) async throws(any Error) -> SessionCredential {
-        let request = request(path: "users/session/access", method: "GET", authorization: "Bearer \(refreshToken)")
+    func refresh(token: String) async throws(any Error) -> SessionCredential {
+        let request = request(path: "users/jwt/refresh", method: "POST", authorization: "Bearer \(token)")
 
-        return try await fetchCredential(request: request, expectedUse: .access)
+        return try await fetchCredential(request: request)
     }
 
     /// Resolves the stable account identity authorized by an access credential.
     @concurrent
     func fetchIdentity(accessToken: String) async throws(any Error) -> SessionIdentity {
-        let request = request(path: "users/session/me", method: "GET", authorization: "Bearer \(accessToken)")
+        let request = request(path: "users/jwt/me", method: "GET", authorization: "Bearer \(accessToken)")
         let data = try await data(for: request)
 
         do {
@@ -60,18 +60,14 @@ struct SessionAPIClient {
     }
 
     @concurrent
-    private func fetchCredential(
-        request: URLRequest,
-        expectedUse: SessionCredentialUse
-    ) async throws(any Error) -> SessionCredential {
+    private func fetchCredential(request: URLRequest) async throws(any Error) -> SessionCredential {
         let data = try await data(for: request)
 
         do {
-            let response = try JSONDecoder().decode(DualSessionTokenResponseDTO.self, from: data)
+            let response = try JSONDecoder().decode(JWTTokenResponseDTO.self, from: data)
             guard
                 response.token.isEmpty == false,
                 response.tokenType == "Bearer",
-                response.tokenUse == expectedUse.rawValue,
                 response.expiresIn > 0
             else {
                 throw SessionAPIClientError.contractDrift
@@ -81,7 +77,7 @@ struct SessionAPIClient {
             let expiresAt = issuedAt.addingTimeInterval(TimeInterval(response.expiresIn))
             guard expiresAt > issuedAt else { throw SessionAPIClientError.contractDrift }
 
-            return SessionCredential(value: response.token, use: expectedUse, expiresAt: expiresAt)
+            return SessionCredential(value: response.token, expiresAt: expiresAt)
         } catch let error as SessionAPIClientError {
             throw error
         } catch {
@@ -130,11 +126,10 @@ extension SessionAPIClient {
     }
 }
 
-private struct DualSessionTokenResponseDTO: Decodable {
+private struct JWTTokenResponseDTO: Decodable {
     let token: String
     let tokenType: String
     let expiresIn: Int64
-    let tokenUse: String
 }
 
 private struct UserResponseDTO: Decodable {

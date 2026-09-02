@@ -5,6 +5,11 @@
 
 import Foundation
 
+struct CollectionUserScope: Equatable {
+    let userID: UUID
+    let authority: SessionAuthority?
+}
+
 /// The collection scope projected from the current session presentation.
 ///
 /// A known identity can remain readable while reauthentication or logout is in
@@ -24,18 +29,24 @@ enum CollectionAccess: Equatable {
     }
 
     case unavailable(UnavailableReason)
-    case user(UUID, restriction: MutationRestriction?)
+    case user(CollectionUserScope, restriction: MutationRestriction?)
 
     var userID: UUID? {
-        guard case let .user(userID, _) = self else { return nil }
+        guard case let .user(scope, _) = self else { return nil }
 
-        return userID
+        return scope.userID
+    }
+
+    var authority: SessionAuthority? {
+        guard case let .user(scope, _) = self else { return nil }
+
+        return scope.authority
     }
 
     var canMutate: Bool {
-        guard case let .user(_, restriction) = self else { return false }
+        guard case let .user(scope, restriction) = self else { return false }
 
-        return restriction == nil
+        return restriction == nil && scope.authority != nil
     }
 }
 
@@ -50,45 +61,46 @@ extension AccountModel.State {
             .unavailable(.signedOut)
         case let .authenticating(previousUserID):
             if let previousUserID {
-                .user(previousUserID, restriction: .authenticating)
+                .user(CollectionUserScope(userID: previousUserID, authority: nil), restriction: .authenticating)
             } else {
                 .unavailable(.authenticating)
             }
         case let .authenticated(account, _):
-            .user(account.id, restriction: nil)
+            .user(CollectionUserScope(userID: account.id, authority: account.authority), restriction: nil)
         case let .authenticationRequired(userID, _):
-            .user(userID, restriction: .authenticationRequired)
+            .user(CollectionUserScope(userID: userID, authority: nil), restriction: .authenticationRequired)
         case let .signingOut(account):
-            .user(account.id, restriction: .signingOut)
+            .user(CollectionUserScope(userID: account.id, authority: account.authority), restriction: .signingOut)
         }
     }
 }
 
 /// Resolves a generation-scoped commit capability for Collection persistence.
 struct CollectionSessionAuthorization {
-    typealias Operation = @Sendable (UUID) async -> SessionCommitAuthorization?
+    typealias Operation = @Sendable (SessionAuthority) async throws(any Error) -> SessionCommitAuthorization?
 
     static let denied = Self { _ in nil }
-    static let deterministic = Self { userID in
-        let authority = SessionAuthority(userID: userID, generation: deterministicGeneration)
+    static let deterministic = Self { authority in
         let gate = SessionCommitGate(activeAuthority: authority)
         return gate.authorization(for: authority)
     }
 
-    private static let deterministicGeneration = UUID(
-        uuidString: "C011EC71-0000-0000-0000-000000000001"
-    )!
-
     private let operation: Operation
 
-    func callAsFunction(_ userID: UUID) async -> SessionCommitAuthorization? {
-        await operation(userID)
+    init(operation: @escaping Operation) {
+        self.operation = operation
+    }
+
+    func callAsFunction(_ authority: SessionAuthority) async throws(any Error) -> SessionCommitAuthorization? {
+        try await operation(authority)
     }
 }
 
 extension CollectionSessionAuthorization {
     init(sessionController: SessionController) {
-        self.init { userID in await sessionController.commitAuthorization(for: userID) }
+        self.init { authority in
+            try await sessionController.commitAuthorization(for: authority)
+        }
     }
 }
 
@@ -118,15 +130,66 @@ extension CollectionMutation {
     ) {
         operation = {
             (command: CollectionMutationCommand) async throws(CollectionMutationError) -> CollectionMutationResult in
-            guard
-                await accountModel.authorizesCollectionMutation(userID: command.userID),
-                let authorization = await sessionAuthorization(command.userID)
-            else {
+            guard await accountModel.authorizesCollectionMutation(command.authority) else {
+                throw CollectionMutationError.authenticationRequired
+            }
+            let expectedAuthority = command.authority
+            let authorization: SessionCommitAuthorization?
+            do {
+                authorization = try await sessionAuthorization(expectedAuthority)
+            } catch is CancellationError {
+                throw CollectionMutationError.cancelled
+            } catch {
+                await accountModel.reconcileSession(expectedAuthority: expectedAuthority, cause: error)
+                throw CollectionMutationError.authenticationRequired
+            }
+            guard let authorization else {
+                await accountModel.reconcileSession(expectedAuthority: expectedAuthority)
                 throw CollectionMutationError.authenticationRequired
             }
 
             do {
                 return try await actor.apply(command, authorization: authorization)
+            } catch CollectionMutationError.authenticationRequired {
+                let replacement: SessionCommitAuthorization?
+                do {
+                    replacement = try await sessionAuthorization(expectedAuthority)
+                } catch is CancellationError {
+                    throw CollectionMutationError.cancelled
+                } catch {
+                    await accountModel.reconcileSession(expectedAuthority: expectedAuthority, cause: error)
+                    throw CollectionMutationError.authenticationRequired
+                }
+                guard let replacement else {
+                    await accountModel.reconcileSession(expectedAuthority: expectedAuthority)
+                    throw CollectionMutationError.authenticationRequired
+                }
+                guard replacement.authority == authorization.authority else {
+                    throw CollectionMutationError.persistenceConflict
+                }
+
+                do {
+                    return try await actor.apply(command, authorization: replacement)
+                } catch CollectionMutationError.authenticationRequired {
+                    let current: SessionCommitAuthorization?
+                    do {
+                        current = try await sessionAuthorization(expectedAuthority)
+                    } catch is CancellationError {
+                        throw CollectionMutationError.cancelled
+                    } catch {
+                        await accountModel.reconcileSession(expectedAuthority: expectedAuthority, cause: error)
+                        throw CollectionMutationError.authenticationRequired
+                    }
+                    guard current != nil else {
+                        await accountModel.reconcileSession(expectedAuthority: expectedAuthority)
+                        throw CollectionMutationError.authenticationRequired
+                    }
+                    throw CollectionMutationError.persistenceConflict
+                } catch let error as CollectionMutationError {
+                    throw error
+                } catch {
+                    throw CollectionMutationError.persistenceConflict
+                }
             } catch let error as CollectionMutationError {
                 throw error
             } catch {
@@ -137,9 +200,9 @@ extension CollectionMutation {
 }
 
 private extension AccountModel {
-    func authorizesCollectionMutation(userID: UUID) -> Bool {
+    func authorizesCollectionMutation(_ authority: SessionAuthority) -> Bool {
         guard case let .authenticated(account, _) = state else { return false }
 
-        return account.id == userID
+        return account.authority == authority
     }
 }

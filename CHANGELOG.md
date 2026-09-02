@@ -22,11 +22,14 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- 2026-09-02 | 🐛 fix(session): use Collection-compatible single JWT
 - 2026-09-02 | 🐛 fix(sync): prevent collection auth loop
 - 2026-08-31 | 🐛 fix(account): improve signed-out actions
 
 ### Documentation
 
+- 2026-09-02 | 📝 docs(delivery): record single-JWT PR
+- 2026-09-02 | 📝 docs(session): adopt single-JWT authority and Keychain V3
 - 2026-09-02 | 📝 docs(delivery): record auth loop PR
 - 2026-09-02 | 📝 docs(delivery): record R1 pull request
 - 2026-09-02 | 📝 docs(delivery): record Sendable cleanup PR
@@ -47,6 +50,7 @@ All notable changes to this project are documented in this file.
 
 ### Tests
 
+- 2026-09-02 | ✅ test(session): cover JWT renewal and V3 migration
 - 2026-09-01 | ✅ test(collection): cover persistence contract
 - 2026-08-31 | ✅ test(account): cover registration contract, uncertainty and synthetic UI flow
 - 2026-08-30 | ✅ test(session): cover authentication, persistence recovery and Account states

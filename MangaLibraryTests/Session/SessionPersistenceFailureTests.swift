@@ -21,8 +21,7 @@ struct SessionPersistenceFailureTests {
             try await persistence.activate(
                 userID: session.userID,
                 generation: session.generation,
-                access: session.access,
-                refresh: session.refresh
+                access: session.access
             )
         }
 
@@ -44,6 +43,21 @@ struct SessionPersistenceFailureTests {
         #expect(storage.snapshot().journal == [.load])
     }
 
+    @Test("A failed legacy cleanup never publishes the current V3 authority")
+    func failedLegacyCleanupDefersRestore() async throws(any Error) {
+        let session = try makeSession()
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        storage.failNext(.removeLegacy, with: .temporarilyUnavailable)
+        let persistence = SessionPersistenceActor(operations: storage.operations())
+
+        await #expect(throws: SessionStorageError.temporarilyUnavailable) {
+            try await persistence.restore()
+        }
+
+        #expect(storage.snapshot().record == session)
+        #expect(storage.snapshot().journal == [.load, .removeLegacy])
+    }
+
     @Test("A corrupt Keychain record is removed and fails closed")
     func corruptRestoreDeletesTheUnusableRecord() async throws(any Error) {
         let storage = ControlledSessionPersistenceStorage(record: try makeSession())
@@ -63,8 +77,7 @@ struct SessionPersistenceFailureTests {
         let persistence = SessionPersistenceActor(operations: storage.operations())
         let renewedAccess = SessionCredential(
             value: "synthetic-access-renewed",
-            use: .access,
-            expiresAt: Self.issuedAt.addingTimeInterval(7_200)
+            expiresAt: Self.issuedAt.addingTimeInterval(86_400)
         )
 
         await #expect(throws: SessionStorageError.keychainFailure(-34_018)) {
@@ -94,16 +107,7 @@ struct SessionPersistenceFailureTests {
         try SessionPersistedSession(
             userID: Self.userID,
             generation: Self.generation,
-            access: SessionCredential(
-                value: "synthetic-access",
-                use: .access,
-                expiresAt: Self.issuedAt.addingTimeInterval(3_600)
-            ),
-            refresh: SessionCredential(
-                value: "synthetic-refresh",
-                use: .refresh,
-                expiresAt: Self.issuedAt.addingTimeInterval(2_592_000)
-            )
+            access: SessionCredential(value: "synthetic-access", expiresAt: Self.issuedAt.addingTimeInterval(86_400))
         )
     }
 
@@ -115,6 +119,7 @@ struct SessionPersistenceFailureTests {
 enum SessionPersistenceOperation: Equatable, Hashable {
     case load
     case save
+    case removeLegacy
     case removeAll
 }
 
@@ -132,26 +137,33 @@ final class ControlledSessionPersistenceStorage: Sendable {
     }
 
     private let state: Mutex<State>
+    private let loadGate: SynchronousPersistenceGate?
     private let removeAllGate: SynchronousPersistenceGate?
     private let saveGate: SynchronousPersistenceGate?
 
     init(
         record: SessionPersistedSession? = nil,
+        loadGate: SynchronousPersistenceGate? = nil,
         removeAllGate: SynchronousPersistenceGate? = nil,
         saveGate: SynchronousPersistenceGate? = nil
     ) {
         state = Mutex(State(record: record))
+        self.loadGate = loadGate
         self.removeAllGate = removeAllGate
         self.saveGate = saveGate
     }
 
     func operations() -> SessionPersistenceActor.Operations {
         SessionPersistenceActor.Operations(
-            load: { [self] in try perform(.load) { $0.record } },
+            load: { [self] in
+                loadGate?.pause()
+                return try perform(.load) { $0.record }
+            },
             save: { [self] record in
                 saveGate?.pause()
                 try perform(.save) { $0.record = record }
             },
+            removeLegacy: { [self] in try perform(.removeLegacy) { _ in } },
             removeAll: { [self] in
                 removeAllGate?.pause()
                 try perform(.removeAll) { $0.record = nil }
