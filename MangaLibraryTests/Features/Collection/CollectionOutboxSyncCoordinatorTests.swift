@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import Synchronization
 import Testing
 @testable import MangaLibrary
 
@@ -185,6 +186,73 @@ struct CollectionOutboxSyncCoordinatorTests {
         let evidence = await probe.evidence()
         #expect(evidence.submitCount == 1)
         #expect(evidence.fetchCount == 0)
+        #expect(evidence.confirmedItems.isEmpty)
+        #expect(evidence.blockedItems.isEmpty)
+    }
+
+    @Test(
+        "A session persistence failure after POST is never reclassified as write uncertainty",
+        arguments: OutboxSessionPersistenceFailure.allCases
+    )
+    private func sessionPersistenceFailureAfterPostPrecedesReconciliation(
+        failure: OutboxSessionPersistenceFailure
+    ) async throws(any Error) {
+        let probe = WorkerProbe(actions: [.send(Self.workItem)])
+        let validationCount = Mutex(0)
+        let coordinator = Self.makeCoordinator(
+            probe: probe,
+            validateAuthorization: { _ in
+                let invocation = validationCount.withLock {
+                    $0 += 1
+                    return $0
+                }
+                if invocation == 4 { throw failure.error }
+                return invocation < 5
+            }
+        )
+
+        await #expect(throws: failure.error) {
+            try await coordinator.synchronizeAuthenticatedOutbox()
+        }
+
+        let evidence = await probe.evidence()
+        #expect(validationCount.withLock { $0 } == 4)
+        #expect(evidence.submitCount == 1)
+        #expect(evidence.fetchCount == 0)
+        #expect(evidence.confirmedItems.isEmpty)
+        #expect(evidence.blockedItems.isEmpty)
+    }
+
+    @Test(
+        "A session persistence failure after reconciliation GET never blocks the upload",
+        arguments: OutboxSessionPersistenceFailure.allCases
+    )
+    private func sessionPersistenceFailureAfterReconciliationReadPrecedesBlocking(
+        failure: OutboxSessionPersistenceFailure
+    ) async throws(any Error) {
+        let probe = WorkerProbe(actions: [.reconcile(Self.workItem)], remoteEntries: [Self.matchingRemoteEntry])
+        let validationCount = Mutex(0)
+        let coordinator = Self.makeCoordinator(
+            probe: probe,
+            validateAuthorization: { _ in
+                let invocation = validationCount.withLock {
+                    $0 += 1
+                    return $0
+                }
+                if invocation == 5 { throw failure.error }
+                return true
+            }
+        )
+
+        await #expect(throws: failure.error) {
+            try await coordinator.synchronizeAuthenticatedOutbox()
+        }
+
+        let evidence = await probe.evidence()
+        #expect(validationCount.withLock { $0 } == 5)
+        #expect(evidence.submitCount == 0)
+        #expect(evidence.fetchCount == 1)
+        #expect(evidence.importCount == 0)
         #expect(evidence.confirmedItems.isEmpty)
         #expect(evidence.blockedItems.isEmpty)
     }
@@ -411,9 +479,19 @@ struct CollectionOutboxSyncCoordinatorTests {
     }
 
     private static func makeCoordinator(probe: WorkerProbe) -> CollectionOutboxSyncCoordinator {
+        makeCoordinator(
+            probe: probe,
+            validateAuthorization: { authorization in await probe.validates(authorization) }
+        )
+    }
+
+    private static func makeCoordinator(
+        probe: WorkerProbe,
+        validateAuthorization: @escaping CollectionOutboxSyncCoordinator.ValidateAuthorization
+    ) -> CollectionOutboxSyncCoordinator {
         CollectionOutboxSyncCoordinator(
             authorize: { await probe.authorization() },
-            validateAuthorization: { authorization in await probe.validates(authorization) },
+            validateAuthorization: validateAuthorization,
             claimNextUpload: { authorization in try await probe.claim(authorization) },
             submit: { item, accessToken in try await probe.submit(item, accessToken: accessToken) },
             fetchRemote: { accessToken in try await probe.fetchRemote(accessToken: accessToken) },
@@ -744,6 +822,18 @@ private enum WorkerStoreBoundary: CaseIterable {
     case confirm
     case block
     case hasBlocked
+}
+
+private enum OutboxSessionPersistenceFailure: CaseIterable {
+    case temporarilyUnavailable
+    case persistenceUnavailable
+
+    var error: SessionControllerError {
+        switch self {
+        case .temporarilyUnavailable: .temporarilyUnavailable
+        case .persistenceUnavailable: .persistenceUnavailable
+        }
+    }
 }
 
 private actor WorkerProbe {

@@ -25,13 +25,13 @@ struct MainShellView: View {
 
     var body: some View {
         let collectionAccess = accountModel.state.collectionAccess
-        let authenticatedUserID = accountModel.state.authenticatedUserID
+        let authenticatedAuthority = accountModel.state.authenticatedAuthority
         let synchronizationID = CollectionSynchronizationID(
-            userID: authenticatedUserID,
+            authority: authenticatedAuthority,
             operations: collectionOperations
         )
         let collectionNotice = transientCollectionNotice ?? AccountCollectionNotice.persistedUploadOutcome(
-            userID: authenticatedUserID,
+            userID: authenticatedAuthority?.userID,
             operations: collectionOperations
         )
 
@@ -62,17 +62,23 @@ struct MainShellView: View {
         }
         .task(id: synchronizationID) {
             transientCollectionNotice = nil
-            guard let authenticatedUserID else { return }
+            guard let authenticatedAuthority else { return }
 
             do {
                 try await collectionSynchronization()
             } catch is CancellationError {
                 return
             } catch {
-                await accountModel.reconcileSessionAfterCollectionSync(expectedUserID: authenticatedUserID)
-                guard !Task.isCancelled, accountModel.state.authenticatedUserID == authenticatedUserID else { return }
+                await accountModel.reconcileSession(expectedAuthority: authenticatedAuthority, cause: error)
+                guard
+                    !Task.isCancelled,
+                    accountModel.state.authenticatedAuthority == authenticatedAuthority
+                else { return }
 
-                transientCollectionNotice = Self.transientCollectionNotice(for: error, userID: authenticatedUserID)
+                transientCollectionNotice = Self.transientCollectionNotice(
+                    for: error,
+                    userID: authenticatedAuthority.userID
+                )
             }
         }
     }
@@ -112,13 +118,13 @@ private struct CollectionSynchronizationID: Hashable {
         let sequence: Int64
     }
 
-    let userID: UUID?
+    let authority: SessionAuthority?
     private let operations: [OperationIdentity]
 
-    init(userID: UUID?, operations: [CollectionOutboxOperation]) {
-        self.userID = userID
+    init(authority: SessionAuthority?, operations: [CollectionOutboxOperation]) {
+        self.authority = authority
         self.operations = operations
-            .filter { $0.userID == userID }
+            .filter { $0.userID == authority?.userID }
             .map { OperationIdentity(operationID: $0.operationID, sequence: $0.sequence) }
             .sorted { lhs, rhs in
                 if lhs.sequence != rhs.sequence { return lhs.sequence < rhs.sequence }
@@ -128,10 +134,10 @@ private struct CollectionSynchronizationID: Hashable {
 }
 
 private extension AccountModel.State {
-    var authenticatedUserID: UUID? {
+    var authenticatedAuthority: SessionAuthority? {
         guard case let .authenticated(account, _) = self else { return nil }
 
-        return account.id
+        return account.authority
     }
 }
 

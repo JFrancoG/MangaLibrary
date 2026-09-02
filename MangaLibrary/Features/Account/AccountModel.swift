@@ -124,16 +124,35 @@ final class AccountModel {
 
     private final class OperationIdentity {}
 
+    private final class ReconciliationContext {
+        let identity: OperationIdentity
+        let authority: SessionAuthority
+        var failure: Failure?
+
+        init(identity: OperationIdentity, authority: SessionAuthority, failure: Failure?) {
+            self.identity = identity
+            self.authority = authority
+            self.failure = failure
+        }
+    }
+
     private(set) var state: State
     private(set) var registrationState: RegistrationState
 
     @ObservationIgnored private let operations: Operations
     @ObservationIgnored private var activeOperationIdentity: OperationIdentity?
+    @ObservationIgnored private var activeReconciliation: ReconciliationContext?
+    @ObservationIgnored private var sessionAuthority: SessionAuthority?
 
     init(initialState: State = .restoring, registrationState: RegistrationState = .idle, operations: Operations) {
         state = initialState
         self.registrationState = registrationState
         self.operations = operations
+        sessionAuthority = switch initialState {
+        case let .authenticated(account, _): account.authority
+        case .restoring, .restorationFailed, .signedOut, .authenticating,
+             .authenticationRequired, .signingOut: nil
+        }
     }
 
     func register(email: String, password: String) async {
@@ -272,40 +291,93 @@ final class AccountModel {
         await resolve(identity: identity, fallback: fallback, operation: operations.logout)
     }
 
-    /// Reconciles a session transition discovered by background Collection work.
+    /// Reconciles a session transition discovered by Collection infrastructure.
     ///
     /// Transport and contract failures remain invisible to this local-first
     /// feature. Only an authoritative loss or replacement of the expected
     /// session changes Account presentation.
-    func reconcileSessionAfterCollectionSync(expectedUserID: UUID) async {
+    func reconcileSession(expectedAuthority: SessionAuthority, cause: (any Error)? = nil) async {
+        let incomingFailure = Self.reconciliationFailure(from: cause)
+        if let activeReconciliation,
+           activeOperationIdentity === activeReconciliation.identity,
+           activeReconciliation.authority == expectedAuthority {
+            activeReconciliation.failure = Self.mergingReconciliationFailure(
+                incomingFailure,
+                with: activeReconciliation.failure
+            )
+            return
+        }
+        if Self.isPersistenceFailure(incomingFailure),
+           sessionAuthority == expectedAuthority,
+           case let .authenticationRequired(userID, existingFailure) = state,
+           userID == expectedAuthority.userID {
+            state = .authenticationRequired(
+                userID: userID,
+                failure: Self.preferredReconciliationFailure(
+                    incomingFailure,
+                    over: existingFailure,
+                    fallback: .authenticationRequired
+                )
+            )
+            return
+        }
         guard
             Task.isCancelled == false,
             activeOperationIdentity == nil,
-            case let .authenticated(account, _) = state,
-            account.id == expectedUserID
+            sessionAuthority == expectedAuthority,
+            state.reconciliationUserID == expectedAuthority.userID
         else { return }
 
         let identity = beginOperation()
-        defer { finish(identity) }
+        let reconciliation = ReconciliationContext(
+            identity: identity,
+            authority: expectedAuthority,
+            failure: incomingFailure
+        )
+        activeReconciliation = reconciliation
+        defer {
+            if activeReconciliation === reconciliation {
+                activeReconciliation = nil
+            }
+            finish(identity)
+        }
         let snapshot = await operations.currentSnapshot()
         guard
-            Task.isCancelled == false,
+            Task.isCancelled == false || Self.isPersistenceFailure(reconciliation.failure),
             isCurrent(identity),
-            case let .authenticated(currentAccount, _) = state,
-            currentAccount.id == expectedUserID
+            sessionAuthority == expectedAuthority,
+            state.reconciliationUserID == expectedAuthority.userID
         else { return }
 
+        let existingFailure = state.reconciliationFailure
+        let reconciledFailure = reconciliation.failure
         switch snapshot {
         case .notRestored:
             break
         case .signedOut:
-            apply(snapshot, failure: .notAuthenticated)
-        case let .active(activeAccount) where activeAccount.id == expectedUserID:
-            break
+            apply(snapshot, failure: reconciledFailure ?? .notAuthenticated)
+        case let .active(activeAccount) where activeAccount.authority == expectedAuthority:
+            if Self.isPersistenceFailure(reconciledFailure) {
+                apply(
+                    snapshot,
+                    failure: Self.preferredReconciliationFailure(
+                        reconciledFailure,
+                        over: existingFailure,
+                        fallback: .persistenceUnavailable
+                    )
+                )
+            }
         case .active:
             apply(snapshot, failure: .sessionChanged)
         case .authenticationRequired:
-            apply(snapshot, failure: .authenticationRequired)
+            apply(
+                snapshot,
+                failure: Self.preferredReconciliationFailure(
+                    reconciledFailure,
+                    over: existingFailure,
+                    fallback: .authenticationRequired
+                )
+            )
         }
     }
 
@@ -389,11 +461,16 @@ final class AccountModel {
         case .notRestored:
             state = .restoring
         case .signedOut:
+            sessionAuthority = nil
             state = .signedOut(failure: failure)
         case let .active(account):
+            sessionAuthority = account.authority
             state = .authenticated(account, notice: failure)
             registrationState = .idle
         case let .authenticationRequired(userID):
+            if sessionAuthority?.userID != userID {
+                sessionAuthority = nil
+            }
             state = .authenticationRequired(userID: userID, failure: failure)
         }
     }
@@ -401,6 +478,7 @@ final class AccountModel {
     private func beginOperation() -> OperationIdentity {
         let identity = OperationIdentity()
         activeOperationIdentity = identity
+        activeReconciliation = nil
         return identity
     }
 
@@ -483,6 +561,59 @@ final class AccountModel {
             .network(error)
         case .contractDrift:
             .contractDrift
+        }
+    }
+
+    private static func reconciliationFailure(from cause: (any Error)?) -> Failure? {
+        guard let cause = cause as? SessionControllerError else { return nil }
+
+        return map(cause)
+    }
+
+    private static func preferredReconciliationFailure(
+        _ failure: Failure?,
+        over existingFailure: Failure?,
+        fallback: Failure
+    ) -> Failure {
+        mergingReconciliationFailure(failure, with: existingFailure) ?? fallback
+    }
+
+    private static func mergingReconciliationFailure(_ failure: Failure?, with existingFailure: Failure?) -> Failure? {
+        switch (failure, existingFailure) {
+        case (.temporarilyUnavailable?, _), (.persistenceUnavailable?, _):
+            failure
+        case (_, .temporarilyUnavailable?), (_, .persistenceUnavailable?):
+            existingFailure
+        default:
+            failure ?? existingFailure
+        }
+    }
+
+    private static func isPersistenceFailure(_ failure: Failure?) -> Bool {
+        failure == .temporarilyUnavailable || failure == .persistenceUnavailable
+    }
+}
+
+private extension AccountModel.State {
+    var reconciliationUserID: UUID? {
+        switch self {
+        case let .authenticated(account, _):
+            account.id
+        case let .authenticationRequired(userID, _):
+            userID
+        case .restoring, .restorationFailed, .signedOut, .authenticating, .signingOut:
+            nil
+        }
+    }
+
+    var reconciliationFailure: AccountModel.Failure? {
+        switch self {
+        case let .authenticated(_, notice):
+            notice
+        case let .authenticationRequired(_, failure):
+            failure
+        case .restoring, .restorationFailed, .signedOut, .authenticating, .signingOut:
+            nil
         }
     }
 }

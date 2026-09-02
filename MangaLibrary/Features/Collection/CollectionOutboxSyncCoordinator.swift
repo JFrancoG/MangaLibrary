@@ -14,7 +14,7 @@ enum CollectionOutboxSyncError: Error, Equatable {
 /// Serializes POST outbox work and fences every effect to one session generation.
 actor CollectionOutboxSyncCoordinator {
     typealias Authorize = @Sendable () async throws(any Error) -> SessionRequestAuthorization
-    typealias ValidateAuthorization = @Sendable (SessionRequestAuthorization) async -> Bool
+    typealias ValidateAuthorization = @Sendable (SessionRequestAuthorization) async throws(any Error) -> Bool
     typealias ClaimNextUpload = @Sendable (
         SessionCommitAuthorization
     ) async throws(any Error) -> CollectionOutboxUploadClaim?
@@ -88,7 +88,7 @@ actor CollectionOutboxSyncCoordinator {
         if let importedSnapshot, importedSnapshot.authority != authorization.authority {
             throw CollectionOutboxSyncError.sessionChanged
         }
-        guard await validateAuthorization(authorization) else {
+        guard try await validateAuthorization(authorization) else {
             throw CollectionOutboxSyncError.sessionChanged
         }
         try Task.checkCancellation()
@@ -134,7 +134,7 @@ actor CollectionOutboxSyncCoordinator {
         for authorization: SessionRequestAuthorization
     ) async throws(any Error) {
         try Task.checkCancellation()
-        guard await validateAuthorization(authorization) else {
+        guard try await validateAuthorization(authorization) else {
             throw CollectionOutboxSyncError.sessionChanged
         }
         try Task.checkCancellation()
@@ -185,7 +185,7 @@ actor CollectionOutboxSyncCoordinator {
         do {
             try Task.checkCancellation()
             guard pendingReplacement === identity else { throw CancellationError() }
-            guard await validateAuthorization(authorization) else {
+            guard try await validateAuthorization(authorization) else {
                 throw CollectionOutboxSyncError.sessionChanged
             }
             try Task.checkCancellation()
@@ -237,7 +237,7 @@ actor CollectionOutboxSyncCoordinator {
 
         while true {
             try Task.checkCancellation()
-            guard await validateAuthorization(authorization) else {
+            guard try await validateAuthorization(authorization) else {
                 throw CollectionOutboxSyncError.sessionChanged
             }
             let claim = try await performCollectionStoreOperation {
@@ -258,7 +258,7 @@ actor CollectionOutboxSyncCoordinator {
                 do {
                     try await submit(workItem, authorization.accessToken)
                     try Task.checkCancellation()
-                    guard await validateAuthorization(authorization) else {
+                    guard try await validateAuthorization(authorization) else {
                         throw CollectionOutboxSyncError.sessionChanged
                     }
                     try await performCollectionStoreOperation {
@@ -267,6 +267,9 @@ actor CollectionOutboxSyncCoordinator {
                 } catch is CancellationError {
                     throw CancellationError()
                 } catch let error as CollectionOutboxSyncError {
+                    throw error
+                } catch let error as SessionControllerError
+                    where error == .temporarilyUnavailable || error == .persistenceUnavailable {
                     throw error
                 } catch {
                     logUncertainSubmit(error)
@@ -317,7 +320,7 @@ actor CollectionOutboxSyncCoordinator {
         confirmUpload: ResolveUpload,
         blockUploadOutcome: ResolveUpload
     ) async throws(any Error) -> Bool {
-        guard await validateAuthorization(authorization) else {
+        guard try await validateAuthorization(authorization) else {
             throw CollectionOutboxSyncError.sessionChanged
         }
 
@@ -325,7 +328,7 @@ actor CollectionOutboxSyncCoordinator {
         do {
             remoteEntries = try await fetchRemote(authorization.accessToken)
             try Task.checkCancellation()
-            guard await validateAuthorization(authorization) else {
+            guard try await validateAuthorization(authorization) else {
                 throw CollectionOutboxSyncError.sessionChanged
             }
             try await performCollectionStoreOperation {
@@ -334,6 +337,9 @@ actor CollectionOutboxSyncCoordinator {
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as CollectionOutboxSyncError {
+            throw error
+        } catch let error as SessionControllerError
+            where error == .temporarilyUnavailable || error == .persistenceUnavailable {
             throw error
         } catch {
             logUnconfirmedOutcome(origin: "collectionSnapshot")
@@ -361,7 +367,7 @@ actor CollectionOutboxSyncCoordinator {
         confirmUpload: ResolveUpload,
         blockUploadOutcome: ResolveUpload
     ) async throws(any Error) -> Bool {
-        guard await validateAuthorization(authorization) else {
+        guard try await validateAuthorization(authorization) else {
             throw CollectionOutboxSyncError.sessionChanged
         }
 
@@ -387,7 +393,7 @@ actor CollectionOutboxSyncCoordinator {
     ) async throws(any Error) {
         while true {
             try Task.checkCancellation()
-            guard await validateAuthorization(authorization) else {
+            guard try await validateAuthorization(authorization) else {
                 throw CollectionOutboxSyncError.sessionChanged
             }
             let workItem = try await performCollectionStoreOperation {
@@ -458,7 +464,9 @@ extension CollectionOutboxSyncCoordinator {
     init(sessionController: SessionController, client: CollectionAPIClient, mutationActor: CollectionMutationActor) {
         self.init(
             authorize: { try await sessionController.requestAuthorization() },
-            validateAuthorization: { authorization in await sessionController.authorizes(authorization) },
+            validateAuthorization: { authorization in
+                try await sessionController.authorizes(authorization)
+            },
             claimNextUpload: { authorization in
                 try await mutationActor.claimNextUpload(authorization: authorization)
             },

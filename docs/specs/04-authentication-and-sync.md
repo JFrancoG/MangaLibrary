@@ -1,7 +1,7 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.18
+- Versión: 1.19
 - Última revisión: 2026-09-02
 
 ## Propósito y alcance
@@ -68,51 +68,64 @@ login porque el servidor no declara idempotency key, `409` ni un DTO de error.
 Un status distinto de `200` o `201`, o un payload `200` distinto del `Int64`
 esperado, no expone el body y conserva el resultado remoto como no confirmado.
 
-### Sesión dual JWT
+### Sesión JWT única
 
-La sesión usa dos tokens con responsabilidades distintas:
+La sesión usa un único JWT Bearer para identidad, renovación y operaciones
+protegidas. `POST /users/jwt/login` y `POST /users/jwt/refresh` devuelven el
+mismo DTO `token/tokenType/expiresIn`; la ejecución live observada entrega una
+vigencia de 24 horas, pero el cliente deriva cada expiración del `expiresIn`
+validado y no fija esa duración como contrato.
 
-| Token | Vigencia aceptada | Uso |
-| --- | --- | --- |
-| Access token | 1 hora | Autorizar operaciones de API. |
-| Refresh token | 30 días | Obtener una nueva sesión de acceso según el contrato. |
-
-Las duraciones se modelan con un reloj inyectable para que expiración y renovación sean verificables sin esperas reales.
+El JWT actual solo puede renovarse mientras continúa válido. La app inicia la
+renovación cuando le quedan cinco minutos o menos y nunca envía un JWT ya
+expirado. Duración, ventana y bordes se modelan con un reloj inyectable para que
+sean verificables sin esperas reales.
 
 ### Almacenamiento seguro
 
 | ID | Requisito |
 | --- | --- |
-| AUTH-001 | Access y refresh token se almacenan en Keychain. |
+| AUTH-001 | El JWT único de sesión se almacena en Keychain. |
 | AUTH-002 | La contraseña nunca se persiste, ni en SwiftData, preferencias, archivos, logs o Keychain. |
 | AUTH-003 | Los tokens no aparecen en logs, errores presentados, fixtures versionados ni documentación pública. |
 | AUTH-004 | El estado de sesión visible para UI no expone el valor bruto de ningún token. |
 | AUTH-005 | Los datos locales y operaciones pendientes permanecen particionados por identidad de usuario. |
 
-S1 materializa esta autoridad mediante el [bundle único de sesión en Keychain](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md).
-Un único registro V2 conserva `sessionGeneration`, UUID de usuario,
-access y refresh token con sus expiraciones. El email, roles y demás datos
+S1 materializa esta autoridad mediante el [JWT único y envelope Keychain V3](../adr/0019-single-jwt-session-and-keychain-v3.md).
+Un único registro V3 conserva `sessionGeneration`, UUID de usuario, JWT y su
+expiración. El email, roles y demás datos
 descriptivos permanecen en memoria y vuelven a obtenerse mediante `/me` cuando
 la red lo permite. El registro es la única autoridad durable: no existe ledger,
-fase ni revisión paralela en Application Support.
+fase ni revisión paralela en Application Support. El actor sí mantiene una
+revisión opaca de credencial exclusivamente en memoria; rota tras cada
+activación o refresh validado, incluso cuando el texto del JWT se repite, y no se
+deriva de claims ni se serializa.
 
-Login completa refresh → access → `/me`, reemplaza el registro Keychain y solo
-después publica la sesión. Al relanzar, un registro íntegro restaura generación e
-identidad mínima; su ausencia significa `signedOut`. Una versión desconocida o
-un payload corrupto fallan cerrados y se intentan retirar sin interpretar campos
+Login completa `/users/jwt/login` → `/users/jwt/me` con el mismo JWT, reemplaza
+el registro Keychain y solo después publica la sesión. Si el JWT expira mientras
+se valida la identidad, no se persiste ni se publica; si ya expiró justo después
+de recibirlo, ni siquiera se envía a `/jwt/me`. Si expira durante la
+escritura Keychain, se retira condicionalmente el envelope exacto antes de
+publicar; un fallo de esa limpieza deja `authenticationRequired` en memoria para
+que el login siguiente pueda sustituir el registro residual, sin autorizarlo. Al
+relanzar, un registro
+V3 íntegro restaura generación e identidad mínima; su ausencia significa
+`signedOut`. Un envelope V1/V2, una versión desconocida o un payload corrupto
+fallan cerrados y se intentan retirar sin interpretar o reutilizar tokens
 parciales. Si el dispositivo bloqueado hace que el registro
 `WhenUnlockedThisDeviceOnly` esté temporalmente inaccesible, la restauración se
 difiere sin escribir ni borrar.
 
-Si la restauración necesita renovar un access expirado, esa renovación valida
-`/me` antes de reemplazar el envelope y publica directamente la identidad ya
-comprobada. La restauración no repite un segundo `/me` sobre la misma credencial.
+Si la restauración encuentra un JWT todavía válido dentro de la ventana
+preventiva, lo renueva y valida `/users/jwt/me` antes de reemplazar el envelope;
+publica directamente la identidad ya comprobada y no repite un segundo `/me`
+sobre la misma credencial. Un JWT ya expirado no se envía a refresh.
 
-`authenticationRequired` no se persiste. Un refresh rechazado permanentemente
-deja de autorizar esos tokens, bloquea las operaciones del usuario mediante
+`authenticationRequired` no se persiste. Un JWT expirado o un refresh rechazado
+permanentemente deja de autorizar esa credencial, bloquea las operaciones del usuario mediante
 `blockedAuth` e intenta borrar el registro. Mientras el proceso continúa, Cuenta
 conserva el UUID en memoria aunque el borrado falle y nunca vuelve a entregar el
-access rechazado; el fallo de Keychain permanece visible para poder reintentar la
+JWT rechazado; el fallo de Keychain permanece visible para poder reintentar la
 limpieza. Un relanzamiento sin registro comienza en `signedOut` y el mismo scope
 se recupera cuando un login posterior confirme de nuevo ese UUID. Si el proceso
 termina con el envelope residual todavía presente, un arranque offline no puede
@@ -121,11 +134,24 @@ vuelve a exigir autenticación.
 
 ### Renovación
 
-- Una petición que necesita autorización obtiene credenciales válidas desde el límite de sesión, no directamente desde una View.
-- Las solicitudes concurrentes que detectan la misma expiración comparten una única renovación en curso.
-- El resultado de refresh se acepta solo si todavía pertenece a la sesión que lo inició y `/me` confirma la misma identidad antes de persistirlo o publicarlo.
-- Un fallo recuperable conserva una sesión bloqueada para red sin borrar ni mezclar la colección local.
-- Una imposibilidad permanente de renovar requiere autenticación del usuario y coloca las operaciones afectadas en `blockedAuth`.
+- Una petición obtiene el JWT válido desde el límite de sesión, no directamente desde una View.
+- Cinco minutos antes de expirar, las solicitudes concurrentes comparten una única renovación en curso mediante `POST /users/jwt/refresh`.
+- El vuelo queda ligado a UUID, generación y JWT exacto. Su resultado solo se acepta si todavía pertenece a esa autoridad y `/users/jwt/me` confirma la misma identidad antes de persistirlo o publicarlo.
+- Cada reemplazo validado rota una revisión opaca en memoria. Las capacidades de request y commit transportan autoridad y revisión; una capacidad anterior queda inválida aunque el refresh repita exactamente el mismo JWT y expiración.
+- Un fallo recuperable conserva el envelope y la colección local solo si el JWT continúa válido al terminar el vuelo; si expira durante la renovación, exige autenticación. La operación no continúa con una credencial que decidió renovar.
+- Un JWT expirado nunca se envía. Un rechazo permanente de refresh requiere autenticación del usuario y coloca las operaciones afectadas en `blockedAuth`.
+- Un JWT recién emitido que `/users/jwt/me` no acepta o vincula a otro UUID nunca sustituye el envelope anterior.
+- Un JWT que expire mientras `/users/jwt/me` valida su identidad tampoco sustituye el envelope anterior ni se publica.
+- Un JWT que expire durante el reemplazo Keychain se retira y no se publica. Un fallo de escritura conserva el envelope anterior solo mientras su JWT continúe válido; si ya expiró, pasa a `authenticationRequired`.
+- Después de cualquier suspensión usada para obtener o renovar la credencial, el actor revalida autoridad, envelope completo, revisión opaca, rechazo, gate y expiración y emite la autorización Bearer en ese mismo turno, sin otro `await` entre comprobación y construcción.
+- Si una recuperación A→B se reanuda cuando ya existe un refresh B→C, debe unirse al vuelo B→C antes de devolver; B nunca se emite como credencial intermedia ni se autoriza mientras está siendo reemplazada.
+- Tras esperar una respuesta protegida, la sesión vuelve a validar la expiración antes de admitir efectos. Un JWT que haya vencido durante el transporte pasa a `authenticationRequired` y no permite importar ni confirmar el resultado.
+- Una mutación local obtiene su capacidad de commit desde la misma sesión. La gate conserva también la expiración vigente y la comprueba dentro del mutex de la transacción: tanto si el JWT ya venció como si vence después de emitir la capacidad y antes del commit, no modifica SwiftData ni outbox, vuelve a Sesión para converger y la presentación de Cuenta reconcilia inmediatamente `authenticationRequired`.
+- El editor local captura UUID y generación al abrirse y los incluye en cada comando. La presentación, Sesión y `CollectionMutationActor` comparan esa autoridad completa; una generación B del mismo UUID no puede aceptar una sheet o comando de A. Una rotación de revisión dentro de la misma generación permite resolver una capacidad actual y repetir una sola vez antes de iniciar el commit.
+- Mientras el refresh espera el reemplazo durable del envelope, logout e invalidación se rechazan con `transitionInProgress`; se reintentan cuando ese commit confirma éxito o error. No pueden publicar otro estado en memoria que diverja del JWT que Keychain termina adoptando.
+- Logout e invalidación suspenden la gate durante el borrado sin descartar todavía la revisión necesaria para clasificar respuestas en vuelo. Si el borrado falla y el JWT sigue vigente, la reactivación rota la revisión; un rechazo recibido durante la transición fuerza refresh antes de reutilizarlo.
+- Un fallo al retirar de Keychain un JWT vencido conserva `authenticationRequired` fail-closed y su categoría segura en Cuenta. Un logout cuyo borrado cruza la expiración tampoco reactiva la sesión aunque el envelope residual siga presente.
+- Cancelar un waiter no transforma un fallo normal en reautenticación, pero tampoco puede ocultar un fallo seguro de carga, guardado, reemplazo o limpieza Keychain ya confirmado por el vuelo compartido. Cuenta conserva `temporarilyUnavailable` o `persistenceUnavailable` solo para la autoridad exacta y descarta cualquier causa tardía tras una generación distinta del mismo UUID. Si el snapshot exacto sigue activo porque el JWT anterior aún es válido, presenta la causa como aviso no bloqueante sin pedir credenciales ni degradar la autenticación.
 
 ### Logout seguro en Advanced
 
@@ -190,7 +216,7 @@ reintenta la redacción eventual; si ya no existe, permanece en `signedOut`. Una
 sesión nueva publica su envelope con el fence cerrado y solo lo abre y verifica
 al final.
 
-La [frontera vigente](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)
+La [frontera vigente](../adr/0019-single-jwt-session-and-keychain-v3.md)
 hace que esta extensión sea obligatoria cuando el bridge existe, pero no una
 precondición para implementar o aceptar Advanced.
 
@@ -314,7 +340,7 @@ Una cancelación por finalización de proceso no equivale a rechazo: tras recupe
 
 R1 incorpora únicamente la lectura autenticada `GET /collection/manga` y la
 importación de su resultado en el `ModelContainer` V2 existente. La petición usa
-el access vigente como Bearer, no lleva body, query ni `App-Token` y solo acepta
+el JWT de sesión vigente como Bearer, no lleva body, query ni `App-Token` y solo acepta
 el status exacto `200`. El array recibido representa un snapshot remoto completo,
 no una página, delta o confirmación de envíos locales.
 
@@ -396,11 +422,14 @@ resolución interactiva sigue siendo trabajo posterior de R2.
 La raíz estable inicia la capacidad al restaurar o confirmar una sesión
 autenticada, sin depender de visitar la tab Colección. La UI puede seguir
 mostrando inmediatamente SwiftData mediante `@Query`. Una autorización interna
-de sesión obtiene access y generación sin exponerlos a SwiftUI; el coordinador
+de sesión obtiene JWT y generación sin exponerlos a SwiftUI; el coordinador
 actor mantiene la red fuera del model actor, propaga cancelación, reemplaza una
 ejecución anterior y revalida la misma generación inmediatamente antes de
 importar. Abandonar la identidad cancela su ejecución. Una respuesta tardía,
 reemplazada o perteneciente a A después de activar B no aplica efectos.
+El trigger del shell y la reconciliación de Cuenta se identifican por la
+`SessionAuthority` completa, no solo por UUID; una causa segura de limpieza solo
+puede enriquecer el estado correspondiente a esa misma autoridad.
 
 La revalidación previa es solo un rechazo rápido. La garantía de commit usa una
 gate de proceso ligada a la autoridad exacta: invalidación de sesión y
@@ -411,32 +440,40 @@ linealizan después. Esta gate no persiste estado, no cruza procesos y no es el
 `SessionFence` durable reservado a Deluxe.
 
 La respuesta de autenticación o autorización se clasifica contra la generación y
-el access exactos de la request. Un rechazo tardío de un token sustituido o de la
-generación A se convierte en `sessionChanged` y no afecta al access renovado ni a
-la sesión B.
+el JWT exactos de la request. Un rechazo tardío de un token sustituido o de la
+generación A se convierte en `sessionChanged` y no afecta al JWT renovado ni a
+la sesión B. Una respuesta `200` tampoco autoriza por sí sola la importación: al
+volver del transporte se revalida que el JWT exacto continúe vigente y que su
+gate siga autorizando la generación. Si vence entre esa comprobación y el commit
+SwiftData, la propia gate aborta la importación y el coordinador vuelve a Sesión
+para converger antes de presentar el resultado.
 
-Un primer `401` vigente fuerza una renovación single-flight aunque el access aún
-no haya vencido. La renovación queda ligada a la generación y al access rechazado,
-revalida con `/users/session/me` que el access nuevo representa la misma identidad
-y permite un único segundo `GET /collection/manga`. Solo un rechazo permanente del
-refresh conduce a `authenticationRequired` y retira el envelope conforme a
-ADR-0018. Si `/me` no acepta el access recién emitido, o Colección devuelve otro
+Un primer `401` vigente fuerza una renovación single-flight aunque el JWT todavía
+esté fuera de la ventana preventiva. La renovación queda ligada a la generación y
+al JWT rechazado, revalida con `/users/jwt/me` que el JWT nuevo representa la misma
+identidad y permite un único segundo `GET /collection/manga`. Solo un rechazo
+permanente de `/users/jwt/refresh` conduce a `authenticationRequired` y retira el
+envelope conforme a ADR-0019. Si `/users/jwt/me` no acepta el JWT recién emitido,
+o Colección devuelve otro
 `401` después de que `/me` lo acepte, se clasifica una incompatibilidad del backend:
 la sesión, Keychain, colección y outbox permanecen intactos y no existe un tercer
 intento. Toda renovación, incluida la iniciada por expiración ordinaria, valida esa
-identidad antes de persistir o publicar el access nuevo; por ello una recuperación
+identidad antes de persistir o publicar el JWT nuevo; por ello una recuperación
 R1 que comparte un refresh ya en curso nunca puede observar una credencial todavía
 no validada. Un vuelo residual solo se comparte si todavía sustituye la generación
-y el access vigentes; al activar una sesión posterior se ignora, y su resultado
+y el JWT vigentes; al activar una sesión posterior se ignora, y su resultado
 tardío queda cercado como `sessionChanged` sin bloquear la autorización nueva.
+Si la renovación preventiva necesaria para obtener la autorización inicial
+produce un JWT rechazado por `/users/jwt/me`, el coordinador lo clasifica como
+incompatibilidad de identidad renovada sin ejecutar el GET ni ocultar la causa.
 
 Un `403` vigente, incluido el segundo intento, representa autorización insuficiente
-para Colección; no demuestra que access o refresh sean inválidos. Conserva sesión,
+para Colección; no demuestra que el JWT de sesión sea inválido. Conserva sesión,
 Keychain, colección y outbox, y no inicia refresh ni otro retry. Cuenta mantiene su
 estado autenticado y muestra un aviso seguro distinto para permiso denegado o
 incompatibilidad de autenticación del endpoint. El diagnóstico de Colección conserva
 únicamente el origen constante, el status y el intento; el rechazo permanente del
-refresh registra `origin=refreshExchange`, status y acción. Ninguno conserva URL
+refresh registra `origin=jwtRefresh`, status y acción. Ninguno conserva URL
 completa, cabeceras, tokens, body, email o UUID. Esta recuperación es protocolaria y
 acotada al GET seguro: R1 no incorpora backoff, repetición general ni una acción
 manual de retry.
@@ -497,14 +534,20 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 | Advanced | Alta confirmada y login fallido o cancelado | Conserva «cuenta creada», no repite el alta y ofrece iniciar sesión. |
 | Advanced | Respuesta de alta perdida o cancelada después del envío | Presenta resultado incierto y no reintenta automáticamente. |
 | Advanced | Alta A tardía después de autenticar B | No inicia el login de A ni reemplaza el estado o la sesión de B. |
-| Advanced | Login correcto | Un único envelope Keychain V2 conserva generación, UUID, ambos tokens y expiraciones; la contraseña no queda persistida. |
-| Advanced | Access expirado y refresh vigente | Una sola renovación abastece peticiones concurrentes y actualiza la sesión aplicable. |
-| Advanced | Refresh no válido | El registro deja de autorizar, se intenta eliminar, la sesión requiere autenticación solo en memoria y sus operaciones pasan a `blockedAuth`; tras relanzar sin registro parte de `signedOut`. |
+| Advanced | Login correcto | Un único envelope Keychain V3 conserva generación, UUID, JWT y expiración después de validar `/users/jwt/me`; la contraseña no queda persistida. |
+| Advanced | JWT dentro de la ventana preventiva | Una sola renovación abastece peticiones concurrentes, valida la misma identidad y actualiza la sesión aplicable. |
+| Advanced | Refresh devuelve el mismo texto JWT | Rota la revisión opaca; las capacidades anteriores no autorizan requests ni commits y los waiters reciben solo la credencial de su autoridad vigente. |
+| Advanced | JWT ya expirado | No se envía a refresh ni a recursos protegidos; el registro deja de autorizar, se intenta eliminar y la sesión requiere autenticación. |
+| Advanced | JWT vence tras resolver una autorización o durante transporte | No se emite una credencial ya vencida ni se aplica la respuesta remota; la sesión pasa a `authenticationRequired`. |
+| Advanced | JWT vence antes de una mutación local | No cambia SwiftData ni outbox; Cuenta reconcilia `authenticationRequired` y Colección queda sin capacidad de escritura. |
+| Advanced | Refresh JWT no válido | El registro deja de autorizar, se intenta eliminar, la sesión requiere autenticación solo en memoria y sus operaciones pasan a `blockedAuth`; tras relanzar sin registro parte de `signedOut`. |
+| Advanced | Logout o invalidación durante el commit Keychain de refresh | Devuelve `transitionInProgress`; al terminar el commit puede reintentarse contra el único envelope V3 vigente, sin divergencia entre memoria y Keychain. |
 | Advanced | Logout sin red | El envelope Keychain esperado queda eliminado y los datos siguen aislados por usuario, sin exigir un bridge Deluxe. |
-| Advanced | Fallo al borrar Keychain | Logout no completa, conserva la sesión autorizable y ofrece reintento. |
+| Advanced | Fallo al borrar Keychain | Logout no completa y ofrece reintento. Conserva la sesión solo si su JWT sigue vigente; si vence durante el borrado, publica `authenticationRequired`, conserva visible el fallo y no reactiva el envelope residual. |
 | Advanced | Crash durante logout | Si el registro permanece, restaura la sesión; si ya fue eliminado, restaura `signedOut`. No existe limpieza intermedia. |
 | Advanced | Activación de B durante el logout de A | El propietario no activa B hasta que el borrado de A termina con éxito o error. |
 | Advanced | Efecto tardío de A tras activar B | La comprobación de generación lo convierte en no-op; credenciales, rutas, datos y operaciones de B permanecen intactos. |
+| Advanced | Editor o comando A tras activar otra generación del mismo UUID | No solicita una capacidad para B, y la cerca del model actor rechaza también una capacidad B directa; colección y outbox quedan intactas. |
 | Advanced | Logout con cambios pendientes | Exige esperar o confirmar el descarte; el descarte restaura el último estado confirmado y no deja outbox reproducible bajo otra sesión. |
 | Advanced | Edición sin red | La UI cambia vía SwiftData y queda una operación persistida `queued` o `retry`. |
 | Advanced | Reinicio de app | La intención pendiente conserva UUID, secuencia y posibilidad de envío. |
@@ -516,12 +559,14 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 | Advanced | Snapshot R1 ausente | Retira solo una entrada confirmada sin intención pendiente; conserva una intención pendiente con ausencia confirmada y falla cerrado ante un huérfano sin base ni outbox. |
 | Advanced | Lote R1 inválido, cancelado o no persistible | No aplica ninguna parte y conserva colección y outbox previas. |
 | Advanced | Respuesta R1 de una generación anterior | No modifica la colección ni la outbox de la sesión vigente. |
+| Advanced | Refresh preventivo previo a R1 rechazado por `/users/jwt/me` | No llama a Colección, conserva la sesión todavía válida y presenta incompatibilidad de identidad renovada. |
 | Advanced | Primer `401` R1 de la request vigente | Fuerza una única renovación single-flight, revalida la identidad y repite una sola vez el GET seguro. |
 | Advanced | Refresh rechazado permanentemente durante la recuperación R1 | Retira el envelope exacto y proyecta `authenticationRequired`; no ejecuta el segundo GET. |
-| Advanced | Segundo `401` R1 con access renovado aceptado por `/me` | Conserva sesión, Keychain, colección y outbox, no realiza un tercer intento y presenta incompatibilidad del endpoint. |
+| Advanced | Segundo `401` R1 con JWT renovado aceptado por `/users/jwt/me` | Conserva sesión, Keychain, colección y outbox, no realiza un tercer intento y presenta incompatibilidad del endpoint. |
 | Advanced | `403` R1 de una request vigente | Conserva sesión, Keychain, colección y outbox, no renueva ni repite y presenta autorización insuficiente de Colección. |
-| Advanced | Rechazo R1 tardío tras refresh o sesión B | Se convierte en `sessionChanged`, no invalida el access renovado ni la sesión posterior y no modifica SwiftData. |
+| Advanced | Rechazo R1 tardío tras refresh o sesión B | Se convierte en `sessionChanged`, no invalida el JWT renovado ni la sesión posterior y no modifica SwiftData. |
 | Advanced | Vuelo de refresh A residual después de activar B | La autorización y una recuperación `401` de B ignoran el vuelo no coincidente; A termina como `sessionChanged` y no modifica ni bloquea B. |
+| Advanced | Waiter cancelado mientras falla la persistencia Keychain | El fallo seguro de carga, guardado, reemplazo o limpieza prevalece sobre la cancelación y Cuenta lo presenta solo si aún coincide UUID y generación. |
 | Advanced | Error transitorio | La operación pasa por `retry` y no duplica efectos visibles. |
 | Advanced | Efecto remoto aplicado y respuesta perdida | La reconciliación reconoce el estado deseado, pasa a `confirmed` y no repite el request. |
 | Advanced | Resultado remoto inconcluso | Pasa a `blockedOutcome`, conserva ambos estados para resolver y no revierte ni reintenta automáticamente. |
@@ -581,3 +626,4 @@ WatchOS y WidgetKit consumen proyecciones y no abren nuevos escritores autoritat
 - [ADR-0017: flujos nativos y respuesta HTTP con status validado](../adr/0017-validated-http-status-response-boundary.md)
 - [ADR-0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
 - [ADR-0018: bundle único de sesión en Keychain y logout atómico](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)
+- [ADR-0019: JWT único de sesión y envelope Keychain V3](../adr/0019-single-jwt-session-and-keychain-v3.md)

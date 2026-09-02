@@ -13,6 +13,7 @@ struct CollectionIdentity: Hashable {
 
 struct CollectionEditorSeed: Identifiable, Equatable {
     let identity: CollectionIdentity
+    let authority: SessionAuthority
     let title: String?
     let mangaSnapshot: CollectionMangaSnapshot?
     let state: CollectionSnapshot
@@ -141,7 +142,7 @@ final class CollectionEditorModel {
         do {
             _ = try await mutation(
                 CollectionMutationCommand(
-                    userID: seed.identity.userID,
+                    authority: seed.authority,
                     mangaID: seed.identity.mangaID,
                     mangaSnapshot: seed.mangaSnapshot,
                     knownTotalVolumes: knownTotalVolumes,
@@ -168,7 +169,7 @@ final class CollectionEditorModel {
         do {
             _ = try await mutation(
                 CollectionMutationCommand(
-                    userID: seed.identity.userID,
+                    authority: seed.authority,
                     mangaID: seed.identity.mangaID,
                     knownTotalVolumes: knownTotalVolumes,
                     change: .delete
@@ -199,9 +200,14 @@ final class CollectionEditorModel {
 }
 
 extension CollectionEditorSeed {
-    static func catalog(userID: UUID, manga: Manga, existingState: CollectionSnapshot?) -> CollectionEditorSeed {
+    static func catalog(
+        authority: SessionAuthority,
+        manga: Manga,
+        existingState: CollectionSnapshot?
+    ) -> CollectionEditorSeed {
         CollectionEditorSeed(
-            identity: CollectionIdentity(userID: userID, mangaID: manga.id),
+            identity: CollectionIdentity(userID: authority.userID, mangaID: manga.id),
+            authority: authority,
             title: manga.title,
             mangaSnapshot: CollectionMangaSnapshot(manga: manga),
             state: resolvedState(manga: manga, existingState: existingState),

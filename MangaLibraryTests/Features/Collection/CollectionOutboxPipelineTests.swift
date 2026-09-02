@@ -26,7 +26,7 @@ struct CollectionOutboxPipelineTests {
         )
         _ = try await mutationActor.apply(
             CollectionMutationCommand(
-                userID: Self.userID,
+                authority: authority,
                 mangaID: 42,
                 mangaSnapshot: CollectionMangaSnapshot(manga: Self.manga),
                 knownTotalVolumes: 3,
@@ -240,7 +240,7 @@ struct CollectionOutboxPipelineTests {
                 try await synchronization()
             }
         case .cancelled:
-            await #expect(throws: CollectionRemoteImportError.cancelled) {
+            await #expect(throws: CancellationError.self) {
                 try await synchronization()
             }
         }
@@ -337,7 +337,7 @@ struct CollectionOutboxPipelineTests {
         let commitAuthorization = gate.authorization(for: authority)
         _ = try await mutationActor.apply(
             CollectionMutationCommand(
-                userID: Self.userID,
+                authority: authority,
                 mangaID: 42,
                 mangaSnapshot: CollectionMangaSnapshot(manga: Self.manga),
                 knownTotalVolumes: 3,
@@ -388,7 +388,7 @@ struct CollectionOutboxPipelineTests {
         let commitAuthorization = gate.authorization(for: authority)
         _ = try await mutationActor.apply(
             CollectionMutationCommand(
-                userID: Self.userID,
+                authority: authority,
                 mangaID: 42,
                 mangaSnapshot: CollectionMangaSnapshot(manga: Self.manga),
                 knownTotalVolumes: 3,
@@ -452,6 +452,7 @@ struct CollectionOutboxPipelineTests {
 
     private static let userID = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
     private static let generation = UUID(uuidString: "22222222-3333-4444-5555-666666666666")!
+    private static let authority = SessionAuthority(userID: userID, generation: generation)
     private static let previousGeneration = UUID(uuidString: "00000000-1111-2222-3333-444444444444")!
     private static let operationID = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
     private static let desiredState = CollectionSnapshot(
@@ -483,7 +484,7 @@ struct CollectionOutboxPipelineTests {
     ) async throws(any Error) {
         _ = try await mutationActor.apply(
             CollectionMutationCommand(
-                userID: userID,
+                authority: authority,
                 mangaID: 42,
                 mangaSnapshot: CollectionMangaSnapshot(manga: manga),
                 knownTotalVolumes: 3,

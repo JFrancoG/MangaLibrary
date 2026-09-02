@@ -10,6 +10,21 @@ import Testing
 
 @Suite("Session Keychain store", .tags(.integration))
 struct SessionPersistenceStoreTests {
+    @Test("Live Keychain wiring uses V3 and both known legacy namespaces")
+    func liveStoreUsesTheVersionedNamespaces() throws(any Error) {
+        let bundleIdentifier = try #require(Bundle.main.bundleIdentifier)
+        let store = try SessionKeychainStore.live()
+
+        #expect(store.service == "\(bundleIdentifier).session.current.v3")
+        #expect(
+            store.legacyServices
+                == [
+                    "\(bundleIdentifier).session-secrets.v1",
+                    "\(bundleIdentifier).session.current.v2",
+                ]
+        )
+    }
+
     @Test("Keychain keeps only the current versioned session")
     func keychainReplacesThePreviousSession() throws(any Error) {
         let service = "com.mangalibrary.tests.session.\(UUID().uuidString)"
@@ -52,8 +67,11 @@ struct SessionPersistenceStoreTests {
 
         let storedData = try #require(attributes[kSecValueData as String] as? Data)
         let storedJSON = try #require(String(data: storedData, encoding: .utf8))
-        #expect(storedJSON.contains("\"formatVersion\":2"))
+        #expect(storedJSON.contains("\"formatVersion\":3"))
         #expect(storedJSON.contains(Self.userA.uuidString.uppercased()))
+        #expect(storedJSON.contains("\"token\":\"synthetic-access-a\""))
+        #expect(storedJSON.contains("accessToken") == false)
+        #expect(storedJSON.contains("refreshToken") == false)
         #expect(storedJSON.contains("email") == false)
         #expect(storedJSON.contains("password") == false)
         #expect(storedJSON.contains("role") == false)
@@ -62,17 +80,29 @@ struct SessionPersistenceStoreTests {
     @Test(
         "Invalid Keychain envelopes cannot become a session",
         arguments: [
-            InvalidSessionEnvelopeFixture("missing fields", json: #"{"formatVersion":2}"#),
+            InvalidSessionEnvelopeFixture("missing fields", json: #"{"formatVersion":3}"#),
             InvalidSessionEnvelopeFixture(
-                "unknown version",
+                "legacy V2 dual envelope",
                 json: #"""
                     {
                       "accessExpiresAt": 700003600,
                       "accessToken": "synthetic-access",
-                      "formatVersion": 99,
+                      "formatVersion": 2,
                       "generation": "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
                       "refreshExpiresAt": 702592000,
                       "refreshToken": "synthetic-refresh",
+                      "userID": "11111111-2222-3333-4444-555555555555"
+                    }
+                    """#
+            ),
+            InvalidSessionEnvelopeFixture(
+                "unknown version",
+                json: #"""
+                    {
+                      "expiresAt": 700086400,
+                      "formatVersion": 99,
+                      "generation": "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+                      "token": "synthetic-jwt",
                       "userID": "11111111-2222-3333-4444-555555555555"
                     }
                     """#
@@ -88,6 +118,49 @@ struct SessionPersistenceStoreTests {
         #expect(throws: SessionStorageError.corruptSessionRecord) {
             try store.load()
         }
+    }
+
+    @Test("A legacy V2 dual envelope is removed instead of reinterpreted")
+    func legacyV2EnvelopeIsRemovedByRestore() async throws(any Error) {
+        let service = "com.mangalibrary.tests.session.current.\(UUID().uuidString)"
+        let legacyService = "com.mangalibrary.tests.session.v2.\(UUID().uuidString)"
+        let store = SessionKeychainStore(service: service, legacyServices: [legacyService])
+        defer { try? store.removeAll() }
+        let payload = Data(
+            #"""
+            {
+              "accessExpiresAt": 700003600,
+              "accessToken": "synthetic-access",
+              "formatVersion": 2,
+              "generation": "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+              "refreshExpiresAt": 702592000,
+              "refreshToken": "synthetic-refresh",
+              "userID": "11111111-2222-3333-4444-555555555555"
+            }
+            """#.utf8
+        )
+        try insertKeychainPayload(payload, service: legacyService)
+        let persistence = SessionPersistenceActor(keychain: store)
+
+        #expect(try await persistence.restore() == .signedOut)
+        #expect(try keychainItemCount(service: service) == 0)
+        #expect(try keychainItemCount(service: legacyService) == 0)
+    }
+
+    @Test("Restore removes a residual V2 envelope beside a valid V3 authority")
+    func validV3RestoreRemovesResidualV2Envelope() async throws(any Error) {
+        let service = "com.mangalibrary.tests.session.current.\(UUID().uuidString)"
+        let legacyService = "com.mangalibrary.tests.session.v2.\(UUID().uuidString)"
+        let store = SessionKeychainStore(service: service, legacyServices: [legacyService])
+        defer { try? store.removeAll() }
+        let session = try makeSession(userID: Self.userA, generation: Self.generationA)
+        try store.save(session)
+        try insertKeychainPayload(Data("legacy-v2-envelope".utf8), service: legacyService)
+        let persistence = SessionPersistenceActor(keychain: store)
+
+        #expect(try await persistence.restore() == .active(session))
+        #expect(try keychainItemCount(service: service) == 1)
+        #expect(try keychainItemCount(service: legacyService) == 0)
     }
 
     @Test("Logout cleanup removes current and legacy session namespaces")
@@ -114,16 +187,7 @@ struct SessionPersistenceStoreTests {
         try SessionPersistedSession(
             userID: userID,
             generation: generation,
-            access: SessionCredential(
-                value: accessValue,
-                use: .access,
-                expiresAt: Self.issuedAt.addingTimeInterval(3_600)
-            ),
-            refresh: SessionCredential(
-                value: "synthetic-refresh",
-                use: .refresh,
-                expiresAt: Self.issuedAt.addingTimeInterval(2_592_000)
-            )
+            access: SessionCredential(value: accessValue, expiresAt: Self.issuedAt.addingTimeInterval(86_400))
         )
     }
 

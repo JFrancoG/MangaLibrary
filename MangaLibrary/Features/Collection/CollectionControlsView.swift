@@ -26,8 +26,8 @@ struct CollectionControlsView: View {
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                         .accessibilityIdentifier("collection.controls.unavailable")
-                case let .user(userID, restriction):
-                    collectionContent(userID: userID, restriction: restriction)
+                case let .user(scope, restriction):
+                    collectionContent(scope: scope, restriction: restriction)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -48,7 +48,7 @@ struct CollectionControlsView: View {
             CollectionEditorView(seed: seed, mutation: mutation)
         }
         .onChange(of: access) { previousAccess, currentAccess in
-            let identityChanged = previousAccess.userID != currentAccess.userID
+            let identityChanged = previousAccess.authority != currentAccess.authority
             if identityChanged || currentAccess.canMutate == false {
                 editorSeed = nil
             }
@@ -56,15 +56,18 @@ struct CollectionControlsView: View {
     }
 
     @ViewBuilder
-    private func collectionContent(userID: UUID, restriction: CollectionAccess.MutationRestriction?) -> some View {
+    private func collectionContent(
+        scope: CollectionUserScope,
+        restriction: CollectionAccess.MutationRestriction?
+    ) -> some View {
         if let entry {
             CollectionStateSummary(state: entry.state)
 
             if let restriction {
                 readOnlyNotice(restriction)
-            } else {
+            } else if let authority = scope.authority {
                 Button("Edit Collection") {
-                    editorSeed = seed(userID: userID, entry: entry)
+                    editorSeed = seed(authority: authority, entry: entry)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -79,9 +82,9 @@ struct CollectionControlsView: View {
 
             if let restriction {
                 readOnlyNotice(restriction)
-            } else {
+            } else if let authority = scope.authority {
                 Button("Add to Collection") {
-                    editorSeed = seed(userID: userID, entry: nil)
+                    editorSeed = seed(authority: authority, entry: nil)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -104,8 +107,8 @@ struct CollectionControlsView: View {
         entries.first
     }
 
-    private func seed(userID: UUID, entry: CollectionEntry?) -> CollectionEditorSeed {
-        CollectionEditorSeed.catalog(userID: userID, manga: manga, existingState: entry?.state)
+    private func seed(authority: SessionAuthority, entry: CollectionEntry?) -> CollectionEditorSeed {
+        CollectionEditorSeed.catalog(authority: authority, manga: manga, existingState: entry?.state)
     }
 }
 

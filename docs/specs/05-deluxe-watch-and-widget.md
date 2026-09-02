@@ -1,8 +1,8 @@
 # SDD 05: Deluxe, watchOS y widget
 
 **Estado:** Aprobada
-**Versión:** 1.5
-**Fecha:** 2026-09-01
+**Versión:** 1.6
+**Fecha:** 2026-09-02
 **Gate de entrada:** Advanced Release Gate superado
 
 ## Propósito
@@ -22,16 +22,18 @@ El widget 1.0 usará `StaticConfiguration` con un `TimelineProvider`. Todas sus 
 
 ## Entrada desde Advanced
 
-Advanced entrega una sesión cuya única autoridad durable es un bundle V2 en
-Keychain y un logout binario por borrado, sin ledger, revisiones, fases de sesión,
-App Group, `SessionFence`, WidgetKit o WatchConnectivity. Esa evidencia no
+Advanced entrega una sesión cuya única autoridad durable es un envelope V3 en
+Keychain y un logout binario por borrado, sin ledger, revisiones durables, fases
+de sesión, App Group, `SessionFence`, WidgetKit o WatchConnectivity. La revisión
+opaca de credencial de Advanced vive solo en memoria y no constituye una segunda
+autoridad. Esa evidencia no
 acredita el bridge Deluxe. La primera unidad que lo materialice debe inicializar
 el fence cerrado antes de exponer cualquier consumidor y no puede inferir que una
 sesión ya activa esté autorizada para el nuevo bridge.
 
 Ante una sesión Advanced ya activa, el publicador solo puede abrir el bridge tras
 obtener del propietario serializado una autorización ligada a la generación del
-bundle Keychain V2 vigente y sin logout en curso. Después publica el envelope,
+envelope Keychain V3 vigente y sin logout en curso. Después publica el envelope,
 revalida esa misma generación y abre el fence al final. Si la autorización falta o
 deja de ser válida, el bridge sigue cerrado hasta que el propietario confirme una
 sesión vigente o el flujo normal de autenticación establezca otra. Un token suelto,
@@ -44,7 +46,7 @@ fence cerrado es el punto de no retorno durable de Deluxe; no se reintroduce un
 ledger privado de sesión. El envelope redactado, el reload y la entrega a watchOS
 quedan como efectos eventuales. No se introduce un bridge no-op en Advanced. La
 frontera completa se define en
-[ADR-0018](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md).
+[ADR-0019](../adr/0019-single-jwt-session-and-keychain-v3.md).
 
 ## Snapshot de lectura
 
@@ -215,6 +217,7 @@ App Group y WatchConnectivity requieren entitlements y pruebas de integración e
 - [ADR 0007: watchOS, WidgetKit y puentes de datos](../adr/0007-watchos-widgetkit-and-data-bridges.md)
 - [ADR 0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
 - [ADR 0018: bundle único de sesión en Keychain y logout atómico](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)
+- [ADR 0019: JWT único de sesión y envelope Keychain V3](../adr/0019-single-jwt-session-and-keychain-v3.md)
 - [Colección local e invariantes](03-local-collection-and-invariants.md)
 - [Autenticación y sincronización](04-authentication-and-sync.md)
 - [Testing, calidad y accesibilidad](06-testing-quality-and-accessibility.md)

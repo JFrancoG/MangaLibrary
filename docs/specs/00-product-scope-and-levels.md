@@ -1,8 +1,8 @@
 # Alcance de producto y niveles
 
 - Estado: aprobado
-- Versión: 1.8
-- Última revisión: 2026-09-01
+- Versión: 1.9
+- Última revisión: 2026-09-02
 
 ## Propósito
 
@@ -40,14 +40,15 @@ Advanced es la primera puerta de entrega y acumula las capacidades básica, medi
 6. Adaptación funcional para iPhone y iPad.
 7. Cobertura automatizada proporcionada al riesgo mediante la estrategia híbrida del proyecto.
 
-La autenticación de Advanced usa un único bundle V2 en Keychain como autoridad
-durable. Contiene identidad estable, generación opaca, access, refresh y sus
-expiraciones, sin ledger, revisiones o fases de sesión en filesystem. Logout es
-binario: conserva la sesión si el borrado condicional del bundle falla y solo
-publica `signedOut` después de eliminarlo. `authenticationRequired` es un estado
+La autenticación de Advanced usa un único envelope V3 en Keychain como autoridad
+durable. Contiene identidad estable, generación opaca, un JWT de sesión y su
+expiración, sin ledger, revisiones o fases de sesión en filesystem. Logout es
+binario: conserva la sesión activa si el borrado condicional falla mientras el
+JWT sigue vigente; si vence, conserva `authenticationRequired`, y solo publica
+`signedOut` después de eliminar el bundle. `authenticationRequired` es un estado
 efímero del proceso; sin bundle tras un relanzamiento, la app parte de `signedOut`.
 Advanced no exige App Group, `SessionFence`, WidgetKit o WatchConnectivity. La
-[frontera Deluxe](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md) añade
+[frontera Deluxe](../adr/0019-single-jwt-session-and-keychain-v3.md) añade
 garantías compartidas solo cuando existan consumidores externos reales.
 
 Advanced debe superar su puerta de aceptación antes de que Deluxe pueda considerarse iniciado o entregable.
@@ -78,7 +79,7 @@ La fecha objetivo de Deluxe es anterior al 15 de septiembre de 2026. Sus puentes
 | PROD-010 | Catálogo debe permanecer disponible sin sesión; autenticación se representa dentro del shell principal y no sustituye automáticamente su raíz. |
 | PROD-011 | Cuando exista el bridge Deluxe, tras cada commit local completado o cambio de sesión confirmado que altere la proyección visible de lectura, la app debe publicar el snapshot nuevo y solicitar la recarga dirigida del widget desde un `SessionFence` seguro; WidgetKit decide el momento efectivo de presentación y no existe un SLA de latencia en tiempo real. |
 | PROD-012 | Cuando exista el bridge Deluxe, logout debe cerrar y verificar de forma durable el `SessionFence` compartido antes de borrar el bundle Keychain vigente; si no puede hacerlo, no completa y ofrece reintento. La redacción del envelope y su reflejo visual en WidgetKit o watchOS siguen siendo eventuales. |
-| PROD-013 | Advanced debe completar logout sin red mediante el borrado condicional del único bundle Keychain para la generación esperada, aislamiento por usuario e invalidación de rutas privadas. Un fallo conserva la sesión activa y permite reintentar; no existe una fase durable intermedia ni una capacidad Deluxe ausente o ficticia. |
+| PROD-013 | Advanced debe completar logout sin red mediante el borrado condicional del único bundle Keychain para la generación esperada, aislamiento por usuario e invalidación de rutas privadas. Un fallo conserva la sesión activa y permite reintentar solo mientras el JWT siga vigente; si vence, conserva `authenticationRequired` fail-closed. No existe una fase durable intermedia ni una capacidad Deluxe ausente o ficticia. |
 
 ## Criterios de aceptación
 
@@ -92,8 +93,8 @@ Advanced se considera aceptado solo cuando existe evidencia reproducible de que:
 - la suite híbrida termina sin fallos y cubre al menos invariantes, transformaciones de transporte, autenticación y transiciones de outbox;
 - no hay dependencias externas;
 - catálogo puede abrirse antes de login y después de completar logout sin mostrar datos privados de la cuenta anterior;
-- restaurar solo acepta un bundle Keychain V2 íntegro; una versión desconocida o un registro corrupto falla cerrado y nunca publica tokens parciales;
-- logout conserva la sesión si Keychain no puede borrar su bundle y solo publica `signedOut` tras eliminar condicionalmente la generación esperada;
+- restaurar solo acepta un envelope Keychain V3 íntegro; V1/V2, una versión desconocida o un registro corrupto fallan cerrados y nunca publican tokens parciales;
+- logout conserva la sesión activa si Keychain no puede borrar su bundle mientras el JWT siga vigente; si vence, conserva `authenticationRequired`, y solo publica `signedOut` tras eliminar condicionalmente la generación esperada;
 - un logout de A bloquea la activación concurrente de B y ningún efecto tardío de A puede reemplazar o borrar credenciales, rutas, datos u operaciones de una sesión posterior;
 - un crash anterior al borrado restaura A y uno posterior encuentra Keychain vacío; Advanced no mantiene una fase durable cancelable o de limpieza pendiente;
 - la documentación DocC seleccionada valida como warnings-as-errors en el alcance que se publique.
@@ -142,3 +143,4 @@ Deluxe se considera aceptado solo cuando Advanced continúa pasando y, además:
 - [ADR-0017: flujos nativos y respuesta HTTP con status validado](../adr/0017-validated-http-status-response-boundary.md)
 - [ADR-0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
 - [ADR-0018: bundle único de sesión en Keychain y logout atómico](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)
+- [ADR-0019: JWT único de sesión y envelope Keychain V3](../adr/0019-single-jwt-session-and-keychain-v3.md)

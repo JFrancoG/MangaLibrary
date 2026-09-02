@@ -75,9 +75,7 @@ extension MangaLibraryApp {
             collectionMutation = CollectionMutation(
                 actor: composition.collectionMutations,
                 accountModel: account,
-                sessionAuthorization: CollectionSessionAuthorization(
-                    sessionController: composition.sessionController
-                )
+                sessionAuthorization: CollectionSessionAuthorization(sessionController: composition.sessionController)
             )
             collectionSynchronization = composition.collectionSynchronization
             loadCatalogPage = { request in
@@ -96,10 +94,7 @@ extension MangaLibraryApp {
     private static func uiTestingCollectionSynchronization(
         actor: CollectionMutationActor
     ) -> CollectionSynchronization {
-        let authority = SessionAuthority(
-            userID: AccountPreviewSupport.account.id,
-            generation: UUID(uuid: (85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85, 85))
-        )
+        let authority = AccountPreviewSupport.account.authority
         let commitGate = SessionCommitGate(activeAuthority: authority)
         let remoteEntry = CollectionRemoteEntry(
             remoteID: UUID(uuid: (102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102, 102)),
@@ -110,10 +105,7 @@ extension MangaLibraryApp {
         )
 
         return CollectionSynchronization(operation: {
-            try await actor.importRemote(
-                [remoteEntry],
-                authorization: commitGate.authorization(for: authority)
-            )
+            try await actor.importRemote([remoteEntry], authorization: commitGate.authorization(for: authority))
         })
     }
 

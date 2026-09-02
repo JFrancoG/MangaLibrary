@@ -20,8 +20,11 @@ struct SessionKeychainStore {
         else { throw SessionStorageError.invalidConfiguration }
 
         return Self(
-            service: "\(bundleIdentifier).session.current.v2",
-            legacyServices: ["\(bundleIdentifier).session-secrets.v1"]
+            service: "\(bundleIdentifier).session.current.v3",
+            legacyServices: [
+                "\(bundleIdentifier).session-secrets.v1",
+                "\(bundleIdentifier).session.current.v2",
+            ]
         )
     }
 
@@ -32,7 +35,7 @@ struct SessionKeychainStore {
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.sortedKeys]
-            data = try encoder.encode(SessionEnvelopeV2(session: session))
+            data = try encoder.encode(SessionEnvelopeV3(session: session))
         } catch {
             throw SessionStorageError.encodingFailure
         }
@@ -73,7 +76,7 @@ struct SessionKeychainStore {
         case errSecSuccess:
             guard let data = result as? Data else { throw SessionStorageError.corruptSessionRecord }
             do {
-                return try JSONDecoder().decode(SessionEnvelopeV2.self, from: data).session()
+                return try JSONDecoder().decode(SessionEnvelopeV3.self, from: data).session()
             } catch let error as SessionStorageError {
                 throw error
             } catch {
@@ -90,8 +93,18 @@ struct SessionKeychainStore {
     func removeAll() throws(SessionStorageError) {
         try validateConfiguration()
 
-        let orderedServices = legacyServices.filter { $0 != service } + [service]
-        for service in orderedServices where service.isEmpty == false {
+        try removeItems(in: legacyServices.filter { $0 != service } + [service])
+    }
+
+    /// Removes every known legacy namespace without changing the current V3 item.
+    func removeLegacy() throws(SessionStorageError) {
+        try validateConfiguration()
+
+        try removeItems(in: legacyServices.filter { $0 != service })
+    }
+
+    private func removeItems(in services: [String]) throws(SessionStorageError) {
+        for service in services where service.isEmpty == false {
             let query: [CFString: Any] = [
                 kSecClass: kSecClassGenericPassword,
                 kSecAttrService: service,
@@ -123,14 +136,12 @@ struct SessionKeychainStore {
     }
 }
 
-private struct SessionEnvelopeV2: Codable {
+private struct SessionEnvelopeV3: Codable {
     let formatVersion: Int
     let userID: UUID
     let generation: UUID
-    let accessToken: String
-    let accessExpiresAt: Date
-    let refreshToken: String
-    let refreshExpiresAt: Date
+    let token: String
+    let expiresAt: Date
 
     func session() throws(SessionStorageError) -> SessionPersistedSession {
         guard formatVersion == SessionPersistedSession.currentFormatVersion else {
@@ -140,20 +151,17 @@ private struct SessionEnvelopeV2: Codable {
         return try SessionPersistedSession(
             userID: userID,
             generation: generation,
-            access: SessionCredential(value: accessToken, use: .access, expiresAt: accessExpiresAt),
-            refresh: SessionCredential(value: refreshToken, use: .refresh, expiresAt: refreshExpiresAt)
+            access: SessionCredential(value: token, expiresAt: expiresAt)
         )
     }
 }
 
-private extension SessionEnvelopeV2 {
+private extension SessionEnvelopeV3 {
     init(session: SessionPersistedSession) {
         formatVersion = SessionPersistedSession.currentFormatVersion
         userID = session.userID
         generation = session.generation
-        accessToken = session.access.value
-        accessExpiresAt = session.access.expiresAt
-        refreshToken = session.refresh.value
-        refreshExpiresAt = session.refresh.expiresAt
+        token = session.access.value
+        expiresAt = session.access.expiresAt
     }
 }

@@ -10,12 +10,14 @@ actor SessionPersistenceActor {
     struct Operations {
         let load: @Sendable () throws(any Error) -> SessionPersistedSession?
         let save: @Sendable (SessionPersistedSession) throws(any Error) -> Void
+        let removeLegacy: @Sendable () throws(any Error) -> Void
         let removeAll: @Sendable () throws(any Error) -> Void
 
         static func live(keychain: SessionKeychainStore) -> Self {
             Self(
                 load: { try keychain.load() },
                 save: { try keychain.save($0) },
+                removeLegacy: { try keychain.removeLegacy() },
                 removeAll: { try keychain.removeAll() }
             )
         }
@@ -42,6 +44,7 @@ actor SessionPersistenceActor {
                 try operations.removeAll()
                 return .signedOut
             }
+            try operations.removeLegacy()
             return .active(session)
         } catch SessionStorageError.corruptSessionRecord {
             try operations.removeAll()
@@ -54,7 +57,6 @@ actor SessionPersistenceActor {
         userID: UUID,
         generation: UUID,
         access: SessionCredential,
-        refresh: SessionCredential,
         replacing expected: SessionAuthority? = nil
     ) throws(any Error) -> SessionPersistedSession {
         if let current = try operations.load() {
@@ -62,12 +64,7 @@ actor SessionPersistenceActor {
         }
 
         try operations.removeAll()
-        let session = try SessionPersistedSession(
-            userID: userID,
-            generation: generation,
-            access: access,
-            refresh: refresh
-        )
+        let session = try SessionPersistedSession(userID: userID, generation: generation, access: access)
         try operations.save(session)
         return session
     }

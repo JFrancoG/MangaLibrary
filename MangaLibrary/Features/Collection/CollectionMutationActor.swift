@@ -23,9 +23,7 @@ actor CollectionMutationActor {
         authorization: SessionCommitAuthorization,
         newOperationID: UUID = UUID()
     ) throws(CollectionMutationError) -> CollectionMutationResult {
-        guard authorization.authority.userID == command.userID else {
-            throw .authenticationRequired
-        }
+        guard authorization.authority == command.authority else { throw .authenticationRequired }
 
         do {
             return try authorization.perform {
