@@ -10,6 +10,34 @@ enum AccountRoute: Hashable {
     case register
 }
 
+struct AccountCollectionNotice: Equatable {
+    enum Reason: Equatable {
+        case authorizationDenied
+        case authenticationIncompatible
+    }
+
+    let userID: UUID
+    let reason: Reason
+
+    var messageResource: LocalizedStringResource {
+        switch reason {
+        case .authorizationDenied:
+            "Your session is still active, but this account does not currently have access to the remote collection."
+        case .authenticationIncompatible:
+            "Your session is still active, but the collection service could not verify the renewed access. Signing in again is not required."
+        }
+    }
+
+    var accessibilityIdentifier: String {
+        switch reason {
+        case .authorizationDenied:
+            "account.collection-sync.authorization-denied"
+        case .authenticationIncompatible:
+            "account.collection-sync.authentication-incompatible"
+        }
+    }
+}
+
 struct AccountRootView: View {
     private enum Action: Hashable {
         case retryRestore
@@ -17,9 +45,15 @@ struct AccountRootView: View {
     }
 
     let model: AccountModel
+    let collectionNotice: AccountCollectionNotice?
 
     @State private var path: [AccountRoute] = []
     @State private var requestedAction: Action?
+
+    init(model: AccountModel, collectionNotice: AccountCollectionNotice? = nil) {
+        self.model = model
+        self.collectionNotice = collectionNotice
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -85,7 +119,11 @@ struct AccountRootView: View {
                 .accessibilityIdentifier("account.authenticating")
 
         case let .authenticated(account, notice):
-            authenticatedContent(account: account, notice: notice)
+            authenticatedContent(
+                account: account,
+                notice: notice,
+                collectionNotice: collectionNotice?.userID == account.id ? collectionNotice : nil
+            )
 
         case let .authenticationRequired(_, failure):
             signInRequiredContent(
@@ -198,7 +236,11 @@ struct AccountRootView: View {
         }
     }
 
-    private func authenticatedContent(account: SessionAccount, notice: AccountModel.Failure?) -> some View {
+    private func authenticatedContent(
+        account: SessionAccount,
+        notice: AccountModel.Failure?,
+        collectionNotice: AccountCollectionNotice?
+    ) -> some View {
         ScrollView {
             VStack(spacing: 24) {
                 Label("Signed in", systemImage: "checkmark.circle.fill")
@@ -229,6 +271,21 @@ struct AccountRootView: View {
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("account.identity.email")
+                }
+
+                if let collectionNotice {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Collection notice")
+                            .font(.headline)
+
+                        Label(collectionNotice.messageResource, systemImage: "exclamationmark.triangle.fill")
+                    }
+                    .foregroundStyle(.onWarning)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
+                    .background(.warningFill, in: .rect(cornerRadius: 16, style: .continuous))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier(collectionNotice.accessibilityIdentifier)
                 }
 
                 if let notice {
@@ -313,6 +370,19 @@ struct AccountRootView: View {
     AccountRootView(
         model: AccountPreviewSupport.model(
             state: .authenticated(AccountPreviewSupport.account, notice: .temporarilyUnavailable)
+        )
+    )
+}
+
+#Preview(
+    "Account Collection authentication notice",
+    traits: .modifier(CollectionPreviewModifier<CollectionPreviewScenarios.Empty>())
+) {
+    AccountRootView(
+        model: AccountPreviewSupport.model(state: .authenticated(AccountPreviewSupport.account, notice: nil)),
+        collectionNotice: AccountCollectionNotice(
+            userID: AccountPreviewSupport.account.id,
+            reason: .authenticationIncompatible
         )
     )
 }

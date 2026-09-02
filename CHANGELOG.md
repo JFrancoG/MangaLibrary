@@ -22,10 +22,12 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- 2026-09-02 | 🐛 fix(sync): prevent collection auth loop
 - 2026-08-31 | 🐛 fix(account): improve signed-out actions
 
 ### Documentation
 
+- 2026-09-02 | 📝 docs(delivery): record auth loop PR
 - 2026-09-02 | 📝 docs(delivery): record R1 pull request
 - 2026-09-02 | 📝 docs(delivery): record Sendable cleanup PR
 - 2026-09-01 | 📝 docs(delivery): record L2 pull request

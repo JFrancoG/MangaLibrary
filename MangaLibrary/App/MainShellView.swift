@@ -20,6 +20,7 @@ struct MainShellView: View {
     let collectionSynchronization: CollectionSynchronization
 
     @State private var selectedTab: AppTab = .catalog
+    @State private var collectionNotice: AccountCollectionNotice? = nil
 
     var body: some View {
         let collectionAccess = accountModel.state.collectionAccess
@@ -42,7 +43,7 @@ struct MainShellView: View {
             .accessibilityIdentifier("tab.collection")
 
             Tab("Account", systemImage: "person.crop.circle", value: .account) {
-                AccountRootView(model: accountModel)
+                AccountRootView(model: accountModel, collectionNotice: collectionNotice)
             }
             .accessibilityIdentifier("tab.account")
         }
@@ -51,19 +52,32 @@ struct MainShellView: View {
             await accountModel.restore()
         }
         .task(id: authenticatedUserID) {
+            collectionNotice = nil
             guard let authenticatedUserID else { return }
 
-            // R1 is local-first: a remote failure leaves the observed SwiftData
-            // snapshot untouched and adds no presentation state or retry loop.
             do {
                 try await collectionSynchronization()
             } catch is CancellationError {
                 return
             } catch {
-                await accountModel.reconcileSessionAfterCollectionSync(
-                    expectedUserID: authenticatedUserID
-                )
+                await accountModel.reconcileSessionAfterCollectionSync(expectedUserID: authenticatedUserID)
+                guard !Task.isCancelled, accountModel.state.authenticatedUserID == authenticatedUserID else { return }
+
+                collectionNotice = Self.collectionNotice(for: error, userID: authenticatedUserID)
             }
+        }
+    }
+
+    private static func collectionNotice(for error: any Error, userID: UUID) -> AccountCollectionNotice? {
+        guard let error = error as? CollectionSyncError else { return nil }
+
+        return switch error {
+        case .sessionChanged:
+            nil
+        case .authorizationDenied:
+            AccountCollectionNotice(userID: userID, reason: .authorizationDenied)
+        case .authenticationIncompatible:
+            AccountCollectionNotice(userID: userID, reason: .authenticationIncompatible)
         }
     }
 }

@@ -156,6 +156,50 @@ final class MangaLibraryUITests: XCTestCase {
     }
 
     @MainActor
+    func testCollectionAuthorizationFailureKeepsTheAccountSignedIn() throws {
+        let app = XCUIApplication()
+        app.launchArguments.append(contentsOf: [
+            "-ui-testing",
+            "-ui-testing-collection-authorization-denied",
+        ])
+        app.launch()
+
+        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
+        XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
+        accountTab.tap()
+
+        let signInAction = app.descendants(matching: .any)
+            .matching(identifier: "account.sign-in.action")
+            .firstMatch
+        XCTAssertTrue(signInAction.waitForExistence(timeout: 2))
+        signInAction.tap()
+
+        let email = app.textFields["account.sign-in.email"]
+        XCTAssertTrue(email.waitForExistence(timeout: 2))
+        email.tap()
+        email.typeText("ui-collection-auth@example.invalid")
+
+        let password = app.secureTextFields["account.sign-in.password"]
+        XCTAssertTrue(password.waitForExistence(timeout: 2))
+        password.tap()
+        password.typeText("synthetic-passphrase")
+        app.buttons["account.sign-in.submit"].tap()
+
+        let notice = app.descendants(matching: .any)["account.collection-sync.authorization-denied"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["account.authenticated"].exists)
+        XCTAssertTrue(app.buttons["account.sign-out"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["account.authentication-required"].exists)
+        XCTAssertFalse(signInAction.exists)
+
+        let collectionTab = app.buttons.matching(identifier: "tab.collection").firstMatch
+        XCTAssertTrue(collectionTab.waitForExistence(timeout: 2))
+        collectionTab.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["collection.empty"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.descendants(matching: .any)["collection.read-only"].exists)
+    }
+
+    @MainActor
     func testSyntheticAccountSignsIn() throws(any Error) {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing")

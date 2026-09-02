@@ -91,6 +91,25 @@ struct SessionControllerTests {
         #expect(storage.snapshot().record == session)
     }
 
+    @Test("Restore with expired access validates the renewed identity exactly once")
+    func expiredAccessRestoreReusesTheValidatedRefreshIdentity() async throws(any Error) {
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(-1))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(
+            replies: [
+                .data(Self.renewedAccessResponse),
+                .data(Self.identityResponse),
+                .network(.statusCode(401)),
+            ]
+        )
+        let controller = try makeController(loader: loader, storage: storage)
+
+        #expect(try await controller.restore() == .active(Self.remoteAccount))
+        #expect(storage.snapshot().record?.access.value == "fixture-access-renewed")
+        #expect(storage.snapshot().record?.refresh == session.refresh)
+        #expect(await loader.requestPaths() == ["/users/session/access", "/users/session/me"])
+    }
+
     @Test("Request authorization returns the token bound to the active generation")
     func requestAuthorizationCapturesTheActiveAuthority() async throws(any Error) {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
@@ -103,45 +122,76 @@ struct SessionControllerTests {
 
         #expect(authorization.authority == SessionAuthority(userID: Self.userID, generation: Self.generation))
         #expect(authorization.accessToken == "fixture-access")
-        #expect(await controller.authorizes(authorization.authority))
+        #expect(await controller.authorizes(authorization))
     }
 
-    @Test("A protected request rejection invalidates its exact active credential")
-    func rejectedAuthorizationRequiresAuthentication() async throws(any Error) {
+    @Test("A rejected unexpired access forces refresh and identity validation")
+    func rejectedAuthorizationRenewsItsExactAccess() async throws(any Error) {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
         let storage = ControlledSessionPersistenceStorage(record: session)
-        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
+        let loader = ScriptedSessionDataLoader(
+            replies: [
+                .data(Self.identityResponse),
+                .data(Self.renewedAccessResponse),
+                .data(Self.identityResponse),
+            ]
+        )
+        let controller = try makeController(loader: loader, storage: storage)
+        _ = try await controller.restore()
+        let rejectedAuthorization = try await controller.requestAuthorization()
+
+        let renewedAuthorization = try await controller.recoverAuthorization(after: rejectedAuthorization)
+
+        #expect(renewedAuthorization.authority == rejectedAuthorization.authority)
+        #expect(renewedAuthorization.accessToken == "fixture-access-renewed")
+        #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
+        #expect(storage.snapshot().record?.access.value == "fixture-access-renewed")
+        #expect(storage.snapshot().record?.refresh == session.refresh)
+        #expect(await controller.authorizes(rejectedAuthorization) == false)
+        #expect(await controller.authorizes(renewedAuthorization))
+        #expect(await loader.requestPaths() == ["/users/session/me", "/users/session/access", "/users/session/me"])
+    }
+
+    @Test("A permanently rejected forced refresh requires authentication")
+    func rejectedAuthorizationWithRejectedRefreshRequiresAuthentication() async throws(any Error) {
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse), .network(.statusCode(401))])
         let controller = try makeController(loader: loader, storage: storage)
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
 
-        try await controller.rejectAuthorization(authorization)
+        await #expect(throws: SessionControllerError.authenticationRequired) {
+            try await controller.recoverAuthorization(after: authorization)
+        }
 
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record == nil)
-        #expect(await controller.authorizes(authorization.authority) == false)
-        #expect(throws: SessionCommitAuthorizationError.sessionChanged) {
-            try authorization.commitAuthorization.perform { true }
-        }
+        #expect(await controller.authorizes(authorization) == false)
     }
 
-    @Test("A failed cleanup still blocks a credential rejected by Collection")
-    func rejectedAuthorizationFailsClosedWhenCleanupFails() async throws(any Error) {
+    @Test("An access rejected by renewed identity validation keeps the session envelope")
+    func renewedAccessRejectedByIdentityKeepsTheSession() async throws(any Error) {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
         let storage = ControlledSessionPersistenceStorage(record: session)
-        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
+        let loader = ScriptedSessionDataLoader(
+            replies: [
+                .data(Self.identityResponse),
+                .data(Self.renewedAccessResponse),
+                .network(.statusCode(401)),
+            ]
+        )
         let controller = try makeController(loader: loader, storage: storage)
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
-        storage.failNext(.removeAll, with: .temporarilyUnavailable)
 
-        await #expect(throws: SessionControllerError.temporarilyUnavailable) {
-            try await controller.rejectAuthorization(authorization)
+        await #expect(throws: SessionAuthorizationRecoveryError.identityRejected(statusCode: 401)) {
+            try await controller.recoverAuthorization(after: authorization)
         }
 
-        #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
+        #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
         #expect(storage.snapshot().record == session)
-        #expect(await controller.authorizes(authorization.authority) == false)
+        #expect(await controller.authorizes(authorization) == false)
     }
 
     @Test("A late rejection from generation A cannot invalidate generation B")
@@ -163,11 +213,11 @@ struct SessionControllerTests {
         )
         _ = try await controller.restore()
         let staleAuthorization = try await controller.requestAuthorization()
-        try await controller.rejectAuthorization(staleAuthorization)
+        _ = try await controller.logout()
         _ = try await controller.login(email: "reader@example.invalid", password: "synthetic-passphrase")
 
         await #expect(throws: SessionControllerError.sessionChanged) {
-            try await controller.rejectAuthorization(staleAuthorization)
+            try await controller.recoverAuthorization(after: staleAuthorization)
         }
 
         #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
@@ -180,7 +230,11 @@ struct SessionControllerTests {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(60))
         let storage = ControlledSessionPersistenceStorage(record: session)
         let loader = ScriptedSessionDataLoader(
-            replies: [.data(Self.identityResponse), .data(Self.renewedAccessResponse)]
+            replies: [
+                .data(Self.identityResponse),
+                .data(Self.renewedAccessResponse),
+                .data(Self.identityResponse),
+            ]
         )
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
         _ = try await controller.restore()
@@ -189,40 +243,13 @@ struct SessionControllerTests {
         let renewedCredential = try await controller.accessCredential()
 
         await #expect(throws: SessionControllerError.sessionChanged) {
-            try await controller.rejectAuthorization(staleAuthorization)
+            try await controller.recoverAuthorization(after: staleAuthorization)
         }
 
         #expect(renewedCredential.value == "fixture-access-renewed")
         #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
         #expect(storage.snapshot().record?.access.value == "fixture-access-renewed")
-        #expect(await controller.authorizes(staleAuthorization.authority))
-    }
-
-    @Test("A stale rejection cannot interrupt access renewal before it is published")
-    func staleAccessRejectionCannotInvalidateRefreshInFlight() async throws(any Error) {
-        let clock = TestSessionClock(now: Self.now)
-        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(60))
-        let saveGate = SynchronousPersistenceGate()
-        let storage = ControlledSessionPersistenceStorage(record: session, saveGate: saveGate)
-        let loader = ScriptedSessionDataLoader(
-            replies: [.data(Self.identityResponse), .data(Self.renewedAccessResponse)]
-        )
-        let controller = try makeController(loader: loader, storage: storage, clock: clock)
-        _ = try await controller.restore()
-        let staleAuthorization = try await controller.requestAuthorization()
-        clock.advance(by: 120)
-        let refresh = Task { try await controller.accessCredential() }
-        await saveGate.waitUntilEntered()
-
-        await #expect(throws: SessionControllerError.sessionChanged) {
-            try await controller.rejectAuthorization(staleAuthorization)
-        }
-        saveGate.open()
-        let renewedCredential = try await refresh.value
-
-        #expect(renewedCredential.value == "fixture-access-renewed")
-        #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
-        #expect(storage.snapshot().record?.access.value == "fixture-access-renewed")
+        #expect(await controller.authorizes(staleAuthorization) == false)
     }
 
     @Test("Session invalidation linearizes after an authorized synchronous commit")
@@ -281,19 +308,21 @@ struct SessionControllerTests {
         await #expect(throws: SessionControllerError.sessionChanged) {
             try await authorization.value
         }
-        let staleAuthority = SessionAuthority(userID: Self.userID, generation: Self.generation)
-        #expect(await controller.authorizes(staleAuthority) == false)
         #expect(storage.snapshot().record == nil)
     }
 
-    @Test("Concurrent expired access requests share one refresh")
-    func concurrentAccessRequestsShareTheRefreshFlight() async throws(any Error) {
+    @Test("Concurrent expired access requests share one refresh and identity validation")
+    func concurrentAccessRequestsShareTheValidatedRefreshFlight() async throws(any Error) {
         let clock = TestSessionClock(now: Self.now)
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(60))
         let storage = ControlledSessionPersistenceStorage(record: session)
         let gate = SessionRequestGate()
         let loader = ScriptedSessionDataLoader(
-            replies: [.data(Self.identityResponse), .data(Self.renewedAccessResponse)],
+            replies: [
+                .data(Self.identityResponse),
+                .data(Self.renewedAccessResponse),
+                .data(Self.identityResponse),
+            ],
             accessGate: gate
         )
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
@@ -310,6 +339,150 @@ struct SessionControllerTests {
         #expect(firstCredential.value == "fixture-access-renewed")
         #expect(secondCredential == firstCredential)
         #expect(await loader.requestPaths().filter { $0 == "/users/session/access" }.count == 1)
+        #expect(await loader.requestPaths().filter { $0 == "/users/session/me" }.count == 2)
+        #expect(storage.snapshot().record?.refresh == session.refresh)
+    }
+
+    @Test("Authorization entering during ordinary refresh shares the renewed access")
+    func authorizationEnteringDuringRefreshSharesTheRenewedAccess() async throws(any Error) {
+        let clock = TestSessionClock(now: Self.now)
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(60))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let gate = SessionRequestGate()
+        let loader = ScriptedSessionDataLoader(
+            replies: [
+                .data(Self.identityResponse),
+                .data(Self.renewedAccessResponse),
+                .data(Self.identityResponse),
+            ],
+            accessGate: gate
+        )
+        let controller = try makeController(loader: loader, storage: storage, clock: clock)
+        _ = try await controller.restore()
+        clock.advance(by: 120)
+
+        let refresh = Task { try await controller.accessCredential() }
+        await gate.waitUntilArrived()
+        let authorization = Task { try await controller.requestAuthorization() }
+        await gate.open()
+
+        let renewedCredential = try await refresh.value
+        let renewedAuthorization = try await authorization.value
+        #expect(renewedAuthorization.accessToken == renewedCredential.value)
+        #expect(await controller.authorizes(renewedAuthorization))
+        #expect(await loader.requestPaths().filter { $0 == "/users/session/access" }.count == 1)
+        #expect(await loader.requestPaths().filter { $0 == "/users/session/me" }.count == 2)
+        #expect(storage.snapshot().record?.refresh == session.refresh)
+    }
+
+    @Test("A replacement session ignores a residual refresh flight")
+    func replacementSessionIgnoresResidualRefreshFlight() async throws(any Error) {
+        let clock = TestSessionClock(now: Self.now)
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(60))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let gate = SessionRequestGate()
+        let loader = ResidualRefreshDataLoader(gate: gate)
+        let controller = try makeController(
+            loadData: { request in try await loader.load(request) },
+            storage: storage,
+            clock: clock,
+            generationFactory: { Self.generationB }
+        )
+        _ = try await controller.restore()
+        clock.advance(by: 120)
+
+        let residualRefresh = Task { try await controller.accessCredential() }
+        await gate.waitUntilArrived()
+        #expect(try await controller.logout() == .signedOut)
+        #expect(
+            try await controller.login(email: "b@example.invalid", password: "synthetic-passphrase-b")
+                == .active(Self.remoteAccountB)
+        )
+
+        let authorization = try await controller.requestAuthorization()
+        #expect(authorization.authority == SessionAuthority(userID: Self.userB, generation: Self.generationB))
+        #expect(authorization.accessToken == "fixture-access-b")
+        #expect(await controller.authorizes(authorization))
+
+        let recoveredAuthorization = try await controller.recoverAuthorization(after: authorization)
+        #expect(recoveredAuthorization.authority == authorization.authority)
+        #expect(recoveredAuthorization.accessToken == "fixture-access-b-renewed")
+        #expect(await controller.authorizes(authorization) == false)
+        #expect(await controller.authorizes(recoveredAuthorization))
+
+        await gate.open()
+        await #expect(throws: SessionControllerError.sessionChanged) {
+            try await residualRefresh.value
+        }
+        #expect(await controller.currentSnapshot() == .active(Self.remoteAccountB))
+        #expect(storage.snapshot().record?.authority == recoveredAuthorization.authority)
+        #expect(storage.snapshot().record?.access.value == recoveredAuthorization.accessToken)
+        #expect(await loader.requestPaths() == [
+            "/users/session/me",
+            "/users/session/access",
+            "/users/session/login",
+            "/users/session/access",
+            "/users/session/me",
+            "/users/session/access",
+            "/users/session/me",
+        ])
+    }
+
+    @Test("An ordinary refresh rejected by identity never replaces the session envelope")
+    func ordinaryRefreshRejectedByIdentityKeepsTheSession() async throws(any Error) {
+        let clock = TestSessionClock(now: Self.now)
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(60))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(
+            replies: [
+                .data(Self.identityResponse),
+                .data(Self.renewedAccessResponse),
+                .network(.statusCode(401)),
+            ]
+        )
+        let controller = try makeController(loader: loader, storage: storage, clock: clock)
+        _ = try await controller.restore()
+        clock.advance(by: 120)
+
+        await #expect(throws: SessionAuthorizationRecoveryError.identityRejected(statusCode: 401)) {
+            try await controller.accessCredential()
+        }
+
+        #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
+        #expect(storage.snapshot().record == session)
+        #expect(await loader.requestPaths() == ["/users/session/me", "/users/session/access", "/users/session/me"])
+    }
+
+    @Test("Forced recovery and an access request share one refresh")
+    func forcedRecoverySharesTheRefreshFlight() async throws(any Error) {
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let gate = SessionRequestGate()
+        let loader = ScriptedSessionDataLoader(
+            replies: [
+                .data(Self.identityResponse),
+                .data(Self.renewedAccessResponse),
+                .data(Self.identityResponse),
+            ],
+            accessGate: gate
+        )
+        let controller = try makeController(loader: loader, storage: storage)
+        _ = try await controller.restore()
+        let rejectedAuthorization = try await controller.requestAuthorization()
+
+        let recovery = Task {
+            try await controller.recoverAuthorization(after: rejectedAuthorization)
+        }
+        await gate.waitUntilArrived()
+        let access = Task { try await controller.accessCredential() }
+        await gate.open()
+
+        let recoveredAuthorization = try await recovery.value
+        let sharedCredential = try await access.value
+        #expect(recoveredAuthorization.accessToken == "fixture-access-renewed")
+        #expect(sharedCredential.value == recoveredAuthorization.accessToken)
+        #expect(await loader.requestPaths().filter { $0 == "/users/session/access" }.count == 1)
+        #expect(await loader.requestPaths().filter { $0 == "/users/session/me" }.count == 2)
         #expect(storage.snapshot().record?.refresh == session.refresh)
     }
 
@@ -323,6 +496,7 @@ struct SessionControllerTests {
                 .data(Self.identityResponse),
                 .network(.statusCode(503)),
                 .data(Self.renewedAccessResponse),
+                .data(Self.identityResponse),
             ]
         )
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
@@ -452,12 +626,18 @@ struct SessionControllerTests {
         #expect(storage.snapshot().record == nil)
     }
 
-    @Test("A credential rejected during failed logout cannot become active again")
-    func rejectionDuringFailedLogoutRemainsBlocked() async throws(any Error) {
+    @Test("A credential rejected during failed logout forces refresh before reuse")
+    func rejectionDuringFailedLogoutForcesRefresh() async throws(any Error) {
         let deletionGate = SynchronousPersistenceGate()
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
         let storage = ControlledSessionPersistenceStorage(record: session, removeAllGate: deletionGate)
-        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
+        let loader = ScriptedSessionDataLoader(
+            replies: [
+                .data(Self.identityResponse),
+                .data(Self.renewedAccessResponse),
+                .data(Self.identityResponse),
+            ]
+        )
         let controller = try makeController(loader: loader, storage: storage)
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
@@ -465,18 +645,22 @@ struct SessionControllerTests {
 
         let logout = Task { try await controller.logout() }
         await deletionGate.waitUntilEntered()
-        try await controller.rejectAuthorization(authorization)
+        await #expect(throws: SessionControllerError.transitionInProgress) {
+            try await controller.recoverAuthorization(after: authorization)
+        }
         deletionGate.open()
 
         await #expect(throws: SessionControllerError.temporarilyUnavailable) {
             try await logout.value
         }
-        #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
+        #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
         #expect(storage.snapshot().record == session)
-        #expect(await controller.authorizes(authorization.authority) == false)
-        #expect(throws: SessionCommitAuthorizationError.sessionChanged) {
-            try authorization.commitAuthorization.perform { true }
-        }
+        #expect(await controller.authorizes(authorization) == false)
+
+        let renewedAuthorization = try await controller.requestAuthorization()
+        #expect(renewedAuthorization.accessToken == "fixture-access-renewed")
+        #expect(await controller.authorizes(renewedAuthorization))
+        #expect(storage.snapshot().record?.access.value == "fixture-access-renewed")
     }
 
     @Test("A stale rejection during failed logout preserves the renewed access")
@@ -486,19 +670,24 @@ struct SessionControllerTests {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(60))
         let storage = ControlledSessionPersistenceStorage(record: session, removeAllGate: deletionGate)
         let loader = ScriptedSessionDataLoader(
-            replies: [.data(Self.identityResponse), .data(Self.renewedAccessResponse)]
+            replies: [
+                .data(Self.identityResponse),
+                .data(Self.renewedAccessResponse),
+                .data(Self.identityResponse),
+            ]
         )
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
         _ = try await controller.restore()
         let staleAuthorization = try await controller.requestAuthorization()
         clock.advance(by: 120)
         let renewedCredential = try await controller.accessCredential()
+        let renewedAuthorization = try await controller.requestAuthorization()
         storage.failNext(.removeAll, with: .temporarilyUnavailable)
 
         let logout = Task { try await controller.logout() }
         await deletionGate.waitUntilEntered()
         await #expect(throws: SessionControllerError.sessionChanged) {
-            try await controller.rejectAuthorization(staleAuthorization)
+            try await controller.recoverAuthorization(after: staleAuthorization)
         }
         deletionGate.open()
 
@@ -508,7 +697,8 @@ struct SessionControllerTests {
         #expect(renewedCredential.value == "fixture-access-renewed")
         #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
         #expect(storage.snapshot().record?.access.value == "fixture-access-renewed")
-        #expect(await controller.authorizes(staleAuthorization.authority))
+        #expect(await controller.authorizes(staleAuthorization) == false)
+        #expect(await controller.authorizes(renewedAuthorization))
     }
 
     @Test("An interrupted logout restores the still-present session after relaunch")
@@ -817,6 +1007,64 @@ private actor ConcurrentLoginDataLoader {
           "role": "user"
         }
         """#.utf8
+    )
+}
+
+private actor ResidualRefreshDataLoader {
+    private let gate: SessionRequestGate
+    private var requests: [URLRequest] = []
+    private var issuedInitialAccessB = false
+
+    init(gate: SessionRequestGate) {
+        self.gate = gate
+    }
+
+    func load(_ request: URLRequest) async throws(any Error) -> Data {
+        requests.append(request)
+        switch (request.url?.path, request.value(forHTTPHeaderField: "Authorization")) {
+        case ("/users/session/me", "Bearer fixture-access"):
+            return Self.identityA
+        case ("/users/session/access", "Bearer fixture-refresh"):
+            await gate.suspendUntilOpen()
+            return Self.renewedAccessA
+        case ("/users/session/login", Self.basicB):
+            return Self.refreshB
+        case ("/users/session/access", "Bearer fixture-refresh-b"):
+            if issuedInitialAccessB {
+                return Self.renewedAccessB
+            }
+            issuedInitialAccessB = true
+            return Self.accessB
+        case ("/users/session/me", "Bearer fixture-access-b"),
+             ("/users/session/me", "Bearer fixture-access-b-renewed"):
+            return Self.identityB
+        default:
+            throw SessionAPIClientError.unavailable
+        }
+    }
+
+    func requestPaths() -> [String] {
+        requests.compactMap(\.url?.path)
+    }
+
+    private static let basicB = "Basic \(Data("b@example.invalid:synthetic-passphrase-b".utf8).base64EncodedString())"
+    private static let renewedAccessA = Data(
+        #"{"token":"fixture-access-renewed","tokenType":"Bearer","expiresIn":3600,"tokenUse":"access"}"#.utf8
+    )
+    private static let refreshB = Data(
+        #"{"token":"fixture-refresh-b","tokenType":"Bearer","expiresIn":2592000,"tokenUse":"refresh"}"#.utf8
+    )
+    private static let accessB = Data(
+        #"{"token":"fixture-access-b","tokenType":"Bearer","expiresIn":3600,"tokenUse":"access"}"#.utf8
+    )
+    private static let renewedAccessB = Data(
+        #"{"token":"fixture-access-b-renewed","tokenType":"Bearer","expiresIn":3600,"tokenUse":"access"}"#.utf8
+    )
+    private static let identityA = Data(
+        #"{"email":"reader@example.invalid","id":"11111111-2222-3333-4444-555555555555","isActive":true,"isAdmin":false,"role":"user"}"#.utf8
+    )
+    private static let identityB = Data(
+        #"{"email":"b@example.invalid","id":"66666666-7777-8888-9999-AAAAAAAAAAAA","isActive":true,"isAdmin":false,"role":"user"}"#.utf8
     )
 }
 

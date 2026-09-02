@@ -1,7 +1,37 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-02
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2 y R1 entregados; R1 se incorpora mediante la PR #54
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2 y R1 entregados; la corrección crítica #55 se entrega mediante la PR #56 y permanece pendiente atribuir live el status histórico exacto
+
+## Corrección crítica del bucle de reautenticación R1 — issue #55
+
+- El [issue #55 — R1: corregir el bucle de reautenticación tras un rechazo de Colección](https://github.com/JFrancoG/MangaLibrary/issues/55) se abrió después de comprobar que no existía otro issue o PR equivalente. La rama `codex/55-r1-collection-auth-loop` parte de `main@6695f106e9de90a44d98bf2d127ddabf1a8948c9`, limpio y sincronizado con `origin/main` en el preflight aprobado.
+- La causa inmediata queda demostrada por el flujo de producto: login llegaba a sesión activa y el trigger R1 posterior convertía cualquier `401` o `403` de `GET /collection/manga` en invalidación destructiva del mismo envelope Keychain. La instrumentación LLDB temporal no consiguió atribuir de forma inequívoca un único status a una reproducción nueva, por lo que el código live exacto continúa sin confirmar y no se inventa. El contrato vivo y el snapshot siguen coincidiendo con SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`; solo publican `200` para la operación y no documentan la política de error.
+- SDD 01 v1.5 asigna al shell un aviso efímero ligado a identidad. SDD 04 v1.16 separa autenticación de autorización, obliga a validar `/me` antes de publicar cualquier access renovado, cerca generaciones y vuelos residuales y limita R1 a un retry seguro. SDD 06 v1.19 define las pruebas separadas. No cambia el contrato OpenAPI y no hace falta otro ADR porque se corrige una política normativa, no se introduce una excepción arquitectónica.
+- Un `403` de Colección conserva sesión, Keychain, colección y outbox, no renueva ni repite y presenta permiso insuficiente. Un primer `401` vigente fuerza refresh single-flight ligado a generación y access, valida la misma identidad en `/me` y repite el GET una vez. Solo un rechazo permanente del refresh conduce a `authenticationRequired`; un rechazo del access nuevo en `/me`, un segundo `401` o un `403` en el retry conserva la sesión y expone incompatibilidad o autorización de Colección.
+- `MainShellView` ya no oculta el origen: reconcilia primero el snapshot, publica el aviso solo para la misma identidad autenticada y lo limpia al cambiar de usuario o tras una sincronización correcta. Cuenta muestra un aviso no bloqueante localizado que explica que la sesión sigue activa y que no hay que volver a introducir credenciales. Los logs conservan únicamente origen constante, status, intento y acción; no registran URL, cabeceras, tokens, correo ni payload.
+- La restauración con access expirado reutiliza la identidad que el propio refresh acaba de validar y no ejecuta un segundo `/me`. Un refresh A residual no intercepta la autorización ni la recuperación de un `401` de B; se comparte un vuelo solo si todavía reemplaza generación y access vigentes. Un `401` que llega durante logout queda marcado y, si el borrado falla, obliga a renovar antes de reutilizar la sesión.
+
+### RED / GREEN y validación local de la corrección #55
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Swift Testing — RED / GREEN | El RED inicial no compila por las nuevas superficies de recuperación y presentación ausentes. La regresión de restore reproduce el segundo `/me` con 0/1 y queda en 4/4. La carrera determinista flight A suspendido → logout A → login B reproduce por separado el `sessionChanged` espurio en la autorización y en la recuperación de B (0/1 en cada condición anterior) y queda en 1/1. La selección final de sesión y R1 aprueba 13/13. |
+| Semántica `401` / `403` | Las pruebas separadas cubren `403` sin refresh ni borrado, `401` con un refresh y un retry, importación correcta, rechazo permanente del refresh, segundo `401`, `403` del retry, rechazo de `/me`, logout fallido y remote `[]` con estados confirmado, pendiente y huérfano sin alterar autenticación. Las composiciones llamadas `live` usan tipos de producción con loaders, tokens y respuestas sintéticos; no alcanzan el backend real. |
+| Flujo UI y previews | El test UI sintético confirma login → cierre del formulario → R1 `403` → Cuenta continúa autenticada con aviso específico y Colección no pasa a solo lectura. La preview final en español se inspecciona en Large, XXX Large y AX5 sin truncamiento ni solapamiento; AX5 conserva el contenido mediante scroll. No se ejecutan VoiceOver, Voice Control, Switch Control, Acceso total con teclado ni Accessibility Inspector. |
+| Xcode MCP — `ReleaseGate` | 308/308 resultados aprobados en iPhone 17 Simulator con iOS 27, sin fallos, skips, expected failures o casos no ejecutados. |
+| Xcode MCP — build y diagnósticos | Build-for-testing aprobado en 0,217 s y cero issues estructurados. El log conserva dos emisiones incrementales exactas de `appintentsmetadataprocessor` ya atribuidas por ADR-0011; no hay warnings de Swift o Clang. |
+| `Scripts/validate-docc.sh` | Ocho escenarios deterministas del clasificador aprobados; archive Release generado con warnings DocC como errores y exactamente una emisión externa acotada por ADR-0011 para Xcode build `27A5252f`. |
+| Localización, integridad y estilo | Catálogo válido con 179 claves, cero traducciones EN/ES ausentes o no traducidas y cero entradas stale. `git diff --check` y el Audit del diff Swift quedan limpios. `project.pbxproj` conserva SHA-256 `ee6cd588ee1ba5666a71b8b42cbc19338af70025072d35a4efe1acb14732ab76`; no cambian targets, dependencias, test plans ni entitlements. |
+| Revisiones independientes | Las revisiones finales iOS/arquitectura/concurrencia, contrato/tests y SwiftUI/accesibilidad cierran sin hallazgos P0–P3 sobre el snapshot validado. |
+
+### Límite de evidencia live
+
+La corrección elimina el bucle para ambos status posibles y deja instrumentación segura para distinguirlos en la próxima reproducción, pero esta sesión no dispuso de nuevas credenciales ni de una reproducción física. Sigue pendiente capturar el status real y confirmar la política backend: un `403` apuntaría principalmente a permisos, `isActive` o política específica de Colección; un `401` aceptado antes por `/me` apuntaría a una configuración Bearer o validación incoherente entre endpoints. No se hicieron escrituras live ni se imprimió material sensible.
+
+La implementación se versiona inicialmente en `506153a` y se entrega mediante la
+[PR #56](https://github.com/JFrancoG/MangaLibrary/pull/56), cuya fusión cierra el
+issue #55. El cierre autorizado incluye retirar después la rama local y remota.
 
 ## Lectura e importación remota R1 — issue #53
 
