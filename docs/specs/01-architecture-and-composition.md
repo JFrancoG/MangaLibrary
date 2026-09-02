@@ -1,7 +1,7 @@
 # Arquitectura y composición
 
 - Estado: aprobado
-- Versión: 1.5
+- Versión: 1.7
 - Última revisión: 2026-09-02
 
 ## Propósito y alcance
@@ -121,11 +121,14 @@ La composición live puede cambiar la configuración concreta sin cambiar las fu
 ## Navegación
 
 `MainShellView` es la raíz estable del producto. Posee `selectedTab: AppTab` y el
-aviso efímero y opcional de sincronización de Colección ligado a la identidad
-autenticada. Ese aviso no replica la sesión ni la colección: se limpia al cambiar
-la identidad o completar una sincronización y solo adapta a presentación el error
-tipado del coordinador. La raíz contiene tres destinos estables con el estilo
-predeterminado de `TabView`:
+aviso efímero y opcional de R1 ligado a la identidad autenticada. Ese aviso no
+replica la sesión ni la colección: se limpia al cambiar la identidad o completar
+una sincronización y solo adapta a presentación el error tipado de autorización.
+Para R2, la raíz observa la outbox mediante `@Query` y deriva exclusivamente de
+un `blockedOutcome` persistido el aviso de escritura no confirmada de la identidad
+activa; no copia ese estado a `@State`, sobrevive a fallos anteriores de R1 y
+desaparece al resolver la operación durable. La raíz contiene tres destinos
+estables con el estilo predeterminado de `TabView`:
 
 1. **Catálogo**: `NavigationStack` tipado por `Manga.ID` en presentación compacta y `NavigationSplitView` con lista o cuadrícula y detalle en regular.
 2. **Colección**: navegación local e independiente con el mismo detalle compartido; su contenedor adaptable se concreta al implementar la feature.
@@ -156,7 +159,11 @@ Después de completar el gate de logout o un cambio de usuario, Colección limpi
 2. El actor de mutación valida y normaliza las invariantes.
 3. En una misma operación lógica, actualiza la colección local y registra o coalesce la operación de outbox.
 4. La UI cambia al observar SwiftData.
-5. El coordinador de sincronización procesa valores estables de la outbox y reconcilia el resultado mediante la misma ruta de mutación.
+5. La composición conserva por valor la autoridad y las entradas del snapshot que
+   R1 ya importó; R2 reautoriza esa autoridad antes de reutilizarlo y evita una
+   segunda lectura al reconciliar trabajo `sending` recuperado.
+6. El coordinador de outbox procesa valores estables y reconcilia el resultado
+   mediante la misma ruta de mutación.
 
 La red nunca escribe directamente en estado de View. El detalle operativo está en [Autenticación y sincronización](04-authentication-and-sync.md).
 

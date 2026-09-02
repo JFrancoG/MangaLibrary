@@ -153,12 +153,14 @@ La petición de escritura requiere `manga` como `int64`,
 respuesta de lectura incluye un `id` UUID propio de la entrada y un
 `MangaDTO` completo.
 
-Existe una inconsistencia que debe resolverse antes de implementar los dos paths
-con `{id}`: sus descripciones dicen “manga ID”, el parámetro solo se llama
-`id` y su schema es `string`, mientras `MangaDTO.id` y el campo
+Los dos paths con `{id}` conservan una discrepancia de tipos: sus descripciones
+dicen “manga ID” y el parámetro tiene schema `string`, mientras `MangaDTO.id` y
 `UserMangaCollectionRequest.manga` son `int64`; además, la entrada expone otro
-`id` con formato UUID. No se elegirá silenciosamente entre identidad de manga e
-identidad de entrada.
+`id` con formato UUID. La decisión de producto del 2 de septiembre de 2026 fija
+`{id}` como el `Manga.ID` numérico serializado mediante sus dígitos decimales. El
+UUID de la entrada no se usa para formar esos paths. El tipo machine-readable
+inconsistente queda registrado como deuda del contrato y la aceptación live de
+GET/DELETE individual permanece pendiente de caracterización funcional.
 
 `POST` y `DELETE` responden con un entero sin semántica adicional tipada. El
 OpenAPI tampoco ofrece idempotency key. Estas ausencias sostienen la política de
@@ -190,8 +192,8 @@ en otro caso existente. `mainPicture` y `url` son strings nullable, no schemas
 - Los schemas de paginación omiten límites y defaults machine-readable.
 - No se declara una política de compatibilidad ni versionado de la API.
 - No se garantiza orden estable entre páginas.
-- La identidad de `/collection/manga/{id}` es contradictoria entre descripción
-  y tipos.
+- El schema `string` de `/collection/manga/{id}` contradice el `int64` de la
+  identidad de manga que la app serializará en decimal.
 - La búsqueda dedicada por prefijo no es paginada y no satisface por sí sola el
   requisito de catálogo escalable.
 

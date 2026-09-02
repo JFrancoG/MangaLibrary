@@ -152,7 +152,6 @@ actor SessionController {
 
         let identity = OperationIdentity()
         activeLoginIdentity = identity
-
         do {
             let refresh = try await apiClient.login(email: email, password: password)
             try ensureCurrentLogin(identity)
@@ -161,7 +160,6 @@ actor SessionController {
             let remoteIdentity = try await apiClient.fetchIdentity(accessToken: access.value)
             try ensureCurrentLogin(identity)
             try Task.checkCancellation()
-
             committingLoginIdentity = identity
             let persisted = try await persistence.activate(
                 userID: remoteIdentity.id,

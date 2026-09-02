@@ -106,6 +106,29 @@ struct CollectionSyncCoordinatorTests {
         #expect(await imports.events().isEmpty)
     }
 
+    @Test("Cancellation after a noncooperative import cannot expose a reusable snapshot")
+    func cancellationAfterImportPreventsSnapshotReuse() async throws(any Error) {
+        let authority = SessionAuthority(userID: Self.userA, generation: Self.generationA)
+        let importGate = CoordinatorCallGate()
+        let coordinator = CollectionSyncCoordinator(
+            authorize: {
+                Self.authorization(authority: authority, accessToken: "fixture-access-A")
+            },
+            validateAuthorization: { _ in true },
+            fetchRemote: { _ in [Self.remoteEntry] },
+            importRemote: { _, _ in await importGate.suspendUntilOpen() }
+        )
+        let caller = Task {
+            try await coordinator.importAuthenticatedCollection(onUnusableSnapshot: { _ in })
+        }
+        await importGate.waitUntilArrived()
+
+        caller.cancel()
+        await importGate.open()
+
+        await #expect(throws: CancellationError.self) { try await caller.value }
+    }
+
     @Test("A generation invalidated after validation cannot cross the SwiftData commit boundary")
     func invalidationAtCommitBoundaryPreventsImport() async throws(any Error) {
         let authority = SessionAuthority(userID: Self.userA, generation: Self.generationA)

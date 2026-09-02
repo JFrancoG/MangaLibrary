@@ -93,6 +93,64 @@ struct CollectionAPIClient {
         }
     }
 
+    /// Sends one non-tombstone Collection intent through the published upsert route.
+    ///
+    /// The response integer is deliberately opaque. Callers may use successful
+    /// decoding as confirmation, but must not treat it as a manga, entry or local
+    /// operation identity.
+    @concurrent
+    func submit(
+        mangaID: Manga.ID,
+        ownedVolumes: [Int64],
+        readingVolume: Int64?,
+        isComplete: Bool,
+        accessToken: String
+    ) async throws(any Error) -> Int64 {
+        guard accessToken.isEmpty == false else { throw CollectionAPIClientError.unavailable }
+
+        let body: Data
+        do {
+            body = try JSONEncoder().encode(
+                CollectionUpsertDTO(
+                    manga: mangaID,
+                    completeCollection: isComplete,
+                    volumesOwned: ownedVolumes,
+                    readingVolume: readingVolume
+                )
+            )
+        } catch {
+            throw CollectionAPIClientError.contractDrift
+        }
+
+        try Task.checkCancellation()
+        var request = URLRequest(
+            url: configuration.baseURL.appending(path: "collection/manga"),
+            cachePolicy: .reloadIgnoringLocalCacheData
+        )
+        request.httpMethod = "POST"
+        request.httpBody = body
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let data: Data
+        do {
+            data = try await loadData(request)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as NetworkError {
+            throw CollectionAPIClientError.network(error)
+        } catch {
+            throw CollectionAPIClientError.unavailable
+        }
+
+        try Task.checkCancellation()
+        do {
+            return try JSONDecoder().decode(Int64.self, from: data)
+        } catch {
+            throw CollectionAPIClientError.contractDrift
+        }
+    }
+
     private func validatedEntries(
         _ response: [CollectionEntryDTO]
     ) throws(CollectionAPIClientError) -> [CollectionRemoteEntry] {
@@ -140,5 +198,31 @@ private struct CollectionEntryDTO: Decodable {
             isComplete: completeCollection,
             reportedTotalVolumes: manga.reportedTotalVolumes
         )
+    }
+}
+
+private struct CollectionUpsertDTO: Encodable {
+    let manga: Manga.ID
+    let completeCollection: Bool
+    let volumesOwned: [Int64]
+    let readingVolume: Int64?
+
+    private enum CodingKeys: String, CodingKey {
+        case manga
+        case completeCollection
+        case volumesOwned
+        case readingVolume
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(manga, forKey: .manga)
+        try container.encode(completeCollection, forKey: .completeCollection)
+        try container.encode(volumesOwned, forKey: .volumesOwned)
+        if let readingVolume {
+            try container.encode(readingVolume, forKey: .readingVolume)
+        } else {
+            try container.encodeNil(forKey: .readingVolume)
+        }
     }
 }

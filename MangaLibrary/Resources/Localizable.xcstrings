@@ -3075,6 +3075,23 @@
         }
       }
     },
+    "Your session is still active and your local collection is safe, but a remote change could not be confirmed. It will not be sent again automatically." : {
+      "comment" : "Safe Collection synchronization notice shown when a POST may have reached the backend but its result cannot be confirmed.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your session is still active and your local collection is safe, but a remote change could not be confirmed. It will not be sent again automatically."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu sesión sigue activa y tu colección local está a salvo, pero no se ha podido confirmar un cambio remoto. No se volverá a enviar automáticamente."
+          }
+        }
+      }
+    },
     "Your session is still active, but the collection service could not verify the renewed access. Signing in again is not required." : {
       "comment" : "Safe Collection synchronization notice shown when a renewed access works as a session credential but the Collection endpoint cannot verify it.",
       "localizations" : {

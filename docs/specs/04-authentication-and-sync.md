@@ -1,7 +1,7 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.16
+- Versión: 1.18
 - Última revisión: 2026-09-02
 
 ## Propósito y alcance
@@ -322,9 +322,76 @@ El DTO de entrada reutiliza el wire contract compartido de `MangaDTO`, acepta
 `readingVolume` ausente o `null` y valida antes de persistir la identidad UUID de
 la entrada, la identidad del manga, los enums cerrados y el resto del payload.
 Dos entradas con el mismo UUID remoto o con el mismo manga invalidan el lote. R1
-no persiste ni interpreta todavía ese UUID como el parámetro `{id}` de las
+no persiste ni interpreta el UUID de la entrada como el parámetro `{id}` de las
 operaciones individuales: la identidad local de reconciliación continúa siendo
-**usuario + manga** y la ambigüedad contractual permanece bloqueada para R2.
+**usuario + manga**.
+
+## Identidad de las operaciones individuales de Colección
+
+La decisión del propietario del 2 de septiembre de 2026 resuelve la discrepancia
+descriptiva de OpenAPI: `{id}` en `GET /collection/manga/{id}` y
+`DELETE /collection/manga/{id}` representa `Manga.ID`, el mismo `Int64` que
+publican `MangaDTO.id` y `UserMangaCollectionRequest.manga`. La frontera de
+dominio permanece numérica y el transporte la serializa como sus dígitos
+decimales en el path porque el parámetro publicado tiene schema `string`.
+
+El UUID `id` incluido en una entrada remota identifica esa representación, pero
+no sustituye la identidad del manga, no se persiste para construir el path y no
+se envía en `POST` o `DELETE`. La decisión elimina la ambigüedad de producto; la
+aceptación efectiva de los dos paths por el backend real sigue pendiente de una
+prueba funcional controlada y no se infiere del OpenAPI.
+
+## Envío POST de outbox R2.1
+
+El primer corte de R2 reutiliza el GET completo de R1 e incorpora únicamente
+`POST /collection/manga` para intenciones no tombstone. Cada request usa el
+Bearer ligado a su generación y envía exactamente `manga`, `volumesOwned`,
+`readingVolume` y `completeCollection`; un progreso ausente se expresa como
+`null`. Solo `200` con un `Int64` válido confirma el transporte. Ese entero es
+opaco: no sustituye el UUID de operación local ni se interpreta como identidad
+de manga o de entrada.
+
+El arranque autenticado importa primero el snapshot R1 y entrega a la composición
+solo su `SessionAuthority` y sus entradas por valor, nunca el access. El worker
+R2 solicita una autorización vigente y exige que usuario y generación coincidan
+antes de usar esa evidencia; una cancelación observada después del commit de
+importación impide que R1 exponga el snapshot al siguiente efecto. Después
+reclama por valor la menor secuencia
+procesable de cada pareja. Antes del claim comprueba la generación y la gate
+exacta se consume dentro de la misma transacción `queued → sending`; esa
+transacción es la última validación antes de invocar el POST. Si la autorización
+ya no es válida, no reclama ni cambia el estado. Después de exponer `sending`,
+cualquier interrupción se considera potencialmente posterior al envío y exige
+reconciliación. La confirmación consume de nuevo la gate de commit y una respuesta
+de N actualiza solo la base confirmada; si ya existe N+1, su estado optimista
+continúa visible. Las mutaciones posteriores vuelven a activar la misma capacidad
+a partir de la outbox observada en SwiftData.
+
+Una operación `sending` recuperada después de cancelar o relanzar nunca repite el
+POST. En el arranque compuesto, el único GET completo de R1 constituye también
+la evidencia de reconciliación R2 y no se realiza una segunda lectura. La
+coincidencia de manga, volúmenes, progreso y estado completo confirma el efecto;
+una ausencia o diferencia conserva la intención como `blockedOutcome`. Si R1 no
+puede obtener o importar un snapshot utilizable por un fallo ordinario, una ruta
+cercada a la autoridad exacta bloquea únicamente operaciones ya `sending`, sin
+reclamar `queued` ni realizar GET o POST. Cancelación y `sessionChanged` conservan
+`sending` y propagan su categoría sin mutar otra generación; una clasificación
+R1 tardía que ya fue cancelada tampoco cancela el vuelo R2 vigente. La decisión
+de reemplazo usa la autoridad de sesión vigente, no la antigüedad del vuelo: un
+snapshot o fallo A tardío se rechaza antes de tocar B, mientras un trigger B
+validado cancela y reconcilia cualquier vuelo A anterior. Un fallo
+observado después de invocar un POST sí exige un GET completo nuevo porque la
+evidencia R1 es anterior a esa escritura. Transporte, status no publicado o body
+inválido no provocan un segundo POST automático; tampoco se borra la sesión ni
+se piden de nuevo credenciales válidas.
+
+Este corte no procesa tombstones ni materializa todavía GET individual, DELETE,
+retry/backoff, `blockedAuth`, rechazo/reversión o resolución manual del conflicto.
+Un `blockedOutcome` se muestra como aviso seguro de Colección mientras la sesión
+permanece activa. El aviso se deriva de la outbox persistida para esa identidad y
+no desaparece porque el GET R1 anterior falle o porque se relance el proceso; los
+avisos efímeros de autorización pueden prevalecer mientras estén activos. Su
+resolución interactiva sigue siendo trabajo posterior de R2.
 
 La raíz estable inicia la capacidad al restaurar o confirmar una sesión
 autenticada, sin depender de visitar la tab Colección. La UI puede seguir
@@ -498,10 +565,10 @@ WatchOS y WidgetKit consumen proyecciones y no abren nuevos escritores autoritat
 - No se presupone un endpoint de revocación, idempotency key o resolución de conflictos que OpenAPI no declare.
 - Una operación con UUID estable mejora la idempotencia local, pero no garantiza idempotencia del servidor si su contrato no la soporta.
 - La recuperación después de un cierre durante `sending` debe reconciliar antes de repetir; si no puede demostrar el resultado, conserva `blockedOutcome` para resolución visible.
-- R1 no implementa `POST`, `DELETE`, `GET /collection/manga/{id}`, worker,
-  envío, retry/backoff general, transición de estados, reactivación `blockedAuth`,
-  resolución `blockedOutcome`, reversión, acción manual de retry ni UI de
-  conflictos; esas capacidades pertenecen a R2 y al cierre posterior de Advanced.
+- R2.1 no implementa `DELETE`, `GET /collection/manga/{id}`, retry/backoff
+  general, reactivación `blockedAuth`, rechazo/reversión, acción manual de retry
+  ni resolución interactiva de conflictos; esas capacidades permanecen en R2 y
+  en el cierre posterior de Advanced.
 
 ## Especificaciones y decisiones relacionadas
 

@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-09-02 | ✨ feat(collection): upload queued collection changes
 - 2026-09-02 | ✨ feat(collection): import remote snapshot
 - 2026-09-01 | ✨ feat(collection): add offline collection flows
 - 2026-09-01 | ✨ feat(collection): add atomic SwiftData core
@@ -27,6 +28,7 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-02 | 📝 docs(collection): resolve remote manga identity
 - 2026-09-02 | 📝 docs(delivery): record auth loop PR
 - 2026-09-02 | 📝 docs(delivery): record R1 pull request
 - 2026-09-02 | 📝 docs(delivery): record Sendable cleanup PR
@@ -47,6 +49,7 @@ All notable changes to this project are documented in this file.
 
 ### Tests
 
+- 2026-09-02 | ✅ test(collection): cover safe POST outbox pipeline
 - 2026-09-01 | ✅ test(collection): cover persistence contract
 - 2026-08-31 | ✅ test(account): cover registration contract, uncertainty and synthetic UI flow
 - 2026-08-30 | ✅ test(session): cover authentication, persistence recovery and Account states

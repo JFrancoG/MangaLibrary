@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.19
+**Versión:** 1.21
 **Fecha:** 2026-09-02
 
 ## Propósito
@@ -42,9 +42,13 @@ deterministas. `Integration` incluye el tag `integration`, aplicado a
 `CollectionMutationActorTests`, `CollectionMutationAuthorizationTests`,
 `CollectionPersistenceTests` y `CollectionEditorModelTests`, que recorren el
 container real, la capacidad autenticada, migración y reapertura; y a
-`CollectionAPIClientTests`, `CollectionRemotePipelineTests`, `CollectionSyncCoordinatorTests` y
-`CollectionRemoteImportTests`, que cubren el transporte, la gate de commit de
-sesión y la importación atómica R1 con red sintética y un container V2 aislado. `UI` contiene
+`CollectionAPIClientTests`, `CollectionRemotePipelineTests`,
+`CollectionSyncCoordinatorTests` y `CollectionRemoteImportTests`, que cubren el
+transporte, la gate de commit de sesión y la importación atómica R1 con red
+sintética y un container V2 aislado; y a `CollectionAPIClientSubmitTests`,
+`CollectionOutboxTransitionTests`, `CollectionOutboxSyncCoordinatorTests` y
+`CollectionOutboxPipelineTests`, que recorren el POST, la máquina persistida y
+la composición GET → POST de R2.1 sin alcanzar producción. `UI` contiene
 únicamente `MangaLibraryUITests`. Toda suite nueva se clasifica en `Fast`,
 `Integration` o `UI` mediante su target y, cuando corresponda, su tag, en el
 mismo cambio que la introduce. No se filtra por nombres de funciones o suites.
@@ -129,6 +133,33 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
   contexto: snapshot presente, intención pendiente, ausencia remota, aislamiento
   por usuario, canonicalización, error tipado del lote inválido y rollback real
   después de la primera mutación de un único commit;
+- cliente POST R2.1 con request y JSON exactos, `readingVolume` nulo explícito,
+  Bearer sintético, ausencia de `App-Token`, status exacto `200` e `Int64` opaco;
+- worker R2.1 y transiciones persistidas observadas desde otro contexto: claim
+  ordenado por pareja, exclusión de tombstones, cerca de usuario/generación/
+  operación/secuencia, UUID o secuencia obsoletos que no pueden confirmar,
+  autorización de petición rechazada antes del claim que conserva `queued` y
+  realiza cero POST, confirmación que no pisa una intención posterior, mapping de
+  cancelación y cambio de sesión en cada frontera del store y recuperación de
+  `sending` sin repetir el POST;
+- pipeline R1 → R2 sobre SwiftData real: una `sending` recuperada reutiliza el
+  único snapshot R1 con exactamente un GET total y cero POST; match confirma y
+  ausencia bloquea. Fallo de lectura o de importación ordinario bloquea sin otra
+  request; cancelación, cambio de sesión, snapshot A frente a autorización B y
+  fallo A tardío conservan la operación de la generación vigente; una importación
+  no cooperativa que termina tras cancelarse no expone un snapshot reutilizable;
+- reemplazo single-flight con POST suspendido: el vuelo anterior se cancela sin
+  confirmación tardía, el sustituto reconcilia `sending` y existe un solo POST;
+  un fallo R1 tardío cuyo vuelo ya está cancelado no interrumpe el POST vigente;
+  un snapshot o callback R1 tardío de A no cancela el vuelo B suspendido, que
+  conserva un único POST y confirma solo para B; en sentido inverso, un trigger
+  B vigente sí cancela el POST A suspendido y reconcilia la intención sin una
+  segunda escritura, y su callback de fallo R1 bloquea solo la recuperación B;
+- fallo incierto de POST con exactamente un GET completo de reconciliación:
+  coincidencia confirma; ausencia, diferencia o lectura fallida dejan
+  `blockedOutcome`, conservan sesión y estado local y realizan cero reintentos de
+  escritura; un bloqueo persistido continúa presentando su aviso cuando el GET
+  R1 de un trigger posterior falla antes de alcanzar el worker;
 - escritura y lectura concurrentes del snapshot y portadas en App Group, fallo de disco, manifest anterior, retención y limpieza, en directorios temporales y después en sandbox o dispositivo autorizado;
 - recuperación tras crash en la secuencia fence cerrado → invalidación/Keychain → envelope redactado → reload;
 - doble lectura con sustitución concurrente del fence; sesión B cuyo envelope precede a la apertura; sanitización tardía de A convertida en no-op tras abrir B;

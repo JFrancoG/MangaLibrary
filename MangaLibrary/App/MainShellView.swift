@@ -19,12 +19,21 @@ struct MainShellView: View {
     let collectionMutation: CollectionMutation
     let collectionSynchronization: CollectionSynchronization
 
+    @Query private var collectionOperations: [CollectionOutboxOperation]
     @State private var selectedTab: AppTab = .catalog
-    @State private var collectionNotice: AccountCollectionNotice? = nil
+    @State private var transientCollectionNotice: AccountCollectionNotice? = nil
 
     var body: some View {
         let collectionAccess = accountModel.state.collectionAccess
         let authenticatedUserID = accountModel.state.authenticatedUserID
+        let synchronizationID = CollectionSynchronizationID(
+            userID: authenticatedUserID,
+            operations: collectionOperations
+        )
+        let collectionNotice = transientCollectionNotice ?? AccountCollectionNotice.persistedUploadOutcome(
+            userID: authenticatedUserID,
+            operations: collectionOperations
+        )
 
         TabView(selection: $selectedTab) {
             Tab("Catalog", systemImage: "books.vertical", value: .catalog) {
@@ -51,8 +60,8 @@ struct MainShellView: View {
         .task {
             await accountModel.restore()
         }
-        .task(id: authenticatedUserID) {
-            collectionNotice = nil
+        .task(id: synchronizationID) {
+            transientCollectionNotice = nil
             guard let authenticatedUserID else { return }
 
             do {
@@ -63,12 +72,12 @@ struct MainShellView: View {
                 await accountModel.reconcileSessionAfterCollectionSync(expectedUserID: authenticatedUserID)
                 guard !Task.isCancelled, accountModel.state.authenticatedUserID == authenticatedUserID else { return }
 
-                collectionNotice = Self.collectionNotice(for: error, userID: authenticatedUserID)
+                transientCollectionNotice = Self.transientCollectionNotice(for: error, userID: authenticatedUserID)
             }
         }
     }
 
-    private static func collectionNotice(for error: any Error, userID: UUID) -> AccountCollectionNotice? {
+    private static func transientCollectionNotice(for error: any Error, userID: UUID) -> AccountCollectionNotice? {
         guard let error = error as? CollectionSyncError else { return nil }
 
         return switch error {
@@ -79,6 +88,42 @@ struct MainShellView: View {
         case .authenticationIncompatible:
             AccountCollectionNotice(userID: userID, reason: .authenticationIncompatible)
         }
+    }
+}
+
+extension AccountCollectionNotice {
+    /// Keeps durable write uncertainty visible even when an earlier R1 read fails.
+    static func persistedUploadOutcome(
+        userID: UUID?,
+        operations: [CollectionOutboxOperation]
+    ) -> AccountCollectionNotice? {
+        guard
+            let userID,
+            operations.contains(where: { $0.userID == userID && $0.state == .blockedOutcome })
+        else { return nil }
+
+        return AccountCollectionNotice(userID: userID, reason: .uploadOutcomeUnconfirmed)
+    }
+}
+
+private struct CollectionSynchronizationID: Hashable {
+    private struct OperationIdentity: Hashable {
+        let operationID: UUID
+        let sequence: Int64
+    }
+
+    let userID: UUID?
+    private let operations: [OperationIdentity]
+
+    init(userID: UUID?, operations: [CollectionOutboxOperation]) {
+        self.userID = userID
+        self.operations = operations
+            .filter { $0.userID == userID }
+            .map { OperationIdentity(operationID: $0.operationID, sequence: $0.sequence) }
+            .sorted { lhs, rhs in
+                if lhs.sequence != rhs.sequence { return lhs.sequence < rhs.sequence }
+                return lhs.operationID.uuidString < rhs.operationID.uuidString
+            }
     }
 }
 
