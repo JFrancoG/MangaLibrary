@@ -18,6 +18,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-09-03 | 💄 style(swift): normalize R2 source layout
 - 2026-09-02 | ♻️ refactor(concurrency): remove redundant Sendable conformances
 - 2026-09-01 | ♻️ refactor(ui): simplify typed color resources
 - 2026-09-01 | 💄 style(swift): normalize source layout

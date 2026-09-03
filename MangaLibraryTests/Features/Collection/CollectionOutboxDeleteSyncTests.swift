@@ -29,7 +29,9 @@ struct CollectionOutboxDeleteSyncTests {
         "A local resolution failure after DELETE 200 never becomes remote uncertainty",
         arguments: [CollectionOutboxUploadError.staleOperation, .persistenceConflict]
     )
-    func confirmedDeleteResolutionFailureDoesNotReadOrBlock(failure: CollectionOutboxUploadError) async throws(any Error) {
+    func confirmedDeleteResolutionFailureDoesNotReadOrBlock(
+        failure: CollectionOutboxUploadError
+    ) async throws(any Error) {
         let probe = DeleteSyncProbe(claim: .send(Self.workItem), resolutionFailure: failure)
         let coordinator = Self.coordinator(probe: probe)
 
@@ -153,7 +155,9 @@ struct CollectionOutboxDeleteSyncTests {
                     $0 += 1
                     return $0
                 }
-                if invocation == 4 { throw failure.error }
+                if invocation == 4 {
+                    throw failure.error
+                }
                 return true
             }
         )
@@ -213,7 +217,9 @@ struct CollectionOutboxDeleteSyncTests {
                     $0 += 1
                     return $0
                 }
-                if invocation == 5 { throw failure.error }
+                if invocation == 5 {
+                    throw failure.error
+                }
                 return true
             }
         )
@@ -415,7 +421,9 @@ private actor DeleteSyncProbe {
             throw Failure.invalidInput
         }
         deleteCount += 1
-        if deleteFails { throw Failure.expected }
+        if deleteFails {
+            throw Failure.expected
+        }
     }
 
     func fetchFull(accessToken: String) throws -> [CollectionRemoteEntry] {
@@ -445,7 +453,9 @@ private actor DeleteSyncProbe {
             authorization.authority == requestAuthorization.authority
         else { throw Failure.invalidInput }
         resolutions.append(evidence)
-        if let resolutionFailure { throw resolutionFailure }
+        if let resolutionFailure {
+            throw resolutionFailure
+        }
         return switch evidence {
         case .absent: .confirmed
         case .present: .blockedOutcome

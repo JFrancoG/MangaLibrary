@@ -127,7 +127,9 @@ private struct CollectionSynchronizationID: Hashable {
             .filter { $0.userID == authority?.userID }
             .map { OperationIdentity(operationID: $0.operationID, sequence: $0.sequence) }
             .sorted { lhs, rhs in
-                if lhs.sequence != rhs.sequence { return lhs.sequence < rhs.sequence }
+                if lhs.sequence != rhs.sequence {
+                    return lhs.sequence < rhs.sequence
+                }
                 return lhs.operationID.uuidString < rhs.operationID.uuidString
             }
     }

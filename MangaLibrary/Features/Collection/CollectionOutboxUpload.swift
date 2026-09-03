@@ -174,9 +174,7 @@ extension CollectionMutationActor {
 
                     switch evidence {
                     case .present:
-                        guard let candidate else {
-                            throw CollectionOutboxUploadError.persistenceConflict
-                        }
+                        guard let candidate else { throw CollectionOutboxUploadError.persistenceConflict }
                         entry.reconcileRemote(candidate.state, mangaSnapshot: candidate.mangaSnapshot)
                         guard operation.markBlockedOutcomeIfSending() else {
                             throw CollectionOutboxUploadError.staleOperation
@@ -200,9 +198,7 @@ extension CollectionMutationActor {
                     try Task.checkCancellation()
                 }
             }
-            guard let persistedResolution else {
-                throw CollectionOutboxUploadError.persistenceConflict
-            }
+            guard let persistedResolution else { throw CollectionOutboxUploadError.persistenceConflict }
             return persistedResolution
         } catch let error as CollectionOutboxUploadError {
             modelContext.rollback()
@@ -256,9 +252,7 @@ extension CollectionMutationActor {
             case .sending:
                 return .reconcile(workItem)
             case .queued:
-                guard operation.markSendingIfQueued() else {
-                    throw CollectionOutboxUploadError.persistenceConflict
-                }
+                guard operation.markSendingIfQueued() else { throw CollectionOutboxUploadError.persistenceConflict }
                 return .send(workItem)
             case .retry, .blockedAuth, .blockedOutcome, .rejected, .confirmed:
                 continue
@@ -433,8 +427,12 @@ extension CollectionMutationActor {
     }
 
     private func uploadOperationOrder(_ lhs: CollectionOutboxOperation, _ rhs: CollectionOutboxOperation) -> Bool {
-        if lhs.sequence != rhs.sequence { return lhs.sequence < rhs.sequence }
-        if lhs.mangaID != rhs.mangaID { return lhs.mangaID < rhs.mangaID }
+        if lhs.sequence != rhs.sequence {
+            return lhs.sequence < rhs.sequence
+        }
+        if lhs.mangaID != rhs.mangaID {
+            return lhs.mangaID < rhs.mangaID
+        }
         return lhs.operationID.uuidString < rhs.operationID.uuidString
     }
 

@@ -160,9 +160,7 @@ actor CollectionSyncCoordinator {
                     }
                 }
                 try Task.checkCancellation()
-                guard try await validateAuthorization(authorization) else {
-                    throw CollectionSyncError.sessionChanged
-                }
+                guard try await validateAuthorization(authorization) else { throw CollectionSyncError.sessionChanged }
                 try Task.checkCancellation()
                 do {
                     try await importRemote(remoteEntries, authorization.commitAuthorization)

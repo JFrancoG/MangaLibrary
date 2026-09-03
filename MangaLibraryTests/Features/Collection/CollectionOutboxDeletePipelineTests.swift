@@ -459,7 +459,9 @@ private actor DeletePipelineProbe {
         guard accessToken == "synthetic-access" else { throw Failure.unexpectedRequest }
         if workItem.isTombstone {
             recordedEvents.append(.delete(workItem.mangaID))
-            if case .uncertain = outcome { return true }
+            if case .uncertain = outcome {
+                return true
+            }
             return false
         }
 

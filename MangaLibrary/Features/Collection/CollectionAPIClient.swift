@@ -114,9 +114,7 @@ struct CollectionAPIClient {
     /// original category so callers cannot mistake deployment drift for success.
     @concurrent
     func fetch(mangaID: Manga.ID, accessToken: String) async throws(any Error) -> CollectionRemoteEntry? {
-        guard mangaID > 0, accessToken.isEmpty == false else {
-            throw CollectionAPIClientError.unavailable
-        }
+        guard mangaID > 0, accessToken.isEmpty == false else { throw CollectionAPIClientError.unavailable }
 
         try Task.checkCancellation()
         var request = URLRequest(
@@ -138,7 +136,9 @@ struct CollectionAPIClient {
         }
 
         try Task.checkCancellation()
-        if response.statusCode == 404 { return nil }
+        if response.statusCode == 404 {
+            return nil
+        }
         guard response.statusCode == 200 else {
             throw CollectionAPIClientError.network(.statusCode(response.statusCode))
         }
@@ -219,9 +219,7 @@ struct CollectionAPIClient {
     /// safe individual GET instead of repeating a potentially completed DELETE.
     @concurrent
     func remove(mangaID: Manga.ID, accessToken: String) async throws(any Error) -> Int64 {
-        guard mangaID > 0, accessToken.isEmpty == false else {
-            throw CollectionAPIClientError.unavailable
-        }
+        guard mangaID > 0, accessToken.isEmpty == false else { throw CollectionAPIClientError.unavailable }
 
         try Task.checkCancellation()
         var request = URLRequest(
@@ -262,9 +260,7 @@ struct CollectionAPIClient {
             guard remoteIDs.insert(item.id).inserted else { throw .duplicateRemoteID(item.id) }
 
             let entry = item.remoteEntry
-            guard mangaIDs.insert(entry.manga.id).inserted else {
-                throw .duplicateMangaID(entry.manga.id)
-            }
+            guard mangaIDs.insert(entry.manga.id).inserted else { throw .duplicateMangaID(entry.manga.id) }
             entries.append(entry)
         }
 

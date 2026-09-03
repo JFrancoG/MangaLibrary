@@ -104,9 +104,7 @@ actor CollectionOutboxSyncCoordinator {
         if let importedSnapshot, importedSnapshot.authority != authorization.authority {
             throw CollectionOutboxSyncError.sessionChanged
         }
-        guard try await validateAuthorization(authorization) else {
-            throw CollectionOutboxSyncError.sessionChanged
-        }
+        guard try await validateAuthorization(authorization) else { throw CollectionOutboxSyncError.sessionChanged }
         try Task.checkCancellation()
         try requireCurrentCommitAuthorization(authorization)
         let identity = try await reserveReplacement(for: authorization)
@@ -152,9 +150,7 @@ actor CollectionOutboxSyncCoordinator {
         for authorization: SessionRequestAuthorization
     ) async throws(any Error) {
         try Task.checkCancellation()
-        guard try await validateAuthorization(authorization) else {
-            throw CollectionOutboxSyncError.sessionChanged
-        }
+        guard try await validateAuthorization(authorization) else { throw CollectionOutboxSyncError.sessionChanged }
         try Task.checkCancellation()
         try requireCurrentCommitAuthorization(authorization)
         let identity = try await reserveReplacement(for: authorization)
@@ -185,7 +181,9 @@ actor CollectionOutboxSyncCoordinator {
     }
 
     private func clear(_ flight: Flight) {
-        if activeFlight?.identity === flight.identity { activeFlight = nil }
+        if activeFlight?.identity === flight.identity {
+            activeFlight = nil
+        }
     }
 
     private func reserveReplacement(
@@ -203,9 +201,7 @@ actor CollectionOutboxSyncCoordinator {
         do {
             try Task.checkCancellation()
             guard pendingReplacement === identity else { throw CancellationError() }
-            guard try await validateAuthorization(authorization) else {
-                throw CollectionOutboxSyncError.sessionChanged
-            }
+            guard try await validateAuthorization(authorization) else { throw CollectionOutboxSyncError.sessionChanged }
             try Task.checkCancellation()
             guard pendingReplacement === identity else { throw CancellationError() }
             try requireCurrentCommitAuthorization(authorization)
@@ -228,7 +224,9 @@ actor CollectionOutboxSyncCoordinator {
     }
 
     private func clearReplacement(_ identity: OperationIdentity) {
-        if pendingReplacement === identity { pendingReplacement = nil }
+        if pendingReplacement === identity {
+            pendingReplacement = nil
+        }
     }
 
     private func requireCurrentCommitAuthorization(_ authorization: SessionRequestAuthorization) throws(any Error) {
@@ -257,9 +255,7 @@ actor CollectionOutboxSyncCoordinator {
 
         while true {
             try Task.checkCancellation()
-            guard try await validateAuthorization(authorization) else {
-                throw CollectionOutboxSyncError.sessionChanged
-            }
+            guard try await validateAuthorization(authorization) else { throw CollectionOutboxSyncError.sessionChanged }
             let claim = try await performCollectionStoreOperation {
                 try await claimNextUpload(authorization.commitAuthorization)
             }
@@ -305,7 +301,9 @@ actor CollectionOutboxSyncCoordinator {
                     where error == .temporarilyUnavailable || error == .persistenceUnavailable {
                     throw error
                 } catch {
-                    if hasConfirmedDeleteTransport { throw error }
+                    if hasConfirmedDeleteTransport {
+                        throw error
+                    }
                     logUncertainWrite(error, workItem: workItem)
                     let confirmed = try await reconcile(
                         workItem,
@@ -372,17 +370,13 @@ actor CollectionOutboxSyncCoordinator {
             )
         }
 
-        guard try await validateAuthorization(authorization) else {
-            throw CollectionOutboxSyncError.sessionChanged
-        }
+        guard try await validateAuthorization(authorization) else { throw CollectionOutboxSyncError.sessionChanged }
 
         let remoteEntries: [CollectionRemoteEntry]
         do {
             remoteEntries = try await fetchRemote(authorization.accessToken)
             try Task.checkCancellation()
-            guard try await validateAuthorization(authorization) else {
-                throw CollectionOutboxSyncError.sessionChanged
-            }
+            guard try await validateAuthorization(authorization) else { throw CollectionOutboxSyncError.sessionChanged }
             try await performCollectionStoreOperation {
                 try await importRemote(remoteEntries, authorization.commitAuthorization)
             }
@@ -421,9 +415,7 @@ actor CollectionOutboxSyncCoordinator {
         resolveDeletion: ResolveDeletion,
         blockUploadOutcome: ResolveUpload
     ) async throws(any Error) -> Bool {
-        guard try await validateAuthorization(authorization) else {
-            throw CollectionOutboxSyncError.sessionChanged
-        }
+        guard try await validateAuthorization(authorization) else { throw CollectionOutboxSyncError.sessionChanged }
 
         if workItem.isTombstone {
             let evidence: CollectionDeletionEvidence
@@ -463,16 +455,12 @@ actor CollectionOutboxSyncCoordinator {
         resolveDeletion: ResolveDeletion,
         blockUploadOutcome: ResolveUpload
     ) async throws(any Error) -> Bool {
-        guard try await validateAuthorization(authorization) else {
-            throw CollectionOutboxSyncError.sessionChanged
-        }
+        guard try await validateAuthorization(authorization) else { throw CollectionOutboxSyncError.sessionChanged }
 
         do {
             let remoteEntry = try await fetchRemoteEntry(workItem.mangaID, authorization.accessToken)
             try Task.checkCancellation()
-            guard try await validateAuthorization(authorization) else {
-                throw CollectionOutboxSyncError.sessionChanged
-            }
+            guard try await validateAuthorization(authorization) else { throw CollectionOutboxSyncError.sessionChanged }
             let evidence = remoteEntry.map(CollectionDeletionEvidence.present) ?? .absent
             return try await resolveDeletionEvidence(
                 workItem,
@@ -504,9 +492,7 @@ actor CollectionOutboxSyncCoordinator {
         validateAuthorization: ValidateAuthorization,
         resolveDeletion: ResolveDeletion
     ) async throws(any Error) -> Bool {
-        guard try await validateAuthorization(authorization) else {
-            throw CollectionOutboxSyncError.sessionChanged
-        }
+        guard try await validateAuthorization(authorization) else { throw CollectionOutboxSyncError.sessionChanged }
         let resolution = try await performCollectionStoreOperation {
             try await resolveDeletion(workItem, evidence, authorization.commitAuthorization)
         }
@@ -524,9 +510,7 @@ actor CollectionOutboxSyncCoordinator {
     ) async throws(any Error) {
         while true {
             try Task.checkCancellation()
-            guard try await validateAuthorization(authorization) else {
-                throw CollectionOutboxSyncError.sessionChanged
-            }
+            guard try await validateAuthorization(authorization) else { throw CollectionOutboxSyncError.sessionChanged }
             let workItem = try await performCollectionStoreOperation {
                 try await nextRecoveredUpload(authorization.commitAuthorization)
             }

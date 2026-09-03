@@ -206,7 +206,9 @@ struct CollectionOutboxSyncCoordinatorTests {
                     $0 += 1
                     return $0
                 }
-                if invocation == 4 { throw failure.error }
+                if invocation == 4 {
+                    throw failure.error
+                }
                 return invocation < 5
             }
         )
@@ -239,7 +241,9 @@ struct CollectionOutboxSyncCoordinatorTests {
                     $0 += 1
                     return $0
                 }
-                if invocation == 5 { throw failure.error }
+                if invocation == 5 {
+                    throw failure.error
+                }
                 return true
             }
         )
@@ -694,7 +698,9 @@ private actor ControlledSingleFlightProbe {
         submitStarted = true
         let startWaiters = submitStartWaiters
         submitStartWaiters.removeAll()
-        for waiter in startWaiters { waiter.resume() }
+        for waiter in startWaiters {
+            waiter.resume()
+        }
 
         await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
@@ -734,12 +740,16 @@ private actor ControlledSingleFlightProbe {
     }
 
     func waitUntilSubmitStarts() async {
-        if submitStarted { return }
+        if submitStarted {
+            return
+        }
         await withCheckedContinuation { submitStartWaiters.append($0) }
     }
 
     func waitUntilSubmitCancellation() async {
-        if submitWasCancelled { return }
+        if submitWasCancelled {
+            return
+        }
         await withCheckedContinuation { submitCancellationWaiters.append($0) }
     }
 
@@ -756,7 +766,9 @@ private actor ControlledSingleFlightProbe {
         submitWasCancelled = true
         let cancellationWaiters = submitCancellationWaiters
         submitCancellationWaiters.removeAll()
-        for waiter in cancellationWaiters { waiter.resume() }
+        for waiter in cancellationWaiters {
+            waiter.resume()
+        }
 
         if let submitContinuation {
             self.submitContinuation = nil
@@ -791,7 +803,9 @@ private actor LateSnapshotFailure {
         requestStarted = true
         let waiters = requestWaiters
         requestWaiters.removeAll()
-        for waiter in waiters { waiter.resume() }
+        for waiter in waiters {
+            waiter.resume()
+        }
 
         await withCheckedContinuation { continuation in
             if resumeRequestWhenInstalled {
@@ -804,7 +818,9 @@ private actor LateSnapshotFailure {
     }
 
     func waitUntilRequested() async {
-        if requestStarted { return }
+        if requestStarted {
+            return
+        }
         await withCheckedContinuation { requestWaiters.append($0) }
     }
 
@@ -921,13 +937,17 @@ private actor WorkerProbe {
         submitCount += 1
         accessTokens.append(accessToken)
         guard item == CollectionOutboxSyncCoordinatorTests.workItem else { throw Failure.failed }
-        if let submitFailure { throw submitFailure }
+        if let submitFailure {
+            throw submitFailure
+        }
     }
 
     func fetchRemote(accessToken: String) throws -> [CollectionRemoteEntry] {
         fetchCount += 1
         accessTokens.append(accessToken)
-        if let fetchFailure { throw fetchFailure }
+        if let fetchFailure {
+            throw fetchFailure
+        }
 
         return remoteEntries
     }
@@ -936,7 +956,9 @@ private actor WorkerProbe {
         guard authorization.authority == requestAuthorization.authority, entries == remoteEntries else {
             throw Failure.failed
         }
-        if let remoteImportFailure { throw remoteImportFailure }
+        if let remoteImportFailure {
+            throw remoteImportFailure
+        }
         importCount += 1
     }
 

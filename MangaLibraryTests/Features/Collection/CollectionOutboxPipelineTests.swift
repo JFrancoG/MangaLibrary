@@ -156,7 +156,9 @@ struct CollectionOutboxPipelineTests {
         #expect(operations.count == 1)
         #expect(operation.operationID == Self.operationID)
         #expect(operation.state == scenario.expectedOperationState)
-        if scenario == .matching { #expect(entry.confirmedState == Self.desiredState) }
+        if scenario == .matching {
+            #expect(entry.confirmedState == Self.desiredState)
+        }
         #expect(await probe.evidence() == RecoveredPipelineEvidence(fetchCount: 1, submitCount: 0))
     }
 
@@ -640,7 +642,9 @@ private actor RecoveredPipelineProbe {
     func fetch(accessToken: String) throws -> [CollectionRemoteEntry] {
         guard accessToken == "synthetic-access" else { throw Failure.readFailed }
         fetchCount += 1
-        if fetchFails { throw Failure.readFailed }
+        if fetchFails {
+            throw Failure.readFailed
+        }
         return remoteEntries
     }
 
