@@ -1,8 +1,8 @@
 # Arquitectura y composición
 
 - Estado: aprobado
-- Versión: 1.7
-- Última revisión: 2026-09-02
+- Versión: 1.8
+- Última revisión: 2026-09-03
 
 ## Propósito y alcance
 
@@ -130,8 +130,8 @@ activa; no copia ese estado a `@State`, sobrevive a fallos anteriores de R1 y
 desaparece al resolver la operación durable. La raíz contiene tres destinos
 estables con el estilo predeterminado de `TabView`:
 
-1. **Catálogo**: `NavigationStack` tipado por `Manga.ID` en presentación compacta y `NavigationSplitView` con lista o cuadrícula y detalle en regular.
-2. **Colección**: navegación local e independiente con el mismo detalle compartido; su contenedor adaptable se concreta al implementar la feature.
+1. **Catálogo**: usa `magnifyingglass` para expresar descubrimiento y búsqueda, con `NavigationStack` tipado por `Manga.ID` en presentación compacta y `NavigationSplitView` con lista o cuadrícula y detalle en regular.
+2. **Colección**: usa `books.vertical.fill` para expresar la biblioteca personal, con navegación local e independiente y el mismo detalle compartido; su contenedor adaptable se concreta al implementar la feature.
 3. **Cuenta**: `NavigationStack` para estado de cuenta, login y registro.
 
 No se envuelve todo el `TabView` en un `NavigationStack`. Catálogo posee `selectedCatalogMangaID: Manga.ID?`; esa selección deriva el path homogéneo `[Manga.ID]` de su stack compacto y alimenta el detalle del split regular, sin una segunda fuente de navegación. Colección posee `selectedCollectionMangaID: Manga.ID?`; Cuenta posee una ruta tipada `[AccountRoute]`.
@@ -188,6 +188,7 @@ La red nunca escribe directamente en estado de View. El detalle operativo está 
 - Las mutaciones concurrentes de una misma entrada se serializan en el actor de modelo y dejan colección y outbox en un estado válido.
 - Ningún `@Model` se pasa como dato de trabajo a un actor con otro contexto.
 - Catálogo y Colección abren el mismo detalle mediante `Manga.ID` y conservan rutas locales independientes al cambiar de tab.
+- Catálogo y Colección se distinguen en el shell mediante sus símbolos semánticos `magnifyingglass` y `books.vertical.fill`.
 - Completar logout o cambiar de usuario no permite que la selección anterior resuelva un detalle privado; cancelar logout no destruye prematuramente la navegación.
 - iPhone e iPad presentan el flujo list-detail sin dos fuentes de navegación competidoras.
 - El build con comprobación estricta de concurrencia y warnings-as-errors termina limpio.

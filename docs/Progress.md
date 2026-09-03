@@ -1,7 +1,42 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-03
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2 y las correcciones #55, #58, #61 y #63 entregadas
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2 y las correcciones #55, #58, #61, #63 y #65 entregadas
+
+## Diferenciación de pestañas y controles de tomos — issue #65
+
+- El [issue #65 — diferenciar Catálogo y mejorar los controles de tomos](https://github.com/JFrancoG/MangaLibrary/issues/65) se abrió sin issue, PR o rama duplicados. La rama `codex/65-distinct-tabs-volume-controls` parte de `main@15458ed3ace4bc3f3e826ed6aa3e5a351c2cc27a`, limpio y sincronizado con `origin/main`; la implementación se versiona en `6f9f90f` y se entrega mediante la [PR #66](https://github.com/JFrancoG/MangaLibrary/pull/66).
+- SDD 01 v1.8 diferencia Catálogo mediante `magnifyingglass` y conserva `books.vertical.fill` para la biblioteca personal. No cambia el orden, la selección ni la navegación de las tres pestañas.
+- SDD 03 v1.5 y SDD 06 v1.27 concretan para el editor sin total conocido controles SwiftUI nativos, bordeados y circulares: `plus` para añadir y `trash` con rol y color destructivos para retirar. Ambos declaran un mínimo de `44 × 44 pt` y nombres localizados equivalentes a «Añadir tomo» y «Eliminar tomo N».
+- `CollectionEditorView` reutiliza la única ruta semántica de borrador existente. El cambio es exclusivamente presentacional: no modifica validación, persistencia, SwiftData, outbox, R1/R2, sesión, red, navegación, dependencias, proyecto ni entitlements.
+- El String Catalog reutiliza `Add volume` y `Remove volume %lld` y retira la clave ya huérfana `Add`; Xcode reordenó mecánicamente varias entradas al actualizar su estado, pero la comparación JSON canónica confirma que no cambió ningún otro texto o traducción.
+
+### Validación local de #65
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| Xcode MCP — build y diagnósticos | `BuildProject(buildForTesting: true)` final aprobado en 6,566 s sobre iPhone 17 Pro/iOS 27. El build log estructurado contiene 0 warnings o errores y el full log conserva las tres emisiones exactas de `appintentsmetadataprocessor` esperadas por target y acotadas por ADR-0011; no hay warnings de Swift, Clang o DocC. `MainShellView.swift` y `CollectionEditorView.swift` devuelven 0 diagnósticos. Proyecto `MangaLibrary.xcodeproj`, scheme `MangaLibrary`. |
+| Xcode MCP — previews | El shell se renderizó e inspeccionó en español, Light, Dynamic Type Large y Control Borders visible sobre iPhone 17 Pro/iOS 27: Catálogo muestra la lupa y Colección los libros. El editor sin total conocido se inspeccionó en iPhone en Large, XXX Large oscuro y AX5 con contraste aumentado; los controles se mantienen íntegros en Large y XXX Large, mientras AX5 conserva la cabecera y deja los controles fuera del primer viewport de la estructura desplazable. También se renderizaron el shell y el editor en iPad Pro 13-inch (M5). Es evidencia visual estática, no demuestra un gesto, una medición runtime ni tecnologías de asistencia. |
+| Xcode MCP — UI | La regresión que había fallado en el gate aprobó 1/1 de forma focal. El plan `UI` completo aprobó 8/8, sin fallos, skips, expected failures o casos no ejecutados. |
+| Xcode MCP — `ReleaseGate` | El último gate monolítico sobre la forma final concisa de `Tab` quedó en 522/523: falló únicamente el primer `waitForExistence` de `tab.account` en `testCatalogDetailSavesAndDeletesMangaFromCollection`; la misma prueba aprobó focalmente y dentro de `UI` 8/8. Otro intento de proyectar el identificador desde una etiqueta personalizada produjo el mismo 522/523 y no se conservó. El artefacto final demuestra que la app, Catálogo y las tres pestañas ya estaban completamente renderizados, pero SwiftUI no expuso ningún `tab.*` al árbol accesible de ese lanzamiento. Por tanto, el `ReleaseGate` no se declara limpio y no se repite hasta ocultar la señal. |
+| `Scripts/validate-docc.sh` | Ocho escenarios deterministas aprobados; archive Release generado con warnings DocC como errores y únicamente la emisión externa exacta acotada por ADR-0011 para Xcode 27 build `27A5252f`. El archive permanece local y no se publica. |
+| Localización e integridad | `Localizable.xcstrings` conserva 184 claves activas, 184/184 traducidas en inglés y español y 0 stale. `git diff --check` queda limpio; `project.pbxproj` conserva SHA-256 `ee6cd588ee1ba5666a71b8b42cbc19338af70025072d35a4efe1acb14732ab76` y OpenAPI conserva `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`. |
+| Revisiones independientes | Las auditorías finales iOS/SwiftUI/accesibilidad, `swift-source-style` y gobernanza no encuentran hallazgos P0–P3 atribuibles al diff. El audit de estilo inspecciona los dos Swift modificados y obtiene 0 candidatos multilinea. Las revisiones conservan como límite explícito el `ReleaseGate` 522/523 y no lo reinterpretan como aprobado. |
+
+### Límites y estado de entrega
+
+No se ejecutaron VoiceOver, Voice Control, Switch Control, Acceso total con
+teclado o Accessibility Inspector. El Xcode MCP exigió una skill de interacción
+con dispositivo que no está instalada, por lo que el mínimo `44 × 44 pt` queda
+acreditado por el código y la inspección de previews, no por una medición directa
+del árbol runtime; los nombres EN/ES se verificaron en código y String Catalog,
+pero tampoco se escucharon ni inspeccionaron en runtime. Tampoco se llamó al
+backend ni se usaron cuenta, Keychain, datos o hardware reales. La fragilidad
+intermitente de los identificadores
+`tab.*` afecta a la automatización inicial del `TabView`; el artefacto descarta
+un crash, una pantalla sin montar o la ausencia visual de Cuenta, pero no permite
+declarar limpio el gate global. La fusión de la PR #66 cierra el issue #65 y el
+cierre autorizado incluye retirar después la rama local y remota.
 
 ## Cota global de 300 números de tomo — issue #63
 
