@@ -35,6 +35,7 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-04 | 📝 docs(delivery): record R2.4 pull request
 - 2026-09-03 | 📝 docs(delivery): record R2.3 pull request
 - 2026-09-03 | 📝 docs(collection): define safe R2.3 outbox recovery
 - 2026-09-03 | 📝 docs(delivery): record UI polish pull request
