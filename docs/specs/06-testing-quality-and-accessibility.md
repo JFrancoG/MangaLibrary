@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.26
+**Versión:** 1.27
 **Fecha:** 2026-09-03
 
 ## Propósito
@@ -356,6 +356,9 @@ La política común se materializa en `Configuration/Shared.xcconfig`, conectada
 - Las futuras descripciones de permisos se añadirán a `InfoPlist.xcstrings` en los dos idiomas junto a la capacidad real que las necesite. `Localizable.xcstrings` se creará con la primera interfaz de producto y sus textos reales; este gate no anticipa un catálogo vacío ni traducciones ficticias.
 - Las vistas soportarán Dynamic Type sin truncar acciones o datos esenciales.
 - VoiceOver comunicará nombre, valor, estado y acción sin depender de la portada.
+- Los controles de icono del editor sin total conocido conservarán un nombre
+  accesible localizado que describa la acción y un objetivo táctil mínimo de
+  `44 × 44 pt`; un contorno o símbolo no sustituye ninguno de esos requisitos.
 - Se comprobarán contraste, orden de foco, áreas táctiles, estados vacío/carga/error y reducción de movimiento cuando corresponda.
 - Las portadas tendrán placeholder estable y la interfaz conservará significado ante fallo de imagen.
 - Previews deterministas cubrirán estados representativos, pero no contarán como evidencia de UI automation.

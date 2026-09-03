@@ -1,7 +1,7 @@
 # Colección local e invariantes
 
 - Estado: aprobado
-- Versión: 1.4
+- Versión: 1.5
 - Última revisión: 2026-09-03
 
 ## Propósito y alcance
@@ -80,6 +80,13 @@ Véase [ADR-0004](../adr/0004-swiftdata-local-first-and-model-actors.md).
 Los duplicados y el orden se normalizan antes de persistir. Un valor fuera de
 `1...300` o superior al total conocido invalida el comando; no se elimina ni
 ajusta silenciosamente.
+
+Cuando el catálogo no publica un total, el editor acompaña el campo numérico con
+un botón nativo `plus` bordeado y circular para añadir el tomo. Cada tomo ya
+incluido ofrece un botón equivalente con `trash`, rol y color destructivos para
+retirarlo del borrador. Ambos controles conservan un objetivo táctil mínimo de
+`44 × 44 pt` y nombres accesibles localizados equivalentes a «Añadir tomo» y
+«Eliminar tomo N»; la iconografía no sustituye esas etiquetas.
 
 ### Volumen de lectura
 
@@ -201,6 +208,7 @@ destructiva explícita y cancelar no ejecuta ninguna mutación.
 | Eliminar con un POST histórico incompatible en `sending` | Retira la intención N sustituida, conserva el salto monotónico y deja la tombstone N+1 reclamable para DELETE. |
 | R1 aún observa la fila incompatible y N+1 es la primera tombstone procesable | Conserva la fila como presencia opaca sin importarla ni confirmar ausencia; `queued` puede enviar DELETE y `sending` queda bloqueada sin repetirlo. |
 | Otra intención anterior bloquea N+1 | No aplica la excepción: R1 rechaza atómicamente el dato remoto incompatible. |
+| Editor sin total conocido | Añadir y retirar tomos usa botones nativos circulares y bordeados, con `plus` y `trash`, objetivos mínimos de `44 × 44 pt` y etiquetas accesibles inequívocas. |
 | Cancelar la alerta de eliminación | No cambia colección ni outbox. |
 | Confirmar la alerta de eliminación | Oculta la entrada y persiste su tombstone por la única ruta de mutación. |
 

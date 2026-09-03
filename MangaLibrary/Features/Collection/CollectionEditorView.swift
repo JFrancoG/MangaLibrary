@@ -156,18 +156,21 @@ struct CollectionEditorView: View {
                     .foregroundStyle(.textSecondary)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline) {
+                    HStack {
                         TextField("Volume number", text: $model.volumeInput)
                             .keyboardType(.numberPad)
                             .accessibilityIdentifier("collection.editor.volume-input")
 
-                        Button("Add", systemImage: "plus") {
+                        Button("Add volume", systemImage: "plus") {
                             model.addUnknownVolume()
                         }
                         .labelStyle(.iconOnly)
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.circle)
+                        .controlSize(.large)
+                        .tint(Color.brandPrimary)
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(.rect)
-                        .accessibilityLabel("Add volume")
                         .accessibilityIdentifier("collection.editor.volume-add")
                     }
 
@@ -192,10 +195,14 @@ struct CollectionEditorView: View {
                         HStack {
                             Text("Volume \(volume)")
                             Spacer()
-                            Button("Remove volume \(volume)", systemImage: "minus.circle", role: .destructive) {
+                            Button("Remove volume \(volume)", systemImage: "trash", role: .destructive) {
                                 model.removeOwnedVolume(volume)
                             }
                             .labelStyle(.iconOnly)
+                            .buttonStyle(.bordered)
+                            .buttonBorderShape(.circle)
+                            .controlSize(.large)
+                            .tint(Color.dangerFill)
                             .frame(minWidth: 44, minHeight: 44)
                             .contentShape(.rect)
                             .accessibilityIdentifier("collection.editor.owned.remove.\(volume)")

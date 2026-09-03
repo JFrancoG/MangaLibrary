@@ -36,7 +36,7 @@ struct MainShellView: View {
         )
 
         TabView(selection: $selectedTab) {
-            Tab("Catalog", systemImage: "books.vertical", value: .catalog) {
+            Tab("Catalog", systemImage: "magnifyingglass", value: .catalog) {
                 CatalogRootView(
                     loadPage: loadCatalogPage,
                     loadFilterOptions: loadCatalogFilterOptions,
