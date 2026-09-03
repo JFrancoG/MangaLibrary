@@ -16,6 +16,7 @@ final class FixtureURLProtocol: URLProtocol {
         static let registrationOKBase = requiredURL("https://registration-ok.mangalibrary.invalid")
         static let registrationCreatedBase = requiredURL("https://registration-created.mangalibrary.invalid")
         static let registrationAcceptedBase = requiredURL("https://registration-accepted.mangalibrary.invalid")
+        static let collectionNotFoundBase = requiredURL("https://collection-not-found.mangalibrary.invalid")
         static let nonHTTPResponse = requiredURL("https://non-http.mangalibrary.invalid/data")
         static let notFound = requiredURL("https://not-found.mangalibrary.invalid/data")
         static let transportFailure = requiredURL("https://transport.mangalibrary.invalid/data")
@@ -64,6 +65,8 @@ final class FixtureURLProtocol: URLProtocol {
             sendHTTPResponse(statusCode: 201, body: Data(), url: url)
         case .registrationAccepted:
             sendHTTPResponse(statusCode: 202, body: Data("42".utf8), url: url)
+        case .collectionNotFound:
+            sendHTTPResponse(statusCode: 404, body: Data("body-must-not-be-decoded".utf8), url: url)
         case .nonHTTPResponse:
             let body = Data("non-http".utf8)
             let response = URLResponse(
@@ -90,6 +93,7 @@ final class FixtureURLProtocol: URLProtocol {
         case registrationOK
         case registrationCreated
         case registrationAccepted
+        case collectionNotFound
         case nonHTTPResponse
         case notFound
         case transportFailure
@@ -108,6 +112,8 @@ final class FixtureURLProtocol: URLProtocol {
             return .registrationCreated
         case Endpoint.registrationAcceptedBase.appending(path: "users"):
             return .registrationAccepted
+        case Endpoint.collectionNotFoundBase.appending(path: "collection/manga/42"):
+            return .collectionNotFound
         case Endpoint.nonHTTPResponse:
             return .nonHTTPResponse
         case Endpoint.notFound:

@@ -1,8 +1,8 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.19
-- Última revisión: 2026-09-02
+- Versión: 1.22
+- Última revisión: 2026-09-03
 
 ## Propósito y alcance
 
@@ -411,13 +411,76 @@ evidencia R1 es anterior a esa escritura. Transporte, status no publicado o body
 inválido no provocan un segundo POST automático; tampoco se borra la sesión ni
 se piden de nuevo credenciales válidas.
 
-Este corte no procesa tombstones ni materializa todavía GET individual, DELETE,
+R2.1 no procesa tombstones ni materializa todavía GET individual, DELETE,
 retry/backoff, `blockedAuth`, rechazo/reversión o resolución manual del conflicto.
 Un `blockedOutcome` se muestra como aviso seguro de Colección mientras la sesión
 permanece activa. El aviso se deriva de la outbox persistida para esa identidad y
 no desaparece porque el GET R1 anterior falle o porque se relance el proceso; los
 avisos efímeros de autorización pueden prevalecer mientras estén activos. Su
 resolución interactiva sigue siendo trabajo posterior de R2.
+
+## GET/DELETE individual y tombstones R2.2
+
+R2.2 amplía el mismo worker y la misma ruta persistente, sin crear otra cola ni
+otra autoridad. La menor secuencia procesable puede representar un upsert o una
+tombstone: ambas se reclaman mediante la misma transición atómica
+`queued → sending` y conservan las cercas de usuario, manga, UUID, secuencia,
+generación y autorización de commit ya definidas por R2.1.
+
+Una tombstone nueva ejecuta exactamente un
+`DELETE /collection/manga/{mangaID}` con el `Manga.ID` decimal como segmento,
+Bearer JWT y sin body, query, `App-Token` ni UUID remoto. Solo `200` con un
+`Int64` válido confirma directamente el transporte; el entero continúa siendo
+opaco. Una respuesta directa distinta, un body inválido o un fallo de transporte
+se consideran resultado potencialmente posterior al envío y nunca provocan un
+segundo DELETE automático.
+
+Cuando el DELETE ya ha retornado ese `200` válido, cualquier fallo posterior de
+revalidación o persistencia es local: conserva su categoría, no se reclasifica
+como resultado remoto incierto, no ejecuta GET individual y no bloquea la
+operación como `blockedOutcome` por esa causa. La resolución exacta puede
+reanudarse desde su cursor persistido sin volver a borrar en red.
+
+La reconciliación posterior a un DELETE incierto usa como máximo una vez
+`GET /collection/manga/{mangaID}`. Un `200` debe decodificar una única entrada
+válida cuyo `manga.id` coincida exactamente con el segmento solicitado: demuestra
+que el efecto deseado no está confirmado. La misma transacción valida y adopta
+su estado como base remota y datos de presentación, conserva intacta la intención
+local visible y deja la operación en `blockedOutcome`, sin reintento automático.
+El `404` descrito por OpenAPI como «manga no presente en la colección» es la única
+ausencia concluyente y confirma la tombstone. Esta interpretación queda limitada
+al GET individual exacto: no se generaliza al DELETE ni a otros endpoints. Un
+payload o identidad inválidos no avanzan la base confirmada. Cualquier otro
+status, fallo o cancelación conserva la clasificación segura correspondiente; un
+resultado ordinario no borra sesión, Keychain ni estado local.
+
+Una tombstone `sending` recuperada después de un relanzamiento reutiliza primero
+el snapshot completo R1 ya importado, igual que un upsert recuperado: ausencia
+del manga confirma y presencia bloquea, con cero DELETE repetidos y cero GET
+adicionales. Cuando un trigger autónomo no procede de R1 y carece de snapshot,
+su reconciliación dirigida usa el GET individual. Si R1 acaba de fallar o no ha
+podido importar su snapshot, se conserva la ruta específica vigente: bloquear
+la operación recuperada sin realizar otra petición. El endpoint individual no
+alimenta una segunda fuente de UI, no sustituye el snapshot completo R1 y no se
+llama como preflight de un DELETE confirmado.
+
+La aceptación live debe demostrar sin registrar secretos que el path decimal
+identifica el manga y que eliminar termina en ausencia remota observable. Puede
+hacerlo mediante la secuencia directa GET presente `200` → DELETE `200` → GET
+ausente `404`, o mediante una prueba multidispositivo equivalente: un dispositivo
+elimina una entrada conocida, otro reconcilia el borrado concurrente mediante el
+`404` del endpoint individual y una sesión fresca observa la ausencia en el
+snapshot remoto. Esta segunda ruta acredita la semántica de producto y del path,
+pero no permite afirmar el status ni el body exactos de la primera respuesta
+DELETE si se perdieron en transporte; esa caracterización continúa como deuda
+de contrato y no bloquea por sí sola R2.2.
+
+Al confirmar la eliminación, la transacción marca la operación exacta como
+`confirmed` y registra ausencia remota. Si no existe una intención posterior,
+retira la entrada tombstone ya innecesaria; conserva la operación confirmada como
+cursor monotónico para que una futura reactivación continúe la secuencia. Si N+1
+ya posee el estado visible, no lo borra: solo avanza la base confirmada de N a
+ausencia y mantiene N+1 pendiente.
 
 La raíz estable inicia la capacidad al restaurar o confirmar una sesión
 autenticada, sin depender de visitar la tab Colección. La UI puede seguir
@@ -570,6 +633,10 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 | Advanced | Error transitorio | La operación pasa por `retry` y no duplica efectos visibles. |
 | Advanced | Efecto remoto aplicado y respuesta perdida | La reconciliación reconoce el estado deseado, pasa a `confirmed` y no repite el request. |
 | Advanced | Resultado remoto inconcluso | Pasa a `blockedOutcome`, conserva ambos estados para resolver y no revierte ni reintenta automáticamente. |
+| Advanced | DELETE de tombstone confirmado con `200` e `Int64` | Confirma la operación exacta, retira la entrada si no existe N+1 y no ejecuta GET individual. |
+| Advanced | DELETE incierto y GET individual `404` | Confirma ausencia y nunca repite DELETE. |
+| Advanced | DELETE incierto y GET individual `200` coincidente | Conserva la tombstone en `blockedOutcome`, mantiene la sesión y no repite DELETE. |
+| Advanced | Tombstone `sending` recuperada con snapshot R1 | Ausencia confirma y presencia bloquea con cero requests adicionales. |
 | Advanced | Rechazo permanente | Se restaura la última versión confirmada y el rechazo queda resuelto de forma observable. |
 | Advanced | Respuesta antigua | No sobrescribe una secuencia local posterior. |
 | Advanced | Cambio de usuario | No muestra ni envía datos u operaciones del usuario anterior. |
@@ -610,10 +677,10 @@ WatchOS y WidgetKit consumen proyecciones y no abren nuevos escritores autoritat
 - No se presupone un endpoint de revocación, idempotency key o resolución de conflictos que OpenAPI no declare.
 - Una operación con UUID estable mejora la idempotencia local, pero no garantiza idempotencia del servidor si su contrato no la soporta.
 - La recuperación después de un cierre durante `sending` debe reconciliar antes de repetir; si no puede demostrar el resultado, conserva `blockedOutcome` para resolución visible.
-- R2.1 no implementa `DELETE`, `GET /collection/manga/{id}`, retry/backoff
-  general, reactivación `blockedAuth`, rechazo/reversión, acción manual de retry
-  ni resolución interactiva de conflictos; esas capacidades permanecen en R2 y
-  en el cierre posterior de Advanced.
+- R2.2 no implementa retry/backoff general, reactivación `blockedAuth`,
+  rechazo/reversión, acción manual de retry ni resolución interactiva de
+  conflictos; esas capacidades permanecen en R2 y en el cierre posterior de
+  Advanced.
 
 ## Especificaciones y decisiones relacionadas
 

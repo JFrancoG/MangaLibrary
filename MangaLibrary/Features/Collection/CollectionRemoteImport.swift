@@ -44,11 +44,7 @@ extension CollectionMutationActor {
             try authorization.perform {
                 try modelContext.transaction {
                     try Task.checkCancellation()
-                    try reconcile(
-                        remoteByMangaID,
-                        for: userID,
-                        afterMutation: afterMutation
-                    )
+                    try reconcile(remoteByMangaID, for: userID, afterMutation: afterMutation)
                     try Task.checkCancellation()
                 }
             }
@@ -80,18 +76,27 @@ extension CollectionMutationActor {
                 throw .duplicateRemoteID(remoteEntry.remoteID)
             }
 
-            let mangaID = remoteEntry.manga.id
-            guard mangaID > 0 else { throw .invalidIdentity }
+            let candidate = try validatedRemoteCandidate(remoteEntry)
+            let mangaID = candidate.mangaSnapshot.mangaID
             guard candidates[mangaID] == nil else { throw .duplicateMangaID(mangaID) }
-
-            let state = try remoteState(for: remoteEntry)
-            candidates[mangaID] = CollectionRemoteCandidate(
-                state: state,
-                mangaSnapshot: CollectionMangaSnapshot(manga: remoteEntry.manga)
-            )
+            candidates[mangaID] = candidate
         }
 
         return candidates
+    }
+
+    /// Validates and canonicalizes one remote entry with the same rules as R1.
+    ///
+    /// This does not interpret the value as a complete snapshot. R2 uses it only
+    /// inside the atomic resolution of an uncertain DELETE.
+    func validatedRemoteCandidate(
+        _ remoteEntry: CollectionRemoteEntry
+    ) throws(CollectionRemoteImportError) -> CollectionRemoteCandidate {
+        guard remoteEntry.manga.id > 0 else { throw .invalidIdentity }
+        return CollectionRemoteCandidate(
+            state: try remoteState(for: remoteEntry),
+            mangaSnapshot: CollectionMangaSnapshot(manga: remoteEntry.manga)
+        )
     }
 
     private func remoteState(
@@ -261,7 +266,7 @@ extension CollectionMutationActor {
     }
 }
 
-private struct CollectionRemoteCandidate {
+struct CollectionRemoteCandidate {
     let state: CollectionSnapshot
     let mangaSnapshot: CollectionMangaSnapshot
 }

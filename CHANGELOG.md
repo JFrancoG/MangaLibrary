@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-09-03 | ✨ feat(collection): sync collection deletions
 - 2026-09-02 | ✨ feat(collection): upload queued collection changes
 - 2026-09-02 | ✨ feat(collection): import remote snapshot
 - 2026-09-01 | ✨ feat(collection): add offline collection flows

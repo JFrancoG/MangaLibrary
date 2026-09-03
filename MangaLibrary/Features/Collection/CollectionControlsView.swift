@@ -15,6 +15,7 @@ struct CollectionControlsView: View {
     let manga: Manga
     let access: CollectionAccess
     let mutation: CollectionMutation
+    let editAccessibilityIdentifier: String
 
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
@@ -72,7 +73,7 @@ struct CollectionControlsView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .frame(maxWidth: .infinity)
-                .accessibilityIdentifier("collection.edit.\(manga.id)")
+                .accessibilityIdentifier(editAccessibilityIdentifier)
             }
         } else {
             Text("This manga is not in your collection.")
@@ -113,10 +114,16 @@ struct CollectionControlsView: View {
 }
 
 extension CollectionControlsView {
-    init(manga: Manga, access: CollectionAccess, mutation: CollectionMutation) {
+    init(
+        manga: Manga,
+        access: CollectionAccess,
+        mutation: CollectionMutation,
+        editAccessibilityIdentifier: String? = nil
+    ) {
         self.manga = manga
         self.access = access
         self.mutation = mutation
+        self.editAccessibilityIdentifier = editAccessibilityIdentifier ?? "collection.edit.\(manga.id)"
 
         if let userID = access.userID {
             _entries = Query(filter: CollectionEntry.activePredicate(userID: userID, mangaID: manga.id))

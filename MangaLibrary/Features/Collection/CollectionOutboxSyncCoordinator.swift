@@ -11,7 +11,7 @@ enum CollectionOutboxSyncError: Error, Equatable {
     case outcomeUnconfirmed
 }
 
-/// Serializes POST outbox work and fences every effect to one session generation.
+/// Serializes Collection outbox writes and fences every effect to one session generation.
 actor CollectionOutboxSyncCoordinator {
     typealias Authorize = @Sendable () async throws(any Error) -> SessionRequestAuthorization
     typealias ValidateAuthorization = @Sendable (SessionRequestAuthorization) async throws(any Error) -> Bool
@@ -23,6 +23,7 @@ actor CollectionOutboxSyncCoordinator {
     ) async throws(any Error) -> CollectionOutboxUploadWorkItem?
     typealias Submit = @Sendable (CollectionOutboxUploadWorkItem, String) async throws(any Error) -> Void
     typealias FetchRemote = @Sendable (String) async throws(any Error) -> [CollectionRemoteEntry]
+    typealias FetchRemoteEntry = @Sendable (Manga.ID, String) async throws(any Error) -> CollectionRemoteEntry?
     typealias ImportRemote = @Sendable (
         [CollectionRemoteEntry],
         SessionCommitAuthorization
@@ -31,6 +32,11 @@ actor CollectionOutboxSyncCoordinator {
         CollectionOutboxUploadWorkItem,
         SessionCommitAuthorization
     ) async throws(any Error) -> Void
+    typealias ResolveDeletion = @Sendable (
+        CollectionOutboxUploadWorkItem,
+        CollectionDeletionEvidence,
+        SessionCommitAuthorization
+    ) async throws(any Error) -> CollectionOutboxResolution
     typealias HasBlockedOutcome = @Sendable (SessionCommitAuthorization) async throws(any Error) -> Bool
 
     private final class OperationIdentity {}
@@ -46,8 +52,10 @@ actor CollectionOutboxSyncCoordinator {
     private let nextRecoveredUpload: NextRecoveredUpload
     private let submit: Submit
     private let fetchRemote: FetchRemote
+    private let fetchRemoteEntry: FetchRemoteEntry
     private let importRemote: ImportRemote
     private let confirmUpload: ResolveUpload
+    private let resolveDeletion: ResolveDeletion
     private let blockUploadOutcome: ResolveUpload
     private let hasBlockedOutcome: HasBlockedOutcome
     private var activeFlight: Flight?
@@ -62,8 +70,14 @@ actor CollectionOutboxSyncCoordinator {
         nextRecoveredUpload: @escaping NextRecoveredUpload = { _ in nil },
         submit: @escaping Submit,
         fetchRemote: @escaping FetchRemote,
+        fetchRemoteEntry: @escaping FetchRemoteEntry = { _, _ in
+            throw CollectionAPIClientError.unavailable
+        },
         importRemote: @escaping ImportRemote,
         confirmUpload: @escaping ResolveUpload,
+        resolveDeletion: @escaping ResolveDeletion = { _, _, _ in
+            throw CollectionOutboxUploadError.persistenceConflict
+        },
         blockUploadOutcome: @escaping ResolveUpload,
         hasBlockedOutcome: @escaping HasBlockedOutcome = { _ in false }
     ) {
@@ -73,8 +87,10 @@ actor CollectionOutboxSyncCoordinator {
         self.nextRecoveredUpload = nextRecoveredUpload
         self.submit = submit
         self.fetchRemote = fetchRemote
+        self.fetchRemoteEntry = fetchRemoteEntry
         self.importRemote = importRemote
         self.confirmUpload = confirmUpload
+        self.resolveDeletion = resolveDeletion
         self.blockUploadOutcome = blockUploadOutcome
         self.hasBlockedOutcome = hasBlockedOutcome
     }
@@ -104,8 +120,10 @@ actor CollectionOutboxSyncCoordinator {
                 claimNextUpload: claimNextUpload,
                 submit: submit,
                 fetchRemote: fetchRemote,
+                fetchRemoteEntry: fetchRemoteEntry,
                 importRemote: importRemote,
                 confirmUpload: confirmUpload,
+                resolveDeletion: resolveDeletion,
                 blockUploadOutcome: blockUploadOutcome,
                 hasBlockedOutcome: hasBlockedOutcome
             )
@@ -228,8 +246,10 @@ actor CollectionOutboxSyncCoordinator {
         claimNextUpload: ClaimNextUpload,
         submit: Submit,
         fetchRemote: FetchRemote,
+        fetchRemoteEntry: FetchRemoteEntry,
         importRemote: ImportRemote,
         confirmUpload: ResolveUpload,
+        resolveDeletion: ResolveDeletion,
         blockUploadOutcome: ResolveUpload,
         hasBlockedOutcome: HasBlockedOutcome
     ) async throws(any Error) {
@@ -255,14 +275,27 @@ actor CollectionOutboxSyncCoordinator {
 
             switch claim {
             case let .send(workItem):
+                var hasConfirmedDeleteTransport = false
                 do {
                     try await submit(workItem, authorization.accessToken)
+                    hasConfirmedDeleteTransport = workItem.isTombstone
                     try Task.checkCancellation()
                     guard try await validateAuthorization(authorization) else {
                         throw CollectionOutboxSyncError.sessionChanged
                     }
-                    try await performCollectionStoreOperation {
-                        try await confirmUpload(workItem, authorization.commitAuthorization)
+                    if workItem.isTombstone {
+                        let confirmed = try await resolveDeletionEvidence(
+                            workItem,
+                            evidence: .absent,
+                            authorization: authorization,
+                            validateAuthorization: validateAuthorization,
+                            resolveDeletion: resolveDeletion
+                        )
+                        hasUnconfirmedOutcome = hasUnconfirmedOutcome || confirmed == false
+                    } else {
+                        try await performCollectionStoreOperation {
+                            try await confirmUpload(workItem, authorization.commitAuthorization)
+                        }
                     }
                 } catch is CancellationError {
                     throw CancellationError()
@@ -272,14 +305,17 @@ actor CollectionOutboxSyncCoordinator {
                     where error == .temporarilyUnavailable || error == .persistenceUnavailable {
                     throw error
                 } catch {
-                    logUncertainSubmit(error)
+                    if hasConfirmedDeleteTransport { throw error }
+                    logUncertainWrite(error, workItem: workItem)
                     let confirmed = try await reconcile(
                         workItem,
                         authorization: authorization,
                         validateAuthorization: validateAuthorization,
                         fetchRemote: fetchRemote,
+                        fetchRemoteEntry: fetchRemoteEntry,
                         importRemote: importRemote,
                         confirmUpload: confirmUpload,
+                        resolveDeletion: resolveDeletion,
                         blockUploadOutcome: blockUploadOutcome
                     )
                     hasUnconfirmedOutcome = hasUnconfirmedOutcome || confirmed == false
@@ -293,6 +329,7 @@ actor CollectionOutboxSyncCoordinator {
                         authorization: authorization,
                         validateAuthorization: validateAuthorization,
                         confirmUpload: confirmUpload,
+                        resolveDeletion: resolveDeletion,
                         blockUploadOutcome: blockUploadOutcome
                     )
                 } else {
@@ -301,8 +338,10 @@ actor CollectionOutboxSyncCoordinator {
                         authorization: authorization,
                         validateAuthorization: validateAuthorization,
                         fetchRemote: fetchRemote,
+                        fetchRemoteEntry: fetchRemoteEntry,
                         importRemote: importRemote,
                         confirmUpload: confirmUpload,
+                        resolveDeletion: resolveDeletion,
                         blockUploadOutcome: blockUploadOutcome
                     )
                 }
@@ -316,10 +355,23 @@ actor CollectionOutboxSyncCoordinator {
         authorization: SessionRequestAuthorization,
         validateAuthorization: ValidateAuthorization,
         fetchRemote: FetchRemote,
+        fetchRemoteEntry: FetchRemoteEntry,
         importRemote: ImportRemote,
         confirmUpload: ResolveUpload,
+        resolveDeletion: ResolveDeletion,
         blockUploadOutcome: ResolveUpload
     ) async throws(any Error) -> Bool {
+        if workItem.isTombstone {
+            return try await reconcileDeletion(
+                workItem,
+                authorization: authorization,
+                validateAuthorization: validateAuthorization,
+                fetchRemoteEntry: fetchRemoteEntry,
+                resolveDeletion: resolveDeletion,
+                blockUploadOutcome: blockUploadOutcome
+            )
+        }
+
         guard try await validateAuthorization(authorization) else {
             throw CollectionOutboxSyncError.sessionChanged
         }
@@ -342,7 +394,7 @@ actor CollectionOutboxSyncCoordinator {
             where error == .temporarilyUnavailable || error == .persistenceUnavailable {
             throw error
         } catch {
-            logUnconfirmedOutcome(origin: "collectionSnapshot")
+            logUnconfirmedOutcome(origin: "collectionSnapshot", workItem: workItem)
             try await performCollectionStoreOperation {
                 try await blockUploadOutcome(workItem, authorization.commitAuthorization)
             }
@@ -355,6 +407,7 @@ actor CollectionOutboxSyncCoordinator {
             authorization: authorization,
             validateAuthorization: validateAuthorization,
             confirmUpload: confirmUpload,
+            resolveDeletion: resolveDeletion,
             blockUploadOutcome: blockUploadOutcome
         )
     }
@@ -365,10 +418,27 @@ actor CollectionOutboxSyncCoordinator {
         authorization: SessionRequestAuthorization,
         validateAuthorization: ValidateAuthorization,
         confirmUpload: ResolveUpload,
+        resolveDeletion: ResolveDeletion,
         blockUploadOutcome: ResolveUpload
     ) async throws(any Error) -> Bool {
         guard try await validateAuthorization(authorization) else {
             throw CollectionOutboxSyncError.sessionChanged
+        }
+
+        if workItem.isTombstone {
+            let evidence: CollectionDeletionEvidence
+            if let remoteEntry = remoteEntries.first(where: { $0.manga.id == workItem.mangaID }) {
+                evidence = .present(remoteEntry)
+            } else {
+                evidence = .absent
+            }
+            return try await resolveDeletionEvidence(
+                workItem,
+                evidence: evidence,
+                authorization: authorization,
+                validateAuthorization: validateAuthorization,
+                resolveDeletion: resolveDeletion
+            )
         }
 
         if remoteEntries.contains(where: { remoteEntry in matches(workItem, remoteEntry: remoteEntry) }) {
@@ -378,11 +448,72 @@ actor CollectionOutboxSyncCoordinator {
             return true
         }
 
-        logUnconfirmedOutcome(origin: "remoteMismatch")
+        logUnconfirmedOutcome(origin: "remoteMismatch", workItem: workItem)
         try await performCollectionStoreOperation {
             try await blockUploadOutcome(workItem, authorization.commitAuthorization)
         }
         return false
+    }
+
+    private static func reconcileDeletion(
+        _ workItem: CollectionOutboxUploadWorkItem,
+        authorization: SessionRequestAuthorization,
+        validateAuthorization: ValidateAuthorization,
+        fetchRemoteEntry: FetchRemoteEntry,
+        resolveDeletion: ResolveDeletion,
+        blockUploadOutcome: ResolveUpload
+    ) async throws(any Error) -> Bool {
+        guard try await validateAuthorization(authorization) else {
+            throw CollectionOutboxSyncError.sessionChanged
+        }
+
+        do {
+            let remoteEntry = try await fetchRemoteEntry(workItem.mangaID, authorization.accessToken)
+            try Task.checkCancellation()
+            guard try await validateAuthorization(authorization) else {
+                throw CollectionOutboxSyncError.sessionChanged
+            }
+            let evidence = remoteEntry.map(CollectionDeletionEvidence.present) ?? .absent
+            return try await resolveDeletionEvidence(
+                workItem,
+                evidence: evidence,
+                authorization: authorization,
+                validateAuthorization: validateAuthorization,
+                resolveDeletion: resolveDeletion
+            )
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as CollectionOutboxSyncError {
+            throw error
+        } catch let error as SessionControllerError
+            where error == .temporarilyUnavailable || error == .persistenceUnavailable {
+            throw error
+        } catch {
+            logUnconfirmedOutcome(origin: "individualLookup", workItem: workItem)
+            try await performCollectionStoreOperation {
+                try await blockUploadOutcome(workItem, authorization.commitAuthorization)
+            }
+            return false
+        }
+    }
+
+    private static func resolveDeletionEvidence(
+        _ workItem: CollectionOutboxUploadWorkItem,
+        evidence: CollectionDeletionEvidence,
+        authorization: SessionRequestAuthorization,
+        validateAuthorization: ValidateAuthorization,
+        resolveDeletion: ResolveDeletion
+    ) async throws(any Error) -> Bool {
+        guard try await validateAuthorization(authorization) else {
+            throw CollectionOutboxSyncError.sessionChanged
+        }
+        let resolution = try await performCollectionStoreOperation {
+            try await resolveDeletion(workItem, evidence, authorization.commitAuthorization)
+        }
+        if resolution == .blockedOutcome {
+            logUnconfirmedOutcome(origin: "remotePresence", workItem: workItem)
+        }
+        return resolution == .confirmed
     }
 
     private static func blockRecoveredUploads(
@@ -401,7 +532,7 @@ actor CollectionOutboxSyncCoordinator {
             }
             guard let workItem else { return }
 
-            logUnconfirmedOutcome(origin: "collectionSnapshot")
+            logUnconfirmedOutcome(origin: "collectionSnapshot", workItem: workItem)
             try await performCollectionStoreOperation {
                 try await blockUploadOutcome(workItem, authorization.commitAuthorization)
             }
@@ -444,18 +575,22 @@ actor CollectionOutboxSyncCoordinator {
         }
     }
 
-    private static func logUncertainSubmit(_ error: any Error) {
+    private static func logUncertainWrite(_ error: any Error, workItem: CollectionOutboxUploadWorkItem) {
+        let method = workItem.isTombstone ? "DELETE" : "POST"
         if case let CollectionAPIClientError.network(.statusCode(statusCode)) = error {
             logger.error(
-                "R2 POST result uncertain: origin=collectionUpsert status=\(statusCode, privacy: .public) action=reconcile"
+                "R2 write result uncertain: method=\(method, privacy: .public) status=\(statusCode, privacy: .public) action=reconcile"
             )
         } else {
-            logger.error("R2 POST result uncertain: origin=collectionUpsert action=reconcile")
+            logger.error("R2 write result uncertain: method=\(method, privacy: .public) action=reconcile")
         }
     }
 
-    private static func logUnconfirmedOutcome(origin: StaticString) {
-        logger.error("R2 POST outcome unconfirmed: origin=\(origin, privacy: .public) action=blockedOutcome")
+    private static func logUnconfirmedOutcome(origin: StaticString, workItem: CollectionOutboxUploadWorkItem) {
+        let method = workItem.isTombstone ? "DELETE" : "POST"
+        logger.error(
+            "R2 write outcome unconfirmed: method=\(method, privacy: .public) origin=\(origin, privacy: .public) action=blockedOutcome"
+        )
     }
 
 }
@@ -474,20 +609,30 @@ extension CollectionOutboxSyncCoordinator {
                 try await mutationActor.nextRecoveredUpload(authorization: authorization)
             },
             submit: { workItem, accessToken in
-                _ = try await client.submit(
-                    mangaID: workItem.mangaID,
-                    ownedVolumes: workItem.ownedVolumes,
-                    readingVolume: workItem.readingVolume,
-                    isComplete: workItem.isComplete,
-                    accessToken: accessToken
-                )
+                if workItem.isTombstone {
+                    _ = try await client.remove(mangaID: workItem.mangaID, accessToken: accessToken)
+                } else {
+                    _ = try await client.submit(
+                        mangaID: workItem.mangaID,
+                        ownedVolumes: workItem.ownedVolumes,
+                        readingVolume: workItem.readingVolume,
+                        isComplete: workItem.isComplete,
+                        accessToken: accessToken
+                    )
+                }
             },
             fetchRemote: { accessToken in try await client.fetch(accessToken: accessToken) },
+            fetchRemoteEntry: { mangaID, accessToken in
+                try await client.fetch(mangaID: mangaID, accessToken: accessToken)
+            },
             importRemote: { entries, authorization in
                 try await mutationActor.importRemote(entries, authorization: authorization)
             },
             confirmUpload: { workItem, authorization in
                 try await mutationActor.confirmUpload(workItem, authorization: authorization)
+            },
+            resolveDeletion: { workItem, evidence, authorization in
+                try await mutationActor.resolveDeletion(workItem, evidence: evidence, authorization: authorization)
             },
             blockUploadOutcome: { workItem, authorization in
                 try await mutationActor.blockUploadOutcome(workItem, authorization: authorization)

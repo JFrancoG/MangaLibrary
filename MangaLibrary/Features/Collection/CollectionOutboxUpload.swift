@@ -15,6 +15,7 @@ struct CollectionOutboxUploadWorkItem: Equatable {
     let ownedVolumes: [Int64]
     let readingVolume: Int64?
     let isComplete: Bool
+    let isTombstone: Bool
 }
 
 extension CollectionOutboxUploadWorkItem {
@@ -26,7 +27,8 @@ extension CollectionOutboxUploadWorkItem {
             sequence: operation.sequence,
             ownedVolumes: operation.desiredState.ownedVolumes,
             readingVolume: operation.desiredState.readingVolume,
-            isComplete: operation.desiredState.isComplete
+            isComplete: operation.desiredState.isComplete,
+            isTombstone: operation.desiredState.isTombstone
         )
     }
 }
@@ -44,11 +46,23 @@ enum CollectionOutboxUploadError: Error, Equatable {
     case cancelled
 }
 
+/// Remote evidence used to finish one exact DELETE attempt without replaying it.
+enum CollectionDeletionEvidence: Equatable {
+    case absent
+    case present(CollectionRemoteEntry)
+}
+
+/// The durable outcome written while resolving an exact tombstone sequence.
+enum CollectionOutboxResolution: Equatable {
+    case confirmed
+    case blockedOutcome
+}
+
 extension CollectionMutationActor {
-    /// Claims one ordered non-tombstone operation for the authorized user.
+    /// Claims one ordered upsert or tombstone operation for the authorized user.
     ///
     /// A durable `sending` operation is returned for reconciliation and never
-    /// changed back to `queued`. Earlier blocked or tombstone work fences later
+    /// changed back to `queued`. Earlier blocked work fences later
     /// sequences only within its own user and manga pair.
     func claimNextUpload(
         authorization: SessionCommitAuthorization
@@ -105,6 +119,7 @@ extension CollectionMutationActor {
         _ workItem: CollectionOutboxUploadWorkItem,
         authorization: SessionCommitAuthorization
     ) throws(CollectionOutboxUploadError) {
+        guard workItem.isTombstone == false else { throw .staleOperation }
         try resolveUpload(workItem, authorization: authorization, resolution: .confirmed)
     }
 
@@ -114,6 +129,94 @@ extension CollectionMutationActor {
         authorization: SessionCommitAuthorization
     ) throws(CollectionOutboxUploadError) {
         try resolveUpload(workItem, authorization: authorization, resolution: .blockedOutcome)
+    }
+
+    /// Resolves one exact tombstone and its remote evidence in a single commit.
+    ///
+    /// Presence advances only the confirmed baseline and presentation snapshot,
+    /// then persists uncertainty. Absence confirms the sequence and retires the
+    /// tombstone entry only when no later local intent owns its visible state.
+    func resolveDeletion(
+        _ workItem: CollectionOutboxUploadWorkItem,
+        evidence: CollectionDeletionEvidence,
+        authorization: SessionCommitAuthorization
+    ) throws(CollectionOutboxUploadError) -> CollectionOutboxResolution {
+        guard workItem.userID == authorization.authority.userID else { throw .sessionChanged }
+        guard workItem.isTombstone else { throw .staleOperation }
+        do {
+            try Task.checkCancellation()
+        } catch {
+            throw .cancelled
+        }
+
+        let candidate: CollectionRemoteCandidate?
+        switch evidence {
+        case .absent:
+            candidate = nil
+        case let .present(remoteEntry):
+            guard remoteEntry.manga.id == workItem.mangaID else { throw .staleOperation }
+            do {
+                candidate = try validatedRemoteCandidate(remoteEntry)
+            } catch CollectionRemoteImportError.cancelled {
+                throw .cancelled
+            } catch {
+                throw .persistenceConflict
+            }
+        }
+
+        do {
+            try Task.checkCancellation()
+            var persistedResolution: CollectionOutboxResolution?
+            try authorization.perform {
+                try modelContext.transaction {
+                    let operation = try exactUploadOperation(workItem)
+                    let entry = try exactUploadEntry(workItem)
+
+                    switch evidence {
+                    case .present:
+                        guard let candidate else {
+                            throw CollectionOutboxUploadError.persistenceConflict
+                        }
+                        entry.reconcileRemote(candidate.state, mangaSnapshot: candidate.mangaSnapshot)
+                        guard operation.markBlockedOutcomeIfSending() else {
+                            throw CollectionOutboxUploadError.staleOperation
+                        }
+                        persistedResolution = .blockedOutcome
+                    case .absent:
+                        guard operation.markConfirmedIfSending() else {
+                            throw CollectionOutboxUploadError.staleOperation
+                        }
+                        entry.confirmRemoteAbsence()
+                        try removeOlderConfirmedUploads(than: operation)
+
+                        if try hasLaterPendingUpload(than: operation) == false {
+                            guard entry.state == operation.desiredState, entry.isTombstone else {
+                                throw CollectionOutboxUploadError.persistenceConflict
+                            }
+                            modelContext.delete(entry)
+                        }
+                        persistedResolution = .confirmed
+                    }
+                    try Task.checkCancellation()
+                }
+            }
+            guard let persistedResolution else {
+                throw CollectionOutboxUploadError.persistenceConflict
+            }
+            return persistedResolution
+        } catch let error as CollectionOutboxUploadError {
+            modelContext.rollback()
+            throw error
+        } catch is SessionCommitAuthorizationError {
+            modelContext.rollback()
+            throw .sessionChanged
+        } catch is CancellationError {
+            modelContext.rollback()
+            throw .cancelled
+        } catch {
+            modelContext.rollback()
+            throw .persistenceConflict
+        }
     }
 
     /// Reports durable uncertainty so presentation cannot clear its warning accidentally.
@@ -148,8 +251,6 @@ extension CollectionMutationActor {
     ) throws(any Error) -> CollectionOutboxUploadClaim? {
         let candidates = try uploadCandidates(from: operations, userID: userID)
         for operation in candidates {
-            guard operation.isTombstone == false else { continue }
-
             let workItem = CollectionOutboxUploadWorkItem(operation: operation)
             switch operation.state {
             case .sending:
@@ -172,7 +273,7 @@ extension CollectionMutationActor {
         userID: UUID
     ) throws(any Error) -> CollectionOutboxUploadWorkItem? {
         let candidates = try uploadCandidates(from: operations, userID: userID)
-        guard let operation = candidates.first(where: { $0.isTombstone == false && $0.state == .sending }) else {
+        guard let operation = candidates.first(where: { $0.state == .sending }) else {
             return nil
         }
 
@@ -264,8 +365,8 @@ extension CollectionMutationActor {
             operation.desiredState.ownedVolumes == workItem.ownedVolumes,
             operation.desiredState.readingVolume == workItem.readingVolume,
             operation.desiredState.isComplete == workItem.isComplete,
-            operation.desiredState.isTombstone == false,
-            operation.isTombstone == false,
+            operation.desiredState.isTombstone == workItem.isTombstone,
+            operation.isTombstone == workItem.isTombstone,
             operation.state == .sending
         else { throw CollectionOutboxUploadError.staleOperation }
 
@@ -307,6 +408,28 @@ extension CollectionMutationActor {
         for operation in try modelContext.fetch(descriptor) where operation.state == .confirmed {
             modelContext.delete(operation)
         }
+    }
+
+    private func hasLaterPendingUpload(than operation: CollectionOutboxOperation) throws(any Error) -> Bool {
+        let userID = operation.userID
+        let mangaID = operation.mangaID
+        let sequence = operation.sequence
+        let descriptor = FetchDescriptor<CollectionOutboxOperation>(
+            predicate: #Predicate { candidate in
+                candidate.userID == userID &&
+                    candidate.mangaID == mangaID &&
+                    candidate.sequence > sequence
+            }
+        )
+        let laterOperations = try modelContext.fetch(descriptor)
+        for laterOperation in laterOperations {
+            guard
+                laterOperation.sequence > sequence,
+                laterOperation.isTombstone == laterOperation.desiredState.isTombstone,
+                isValidUploadState(laterOperation.desiredState)
+            else { throw CollectionOutboxUploadError.persistenceConflict }
+        }
+        return laterOperations.contains { $0.state != .confirmed }
     }
 
     private func uploadOperationOrder(_ lhs: CollectionOutboxOperation, _ rhs: CollectionOutboxOperation) -> Bool {

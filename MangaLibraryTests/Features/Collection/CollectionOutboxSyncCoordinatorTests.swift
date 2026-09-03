@@ -569,7 +569,8 @@ struct CollectionOutboxSyncCoordinatorTests {
         sequence: 3,
         ownedVolumes: [1, 3],
         readingVolume: 2,
-        isComplete: false
+        isComplete: false,
+        isTombstone: false
     )
 
     fileprivate static let matchingRemoteEntry = remoteEntry(ownedVolumes: [1, 3])

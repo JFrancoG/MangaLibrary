@@ -31,6 +31,7 @@ struct CollectionOutboxTransitionTests {
         #expect(workItem.ownedVolumes == [1, 2])
         #expect(workItem.readingVolume == 2)
         #expect(workItem.isComplete == false)
+        #expect(workItem.isTombstone == false)
 
         let persisted = try readStore(container)
         #expect(persisted.entries == [Self.persistedEntry(state: desiredState, confirmedState: nil)])
@@ -41,8 +42,8 @@ struct CollectionOutboxTransitionTests {
         )
     }
 
-    @Test("The POST worker does not claim tombstones")
-    func tombstoneRemainsQueued() async throws(any Error) {
+    @Test("A queued tombstone is claimed atomically for DELETE")
+    func tombstoneIsClaimedAtomically() async throws(any Error) {
         let container = try makeContainer()
         let tombstone = Self.state(ownedVolumes: [1], isTombstone: true)
         try seed(
@@ -52,12 +53,16 @@ struct CollectionOutboxTransitionTests {
         )
 
         let actor = CollectionMutationActor(modelContainer: container)
-        let claim = try await actor.claimNextUpload(authorization: Self.authorization(for: Self.userA))
+        let claim = try #require(try await actor.claimNextUpload(authorization: Self.authorization(for: Self.userA)))
+        let workItem = try requireSendWorkItem(claim)
 
-        #expect(claim == nil)
+        #expect(workItem.operationID == Self.operationA)
+        #expect(workItem.mangaID == Self.mangaA)
+        #expect(workItem.sequence == 1)
+        #expect(workItem.isTombstone)
         #expect(
             try readStore(container).operations == [
-                Self.persistedOperation(sequence: 1, desiredState: tombstone, state: .queued)
+                Self.persistedOperation(sequence: 1, desiredState: tombstone, state: .sending)
             ]
         )
     }
@@ -173,6 +178,90 @@ struct CollectionOutboxTransitionTests {
         #expect(persisted.operations.map(\.desiredState) == [confirmedByServer, laterVisibleState])
     }
 
+    @Test("Confirming a tombstone removes its entry and retains the monotonic sequence cursor")
+    func tombstoneConfirmationRetiresTheEntry() async throws(any Error) {
+        let container = try makeContainer()
+        let tombstone = Self.state(ownedVolumes: [1], isTombstone: true)
+        try seed(
+            container,
+            entry: Self.entry(state: tombstone, confirmedState: Self.baseState),
+            operations: [Self.operation(sequence: 4, desiredState: tombstone, state: .sending)]
+        )
+
+        let actor = CollectionMutationActor(modelContainer: container)
+        let authorization = Self.authorization(for: Self.userA)
+        let claim = try #require(try await actor.claimNextUpload(authorization: authorization))
+        let workItem = try requireReconcileWorkItem(claim)
+
+        let resolution = try await actor.resolveDeletion(workItem, evidence: .absent, authorization: authorization)
+
+        let persisted = try readStore(container)
+        #expect(resolution == .confirmed)
+        #expect(persisted.entries.isEmpty)
+        #expect(
+            persisted.operations == [
+                Self.persistedOperation(sequence: 4, desiredState: tombstone, state: .confirmed)
+            ]
+        )
+    }
+
+    @Test("Confirming delete N preserves a later visible N plus one and records remote absence")
+    func tombstoneConfirmationPreservesLaterIntent() async throws(any Error) {
+        let container = try makeContainer()
+        let tombstone = Self.state(ownedVolumes: [1], isTombstone: true)
+        let laterVisibleState = Self.state(ownedVolumes: [1, 2], readingVolume: 2)
+        try seed(
+            container,
+            entry: Self.entry(state: laterVisibleState, confirmedState: Self.baseState),
+            operations: [
+                Self.operation(sequence: 4, desiredState: tombstone, state: .sending),
+                Self.operation(operationID: Self.operationB, sequence: 5, desiredState: laterVisibleState)
+            ]
+        )
+
+        let actor = CollectionMutationActor(modelContainer: container)
+        let authorization = Self.authorization(for: Self.userA)
+        let claim = try #require(try await actor.claimNextUpload(authorization: authorization))
+        let workItem = try requireReconcileWorkItem(claim)
+
+        let resolution = try await actor.resolveDeletion(workItem, evidence: .absent, authorization: authorization)
+
+        let persisted = try readStore(container)
+        #expect(resolution == .confirmed)
+        #expect(persisted.entries == [Self.persistedEntry(state: laterVisibleState, confirmedState: nil)])
+        #expect(persisted.operations.map(\.sequence) == [4, 5])
+        #expect(persisted.operations.map(\.state) == [.confirmed, .queued])
+    }
+
+    @Test("Remote presence updates the deletion baseline and presentation before blocking")
+    func tombstonePresenceIsPersistedAtomically() async throws(any Error) {
+        let container = try makeContainer()
+        let tombstone = Self.state(ownedVolumes: [1], isTombstone: true)
+        let remoteState = Self.state(ownedVolumes: [2], readingVolume: 2)
+        try seed(
+            container,
+            entry: Self.entry(state: tombstone, confirmedState: Self.baseState),
+            operations: [Self.operation(sequence: 4, desiredState: tombstone, state: .sending)]
+        )
+
+        let actor = CollectionMutationActor(modelContainer: container)
+        let authorization = Self.authorization(for: Self.userA)
+        let claim = try #require(try await actor.claimNextUpload(authorization: authorization))
+        let workItem = try requireReconcileWorkItem(claim)
+        let evidence = CollectionDeletionEvidence.present(Self.remoteEntry(state: remoteState))
+
+        let resolution = try await actor.resolveDeletion(workItem, evidence: evidence, authorization: authorization)
+
+        let persisted = try readStore(container)
+        #expect(resolution == .blockedOutcome)
+        #expect(persisted.entries == [Self.persistedEntry(state: tombstone, confirmedState: remoteState)])
+        #expect(persisted.operations.map(\.state) == [.blockedOutcome])
+
+        let context = ModelContext(container)
+        let entry = try #require(try context.fetch(FetchDescriptor<CollectionEntry>()).first)
+        #expect(entry.mangaSnapshot?.title == "Remote Forty-Two")
+    }
+
     @Test("Confirmation requires the exact operation UUID and sequence", arguments: StaleConfirmationIdentity.allCases)
     private func staleIdentityCannotConfirmPersistedWork(identity: StaleConfirmationIdentity) async throws(any Error) {
         let container = try makeContainer()
@@ -194,7 +283,8 @@ struct CollectionOutboxTransitionTests {
             sequence: identity == .sequence ? currentWorkItem.sequence + 1 : currentWorkItem.sequence,
             ownedVolumes: currentWorkItem.ownedVolumes,
             readingVolume: currentWorkItem.readingVolume,
-            isComplete: currentWorkItem.isComplete
+            isComplete: currentWorkItem.isComplete,
+            isTombstone: currentWorkItem.isTombstone
         )
         let before = try readStore(container)
 
@@ -304,6 +394,30 @@ struct CollectionOutboxTransitionTests {
             sequence: sequence,
             desiredState: desiredState,
             state: state
+        )
+    }
+
+    private static func remoteEntry(state: CollectionSnapshot) -> CollectionRemoteEntry {
+        CollectionRemoteEntry(
+            remoteID: UUID(uuidString: "99999999-8888-7777-6666-555555555555")!,
+            manga: Manga(
+                id: mangaA,
+                title: "Remote Forty-Two",
+                titleEnglish: nil,
+                titleJapanese: nil,
+                synopsis: nil,
+                score: 8,
+                status: .publishing,
+                authors: [],
+                demographics: [],
+                genres: [],
+                themes: [],
+                totalVolumes: state.knownTotalVolumes,
+                coverURL: nil
+            ),
+            ownedVolumes: state.ownedVolumes,
+            readingVolume: state.readingVolume,
+            isComplete: state.isComplete
         )
     }
 
