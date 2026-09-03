@@ -1,8 +1,8 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.24
-- Última revisión: 2026-09-03
+- Versión: 1.25
+- Última revisión: 2026-09-04
 
 ## Propósito y alcance
 
@@ -324,13 +324,19 @@ Los únicos estados normativos de outbox son:
   una escritura de resultado incierto
 - `blockedAuth → queued` al restaurar una sesión válida para el mismo usuario
 - `sending → blockedOutcome` cuando se pierde una respuesta y repetir no está demostrado como seguro
-- `blockedOutcome → confirmed` cuando una lectura concluyente demuestra el efecto deseado o la persona acepta el estado remoto reconciliado
+- `blockedOutcome → confirmed` cuando una lectura individual fresca demuestra el efecto deseado, la persona acepta el estado remoto observado o confirma conscientemente una nueva intención local
 - `sending → rejected`
 - `rejected → confirmed` únicamente después de restaurar localmente la última versión confirmada y registrar el rechazo como resuelto; no significa que el servidor aceptara la intención rechazada
 
 Una cancelación por finalización de proceso no equivale a rechazo: tras recuperar consistencia, la operación vuelve a un estado procesable sin duplicar su identidad.
 
-`blockedOutcome` es un bloqueo visible, no una cola oculta que reintenta indefinidamente. Si la lectura remota no permite confirmar el efecto deseado, la interfaz futura de R2.4 ofrecerá conservar el estado remoto como nueva base o volver a emitir conscientemente la intención local. La segunda opción resolverá primero la operación ambigua como `confirmed` contra la base remota y creará una intención `queued` nueva con su propia secuencia; nunca reencola la operación incierta ni la convierte en `rejected`.
+`blockedOutcome` es un bloqueo visible, no una cola oculta que reintenta
+indefinidamente. R2.4 permite revisar la última versión remota observada y
+escoger conscientemente entre conservarla o volver a emitir la intención local.
+La segunda opción resuelve primero la operación ambigua como `confirmed` contra
+la base remota y, cuando aún existe divergencia y no hay una intención posterior,
+crea una intención `queued` nueva con UUID y secuencia propios; nunca reencola la
+operación incierta ni la convierte en `rejected`.
 
 ## Fallos y reintentos
 
@@ -434,8 +440,8 @@ retry/backoff, `blockedAuth`, rechazo/reversión o resolución manual del confli
 Un `blockedOutcome` se muestra como aviso seguro de Colección mientras la sesión
 permanece activa. El aviso se deriva de la outbox persistida para esa identidad y
 no desaparece porque el GET R1 anterior falle o porque se relance el proceso; los
-avisos efímeros de autorización pueden prevalecer mientras estén activos. Su
-resolución interactiva sigue siendo trabajo posterior de R2.
+avisos efímeros de autorización se presentan de forma independiente y no pueden
+ocultar la acción de revisión. Su resolución interactiva se define en R2.4.
 
 ## GET/DELETE individual y tombstones R2.2
 
@@ -747,6 +753,60 @@ restauración y la transición de outbox. `blockedOutcome` nunca entra en esta
 ruta, y sesión y Keychain permanecen intactos salvo que el propietario de sesión
 haya confirmado de forma independiente una pérdida real de autoridad.
 
+## Resolución interactiva de resultados inciertos R2.4
+
+R2.4 convierte el aviso durable de `blockedOutcome` en un flujo accesible desde
+Cuenta para la identidad autenticada. La lista se deriva directamente de la
+outbox SwiftData e incluye altas, ediciones y tombstones, incluso cuando la
+entrada ya no aparece en Colección. Seleccionar una operación ejecuta un GET
+individual fresco antes de mostrar o habilitar decisiones; `confirmedState` no
+es evidencia suficiente porque `nil` también puede significar que nunca existió
+una base utilizable y una presencia incompatible puede haber dejado una base
+anterior.
+
+La evidencia de revisión solo puede ser:
+
+- `200` con identidad y volúmenes compatibles: presencia remota utilizable;
+- `404` exacto: ausencia remota utilizable;
+- presencia incompatible o deriva de contrato: estado opaco, sin decisiones;
+- fallo de red, autorización o persistencia: no disponible, sin decisiones y con
+  posibilidad de volver a comprobar.
+
+Un primer `401` del GET individual fuerza la recuperación single-flight de la
+credencial para la misma generación y un único retry. Un segundo `401` conserva
+sesión, Keychain, Colección y bloqueo y se presenta como incompatibilidad del
+servicio. Un `403` conserva igualmente la sesión y se presenta como permiso
+insuficiente, sin refresh ni retry. Ningún log contiene JWT, correo o payload.
+
+Antes de confirmar una decisión, el coordinador repite una única lectura fresca.
+Si la evidencia completa —estado de colección y snapshot de manga— difiere de la mostrada, no muta y exige revisar de nuevo; el
+backend no publica ETag ni revisión con la que cerrar esa carrera. Una evidencia
+compatible e idéntica habilita estas acciones:
+
+- **usar la versión de la nube**: avanza la base, aplica la presencia o elimina
+  la entrada ante ausencia y confirma la operación exacta, sin POST ni DELETE;
+- **enviar la versión de este dispositivo**: avanza la base y confirma la
+  operación exacta; si la lectura ya demuestra el efecto deseado termina sin
+  escritura, y si persiste divergencia crea una nueva `queued` con UUID y
+  secuencia nuevos para que el worker normal emita exactamente un POST o DELETE.
+
+Si existe una intención N+1 posterior para la misma pareja, su estado local tiene
+precedencia. La UI lo explica y ofrece únicamente continuar con ese cambio más
+reciente: confirma N, actualiza la base, conserva N+1 sin modificarla y despierta
+explícitamente el worker. No crea N+2 ni permite adoptar la nube descartando de
+forma implícita N+1. Una secuencia posterior corrupta, incierta o no validable
+mantiene N bloqueada.
+
+La transacción de resolución queda cercada por autoridad, usuario, manga, UUID,
+secuencia, estado `blockedOutcome`, estado deseado completo y evidencia remota.
+Una operación resuelta o reemplazada, un cambio de sesión, cancelación, UUID
+duplicado, overflow o fallo de guardado deja todo en el último commit. Tras el
+commit, una nueva intención cambia la identidad observada por el shell. La identidad
+de sincronización incluye además el subconjunto durable `blockedOutcome`; cuando
+se conserva N+1 sin cambiarla, confirmar N modifica ese subconjunto y el shell
+inicia de forma explícita un nuevo ciclo R1→R2, independiente de la tarea de la
+pantalla, para evitar que N+1 quede dormida tras retirar la cerca.
+
 ## Arranque y reconciliación Advanced
 
 Al iniciar una sesión válida:
@@ -827,6 +887,12 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 | Advanced | Rechazo positivo con base ausente | La transacción restaura ausencia, resuelve la operación como cursor `confirmed` y no deja una entrada optimista huérfana. |
 | Advanced | Rechazo positivo con intención N+1 | Resuelve N contra su base confirmada sin sobrescribir el estado visible ni la secuencia posterior. |
 | Advanced | Fallo al persistir una reversión | Colección y outbox conservan juntas el estado anterior; no queda una mitad restaurada ni un falso `confirmed`. |
+| Advanced | R2.4 abre una operación bloqueada | Ejecuta un GET individual fresco; `200` compatible y `404` habilitan decisiones, mientras lectura fallida o presencia incompatible conservan el bloqueo sin mutaciones. |
+| Advanced | R2.4 acepta nube presente o ausente sin N+1 | Aplica o elimina localmente, confirma la operación exacta y realiza cero escrituras remotas. |
+| Advanced | R2.4 conserva dispositivo con divergencia sin N+1 | Confirma la ambigua contra la base fresca y crea una nueva `queued` con UUID y secuencia propios; el worker normal realiza como máximo una escritura. |
+| Advanced | R2.4 conserva dispositivo y la lectura ya coincide | Confirma sin crear otra intención ni escribir de nuevo. |
+| Advanced | R2.4 encuentra N+1 | Conserva estado visible y N+1 intactos, confirma N contra la base fresca, no ofrece adoptar nube ni crea N+2 y despierta el worker. |
+| Advanced | La nube cambia entre revisión y confirmación | No muta Colección ni outbox; muestra la nueva evidencia y exige una decisión actualizada. |
 | Advanced | Respuesta antigua | No sobrescribe una secuencia local posterior. |
 | Advanced | Cambio de usuario | No muestra ni envía datos u operaciones del usuario anterior. |
 | Advanced | Logout completado | El registro ya no existe y la selección anterior de Colección no resuelve un detalle bajo la generación eliminada. |

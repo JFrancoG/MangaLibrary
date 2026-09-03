@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-09-04 | ✨ feat(collection): resolve uncertain outcomes
 - 2026-09-03 | ✨ feat(collection): add safe outbox recovery states
 - 2026-09-03 | ✨ feat(ui): distinguish tabs and volume controls
 - 2026-09-03 | ✨ feat(collection): cap volume numbers at 300

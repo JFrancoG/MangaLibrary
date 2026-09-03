@@ -19,7 +19,8 @@ enum CollectionPreviewSupport {
             loadCatalogFilterOptions: CatalogPreviewSupport.filterOptionsLoader,
             accountModel: context.accountModel,
             collectionMutation: context.mutation,
-            collectionSynchronization: .disabled
+            collectionSynchronization: .disabled,
+            collectionBlockedOutcomeResolution: .disabled
         )
     }
 

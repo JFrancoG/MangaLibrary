@@ -359,6 +359,98 @@ final class MangaLibraryUITests: XCTestCase {
     }
 
     @MainActor
+    func testBlockedCollectionOutcomesCanBeReviewedCancelledAndAccepted() throws {
+        let app = XCUIApplication()
+        app.launchArguments.append(contentsOf: [
+            "-ui-testing",
+            "-ui-testing-blocked-outcome-resolution",
+        ])
+        app.launch()
+
+        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
+        XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
+        accountTab.tap()
+
+        let notice = app.descendants(matching: .any)["account.collection-sync.upload-outcome-unconfirmed"]
+        let reviewChanges = app.buttons["account.collection-sync.review"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 2))
+        XCTAssertTrue(reviewChanges.waitForExistence(timeout: 2))
+        XCTAssertTrue(reviewChanges.isHittable)
+        reviewChanges.tap()
+
+        let update = app.descendants(matching: .any)["collection.blocked-outcomes.operation.1"]
+        let deletion = app.descendants(matching: .any)["collection.blocked-outcomes.operation.2"]
+        XCTAssertTrue(update.waitForExistence(timeout: 2))
+        XCTAssertTrue(deletion.waitForExistence(timeout: 2))
+        update.tap()
+
+        let useCloud = app.buttons["collection.blocked-outcome.use-cloud"]
+        XCTAssertTrue(useCloud.waitForExistence(timeout: 2))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["collection.blocked-outcome.version.present"]
+                .waitForExistence(timeout: 2)
+        )
+        useCloud.tap()
+
+        let cancel = app.buttons.matching(identifier: "collection.blocked-outcome.cancel").firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 2))
+        cancel.tap()
+        XCTAssertTrue(useCloud.waitForExistence(timeout: 2))
+
+        useCloud.tap()
+        let confirm = app.buttons.matching(identifier: "collection.blocked-outcome.confirm").firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 2))
+        confirm.tap()
+
+        XCTAssertTrue(update.waitForNonExistence(timeout: 2))
+        XCTAssertTrue(deletion.waitForExistence(timeout: 2))
+        deletion.tap()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["collection.blocked-outcome.version.absent"]
+                .waitForExistence(timeout: 2)
+        )
+        let useCloudForDeletion = app.buttons["collection.blocked-outcome.use-cloud"]
+        XCTAssertTrue(useCloudForDeletion.waitForExistence(timeout: 2))
+        useCloudForDeletion.tap()
+        XCTAssertTrue(confirm.waitForExistence(timeout: 2))
+        confirm.tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["collection.blocked-outcomes.empty"].waitForExistence(timeout: 2))
+        let backToAccount = app.navigationBars.buttons.firstMatch
+        XCTAssertTrue(backToAccount.waitForExistence(timeout: 2))
+        backToAccount.tap()
+        XCTAssertTrue(reviewChanges.waitForNonExistence(timeout: 2))
+        XCTAssertFalse(notice.exists)
+        XCTAssertTrue(app.descendants(matching: .any)["account.authenticated"].exists)
+    }
+
+    @MainActor
+    func testTransientCollectionFailureDoesNotHideBlockedOutcomeReview() throws {
+        let app = XCUIApplication()
+        app.launchArguments.append(contentsOf: [
+            "-ui-testing",
+            "-ui-testing-blocked-outcome-resolution",
+            "-ui-testing-collection-authorization-denied",
+        ])
+        app.launch()
+
+        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
+        XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
+        accountTab.tap()
+
+        let transientNotice = app.descendants(matching: .any)["account.collection-sync.authorization-denied"]
+        let durableNotice = app.descendants(matching: .any)["account.collection-sync.upload-outcome-unconfirmed"]
+        let reviewChanges = app.buttons["account.collection-sync.review"]
+
+        XCTAssertTrue(transientNotice.waitForExistence(timeout: 5))
+        XCTAssertTrue(durableNotice.waitForExistence(timeout: 2))
+        XCTAssertTrue(reviewChanges.waitForExistence(timeout: 2))
+        XCTAssertTrue(reviewChanges.isHittable)
+        XCTAssertTrue(app.descendants(matching: .any)["account.authenticated"].exists)
+    }
+
+    @MainActor
     func testSyntheticAccountSignsIn() throws(any Error) {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing")

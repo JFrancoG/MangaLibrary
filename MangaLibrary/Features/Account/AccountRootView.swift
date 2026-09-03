@@ -8,6 +8,7 @@ import SwiftUI
 enum AccountRoute: Hashable {
     case signIn
     case register
+    case reviewBlockedOutcomes
 }
 
 struct AccountCollectionNotice: Equatable {
@@ -28,7 +29,7 @@ struct AccountCollectionNotice: Equatable {
         case .authenticationIncompatible:
             "Your session is still active, but the collection service could not verify the renewed access. Signing in again is not required."
         case .uploadOutcomeUnconfirmed:
-            "Your session is still active and your local collection is safe, but a remote change could not be confirmed. It will not be sent again automatically."
+            "Some collection changes need review. Your session is active, and they will not be sent again automatically."
         case .unsupportedVolumeData:
             "Your session is still active. Synchronization stopped after detecting unsupported or inconsistent volume data. The incompatible data was not applied or sent."
         }
@@ -55,14 +56,23 @@ struct AccountRootView: View {
     }
 
     let model: AccountModel
-    let collectionNotice: AccountCollectionNotice?
+    let transientCollectionNotice: AccountCollectionNotice?
+    let blockedOutcomeNotice: AccountCollectionNotice?
+    let collectionBlockedOutcomeResolution: CollectionBlockedOutcomeResolution
 
     @State private var path: [AccountRoute] = []
     @State private var requestedAction: Action?
 
-    init(model: AccountModel, collectionNotice: AccountCollectionNotice? = nil) {
+    init(
+        model: AccountModel,
+        transientCollectionNotice: AccountCollectionNotice? = nil,
+        blockedOutcomeNotice: AccountCollectionNotice? = nil,
+        collectionBlockedOutcomeResolution: CollectionBlockedOutcomeResolution = .disabled
+    ) {
         self.model = model
-        self.collectionNotice = collectionNotice
+        self.transientCollectionNotice = transientCollectionNotice
+        self.blockedOutcomeNotice = blockedOutcomeNotice
+        self.collectionBlockedOutcomeResolution = collectionBlockedOutcomeResolution
     }
 
     var body: some View {
@@ -80,11 +90,24 @@ struct AccountRootView: View {
                                 path = [.signIn]
                             }
                         )
+                    case .reviewBlockedOutcomes:
+                        if let authenticatedAuthority {
+                            CollectionBlockedOutcomesView(
+                                authority: authenticatedAuthority,
+                                resolution: collectionBlockedOutcomeResolution
+                            )
+                        } else {
+                            ContentUnavailableView(
+                                "Collection review unavailable",
+                                systemImage: "person.crop.circle.badge.exclamationmark",
+                                description: Text("Return to Account and sign in before reviewing private changes.")
+                            )
+                        }
                     }
                 }
         }
-        .onChange(of: authenticatedAccountID) {
-            guard authenticatedAccountID != nil else { return }
+        .onChange(of: authenticatedAuthority) { previousAuthority, currentAuthority in
+            guard previousAuthority != currentAuthority else { return }
             path.removeAll()
         }
         .task(id: requestedAction) {
@@ -132,7 +155,12 @@ struct AccountRootView: View {
             authenticatedContent(
                 account: account,
                 notice: notice,
-                collectionNotice: collectionNotice?.userID == account.id ? collectionNotice : nil
+                transientCollectionNotice: transientCollectionNotice?.userID == account.id
+                    ? transientCollectionNotice
+                    : nil,
+                blockedOutcomeNotice: blockedOutcomeNotice?.userID == account.id
+                    ? blockedOutcomeNotice
+                    : nil
             )
 
         case let .authenticationRequired(_, failure):
@@ -249,7 +277,8 @@ struct AccountRootView: View {
     private func authenticatedContent(
         account: SessionAccount,
         notice: AccountModel.Failure?,
-        collectionNotice: AccountCollectionNotice?
+        transientCollectionNotice: AccountCollectionNotice?,
+        blockedOutcomeNotice: AccountCollectionNotice?
     ) -> some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -283,19 +312,43 @@ struct AccountRootView: View {
                     .accessibilityIdentifier("account.identity.email")
                 }
 
-                if let collectionNotice {
+                if let transientCollectionNotice {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Collection notice")
                             .font(.headline)
 
-                        Label(collectionNotice.messageResource, systemImage: "exclamationmark.triangle.fill")
+                        Label(transientCollectionNotice.messageResource, systemImage: "exclamationmark.triangle.fill")
                     }
                     .foregroundStyle(.onWarning)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(20)
                     .background(.warningFill, in: .rect(cornerRadius: 16, style: .continuous))
                     .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier(collectionNotice.accessibilityIdentifier)
+                    .accessibilityIdentifier(transientCollectionNotice.accessibilityIdentifier)
+                }
+
+                if let blockedOutcomeNotice {
+                    VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Collection needs attention")
+                                .font(.headline)
+
+                            Label(blockedOutcomeNotice.messageResource, systemImage: "exclamationmark.triangle.fill")
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier(blockedOutcomeNotice.accessibilityIdentifier)
+
+                        Button("Review changes") {
+                            path.append(.reviewBlockedOutcomes)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                        .accessibilityIdentifier("account.collection-sync.review")
+                    }
+                    .foregroundStyle(.onWarning)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
+                    .background(.warningFill, in: .rect(cornerRadius: 16, style: .continuous))
                 }
 
                 if let notice {
@@ -335,9 +388,9 @@ struct AccountRootView: View {
         .background(.canvas)
     }
 
-    private var authenticatedAccountID: UUID? {
+    private var authenticatedAuthority: SessionAuthority? {
         guard case let .authenticated(account, _) = model.state else { return nil }
-        return account.id
+        return account.authority
     }
 }
 
@@ -390,7 +443,7 @@ struct AccountRootView: View {
 ) {
     AccountRootView(
         model: AccountPreviewSupport.model(state: .authenticated(AccountPreviewSupport.account, notice: nil)),
-        collectionNotice: AccountCollectionNotice(
+        transientCollectionNotice: AccountCollectionNotice(
             userID: AccountPreviewSupport.account.id,
             reason: .authenticationIncompatible
         )
@@ -403,7 +456,7 @@ struct AccountRootView: View {
 ) {
     AccountRootView(
         model: AccountPreviewSupport.model(state: .authenticated(AccountPreviewSupport.account, notice: nil)),
-        collectionNotice: AccountCollectionNotice(
+        blockedOutcomeNotice: AccountCollectionNotice(
             userID: AccountPreviewSupport.account.id,
             reason: .uploadOutcomeUnconfirmed
         )
@@ -416,7 +469,7 @@ struct AccountRootView: View {
 ) {
     AccountRootView(
         model: AccountPreviewSupport.model(state: .authenticated(AccountPreviewSupport.account, notice: nil)),
-        collectionNotice: AccountCollectionNotice(
+        transientCollectionNotice: AccountCollectionNotice(
             userID: AccountPreviewSupport.account.id,
             reason: .unsupportedVolumeData
         )

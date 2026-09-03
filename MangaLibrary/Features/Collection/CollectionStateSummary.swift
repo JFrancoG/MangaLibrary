@@ -11,6 +11,7 @@ struct CollectionStateSummary: View {
     @Environment(\.locale) private var locale
 
     let state: CollectionSnapshot
+    var showsKnownTotalVolumes = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -28,6 +29,16 @@ struct CollectionStateSummary: View {
 
             stateRow("Complete") {
                 Text(state.isComplete ? "Yes" : "No")
+            }
+
+            if showsKnownTotalVolumes {
+                stateRow("Known total") {
+                    if let knownTotalVolumes = state.knownTotalVolumes {
+                        Text(knownTotalVolumes, format: .number)
+                    } else {
+                        Text("Unknown")
+                    }
+                }
             }
         }
         .foregroundStyle(.textPrimary)

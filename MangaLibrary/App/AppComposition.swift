@@ -10,6 +10,7 @@ struct AppComposition {
     let modelContainer: ModelContainer
     let collectionMutations: CollectionMutationActor
     let collectionSynchronization: CollectionSynchronization
+    let collectionBlockedOutcomeResolution: CollectionBlockedOutcomeResolution
     let catalogClient: CatalogAPIClient
     let registerUser: UserRegistrationClient.Operation
     let sessionController: SessionController
@@ -61,6 +62,11 @@ struct AppComposition {
             client: collectionClient,
             mutationActor: collectionMutations
         )
+        let collectionOutcomeResolutionCoordinator = CollectionOutcomeResolutionCoordinator(
+            sessionController: sessionController,
+            client: collectionClient,
+            mutationActor: collectionMutations
+        )
 
         return AppComposition(
             modelContainer: modelContainer,
@@ -68,6 +74,9 @@ struct AppComposition {
             collectionSynchronization: CollectionSynchronization(
                 importCoordinator: collectionSyncCoordinator,
                 outboxCoordinator: collectionOutboxCoordinator
+            ),
+            collectionBlockedOutcomeResolution: CollectionBlockedOutcomeResolution(
+                coordinator: collectionOutcomeResolutionCoordinator
             ),
             catalogClient: CatalogAPIClient(httpClient: httpClient, configuration: apiConfiguration),
             registerUser: UserRegistrationClient.operation(
