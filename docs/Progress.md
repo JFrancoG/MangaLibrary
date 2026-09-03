@@ -1,11 +1,11 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-03
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2 y las correcciones #55 y #58 entregadas; la corrección #61 está implementada y validada localmente, pendiente de commit y entrega
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2 y las correcciones #55, #58 y #61 entregadas; #61 se entrega mediante la PR #62 con aceptación live del propietario
 
 ## Detalle de Colección coherente en iPad — issue #61
 
-- El [issue #61 — actualizar el detalle seleccionado de Colección en iPad](https://github.com/JFrancoG/MangaLibrary/issues/61) parte de la captura live donde la fila seleccionada mostraba 23 tomos y lectura 3, mientras el panel estable del mismo manga conservaba los tomos 1, 2, 3, 4 y 8 y lectura 2. La rama `codex/61-ipad-collection-detail-sync` partió de `main@6a650a4`; continúa local y la issue abierta porque commit, push, PR, merge, cierre y borrado no están autorizados todavía.
+- El [issue #61 — actualizar el detalle seleccionado de Colección en iPad](https://github.com/JFrancoG/MangaLibrary/issues/61) parte de la captura live donde la fila seleccionada mostraba 23 tomos y lectura 3, mientras el panel estable del mismo manga conservaba los tomos 1, 2, 3, 4 y 8 y lectura 2. La rama `codex/61-ipad-collection-detail-sync` partió de `main@6a650a4`; la implementación se versiona en `d786ba8` y se entrega mediante la [PR #62](https://github.com/JFrancoG/MangaLibrary/pull/62). Su fusión cierra #61 y el cierre autorizado incluye retirar la rama local y remota.
 - La causa estructural queda demostrada: `CollectionUserRootView` ya poseía el `@Query` que alimenta fila y selección, pero `CollectionEntryDetailView` descartaba ese `state` en la rama con snapshot y montaba `CollectionControlsView`, que ejecutaba otro `@Query` para la misma pareja usuario + manga. El iPad podía presentar dos proyecciones observables dentro del mismo `NavigationSplitView`. La fila actualizada y el único `ModelContainer` descartaban una falta global de persistencia.
 - La raíz proyecta ahora `mangaID`, `CollectionMangaSnapshot` y `CollectionSnapshot` por valor hacia el detalle. `CollectionControlsContentView` presenta ese valor y genera desde él el seed de una apertura posterior del editor, sin SwiftData ni estado persistente duplicado. `CollectionControlsView` queda como adaptador con `@Query` solo para el detalle de Catálogo, donde no existe una entrada resuelta por la raíz. Una sheet ya abierta conserva deliberadamente su borrador.
 - El cambio restaura ARCH-013/ARCH-016 y las políticas ya vigentes de SDD 01, 03 y 04; no cambia la semántica de producto y no requiere ADR, esquema, migración, API, R1/R2, sesión, Keychain u outbox. SDD 06 v1.25 registra los dos niveles de regresión y eleva a ocho los recorridos UI.
@@ -30,10 +30,11 @@ queries se actualizan correctamente en el fixture A→B de simulador incluso al
 restaurar el segundo query. Por tanto, la causa inmediata exacta de invalidación
 del runtime físico no se atribuye más allá de lo demostrado. La corrección elimina
 la fuente competidora que hacía posible representar dos estados y el RED
-determinista impide reintroducirla. Falta repetir el recorrido tras instalar esta
-build en el iPad físico; no se ha usado backend, cuenta, Keychain o disco live, ni
-se han ejecutado VoiceOver, Voice Control, Switch Control, Acceso total con
-teclado o Accessibility Inspector.
+determinista impide reintroducirla. El propietario repitió el recorrido live y
+comunicó que el fallo quedó arreglado; esa ejecución no fue observada por el
+agente. No se ha usado backend, cuenta, Keychain o disco live desde los gates del
+agente, ni se han ejecutado VoiceOver, Voice Control, Switch Control, Acceso total
+con teclado o Accessibility Inspector.
 
 ## R2.2 — GET/DELETE individual y envío de tombstones — issue #57
 
