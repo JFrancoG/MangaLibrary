@@ -1,11 +1,11 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-03
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2 y las correcciones #55, #58, #61 y #63 entregadas; #65 implementada localmente y pendiente de entrega
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2 y las correcciones #55, #58, #61, #63 y #65 entregadas
 
 ## Diferenciación de pestañas y controles de tomos — issue #65
 
-- El [issue #65 — diferenciar Catálogo y mejorar los controles de tomos](https://github.com/JFrancoG/MangaLibrary/issues/65) se abrió sin issue, PR o rama duplicados. La rama `codex/65-distinct-tabs-volume-controls` parte de `main@15458ed3ace4bc3f3e826ed6aa3e5a351c2cc27a`, limpio y sincronizado con `origin/main`; no contiene todavía commits ni se ha publicado.
+- El [issue #65 — diferenciar Catálogo y mejorar los controles de tomos](https://github.com/JFrancoG/MangaLibrary/issues/65) se abrió sin issue, PR o rama duplicados. La rama `codex/65-distinct-tabs-volume-controls` parte de `main@15458ed3ace4bc3f3e826ed6aa3e5a351c2cc27a`, limpio y sincronizado con `origin/main`; la implementación se versiona en `6f9f90f` y se entrega mediante la [PR #66](https://github.com/JFrancoG/MangaLibrary/pull/66).
 - SDD 01 v1.8 diferencia Catálogo mediante `magnifyingglass` y conserva `books.vertical.fill` para la biblioteca personal. No cambia el orden, la selección ni la navegación de las tres pestañas.
 - SDD 03 v1.5 y SDD 06 v1.27 concretan para el editor sin total conocido controles SwiftUI nativos, bordeados y circulares: `plus` para añadir y `trash` con rol y color destructivos para retirar. Ambos declaran un mínimo de `44 × 44 pt` y nombres localizados equivalentes a «Añadir tomo» y «Eliminar tomo N».
 - `CollectionEditorView` reutiliza la única ruta semántica de borrador existente. El cambio es exclusivamente presentacional: no modifica validación, persistencia, SwiftData, outbox, R1/R2, sesión, red, navegación, dependencias, proyecto ni entitlements.
@@ -35,8 +35,8 @@ backend ni se usaron cuenta, Keychain, datos o hardware reales. La fragilidad
 intermitente de los identificadores
 `tab.*` afecta a la automatización inicial del `TabView`; el artefacto descarta
 un crash, una pantalla sin montar o la ausencia visual de Cuenta, pero no permite
-declarar limpio el gate global. La issue #65 permanece abierta y no se han
-realizado commit, push, PR, merge, cierre ni borrado de rama.
+declarar limpio el gate global. La fusión de la PR #66 cierra el issue #65 y el
+cierre autorizado incluye retirar después la rama local y remota.
 
 ## Cota global de 300 números de tomo — issue #63
 
