@@ -1,8 +1,8 @@
 # Colección local e invariantes
 
 - Estado: aprobado
-- Versión: 1.1
-- Última revisión: 2026-09-01
+- Versión: 1.3
+- Última revisión: 2026-09-03
 
 ## Propósito y alcance
 
@@ -98,6 +98,13 @@ Cada comando se procesa de forma atómica para una entrada:
 
 Si cambia un total conocido y el estado actual dejaría de ser válido, la actualización no puede confirmar un estado intermedio inválido. Debe reconciliarse mediante una política explícita de servidor o rechazarse atómicamente; nunca se descartan volúmenes silenciosamente.
 
+Eliminar desde el editor es una acción destructiva local-first. Se presenta como
+un botón prominente, centrado y solo textual, separado de Guardar. Antes de
+crear la tombstone, una alerta nativa identifica el manga cuando su título está
+disponible y explica que se perderán los tomos marcados y el progreso de lectura;
+volver a añadirlo no restaura esos datos. La alerta exige una confirmación
+destructiva explícita y cancelar no ejecuta ninguna mutación.
+
 ## Consultas
 
 - Toda consulta de colección se restringe al usuario activo.
@@ -123,6 +130,8 @@ Si cambia un total conocido y el estado actual dejaría de ser válido, la actua
 | Mismo manga para usuarios A y B | Existen dos entradas aisladas y cada consulta devuelve solo la propia. |
 | Dos mutaciones concurrentes de la misma entrada | El actor las serializa y el resultado final cumple todas las invariantes. |
 | Error al guardar outbox o colección | No queda una mitad de la operación confirmada. |
+| Cancelar la alerta de eliminación | No cambia colección ni outbox. |
+| Confirmar la alerta de eliminación | Oculta la entrada y persiste su tombstone por la única ruta de mutación. |
 
 Estas reglas deben cubrirse principalmente con Swift Testing y un `ModelContainer` real en memoria. Las pruebas puramente algebraicas pueden ejercitar valores sin contenedor; las restricciones de unicidad, consultas y atomicidad requieren integración SwiftData.
 

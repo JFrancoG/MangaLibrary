@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.20
-**Fecha:** 2026-09-02
+**Versión:** 1.24
+**Fecha:** 2026-09-03
 
 ## Propósito
 
@@ -42,9 +42,15 @@ deterministas. `Integration` incluye el tag `integration`, aplicado a
 `CollectionMutationActorTests`, `CollectionMutationAuthorizationTests`,
 `CollectionPersistenceTests` y `CollectionEditorModelTests`, que recorren el
 container real, la capacidad autenticada, migración y reapertura; y a
-`CollectionAPIClientTests`, `CollectionRemotePipelineTests`, `CollectionSyncCoordinatorTests` y
-`CollectionRemoteImportTests`, que cubren el transporte, la gate de commit de
-sesión y la importación atómica R1 con red sintética y un container V2 aislado. `UI` contiene
+`CollectionAPIClientTests`, `CollectionRemotePipelineTests`,
+`CollectionSyncCoordinatorTests` y `CollectionRemoteImportTests`, que cubren el
+transporte, la gate de commit de sesión y la importación atómica R1 con red
+sintética y un container V2 aislado; y a `CollectionAPIClientSubmitTests`,
+`CollectionAPIClientIndividualTests`, `CollectionOutboxTransitionTests`,
+`CollectionOutboxSyncCoordinatorTests`, `CollectionOutboxDeleteSyncTests`,
+`CollectionOutboxPipelineTests` y `CollectionOutboxDeletePipelineTests`, que
+recorren POST, GET/DELETE individual, la máquina persistida y la composición
+R1 → outbox de R2 sin alcanzar producción. `UI` contiene
 únicamente `MangaLibraryUITests`. Toda suite nueva se clasifica en `Fast`,
 `Integration` o `UI` mediante su target y, cuando corresponda, su tag, en el
 mismo cambio que la introduce. No se filtra por nombres de funciones o suites.
@@ -178,6 +184,44 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
   contexto: snapshot presente, intención pendiente, ausencia remota, aislamiento
   por usuario, canonicalización, error tipado del lote inválido y rollback real
   después de la primera mutación de un único commit;
+- cliente POST R2.1 con request y JSON exactos, `readingVolume` nulo explícito,
+  Bearer sintético, ausencia de `App-Token`, status exacto `200` e `Int64` opaco;
+- cliente R2.2 con GET y DELETE individuales exactos, `Manga.ID` decimal,
+  Bearer sintético y sin UUID remoto, body ni `App-Token`; `200` valida la entrada
+  solicitada o el `Int64` opaco y el `404` descrito se representa únicamente como
+  ausencia del GET;
+- worker R2 y transiciones persistidas observadas desde otro contexto: claim
+  ordenado por pareja, inclusión de tombstones, cerca de usuario/generación/
+  operación/secuencia, UUID o secuencia obsoletos que no pueden confirmar,
+  autorización de petición rechazada antes del claim que conserva `queued` y
+  realiza cero POST, confirmación que no pisa una intención posterior, mapping de
+  cancelación y cambio de sesión en cada frontera del store y recuperación de
+  `sending` sin repetir el POST;
+- pipeline R1 → R2 sobre SwiftData real: una `sending` recuperada reutiliza el
+  único snapshot R1 con exactamente un GET total y cero POST; match confirma y
+  ausencia bloquea. Fallo de lectura o de importación ordinario bloquea sin otra
+  request; cancelación, cambio de sesión, snapshot A frente a autorización B y
+  fallo A tardío conservan la operación de la generación vigente; una importación
+  no cooperativa que termina tras cancelarse no expone un snapshot reutilizable;
+- reemplazo single-flight con POST suspendido: el vuelo anterior se cancela sin
+  confirmación tardía, el sustituto reconcilia `sending` y existe un solo POST;
+  un fallo R1 tardío cuyo vuelo ya está cancelado no interrumpe el POST vigente;
+  un snapshot o callback R1 tardío de A no cancela el vuelo B suspendido, que
+  conserva un único POST y confirma solo para B; en sentido inverso, un trigger
+  B vigente sí cancela el POST A suspendido y reconcilia la intención sin una
+  segunda escritura, y su callback de fallo R1 bloquea solo la recuperación B;
+- fallo incierto de POST con exactamente un GET completo de reconciliación:
+  coincidencia confirma; ausencia, diferencia o lectura fallida dejan
+  `blockedOutcome`, conservan sesión y estado local y realizan cero reintentos de
+  escritura; un bloqueo persistido continúa presentando su aviso cuando el GET
+  R1 de un trigger posterior falla antes de alcanzar el worker;
+- DELETE confirmado que retira una tombstone sin N+1 y conserva el cursor de
+  secuencia; con una intención posterior solo registra ausencia como nueva base.
+  Un fallo local de resolución después del `200` conserva su error, ejecuta cero
+  GET y no crea un bloqueo ambiguo.
+  Un DELETE incierto realiza un único GET individual: `404` confirma, una entrada
+  `200` o un fallo ordinario bloquean y ningún caso repite DELETE; una tombstone
+  `sending` recuperada reutiliza el snapshot R1 sin otra request;
 - escritura y lectura concurrentes del snapshot y portadas en App Group, fallo de disco, manifest anterior, retención y limpieza, en directorios temporales y después en sandbox o dispositivo autorizado;
 - recuperación tras crash en la secuencia fence cerrado → invalidación/Keychain → envelope redactado → reload;
 - doble lectura con sustitución concurrente del fence; sesión B cuyo envelope precede a la apertura; sanitización tardía de A convertida en no-op tras abrir B;
@@ -188,7 +232,8 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 ### Interfaz
 
 XCUITest se limita a los menores recorridos deterministas que demuestren wiring
-crítico no cubierto con Swift Testing. En el alcance actual ejecuta seis:
+crítico no cubierto con Swift Testing. En el alcance actual ejecuta seis; el
+recorrido de Colección cubre tanto alta como eliminación confirmada:
 
 - bootstrap mock Debug → primera fila de Catálogo → detalle de la misma
   `Manga.ID`;
@@ -202,8 +247,10 @@ crítico no cubierto con Swift Testing. En el alcance actual ejecuta seis:
   `App-Token`, usar Keychain, persistir ni alcanzar red live.
 - bootstrap mock Debug → login sintético → trigger R1 con fila remota
   observada por `@Query` → detalle de Catálogo → alta por la capacidad de
-  producción → segunda fila local observada por `@Query` en Colección, con un
-  único `ModelContainer` real en memoria y sin red, Keychain o disco live.
+  producción → segunda fila local observada por `@Query` en Colección → editor
+  con botón destructivo textual → alerta nativa cancelada sin efecto y después
+  confirmada → fila retirada por la capacidad de producción, con un único
+  `ModelContainer` real en memoria y sin red, Keychain o disco live.
 - bootstrap mock Debug → login sintético → fallo R1 de autorización → formulario
   cerrado, Cuenta todavía autenticada y aviso seguro de Colección visible, sin
   red, Keychain, disco live ni transición a `authenticationRequired`.

@@ -107,6 +107,29 @@ struct CollectionSyncCoordinatorTests {
         #expect(await imports.events().isEmpty)
     }
 
+    @Test("Cancellation after a noncooperative import cannot expose a reusable snapshot")
+    func cancellationAfterImportPreventsSnapshotReuse() async throws(any Error) {
+        let authority = SessionAuthority(userID: Self.userA, generation: Self.generationA)
+        let importGate = CoordinatorCallGate()
+        let coordinator = CollectionSyncCoordinator(
+            authorize: {
+                Self.authorization(authority: authority, accessToken: "fixture-access-A")
+            },
+            validateAuthorization: { _ in true },
+            fetchRemote: { _ in [Self.remoteEntry] },
+            importRemote: { _, _ in await importGate.suspendUntilOpen() }
+        )
+        let caller = Task {
+            try await coordinator.importAuthenticatedCollection(onUnusableSnapshot: { _ in })
+        }
+        await importGate.waitUntilArrived()
+
+        caller.cancel()
+        await importGate.open()
+
+        await #expect(throws: CancellationError.self) { try await caller.value }
+    }
+
     @Test("A model-actor cancellation remains cancellation without authorization revalidation")
     func remoteImportCancellationDoesNotBecomeAnAuthorizationFailure() async throws(any Error) {
         let authority = SessionAuthority(userID: Self.userA, generation: Self.generationA)
@@ -133,6 +156,69 @@ struct CollectionSyncCoordinatorTests {
 
         #expect(validationCount.withLock { $0 } == 1)
         #expect(importCount.withLock { $0 } == 1)
+    }
+
+    @Test(
+        "A session persistence failure precedes unusable-snapshot recovery",
+        arguments: CollectionSessionPersistenceFailure.allCases
+    )
+    private func sessionPersistenceFailurePrecedesSnapshotRecovery(
+        failure: CollectionSessionPersistenceFailure
+    ) async throws(any Error) {
+        let authority = SessionAuthority(userID: Self.userA, generation: Self.generationA)
+        let authorization = Self.authorization(authority: authority, accessToken: "fixture-access-A")
+        let recoveryCount = Mutex(0)
+        let coordinator = CollectionSyncCoordinator(
+            authorize: { authorization },
+            validateAuthorization: { _ in true },
+            recoverAuthorization: { _ in throw failure.error },
+            fetchRemote: { _ in throw CollectionAPIClientError.network(.statusCode(401)) },
+            importRemote: { _, _ in }
+        )
+
+        await #expect(throws: failure.error) {
+            try await coordinator.importAuthenticatedCollection { _ in
+                recoveryCount.withLock { $0 += 1 }
+                throw CollectionOutboxSyncError.sessionChanged
+            }
+        }
+
+        #expect(recoveryCount.withLock { $0 } == 0)
+    }
+
+    @Test(
+        "A session persistence failure precedes caller cancellation",
+        arguments: CollectionSessionPersistenceFailure.allCases
+    )
+    private func sessionPersistenceFailurePrecedesCancellation(
+        failure: CollectionSessionPersistenceFailure
+    ) async throws(any Error) {
+        let authority = SessionAuthority(userID: Self.userA, generation: Self.generationA)
+        let authorization = Self.authorization(authority: authority, accessToken: "fixture-access-A")
+        let recoveryGate = CoordinatorCallGate()
+        let recoveryCount = Mutex(0)
+        let coordinator = CollectionSyncCoordinator(
+            authorize: { authorization },
+            validateAuthorization: { _ in true },
+            recoverAuthorization: { _ in
+                await recoveryGate.suspendUntilOpen()
+                throw failure.error
+            },
+            fetchRemote: { _ in throw CollectionAPIClientError.network(.statusCode(401)) },
+            importRemote: { _, _ in }
+        )
+        let caller = Task {
+            try await coordinator.importAuthenticatedCollection { _ in
+                recoveryCount.withLock { $0 += 1 }
+            }
+        }
+        await recoveryGate.waitUntilArrived()
+
+        caller.cancel()
+        await recoveryGate.open()
+
+        await #expect(throws: failure.error) { try await caller.value }
+        #expect(recoveryCount.withLock { $0 } == 0)
     }
 
     @Test("A generation invalidated after validation cannot cross the SwiftData commit boundary")
@@ -1179,6 +1265,18 @@ private actor ReplacingCollectionFetch {
         let satisfied = requestWaiters.filter { recordedAccessTokens.count >= $0.expectedCount }
         requestWaiters.removeAll { recordedAccessTokens.count >= $0.expectedCount }
         satisfied.forEach { $0.continuation.resume() }
+    }
+}
+
+private enum CollectionSessionPersistenceFailure: CaseIterable {
+    case temporarilyUnavailable
+    case persistenceUnavailable
+
+    var error: SessionControllerError {
+        switch self {
+        case .temporarilyUnavailable: .temporarilyUnavailable
+        case .persistenceUnavailable: .persistenceUnavailable
+        }
     }
 }
 

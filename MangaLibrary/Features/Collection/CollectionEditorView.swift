@@ -46,12 +46,21 @@ struct CollectionEditorView: View {
 
                 if model.seed.isExistingEntry {
                     Section {
-                        Button("Remove from Collection", systemImage: "trash", role: .destructive) {
+                        Button("Remove from Collection", role: .destructive) {
                             confirmsDeletion = true
                         }
+                        .font(.headline)
+                        .foregroundStyle(.onDanger)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .buttonSizing(.fitted)
+                        .tint(Color.dangerFill)
+                        .frame(maxWidth: .infinity)
                         .disabled(model.isSubmitting)
                         .accessibilityIdentifier("collection.editor.delete")
                     }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
                 }
             }
             .disabled(model.isSubmitting)
@@ -93,17 +102,21 @@ struct CollectionEditorView: View {
                     .accessibilityIdentifier("collection.editor.save")
                 }
             }
-            .confirmationDialog(
-                "Remove this manga from your collection?",
-                isPresented: $confirmsDeletion,
-                titleVisibility: .visible
-            ) {
-                Button("Remove from Collection", role: .destructive) {
+            .alert(deletionAlertTitle, isPresented: $confirmsDeletion) {
+                Button("Remove", role: .destructive) {
                     request = .delete(UUID())
                 }
+                .accessibilityIdentifier("collection.editor.delete.confirm")
+
                 Button("Cancel", role: .cancel) {}
+                    .accessibilityIdentifier("collection.editor.delete.cancel")
             } message: {
-                Text("The manga disappears now. Its pending deletion remains stored for later synchronization.")
+                Text(
+                    """
+                    The volumes marked as owned and your reading progress will be deleted. \
+                    You can add the manga again, but that data won’t be restored.
+                    """
+                )
             }
             .task(id: request) {
                 guard let request else { return }
@@ -248,6 +261,14 @@ struct CollectionEditorView: View {
             model.readingVolumeText
         } set: { value in
             model.readingVolumeText = value
+        }
+    }
+
+    private var deletionAlertTitle: LocalizedStringResource {
+        if let title = model.seed.title {
+            "Remove “\(title)” from your collection?"
+        } else {
+            "Remove this manga from your collection?"
         }
     }
 

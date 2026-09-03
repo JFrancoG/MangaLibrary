@@ -185,7 +185,6 @@ actor SessionController {
             try ensureCurrentLogin(identity)
             guard access.expiresAt > now() else { throw SessionControllerError.contractDrift }
             try Task.checkCancellation()
-
             committingLoginIdentity = identity
             let persisted = try await persistence.activate(
                 userID: remoteIdentity.id,

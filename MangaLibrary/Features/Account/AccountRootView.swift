@@ -14,6 +14,7 @@ struct AccountCollectionNotice: Equatable {
     enum Reason: Equatable {
         case authorizationDenied
         case authenticationIncompatible
+        case uploadOutcomeUnconfirmed
     }
 
     let userID: UUID
@@ -25,6 +26,8 @@ struct AccountCollectionNotice: Equatable {
             "Your session is still active, but this account does not currently have access to the remote collection."
         case .authenticationIncompatible:
             "Your session is still active, but the collection service could not verify the renewed access. Signing in again is not required."
+        case .uploadOutcomeUnconfirmed:
+            "Your session is still active and your local collection is safe, but a remote change could not be confirmed. It will not be sent again automatically."
         }
     }
 
@@ -34,6 +37,8 @@ struct AccountCollectionNotice: Equatable {
             "account.collection-sync.authorization-denied"
         case .authenticationIncompatible:
             "account.collection-sync.authentication-incompatible"
+        case .uploadOutcomeUnconfirmed:
+            "account.collection-sync.upload-outcome-unconfirmed"
         }
     }
 }
@@ -383,6 +388,19 @@ struct AccountRootView: View {
         collectionNotice: AccountCollectionNotice(
             userID: AccountPreviewSupport.account.id,
             reason: .authenticationIncompatible
+        )
+    )
+}
+
+#Preview(
+    "Account Collection upload notice",
+    traits: .modifier(CollectionPreviewModifier<CollectionPreviewScenarios.Empty>())
+) {
+    AccountRootView(
+        model: AccountPreviewSupport.model(state: .authenticated(AccountPreviewSupport.account, notice: nil)),
+        collectionNotice: AccountCollectionNotice(
+            userID: AccountPreviewSupport.account.id,
+            reason: .uploadOutcomeUnconfirmed
         )
     )
 }

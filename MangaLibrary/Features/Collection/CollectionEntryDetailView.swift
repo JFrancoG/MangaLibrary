@@ -18,8 +18,13 @@ struct CollectionEntryDetailView: View {
         if let mangaSnapshot = entry.mangaSnapshot {
             let manga = mangaSnapshot.manga(knownTotalVolumes: entry.knownTotalVolumes)
             MangaDetailView(manga: manga) {
-                CollectionControlsView(manga: manga, access: .user(scope, restriction: restriction), mutation: mutation)
-                .id(CollectionIdentity(userID: scope.userID, mangaID: manga.id))
+                CollectionControlsView(
+                    manga: manga,
+                    access: .user(scope, restriction: restriction),
+                    mutation: mutation,
+                    editAccessibilityIdentifier: "collection.entry.edit.\(manga.id)"
+                )
+                    .id(CollectionIdentity(userID: scope.userID, mangaID: manga.id))
             }
         } else {
             ScrollView {

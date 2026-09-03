@@ -72,7 +72,7 @@ final class MangaLibraryUITests: XCTestCase {
     }
 
     @MainActor
-    func testCatalogDetailSavesMangaIntoCollection() throws {
+    func testCatalogDetailSavesAndDeletesMangaFromCollection() throws {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing")
         app.launch()
@@ -153,6 +153,72 @@ final class MangaLibraryUITests: XCTestCase {
         let savedManga = app.buttons["collection.row.1"]
         XCTAssertTrue(savedManga.waitForExistence(timeout: 2))
         XCTAssertTrue(savedManga.label.contains("Fullmetal Alchemist"))
+        savedManga.tap()
+
+        let editCollection = app.buttons["collection.entry.edit.1"]
+        XCTAssertTrue(editCollection.waitForExistence(timeout: 2))
+        for _ in 0..<4 where editCollection.frame.maxY >= collectionTab.frame.minY {
+            app.swipeUp(velocity: .slow)
+        }
+        XCTAssertLessThan(editCollection.frame.maxY, collectionTab.frame.minY)
+        XCTAssertTrue(editCollection.isHittable)
+        editCollection.tap()
+
+        let editorSave = app.buttons["collection.editor.save"]
+        XCTAssertTrue(editorSave.waitForExistence(timeout: 5))
+        let deleteButton = app.buttons["collection.editor.delete"]
+        for _ in 0..<4 where deleteButton.exists == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 2))
+        for _ in 0..<4 where deleteButton.isHittable == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(deleteButton.isHittable)
+        XCTAssertTrue(["Remove from Collection", "Eliminar de la colección"].contains(deleteButton.label))
+        deleteButton.tap()
+
+        let alert = app.alerts.firstMatch
+        XCTAssertTrue(alert.waitForExistence(timeout: 2))
+        let alertText = Set(alert.staticTexts.allElementsBoundByIndex.map(\.label))
+        XCTAssertTrue(
+            [
+                "Remove “Fullmetal Alchemist” from your collection?",
+                "¿Eliminar «Fullmetal Alchemist» de tu colección?",
+            ].contains(where: alertText.contains)
+        )
+        XCTAssertTrue(
+            [
+                """
+                The volumes marked as owned and your reading progress will be deleted. \
+                You can add the manga again, but that data won’t be restored.
+                """,
+                """
+                Se borrarán los tomos marcados y tu progreso de lectura. \
+                Podrás volver a añadir el manga, pero esos datos no se recuperarán.
+                """,
+            ].contains(where: alertText.contains)
+        )
+        let cancelDeletion = alert.buttons
+            .matching(identifier: "collection.editor.delete.cancel")
+            .firstMatch
+        XCTAssertTrue(cancelDeletion.waitForExistence(timeout: 2))
+        cancelDeletion.tap()
+        XCTAssertTrue(alert.waitForNonExistence(timeout: 2))
+        XCTAssertTrue(deleteButton.exists)
+
+        deleteButton.tap()
+        XCTAssertTrue(alert.waitForExistence(timeout: 2))
+        let confirmDeletion = alert.buttons
+            .matching(identifier: "collection.editor.delete.confirm")
+            .firstMatch
+        XCTAssertTrue(confirmDeletion.waitForExistence(timeout: 2))
+        XCTAssertTrue(["Remove", "Eliminar"].contains(confirmDeletion.label))
+        confirmDeletion.tap()
+
+        XCTAssertTrue(deleteButton.waitForNonExistence(timeout: 2))
+        XCTAssertTrue(importedManga.waitForExistence(timeout: 2))
+        XCTAssertTrue(savedManga.waitForNonExistence(timeout: 2))
     }
 
     @MainActor

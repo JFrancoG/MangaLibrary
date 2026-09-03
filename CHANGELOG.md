@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-09-03 | ✨ feat(collection): sync collection deletions
+- 2026-09-02 | ✨ feat(collection): upload queued collection changes
 - 2026-09-02 | ✨ feat(collection): import remote snapshot
 - 2026-09-01 | ✨ feat(collection): add offline collection flows
 - 2026-09-01 | ✨ feat(collection): add atomic SwiftData core
@@ -16,6 +18,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-09-03 | 💄 style(swift): normalize R2 source layout
 - 2026-09-02 | ♻️ refactor(concurrency): remove redundant Sendable conformances
 - 2026-09-01 | ♻️ refactor(ui): simplify typed color resources
 - 2026-09-01 | 💄 style(swift): normalize source layout
@@ -28,8 +31,10 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-03 | 📝 docs(delivery): record R2 pull request
 - 2026-09-02 | 📝 docs(delivery): record single-JWT PR
 - 2026-09-02 | 📝 docs(session): adopt single-JWT authority and Keychain V3
+- 2026-09-02 | 📝 docs(collection): resolve remote manga identity
 - 2026-09-02 | 📝 docs(delivery): record auth loop PR
 - 2026-09-02 | 📝 docs(delivery): record R1 pull request
 - 2026-09-02 | 📝 docs(delivery): record Sendable cleanup PR
@@ -50,6 +55,7 @@ All notable changes to this project are documented in this file.
 
 ### Tests
 
+- 2026-09-02 | ✅ test(collection): cover safe POST outbox pipeline
 - 2026-09-02 | ✅ test(session): cover JWT renewal and V3 migration
 - 2026-09-01 | ✅ test(collection): cover persistence contract
 - 2026-08-31 | ✅ test(account): cover registration contract, uncertainty and synthetic UI flow

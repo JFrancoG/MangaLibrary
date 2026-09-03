@@ -2,6 +2,7 @@
 
 **Estado:** Accepted
 **Fecha:** 2026-08-31
+**Última revisión:** 2026-09-03
 **Supersede:** [ADR-0015](0015-native-flows-live-composition-and-adaptive-navigation.md)
 **Superseded by:** —
 
@@ -23,6 +24,13 @@ representa procesamiento aceptado.
 La revisión no debe obligar a Catálogo o Sesión a consumir metadata que no
 necesitan ni introducir decoding, endpoints o contratos de feature en el
 transporte compartido.
+
+R2.2 activa la condición de revisión porque Colección también necesita distinguir
+dos status ya validados. `GET /collection/manga/{id}` interpreta `200` como una
+entrada y el `404` descrito por OpenAPI como ausencia durante la reconciliación de
+un DELETE incierto. Convertir ese `404` en `NetworkError` volvería a modelar un
+resultado aceptado por la operación como error e impediría confirmar la ausencia
+sin repetir una escritura.
 
 ## Drivers
 
@@ -60,15 +68,21 @@ confirma una operación. Mantiene el mapping seguro de transporte, respuesta no
 HTTP, status inesperado y cancelación. `HTTPResponse` no incorpora headers, URL
 ni descripción del body.
 
-`UserRegistrationClient` es la única frontera actual que consume la respuesta
-con status. Producción admite exactamente `200` y `201`; después, el cliente de
-feature aplica la política de SDD 04:
+`UserRegistrationClient` y el GET individual de `CollectionAPIClient` son las
+fronteras actuales que consumen la respuesta con status. Registro admite
+exactamente `200` y `201`; después, el cliente de feature aplica la política de
+SDD 04:
 
 - `200` confirma solo si el body decodifica el `Int64` publicado;
 - `201` confirma por el status y no interpreta su body;
 - cualquier otro status conserva el resultado como no confirmado.
 
-Su doble directo devuelve el mismo valor mínimo para probar la política sin red.
+El GET individual de Colección admite exactamente `200` y `404`: `200` exige un
+DTO válido cuyo `manga.id` coincida con el segmento solicitado, mientras `404`
+ignora el body y representa ausencia únicamente para esa ruta. GET completo,
+POST y DELETE continúan usando el adaptador de bytes y aceptando solo `200`.
+
+Sus dobles directos devuelven el mismo valor mínimo para probar la política sin red.
 Tests de integración aislados con `URLProtocol` atraviesan además el adaptador
 real de `HTTPClient` para caracterizar `200`, `201` vacío y el rechazo de `202`
 con body aparentemente válido. Tests y previews no usan producción.
@@ -92,7 +106,8 @@ portada, toolbar, Reduce Motion y smoke UI mínimo.
 
 - Existen dos adaptadores públicos dentro del módulo para elegir entre bytes y
   bytes con status.
-- El doble de Registro conoce un valor de transporte adicional.
+- Los dobles de Registro y del GET individual conocen el valor mínimo de
+  transporte necesario para probar su política.
 - Una operación que necesite headers requerirá otra revisión; no se anticipa una
   respuesta HTTP genérica.
 
@@ -102,6 +117,8 @@ portada, toolbar, Reduce Motion y smoke UI mínimo.
   que confirma el alta.
 - Probar que `200` continúa exigiendo un `Int64` válido.
 - Probar que `202`, incluso con body `42`, no confirma.
+- Probar que el GET individual acepta `404` sin interpretar el body, exige un ID
+  coincidente en `200` y conserva cualquier otro status como fallo.
 - Conservar verdes los tests de respuesta no HTTP, status inesperado,
   transporte y cancelación de `HTTPClient`.
 - Ejecutar tests focales, `ReleaseGate`, build, diagnósticos y DocC sin warnings
@@ -111,7 +128,8 @@ portada, toolbar, Reduce Motion y smoke UI mínimo.
 ## Condiciones de revisión
 
 - Una operación necesita headers u otra metadata HTTP después de validar status.
-- Dos features necesitan la misma política de aceptación o decoding por status.
+- Una tercera feature necesita status o dos operaciones empiezan a duplicar la
+  misma política de aceptación o decoding.
 - El backend y OpenAPI reconcilian `POST /users` con un único contrato distinto.
 - Una respuesta puede confirmar parcialmente y exige un modelo de dominio más
   rico que bytes y status.

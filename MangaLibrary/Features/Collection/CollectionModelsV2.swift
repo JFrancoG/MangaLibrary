@@ -143,6 +143,11 @@ extension MangaLibrarySchema.V2 {
         func confirmRemoteAbsence() {
             confirmedState = nil
         }
+
+        /// Advances the server baseline without replacing a later optimistic state.
+        func confirmUpload(_ state: MangaLibrarySchema.V1.CollectionSnapshot) {
+            confirmedState = state
+        }
     }
 
     /// The current outbox operation. Its persisted shape is unchanged from V1.
@@ -188,6 +193,30 @@ extension MangaLibrarySchema.V2 {
             retryCount = 0
             nextRetryAt = nil
             isTombstone = desiredState.isTombstone
+        }
+
+        func markSendingIfQueued() -> Bool {
+            guard state == .queued else { return false }
+
+            state = .sending
+            return true
+        }
+
+        func markConfirmedIfSending() -> Bool {
+            guard state == .sending else { return false }
+
+            state = .confirmed
+            retryCount = 0
+            nextRetryAt = nil
+            return true
+        }
+
+        func markBlockedOutcomeIfSending() -> Bool {
+            guard state == .sending else { return false }
+
+            state = .blockedOutcome
+            nextRetryAt = nil
+            return true
         }
     }
 }

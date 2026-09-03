@@ -17,12 +17,21 @@ enum CollectionSyncError: Error, Equatable {
     case authenticationIncompatible(origin: CollectionSyncFailureOrigin, statusCode: Int)
 }
 
+/// The authenticated snapshot already imported by R1 and reusable by R2.
+///
+/// It carries the exact session authority but never retains an access credential.
+struct CollectionImportedSnapshot {
+    let authority: SessionAuthority
+    let entries: [CollectionRemoteEntry]
+}
+
 /// Fences one authenticated Collection import to an exact session generation.
 ///
 /// A new trigger cancels the previous flight. The current authority is checked
 /// after transport for fast rejection; its commit capability is consumed again
 /// inside the sole synchronous SwiftData transaction.
 actor CollectionSyncCoordinator {
+    typealias UnusableSnapshot = @Sendable (SessionRequestAuthorization) async throws(any Error) -> Void
     typealias Authorize = @Sendable () async throws(any Error) -> SessionRequestAuthorization
     typealias ValidateAuthorization = @Sendable (SessionRequestAuthorization) async throws(any Error) -> Bool
     typealias RecoverAuthorization = @Sendable (
@@ -38,7 +47,7 @@ actor CollectionSyncCoordinator {
 
     private struct Flight {
         let identity: OperationIdentity
-        let task: Task<Void, any Error>
+        let task: Task<CollectionImportedSnapshot, any Error>
     }
 
     private let authorize: Authorize
@@ -67,11 +76,24 @@ actor CollectionSyncCoordinator {
     }
 
     func importAuthenticatedCollection() async throws(any Error) {
+        _ = try await importAuthenticatedCollection(onUnusableSnapshot: { _ in })
+    }
+
+    func importAuthenticatedCollection(
+        onUnusableSnapshot: @escaping UnusableSnapshot
+    ) async throws(any Error) -> CollectionImportedSnapshot {
         try Task.checkCancellation()
         activeFlight?.task.cancel()
 
         let identity = OperationIdentity()
-        let task = Task { [authorize, validateAuthorization, recoverAuthorization, fetchRemote, importRemote] in
+        let task = Task { [
+            authorize,
+            validateAuthorization,
+            recoverAuthorization,
+            fetchRemote,
+            importRemote,
+            onUnusableSnapshot,
+        ] in
             try Task.checkCancellation()
             var authorization: SessionRequestAuthorization
             do {
@@ -82,84 +104,109 @@ actor CollectionSyncCoordinator {
             try Task.checkCancellation()
             let remoteEntries: [CollectionRemoteEntry]
             do {
-                remoteEntries = try await fetchRemote(authorization.accessToken)
-            } catch let error as CollectionAPIClientError {
-                guard case let .network(.statusCode(statusCode)) = error else { throw error }
-                switch statusCode {
-                case 403:
-                    guard try await validateAuthorization(authorization) else {
-                        throw CollectionSyncError.sessionChanged
-                    }
-                    Self.logAuthorizationDenied(statusCode: statusCode, attempt: 1)
-                    throw CollectionSyncError.authorizationDenied(
-                        origin: .collectionSnapshot(attempt: 1),
-                        statusCode: statusCode
-                    )
-                case 401:
-                    Self.logAuthenticationRecovery(statusCode: statusCode)
-                    do {
-                        authorization = try await recoverAuthorization(authorization)
-                    } catch let recoveryError as SessionAuthorizationRecoveryError {
-                        throw Self.authenticationIncompatibility(from: recoveryError)
-                    }
-                    try Task.checkCancellation()
-                    do {
-                        remoteEntries = try await fetchRemote(authorization.accessToken)
-                    } catch let retryError as CollectionAPIClientError {
-                        guard case let .network(.statusCode(retryStatusCode)) = retryError else { throw retryError }
+                do {
+                    remoteEntries = try await fetchRemote(authorization.accessToken)
+                } catch let error as CollectionAPIClientError {
+                    guard case let .network(.statusCode(statusCode)) = error else { throw error }
+                    switch statusCode {
+                    case 403:
                         guard try await validateAuthorization(authorization) else {
                             throw CollectionSyncError.sessionChanged
                         }
-                        switch retryStatusCode {
-                        case 401:
-                            Self.logAuthenticationIncompatible(
-                                origin: .collectionSnapshot(attempt: 2),
-                                statusCode: retryStatusCode
-                            )
-                            throw CollectionSyncError.authenticationIncompatible(
-                                origin: .collectionSnapshot(attempt: 2),
-                                statusCode: retryStatusCode
-                            )
-                        case 403:
-                            Self.logAuthorizationDenied(statusCode: retryStatusCode, attempt: 2)
-                            throw CollectionSyncError.authorizationDenied(
-                                origin: .collectionSnapshot(attempt: 2),
-                                statusCode: retryStatusCode
-                            )
-                        default:
-                            throw retryError
+                        Self.logAuthorizationDenied(statusCode: statusCode, attempt: 1)
+                        throw CollectionSyncError.authorizationDenied(
+                            origin: .collectionSnapshot(attempt: 1),
+                            statusCode: statusCode
+                        )
+                    case 401:
+                        Self.logAuthenticationRecovery(statusCode: statusCode)
+                        do {
+                            authorization = try await recoverAuthorization(authorization)
+                        } catch let recoveryError as SessionAuthorizationRecoveryError {
+                            throw Self.authenticationIncompatibility(from: recoveryError)
                         }
+                        try Task.checkCancellation()
+                        do {
+                            remoteEntries = try await fetchRemote(authorization.accessToken)
+                        } catch let retryError as CollectionAPIClientError {
+                            guard case let .network(.statusCode(retryStatusCode)) = retryError else {
+                                throw retryError
+                            }
+                            guard try await validateAuthorization(authorization) else {
+                                throw CollectionSyncError.sessionChanged
+                            }
+                            switch retryStatusCode {
+                            case 401:
+                                Self.logAuthenticationIncompatible(
+                                    origin: .collectionSnapshot(attempt: 2),
+                                    statusCode: retryStatusCode
+                                )
+                                throw CollectionSyncError.authenticationIncompatible(
+                                    origin: .collectionSnapshot(attempt: 2),
+                                    statusCode: retryStatusCode
+                                )
+                            case 403:
+                                Self.logAuthorizationDenied(statusCode: retryStatusCode, attempt: 2)
+                                throw CollectionSyncError.authorizationDenied(
+                                    origin: .collectionSnapshot(attempt: 2),
+                                    statusCode: retryStatusCode
+                                )
+                            default:
+                                throw retryError
+                            }
+                        }
+                    default:
+                        throw error
                     }
-                default:
-                    throw error
                 }
-            }
-            try Task.checkCancellation()
-
-            guard try await validateAuthorization(authorization) else { throw CollectionSyncError.sessionChanged }
-            try Task.checkCancellation()
-            do {
-                try await importRemote(remoteEntries, authorization.commitAuthorization)
+                try Task.checkCancellation()
+                guard try await validateAuthorization(authorization) else { throw CollectionSyncError.sessionChanged }
+                try Task.checkCancellation()
+                do {
+                    try await importRemote(remoteEntries, authorization.commitAuthorization)
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch CollectionRemoteImportError.cancelled {
+                    throw CancellationError()
+                } catch {
+                    let importError = error
+                    guard try await validateAuthorization(authorization) else {
+                        throw CollectionSyncError.sessionChanged
+                    }
+                    throw importError
+                }
+                try Task.checkCancellation()
+            } catch let error as SessionControllerError
+                where error == .temporarilyUnavailable || error == .persistenceUnavailable {
+                throw error
             } catch is CancellationError {
                 throw CancellationError()
+            } catch CollectionSyncError.sessionChanged {
+                throw CollectionSyncError.sessionChanged
             } catch CollectionRemoteImportError.cancelled {
                 throw CancellationError()
+            } catch CollectionRemoteImportError.sessionChanged {
+                throw CollectionRemoteImportError.sessionChanged
             } catch {
-                let importError = error
-                guard try await validateAuthorization(authorization) else { throw CollectionSyncError.sessionChanged }
-                throw importError
+                let snapshotError = error
+                try Task.checkCancellation()
+                try await onUnusableSnapshot(authorization)
+                try Task.checkCancellation()
+                throw snapshotError
             }
+            return CollectionImportedSnapshot(authority: authorization.authority, entries: remoteEntries)
         }
         let flight = Flight(identity: identity, task: task)
         activeFlight = flight
 
         do {
-            try await withTaskCancellationHandler {
+            let importedSnapshot = try await withTaskCancellationHandler {
                 try await task.value
             } onCancel: {
                 task.cancel()
             }
             clear(flight)
+            return importedSnapshot
         } catch {
             clear(flight)
             throw error
@@ -244,5 +291,14 @@ struct CollectionSynchronization {
 extension CollectionSynchronization {
     init(coordinator: CollectionSyncCoordinator) {
         self.init(operation: { try await coordinator.importAuthenticatedCollection() })
+    }
+
+    init(importCoordinator: CollectionSyncCoordinator, outboxCoordinator: CollectionOutboxSyncCoordinator) {
+        self.init(operation: {
+            let importedSnapshot = try await importCoordinator.importAuthenticatedCollection { authorization in
+                try await outboxCoordinator.blockRecoveredUploadsAfterUnusableSnapshot(for: authorization)
+            }
+            try await outboxCoordinator.synchronizeAuthenticatedOutbox(reusing: importedSnapshot)
+        })
     }
 }

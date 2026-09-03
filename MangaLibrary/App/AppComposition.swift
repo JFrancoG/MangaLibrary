@@ -53,11 +53,19 @@ struct AppComposition {
             client: collectionClient,
             mutationActor: collectionMutations
         )
+        let collectionOutboxCoordinator = CollectionOutboxSyncCoordinator(
+            sessionController: sessionController,
+            client: collectionClient,
+            mutationActor: collectionMutations
+        )
 
         return AppComposition(
             modelContainer: modelContainer,
             collectionMutations: collectionMutations,
-            collectionSynchronization: CollectionSynchronization(coordinator: collectionSyncCoordinator),
+            collectionSynchronization: CollectionSynchronization(
+                importCoordinator: collectionSyncCoordinator,
+                outboxCoordinator: collectionOutboxCoordinator
+            ),
             catalogClient: CatalogAPIClient(httpClient: httpClient, configuration: apiConfiguration),
             registerUser: UserRegistrationClient.operation(
                 httpClient: httpClient,
