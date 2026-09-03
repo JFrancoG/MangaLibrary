@@ -270,6 +270,15 @@ extension MangaLibrarySchema.V2 {
             nextRetryAt = nil
             return true
         }
+
+        func markConfirmedIfBlockedOutcome() -> Bool {
+            guard state == .blockedOutcome else { return false }
+
+            state = .confirmed
+            retryCount = 0
+            nextRetryAt = nil
+            return true
+        }
     }
 }
 

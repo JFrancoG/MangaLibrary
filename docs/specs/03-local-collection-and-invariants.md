@@ -1,8 +1,8 @@
 # Colección local e invariantes
 
 - Estado: aprobado
-- Versión: 1.5
-- Última revisión: 2026-09-03
+- Versión: 1.6
+- Última revisión: 2026-09-04
 
 ## Propósito y alcance
 
@@ -132,6 +132,24 @@ Cada comando se procesa de forma atómica para una entrada:
 6. registra o coalesce la intención de sincronización en la misma operación lógica;
 7. guarda el contexto;
 8. devuelve un resultado por valor, nunca el `@Model` mutable del actor.
+
+La resolución consciente de una operación `blockedOutcome` recorre el mismo
+límite `@ModelActor` y una única transacción. El comando identifica autoridad,
+usuario, manga, UUID y secuencia exactos, incorpora evidencia remota fresca por
+valor y declara la decisión. La transacción valida de nuevo la operación, la
+entrada y cualquier secuencia posterior antes de avanzar la base confirmada y
+resolver el bloqueo. Cancelación, autoridad vencida, identidad obsoleta, datos
+remotos incompatibles, UUID duplicado, secuencia agotada o persistencia fallida
+revierten conjuntamente entrada y outbox.
+
+Aceptar la nube aplica la presencia compatible o elimina la entrada ante una
+ausencia confirmada únicamente si no existe una intención posterior. Mantener el
+dispositivo confirma primero la operación ambigua contra esa nueva base y crea
+una intención `queued` con UUID y secuencia nuevos, salvo que la lectura ya
+demuestre exactamente el efecto deseado. Si ya existe N+1, la resolución de N
+actualiza solo la base, conserva intactos tanto el estado visible como N+1 y
+despierta explícitamente el worker; no fabrica N+2 ni permite adoptar la nube por
+encima de una intención local más reciente.
 
 Si cambia un total conocido y el estado actual dejaría de ser válido, la actualización no puede confirmar un estado intermedio inválido. Debe reconciliarse mediante una política explícita de servidor o rechazarse atómicamente; nunca se descartan volúmenes silenciosamente.
 

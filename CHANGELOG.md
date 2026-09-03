@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-09-04 | ✨ feat(collection): resolve uncertain outcomes
 - 2026-09-03 | ✨ feat(collection): add safe outbox recovery states
 - 2026-09-03 | ✨ feat(ui): distinguish tabs and volume controls
 - 2026-09-03 | ✨ feat(collection): cap volume numbers at 300
@@ -34,6 +35,8 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-04 | 📝 docs(validation): record R2.4 DocC gate
+- 2026-09-04 | 📝 docs(delivery): record R2.4 pull request
 - 2026-09-03 | 📝 docs(delivery): record R2.3 pull request
 - 2026-09-03 | 📝 docs(collection): define safe R2.3 outbox recovery
 - 2026-09-03 | 📝 docs(delivery): record UI polish pull request

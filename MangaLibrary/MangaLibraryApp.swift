@@ -13,6 +13,7 @@ struct MangaLibraryApp: App {
     private let modelContainer: ModelContainer
     private let collectionMutation: CollectionMutation
     private let collectionSynchronization: CollectionSynchronization
+    private let collectionBlockedOutcomeResolution: CollectionBlockedOutcomeResolution
     private let loadCatalogPage: CatalogModel.PageLoader
     private let loadCatalogFilterOptions: CatalogModel.FilterOptionsLoader
     @State private var accountModel: AccountModel
@@ -29,7 +30,8 @@ struct MangaLibraryApp: App {
                 loadCatalogFilterOptions: loadCatalogFilterOptions,
                 accountModel: accountModel,
                 collectionMutation: collectionMutation,
-                collectionSynchronization: collectionSynchronization
+                collectionSynchronization: collectionSynchronization,
+                collectionBlockedOutcomeResolution: collectionBlockedOutcomeResolution
             )
 #if DEBUG
             if presentsUITestingCollectionDetailProjection {
@@ -62,11 +64,19 @@ extension MangaLibraryApp {
                     "-ui-testing-collection-detail-projection"
                 )
                 let testsMountedCollectionDetail = processArguments.contains("-ui-testing-mounted-collection-detail")
+                let testsBlockedOutcomeResolution = processArguments.contains("-ui-testing-blocked-outcome-resolution")
+                let disablesCollectionSynchronization =
+                    testsCollectionDetailProjection
+                    || testsMountedCollectionDetail
+                    || testsBlockedOutcomeResolution
                 let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
                 if testsMountedCollectionDetail {
                     try Self.seedUITestingMountedCollectionDetail(in: container)
                 }
-                let accountState: AccountModel.State = testsMountedCollectionDetail
+                if testsBlockedOutcomeResolution {
+                    try Self.seedUITestingBlockedOutcomes(in: container)
+                }
+                let accountState: AccountModel.State = testsMountedCollectionDetail || testsBlockedOutcomeResolution
                     ? .authenticated(AccountPreviewSupport.account, notice: nil)
                     : .signedOut(failure: nil)
                 let account = AccountPreviewSupport.model(state: accountState)
@@ -80,12 +90,15 @@ extension MangaLibraryApp {
                 let synchronization: CollectionSynchronization
                 if processArguments.contains("-ui-testing-collection-authorization-denied") {
                     synchronization = Self.uiTestingCollectionAuthorizationFailure()
-                } else if testsCollectionDetailProjection || testsMountedCollectionDetail {
+                } else if disablesCollectionSynchronization {
                     synchronization = .disabled
                 } else {
                     synchronization = Self.uiTestingCollectionSynchronization(actor: mutationActor)
                 }
                 collectionSynchronization = synchronization
+                collectionBlockedOutcomeResolution = testsBlockedOutcomeResolution
+                    ? Self.uiTestingBlockedOutcomeResolution(actor: mutationActor)
+                    : .disabled
                 presentsUITestingCollectionDetailProjection = testsCollectionDetailProjection
                 presentsUITestingMountedCollectionDetail = testsMountedCollectionDetail
                 uiTestingCollectionDetailUpdate = testsMountedCollectionDetail
@@ -116,6 +129,7 @@ extension MangaLibraryApp {
                 sessionAuthorization: CollectionSessionAuthorization(sessionController: composition.sessionController)
             )
             collectionSynchronization = composition.collectionSynchronization
+            collectionBlockedOutcomeResolution = composition.collectionBlockedOutcomeResolution
 #if DEBUG
             presentsUITestingCollectionDetailProjection = false
             presentsUITestingMountedCollectionDetail = false
@@ -250,6 +264,132 @@ extension MangaLibraryApp {
         return CollectionSynchronization(operation: {
             try await actor.importRemote([remoteEntry], authorization: commitGate.authorization(for: authority))
         })
+    }
+
+    private static func seedUITestingBlockedOutcomes(in container: ModelContainer) throws {
+        let context = ModelContext(container)
+        let updateManga = CatalogPreviewSupport.mangas[0]
+        let updateState = CollectionSnapshot(
+            ownedVolumes: [1, 3],
+            readingVolume: 2,
+            isComplete: false,
+            knownTotalVolumes: updateManga.totalVolumes,
+            isTombstone: false
+        )
+        context.insert(
+            CollectionEntry(
+                userID: AccountPreviewSupport.account.id,
+                mangaID: updateManga.id,
+                state: updateState,
+                confirmedState: CollectionSnapshot(
+                    ownedVolumes: [1],
+                    readingVolume: 1,
+                    isComplete: false,
+                    knownTotalVolumes: updateManga.totalVolumes,
+                    isTombstone: false
+                ),
+                mangaSnapshot: CollectionMangaSnapshot(manga: updateManga)
+            )
+        )
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: UUID(uuidString: "C9C9C9C9-C9C9-C9C9-C9C9-C9C9C9C9C9C9")!,
+                userID: AccountPreviewSupport.account.id,
+                mangaID: updateManga.id,
+                sequence: 1,
+                desiredState: updateState,
+                state: .blockedOutcome
+            )
+        )
+
+        let deletionManga = CatalogPreviewSupport.mangas[1]
+        let deletionState = CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 1,
+            isComplete: false,
+            knownTotalVolumes: deletionManga.totalVolumes,
+            isTombstone: true
+        )
+        context.insert(
+            CollectionEntry(
+                userID: AccountPreviewSupport.account.id,
+                mangaID: deletionManga.id,
+                state: deletionState,
+                confirmedState: CollectionSnapshot(
+                    ownedVolumes: [1],
+                    readingVolume: 1,
+                    isComplete: false,
+                    knownTotalVolumes: deletionManga.totalVolumes,
+                    isTombstone: false
+                ),
+                mangaSnapshot: CollectionMangaSnapshot(manga: deletionManga)
+            )
+        )
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: UUID(uuidString: "CACACACA-CACA-CACA-CACA-CACACACACACA")!,
+                userID: AccountPreviewSupport.account.id,
+                mangaID: deletionManga.id,
+                sequence: 1,
+                desiredState: deletionState,
+                state: .blockedOutcome
+            )
+        )
+        try context.save()
+    }
+
+    private static func uiTestingBlockedOutcomeResolution(
+        actor: CollectionMutationActor
+    ) -> CollectionBlockedOutcomeResolution {
+        let authority = AccountPreviewSupport.account.authority
+        let commitGate = SessionCommitGate(activeAuthority: authority)
+        let authorization = SessionRequestAuthorization(
+            authority: authority,
+            accessToken: "synthetic-ui-access",
+            commitAuthorization: commitGate.authorization(for: authority)
+        )
+        let coordinator = CollectionOutcomeResolutionCoordinator(
+            authorize: { authorization },
+            validateAuthorization: { candidate in
+                guard candidate.authority == authority else { return false }
+                do {
+                    try candidate.commitAuthorization.perform {}
+                    return true
+                } catch {
+                    return false
+                }
+            },
+            recoverAuthorization: { _ in
+                throw CollectionBlockedOutcomeError.unavailable
+            },
+            loadContext: { operationID, commitAuthorization in
+                try await actor.blockedOutcomeContext(operationID: operationID, authorization: commitAuthorization)
+            },
+            fetchRemoteEntry: { mangaID, _ in
+                guard mangaID == CatalogPreviewSupport.mangas[0].id else { return nil }
+                let manga = CatalogPreviewSupport.mangas[0]
+                return CollectionRemoteEntry(
+                    remoteID: UUID(uuidString: "CBCBCBCB-CBCB-CBCB-CBCB-CBCBCBCBCBCB")!,
+                    manga: manga,
+                    ownedVolumes: [1],
+                    readingVolume: 1,
+                    isComplete: false
+                )
+            },
+            validateEvidence: { remoteEntry, mangaID in
+                try await actor.blockedOutcomeEvidence(remoteEntry: remoteEntry, mangaID: mangaID)
+            },
+            resolveStore: { context, evidence, decision, commitAuthorization, operationID in
+                try await actor.resolveBlockedOutcome(
+                    context,
+                    evidence: evidence,
+                    decision: decision,
+                    authorization: commitAuthorization,
+                    newOperationID: operationID
+                )
+            }
+        )
+        return CollectionBlockedOutcomeResolution(coordinator: coordinator)
     }
 #endif
 }

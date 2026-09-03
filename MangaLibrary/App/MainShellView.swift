@@ -18,6 +18,7 @@ struct MainShellView: View {
     let accountModel: AccountModel
     let collectionMutation: CollectionMutation
     let collectionSynchronization: CollectionSynchronization
+    let collectionBlockedOutcomeResolution: CollectionBlockedOutcomeResolution
 
     @Query private var collectionOperations: [CollectionOutboxOperation]
     @State private var selectedTab: AppTab = .catalog
@@ -30,7 +31,7 @@ struct MainShellView: View {
             authority: authenticatedAuthority,
             operations: collectionOperations
         )
-        let collectionNotice = transientCollectionNotice ?? AccountCollectionNotice.persistedUploadOutcome(
+        let blockedOutcomeNotice = AccountCollectionNotice.persistedUploadOutcome(
             userID: authenticatedAuthority?.userID,
             operations: collectionOperations
         )
@@ -52,7 +53,12 @@ struct MainShellView: View {
             .accessibilityIdentifier("tab.collection")
 
             Tab("Account", systemImage: "person.crop.circle", value: .account) {
-                AccountRootView(model: accountModel, collectionNotice: collectionNotice)
+                AccountRootView(
+                    model: accountModel,
+                    transientCollectionNotice: transientCollectionNotice,
+                    blockedOutcomeNotice: blockedOutcomeNotice,
+                    collectionBlockedOutcomeResolution: collectionBlockedOutcomeResolution
+                )
             }
             .accessibilityIdentifier("tab.account")
         }
@@ -117,7 +123,7 @@ extension AccountCollectionNotice {
     }
 }
 
-private struct CollectionSynchronizationID: Hashable {
+struct CollectionSynchronizationID: Hashable {
     private struct OperationIdentity: Hashable {
         let operationID: UUID
         let sequence: Int64
@@ -125,11 +131,21 @@ private struct CollectionSynchronizationID: Hashable {
 
     let authority: SessionAuthority?
     private let operations: [OperationIdentity]
+    private let blockedOutcomeOperations: [OperationIdentity]
 
     init(authority: SessionAuthority?, operations: [CollectionOutboxOperation]) {
         self.authority = authority
         self.operations = operations
             .filter { $0.userID == authority?.userID }
+            .map { OperationIdentity(operationID: $0.operationID, sequence: $0.sequence) }
+            .sorted { lhs, rhs in
+                if lhs.sequence != rhs.sequence {
+                    return lhs.sequence < rhs.sequence
+                }
+                return lhs.operationID.uuidString < rhs.operationID.uuidString
+            }
+        blockedOutcomeOperations = operations
+            .filter { $0.userID == authority?.userID && $0.state == .blockedOutcome }
             .map { OperationIdentity(operationID: $0.operationID, sequence: $0.sequence) }
             .sorted { lhs, rhs in
                 if lhs.sequence != rhs.sequence {

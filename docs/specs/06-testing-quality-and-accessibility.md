@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.29
-**Fecha:** 2026-09-03
+**Versión:** 1.30
+**Fecha:** 2026-09-04
 
 ## Propósito
 
@@ -111,6 +111,9 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 - `StaticConfiguration`, `TimelineProvider`, timeline `.never`, proyección común y ausencia de configuración por App Intent;
 - manifest, portada inmutable local o placeholder, retención y limpieza;
 - estados y cancelación de modelos de feature `@Observable @MainActor` cuando sean propietarios reales de ese workflow.
+- modelo R2.4 con estados de carga, presencia, ausencia, incompatibilidad, fallo,
+  cambio remoto y resolución; una cancelación o ruta abandonada no ejecuta la
+  capacidad ni conserva una decisión obsoleta.
 
 ### Integración
 
@@ -256,6 +259,18 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
   Un DELETE incierto realiza un único GET individual: `404` confirma, una entrada
   `200` o un fallo ordinario bloquean y ningún caso repite DELETE; una tombstone
   `sending` recuperada reutiliza el snapshot R1 sin otra request;
+- resolución R2.4 con store SwiftData real: presencia y ausencia frescas al
+  aceptar nube o conservar dispositivo; coincidencia que confirma sin nueva
+  escritura; nueva UUID y secuencia solo ante divergencia sin N+1; usuario,
+  manga, UUID, secuencia, estado, payload y autoridad obsoletos; UUID duplicado,
+  overflow, cancelación y fallo de persistencia con rollback conjunto;
+- operación N bloqueada con N+1 posterior: actualiza base, confirma solo N,
+  conserva estado y N+1 intactos, no crea N+2 y provoca una única reanudación del
+  worker; otra pareja y otro usuario no cambian;
+- coordinador R2.4 con GET individual, primer `401` seguido de recuperación y un
+  único retry, segundo `401`, `403`, red, contrato incompatible y sesión
+  reemplazada; compara de nuevo antes del commit y una nube cambiada conserva el
+  bloqueo con cero escrituras;
 - R2.3 con reloj controlado y store SwiftData real: `sending → retry` persiste
   contador y deadline; antes de vencer realiza cero requests, al vencer reutiliza
   UUID y secuencia una sola vez, y una pareja accionable no queda bloqueada por
@@ -307,10 +322,23 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 | Rechazo de tombstone y N+1 | Se rechaza DELETE con base presente o existe una intención posterior N+1 | Restaura la entrada confirmada cuando corresponde y conserva N+1 como estado visible y pendiente. |
 | Fallo de reversión | El store inyecta un fallo al persistir la restauración | Rollback conjunto: Colección y outbox retienen el estado previo, sin restauración parcial ni cursor `confirmed` falso. |
 
+#### Matriz focal R2.4
+
+| Caso | Estímulo controlado | Oráculo independiente |
+| --- | --- | --- |
+| Revisión presente o ausente | GET individual devuelve `200` compatible o `404` | La pantalla compara dispositivo con presencia o ausencia; todavía no cambia SwiftData ni ejecuta una escritura. |
+| Lectura no utilizable | Red, `403`, segundo `401` o payload incompatible | Las decisiones permanecen ocultas, sesión y Keychain siguen activos y Colección/outbox no cambian. |
+| Aceptar nube | Evidencia fresca estable, sin N+1 | La presencia se aplica o la ausencia retira la entrada, N pasa a `confirmed` y se observan cero POST/DELETE. |
+| Mantener dispositivo divergente | Evidencia fresca estable, sin N+1 | N pasa a `confirmed`; existe una sola operación nueva `queued`, con UUID distinta y secuencia mayor, para el mismo estado local. |
+| Efecto ya demostrado | La evidencia fresca coincide con el estado deseado de N | N se confirma y no existe nueva operación ni escritura. |
+| Intención posterior | N está bloqueada y N+1 continúa pendiente | N se confirma contra la base; entrada y N+1 quedan bit a bit iguales, no existe N+2 y el worker recibe un único wake explícito. |
+| Cambio durante la decisión | El segundo GET difiere de la evidencia mostrada | Cero mutaciones y cero escrituras; la UI exige revisar la nueva versión. |
+| Cerca o commit inválidos | Cambian autoridad/UUID/secuencia/estado o falla persistencia | Rollback de entrada y outbox; el aviso durable continúa visible. |
+
 ### Interfaz
 
 XCUITest se limita a los menores recorridos deterministas que demuestren wiring
-crítico no cubierto con Swift Testing. En el alcance actual ejecuta ocho; el
+crítico no cubierto con Swift Testing. En el alcance actual ejecuta diez; el
 recorrido de Colección cubre tanto alta como eliminación confirmada:
 
 - bootstrap mock Debug → primera fila de Catálogo → detalle de la misma
@@ -339,6 +367,13 @@ recorrido de Colección cubre tanto alta como eliminación confirmada:
 - bootstrap mock Debug → `NavigationSplitView` regular con A persistido y el
   detalle ya seleccionado → importación B por el actor real → fila, resumen y
   apertura posterior del editor en B sin reseleccionar, red, Keychain o disco.
+- bootstrap mock Debug → Cuenta autenticada con alta y tombstone
+  `blockedOutcome` → aviso durable → lista → revisión determinista → cancelación
+  sin efecto y resolución posterior → fila y aviso desaparecen, usando un
+  container real en memoria y sin red, Keychain ni disco live.
+- bootstrap mock Debug → Cuenta autenticada con `blockedOutcome` y fallo R1 de
+  autorización → aviso transitorio y aviso durable visibles simultáneamente, con
+  la acción de revisión accesible y sin red, Keychain ni disco live.
 
 Un flujo UI adicional solo se incorpora cuando exista un riesgo observable que
 no pueda caracterizarse con estado, modelo, integración o preview, y se elimina
@@ -380,6 +415,9 @@ Se inyectarán pérdida o corrupción de contador, overflow, disco lleno y carre
   construir un rango no acotado y presenta un mensaje localizado seguro; su
   inspección visual no sustituye los oráculos de atomicidad y cero transporte.
 - Cada escenario significativo posee contexto aislado y no llama a API, Keychain ni almacenamiento live.
+- R2.4 incluye previews deterministas de lista con alta y tombstone, remoto
+  presente, remoto ausente, carga, fallo, incompatibilidad y N+1; ninguna preview
+  presenta una base histórica como si fuese una lectura actual.
 - Loading estable se modela como estado de presentación; no se simula con sleeps.
 - Cuenta construye directamente estados de alta inactiva, enviando, incierta y
   creada, y usa operaciones sintéticas para el encadenado con login; ninguna

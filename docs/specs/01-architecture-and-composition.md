@@ -1,8 +1,8 @@
 # Arquitectura y composición
 
 - Estado: aprobado
-- Versión: 1.8
-- Última revisión: 2026-09-03
+- Versión: 1.9
+- Última revisión: 2026-09-04
 
 ## Propósito y alcance
 
@@ -127,7 +127,14 @@ una sincronización y solo adapta a presentación el error tipado de autorizaci�
 Para R2, la raíz observa la outbox mediante `@Query` y deriva exclusivamente de
 un `blockedOutcome` persistido el aviso de escritura no confirmada de la identidad
 activa; no copia ese estado a `@State`, sobrevive a fallos anteriores de R1 y
-desaparece al resolver la operación durable. La raíz contiene tres destinos
+desaparece al resolver la operación durable. El aviso efímero de R1 y este aviso
+durable se presentan por separado para que un fallo de lectura nunca oculte el
+único acceso a la resolución. Cuenta añade una ruta tipada que muestra mediante
+`@Query` las operaciones bloqueadas de la identidad activa; cada destino de
+detalle recibe una identidad de operación por valor y crea un modelo de workflow
+que comprueba la versión remota antes de habilitar una decisión. La capacidad de
+resolución llega desde composición y ninguna View muta SwiftData o construye red.
+La raíz contiene tres destinos
 estables con el estilo predeterminado de `TabView`:
 
 1. **Catálogo**: usa `magnifyingglass` para expresar descubrimiento y búsqueda, con `NavigationStack` tipado por `Manga.ID` en presentación compacta y `NavigationSplitView` con lista o cuadrícula y detalle en regular.
@@ -189,6 +196,9 @@ La red nunca escribe directamente en estado de View. El detalle operativo está 
 - Ningún `@Model` se pasa como dato de trabajo a un actor con otro contexto.
 - Catálogo y Colección abren el mismo detalle mediante `Manga.ID` y conservan rutas locales independientes al cambiar de tab.
 - Catálogo y Colección se distinguen en el shell mediante sus símbolos semánticos `magnifyingglass` y `books.vertical.fill`.
+- Un `blockedOutcome` activo conserva siempre un acceso visible desde Cuenta,
+  aunque exista simultáneamente un aviso efímero de R1; su lista se deriva de
+  SwiftData y una decisión atraviesa la capacidad aislada de Colección.
 - Completar logout o cambiar de usuario no permite que la selección anterior resuelva un detalle privado; cancelar logout no destruye prematuramente la navegación.
 - iPhone e iPad presentan el flujo list-detail sin dos fuentes de navegación competidoras.
 - El build con comprobación estricta de concurrencia y warnings-as-errors termina limpio.
