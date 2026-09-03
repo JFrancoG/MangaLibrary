@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.25
+**Versión:** 1.26
 **Fecha:** 2026-09-03
 
 ## Propósito
@@ -79,6 +79,13 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 ### Unidad
 
 - invariantes de colección y transiciones de edición;
+- política única de números de tomo: `nil` conserva total desconocido, 299 y 300
+  son válidos, y 301 e `Int64.max` se rechazan antes de construir rangos tanto
+  con total conocido como desconocido;
+- Catálogo distingue `nil` real de un total wire explícito fuera de `1...300`: el
+  primero permanece desconocido y el segundo rechaza la página sin proyectarlo;
+- un seed histórico incompatible no materializa `1...total`, no permite una
+  edición ordinaria y conserva sus valores mientras expone una categoría segura;
 - composición y reinicio de consultas y filtros;
 - mapeo de errores de transporte, sesión y dominio;
 - máquina de estados de autenticación y sincronización;
@@ -184,6 +191,11 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
   contexto: snapshot presente, intención pendiente, ausencia remota, aislamiento
   por usuario, canonicalización, error tipado del lote inválido y rollback real
   después de la primera mutación de un único commit;
+- importación R1 con total, propiedad o lectura 301 e `Int64.max`: validación
+  anterior a cualquier rango, rollback del lote completo y conservación de
+  sesión, Keychain, Colección y outbox; la única excepción cubierta es la presencia
+  opaca del manga cuya primera intención es una tombstone procesable, sin importar
+  sus valores ni confirmar ausencia;
 - cliente POST R2.1 con request y JSON exactos, `readingVolume` nulo explícito,
   Bearer sintético, ausencia de `App-Token`, status exacto `200` e `Int64` opaco;
 - cliente R2.2 con GET y DELETE individuales exactos, `Manga.ID` decimal,
@@ -197,6 +209,21 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
   realiza cero POST, confirmación que no pisa una intención posterior, mapping de
   cancelación y cambio de sesión en cada frontera del store y recuperación de
   `sending` sin repetir el POST;
+- intención R2 no tombstone con estado histórico fuera de `1...300`: error local
+  anterior al claim, cero requests, cero transición parcial y ninguna alteración
+  de otra secuencia; su eliminación explícita sí crea y envía una tombstone cuyo
+  DELETE no contiene números de tomo;
+- cursor N ya `confirmed` con estado histórico incompatible y tombstone N+1: R1
+  conserva ambas operaciones y R2 puede reclamar N+1 sin volver a validar o enviar
+  el payload confirmado;
+- POST N histórico incompatible recuperado en `sending` seguido de eliminación:
+  la mutación lo deja sin efecto atómicamente sin marcarlo confirmado, conserva
+  N+1, R1 no adopta la fila incompatible ni la trata como ausencia y R2 reclama
+  la tombstone como DELETE; una tombstone ya `sending` conserva la presencia
+  incompatible como evidencia opaca, pasa a `blockedOutcome` y no repite DELETE;
+- operación bloqueada anterior seguida de tombstone y fila remota incompatible:
+  R1 no concede la excepción contextual, revierte el lote y conserva ambas
+  operaciones;
 - pipeline R1 → R2 sobre SwiftData real: una `sending` recuperada reutiliza el
   único snapshot R1 con exactamente un GET total y cero POST; match confirma y
   ausencia bloquea. Fallo de lectura o de importación ordinario bloquea sin otra
@@ -291,6 +318,9 @@ Se inyectarán pérdida o corrupción de contador, overflow, disco lleno y carre
 - Una preview interactiva de Catálogo usa un loader de dominio directo; no construye `URLSession`, `HTTPClient`, DTO, `URLProtocol` o JSON.
 - Los fixtures JSON se reservan a tests del cliente tipado y `URLProtocol` a tests de `HTTPClient`; ninguna preview pretende demostrar por sí sola el pipeline completo.
 - Colección usa un `ModelContainer` en memoria con el esquema real; las interacciones posteriores recorren la capacidad de mutación de producción.
+- La variante histórica incompatible del editor conserva sus valores, evita
+  construir un rango no acotado y presenta un mensaje localizado seguro; su
+  inspección visual no sustituye los oráculos de atomicidad y cero transporte.
 - Cada escenario significativo posee contexto aislado y no llama a API, Keychain ni almacenamiento live.
 - Loading estable se modela como estado de presentación; no se simula con sleeps.
 - Cuenta construye directamente estados de alta inactiva, enviando, incierta y

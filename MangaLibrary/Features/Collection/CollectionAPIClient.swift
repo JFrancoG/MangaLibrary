@@ -9,6 +9,7 @@ enum CollectionAPIClientError: Error, Equatable {
     case unavailable
     case network(NetworkError)
     case contractDrift
+    case invalidVolumeState
     case duplicateRemoteID(UUID)
     case duplicateMangaID(Manga.ID)
 }
@@ -25,10 +26,11 @@ struct CollectionRemoteEntry: Equatable {
     let ownedVolumes: [Int64]
     let readingVolume: Int64?
     let isComplete: Bool
-    /// Raw wire value retained so R1 can reject nonpositive totals atomically.
+    /// Raw wire value retained so R1 can reject unsupported totals atomically.
     ///
-    /// Catalog projection normalizes those values to `nil`; collapsing them
-    /// here would turn contract drift into an apparently unknown total.
+    /// Catalog rejects out-of-policy values before projection. Collection retains
+    /// the raw value even when its intermediate `Manga` omits that total; collapsing
+    /// it here would turn contract drift into an apparently unknown total.
     let reportedTotalVolumes: Int64?
 
     init(
@@ -168,6 +170,11 @@ struct CollectionAPIClient {
         accessToken: String
     ) async throws(any Error) -> Int64 {
         guard accessToken.isEmpty == false else { throw CollectionAPIClientError.unavailable }
+        guard
+            ownedVolumes.allSatisfy(CollectionVolumePolicy.contains),
+            ownedVolumes == Array(Set(ownedVolumes)).sorted(),
+            readingVolume.map(CollectionVolumePolicy.contains) ?? true
+        else { throw CollectionAPIClientError.invalidVolumeState }
 
         let body: Data
         do {

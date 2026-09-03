@@ -44,7 +44,8 @@ actor CollectionMutationActor {
     ///
     /// A queued operation for the same pair keeps its UUID and receives a higher
     /// sequence. Operations in other states remain untouched; a later queued
-    /// intent is created when necessary.
+    /// intent is created when necessary. An explicit deletion supersedes a
+    /// recovered pre-policy `sending` POST whose volume state is no longer valid.
     ///
     /// - Parameters:
     ///   - command: Identity, optional total knowledge and the semantic edit.
@@ -105,7 +106,9 @@ actor CollectionMutationActor {
             knownTotalVolumes: nil,
             isTombstone: false
         )
-        guard isValidPersistedState(currentState) else { throw CollectionMutationError.persistenceConflict }
+        if CollectionVolumePolicy.isValid(currentState) == false {
+            guard case .delete = command.change else { throw CollectionMutationError.incompatibleStoredVolumeState }
+        }
 
         let desiredState = try applying(command, to: currentState)
         if let entry {
@@ -124,6 +127,9 @@ actor CollectionMutationActor {
 
         let outbox = try fetchOutbox(userID: command.userID, mangaID: command.mangaID)
         let sequence = try nextSequence(after: outbox)
+        if case .delete = command.change {
+            supersedeInvalidHistoricalSendingUploads(in: outbox)
+        }
         let queued = outbox.filter { $0.state == .queued }
         guard queued.count <= 1 else { throw CollectionMutationError.persistenceConflict }
 
@@ -153,6 +159,21 @@ actor CollectionMutationActor {
             outboxOperationID: operation.operationID,
             sequence: sequence
         )
+    }
+
+    /// Drops only a recovered, incompatible POST that an explicit DELETE supersedes.
+    ///
+    /// Its sequence has already contributed to the next monotonic value. The
+    /// operation is not marked confirmed because its remote result is unknown;
+    /// the following bodyless DELETE is correct whether that POST applied or not.
+    private func supersedeInvalidHistoricalSendingUploads(in operations: [CollectionOutboxOperation]) {
+        for operation in operations where
+            operation.state == .sending &&
+            operation.isTombstone == false &&
+            operation.desiredState.isTombstone == false &&
+            CollectionVolumePolicy.isValid(operation.desiredState) == false {
+            modelContext.delete(operation)
+        }
     }
 
     private func fetchEntry(userID: UUID, mangaID: Manga.ID) throws(any Error) -> CollectionEntry? {
@@ -209,6 +230,9 @@ actor CollectionMutationActor {
 
         if let newTotal = command.knownTotalVolumes {
             guard newTotal > 0 else { throw .nonPositiveKnownTotal(newTotal) }
+            guard CollectionVolumePolicy.contains(newTotal) else {
+                throw .knownTotalExceedsMaximum(total: newTotal, maximum: CollectionVolumePolicy.maximum)
+            }
             if newTotal != currentState.knownTotalVolumes {
                 try validateKnownTotalChange(newTotal, currentState: currentState)
             }
@@ -230,16 +254,20 @@ actor CollectionMutationActor {
             readingVolume = volume
         case let .setComplete(complete):
             if complete {
-                guard let knownTotal, knownTotal > 0 else { throw .completeRequiresKnownTotal }
-                ownedVolumes = Array(1...knownTotal)
+                guard let completeVolumes = CollectionVolumePolicy.completeVolumes(for: knownTotal) else {
+                    throw .completeRequiresKnownTotal
+                }
+                ownedVolumes = completeVolumes
             }
             isComplete = complete
         case let .replaceState(volumes, volume, complete):
             try validate(volume: volume, knownTotal: knownTotal)
             readingVolume = volume
             if complete {
-                guard let knownTotal, knownTotal > 0 else { throw .completeRequiresKnownTotal }
-                ownedVolumes = Array(1...knownTotal)
+                guard let completeVolumes = CollectionVolumePolicy.completeVolumes(for: knownTotal) else {
+                    throw .completeRequiresKnownTotal
+                }
+                ownedVolumes = completeVolumes
             } else {
                 ownedVolumes = try canonicalOwnedVolumes(volumes, knownTotal: knownTotal)
             }
@@ -255,7 +283,7 @@ actor CollectionMutationActor {
             knownTotalVolumes: knownTotal,
             isTombstone: false
         )
-        guard isValidPersistedState(candidate) else { throw .persistenceConflict }
+        guard CollectionVolumePolicy.isValid(candidate) else { throw .persistenceConflict }
         return candidate
     }
 
@@ -272,6 +300,9 @@ actor CollectionMutationActor {
     private func validate(volume: Int64?, knownTotal: Int64?) throws(CollectionMutationError) {
         guard let volume else { return }
         guard volume > 0 else { throw .nonPositiveVolume(volume) }
+        guard CollectionVolumePolicy.contains(volume) else {
+            throw .volumeExceedsMaximum(volume: volume, maximum: CollectionVolumePolicy.maximum)
+        }
         if let knownTotal, volume > knownTotal {
             throw .volumeExceedsKnownTotal(volume: volume, total: knownTotal)
         }
@@ -288,27 +319,9 @@ actor CollectionMutationActor {
         }
     }
 
-    private func isValidPersistedState(_ state: CollectionSnapshot) -> Bool {
-        guard state.ownedVolumes.allSatisfy({ $0 > 0 }) else { return false }
-        guard state.ownedVolumes == Array(Set(state.ownedVolumes)).sorted() else { return false }
-        guard state.readingVolume.map({ $0 > 0 }) ?? true else { return false }
-
-        if let total = state.knownTotalVolumes {
-            guard total > 0 else { return false }
-            guard state.ownedVolumes.allSatisfy({ $0 <= total }) else { return false }
-            guard state.readingVolume.map({ $0 <= total }) ?? true else { return false }
-        }
-
-        if state.isComplete {
-            guard matchesCompleteRange(state.ownedVolumes, total: state.knownTotalVolumes) else { return false }
-        }
-        return true
-    }
-
     private func matchesCompleteRange(_ ownedVolumes: [Int64], total: Int64?) -> Bool {
-        guard let total, total > 0, let count = Int(exactly: total), ownedVolumes.count == count else { return false }
-        return ownedVolumes.enumerated().allSatisfy { index, volume in
-            volume == Int64(index) + 1
-        }
+        guard let completeVolumes = CollectionVolumePolicy.completeVolumes(for: total) else { return false }
+
+        return ownedVolumes == completeVolumes
     }
 }

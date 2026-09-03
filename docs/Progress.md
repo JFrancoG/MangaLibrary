@@ -1,7 +1,40 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-03
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2 y las correcciones #55, #58 y #61 entregadas; #61 se entrega mediante la PR #62 con aceptación live del propietario
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2 y las correcciones #55, #58 y #61 entregadas; #63 está implementada y validada localmente, sin commit ni entrega autorizados
+
+## Cota global de 300 números de tomo — issue #63
+
+- El [issue #63 — fijar en 300 el máximo global de tomos](https://github.com/JFrancoG/MangaLibrary/issues/63) parte de la deuda transversal identificada al entregar R1. La rama `codex/63-max-300-collection-volumes` parte de `main@53e6b0c5afba`, limpio y sincronizado con `origin/main`.
+- La decisión de producto del 3 de septiembre de 2026 fija `300` como máximo inclusivo para total conocido, tomos en propiedad y volumen de lectura. `nil` conserva exclusivamente la semántica de total editorial desconocido y no relaja la cota de los números individuales.
+- SDD 03 v1.4 y SDD 04 v1.23 exigen validar antes de materializar rangos, rechazar R1 atómicamente sin afectar sesión y detener R2 antes del claim o transporte. Un estado histórico incompatible se conserva sin truncado ni edición o POST; una eliminación explícita puede crear y enviar una tombstone porque DELETE solo transporta `Manga.ID`.
+- `CollectionVolumePolicy` es la única representación de `1...300`, la comprobación de pertenencia, el total conocido compatible y la construcción acotada de una colección completa. Catálogo rechaza un total explícito fuera de rango antes de proyectarlo; `nil` continúa siendo desconocido. Editor, mutación atómica, R1 y R2 reutilizan la misma política y errores tipados, sin dependencias, cambios de esquema, proyecto, entitlements u OpenAPI.
+- El editor no construye rangos a partir de un total incompatible. Conserva los valores históricos, bloquea la edición y Guardar, mantiene disponible la eliminación explícita y presenta un mensaje localizado. Cuenta conserva la sesión ante datos de volumen incompatibles de R1 o R2 y muestra un aviso neutral que no pide autenticarse de nuevo.
+- R1 valida el lote completo antes de mutar. La única excepción es la presencia opaca de una fila incompatible que coincide con la primera tombstone exacta procesable: no importa sus valores ni confirma ausencia y conserva la entrada bruta para R2. Una tombstone `queued` puede enviar DELETE; una `sending` usa esa presencia para persistir `blockedOutcome` sin adoptar la base inválida ni repetir el borrado. Una operación anterior bloqueada impide la excepción y mantiene el rechazo atómico.
+
+### RED/GREEN y validación local de #63
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| RED/GREEN del caso histórico incierto | Las dos regresiones finales fallaron inicialmente 0/2: R1 devolvía `knownTotalExceedsMaximum(301, 300)` antes de la tombstone N+1 y una tombstone `sending` convertía la presencia 301 en `persistenceConflict`. Tras la excepción contextual aprobaron 2/2; el foco ampliado aprueba 3/3 e incluye una operación anterior bloqueada que no permite la excepción. |
+| Xcode MCP — suites focales | 148 declaraciones seleccionadas de los nueve archivos de test afectados produjeron 157 invocaciones aprobadas, 0 fallos, skips, expected failures o casos no ejecutados. Cubren Catálogo, editor, cliente POST, mutación, persistencia/reapertura, transiciones R2, importación y coordinación R1. |
+| Xcode MCP — `ReleaseGate` | Repetición monolítica final posterior al ajuste presentacional del aviso: 523/523 aprobados en iPhone 17 Simulator con iOS 27, 0 fallos, skips, expected failures o casos no ejecutados. El inventario previo confirmó 403 declaraciones habilitadas y ninguna deshabilitada; los casos parametrizados elevan el recuento de resultados. |
+| Xcode MCP — build y diagnósticos finales | `BuildProject(buildForTesting: true)` repetido tras reubicar el aviso y aprobado en 7,694 s; 0 errores o warnings estructurados. El Issue Navigator devuelve 0 issues con severidad warning o superior. Proyecto `MangaLibrary.xcodeproj`, scheme `MangaLibrary`. |
+| Planes estrechos | La regresión conocida de descubrimiento de tags permanece: `Fast` e `Integration` enumeran 395 declaraciones pero habilitan 0. No se presentan como gates aprobados; las suites se ejecutaron por identificador y dentro de `ReleaseGate`. Xcode queda restaurado al plan predeterminado `Fast`. |
+| Xcode MCP — previews y recorrido UI | El aviso de Cuenta y el editor histórico realmente persistido se renderizaron sin errores en español, tamaños normal, XXX Large y AX5 sobre iPhone 17 Pro/iOS 27. El editor con total desconocido se repitió en español, modo oscuro, Large, XXX Large y AX5. Un recorrido hermético introdujo `301` y verificó en runtime el orden campo → aviso → `Tomo 1`: el valor no se añadió y el mensaje quedó dentro de la misma celda, inmediatamente bajo el campo y antes del listado. El contenido seguía siendo desplazable y no mostró truncados o solapamientos. Es evidencia visual de preview y simulador, no de tecnologías de asistencia. |
+| `Scripts/validate-docc.sh` | Repetido sobre el snapshot final: ocho escenarios deterministas aprobados; archive Release generado con warnings DocC como errores y únicamente la emisión externa exacta acotada por ADR-0011 para Xcode 27 build `27A5252f`. El archive permanece local y no se publica. |
+| Localización e integridad | `Localizable.xcstrings` conserva 185 claves activas, 185/185 traducidas en inglés y español y 0 stale. `git diff --check` queda limpio; los escaneos no encuentran escapes de concurrencia ni logs de secretos. `project.pbxproj` conserva SHA-256 `ee6cd588ee1ba5666a71b8b42cbc19338af70025072d35a4efe1acb14732ab76` y OpenAPI conserva `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`. |
+| Revisiones independientes | Las reauditorías finales iOS/datos/concurrencia, SwiftUI/accesibilidad y `swift-source-style` cierran sin hallazgos P0–P3. El P1 intermedio de la fila 301 remota se cerró con presencia opaca exacta y tres regresiones; dos comentarios DocC demasiado absolutos se matizaron y el audit final de estilo quedó limpio. |
+
+### Límites y estado de entrega
+
+No se llamó al backend, no se realizó ninguna escritura live y no se usaron
+cuentas, JWT o Keychain reales. Tampoco se ejecutaron VoiceOver, Voice Control,
+Switch Control, Acceso total con teclado o Accessibility Inspector ni se extrapola
+su cobertura desde previews. Retry/backoff y la resolución interactiva de
+`blockedOutcome` permanecen fuera de #63. El issue #63 continúa abierto y la rama
+local conserva todos los cambios sin commit, push, PR, merge ni borrado, conforme
+a la autorización recibida.
 
 ## Detalle de Colección coherente en iPad — issue #61
 
@@ -206,7 +239,10 @@ recursos en R1 y en las rutas L1/L2 preexistentes que aplican la misma invariant
 Fijar una cota solo en R1 inventaría una política incoherente; su resolución
 requiere una decisión normativa transversal, error tipado y cobertura local,
 remota y de UI. No se oculta como gate superado ni se amplía este diff con una
-cota arbitraria.
+cota arbitraria. El issue #63 recoge la decisión posterior del propietario de
+usar 300 como máximo inclusivo e implementa esa resolución transversal con sus
+gates locales completos; el riesgo no se considera entregado hasta versionar y
+fusionar el cambio mediante autorización posterior.
 
 La implementación se versiona inicialmente en `6298255` y se entrega mediante la
 [PR #54](https://github.com/JFrancoG/MangaLibrary/pull/54), cuya fusión cierra el
@@ -940,8 +976,9 @@ La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden d
 6. **L2 — Colección local y offline, entregada mediante la PR #50.** `@Query` queda restringida a la identidad activa y excluye tombstones; Colección posee navegación independiente y alta, edición y eliminación mediante la ruta semántica de L1. El esquema V2 añade presentación offline con migración lightweight, y tomos, lectura, colección completa, tombstones y aislamiento A/B sobreviven a reapertura sin red.
 7. **R1 — lectura e importación remota, entregada mediante la [PR #54](https://github.com/JFrancoG/MangaLibrary/pull/54).** Consume la colección de la persona autenticada al iniciar o restaurar sesión y reconcilia el snapshot completo en SwiftData sin pisar intenciones locales posteriores. Aquí empieza la integración con la persistencia remota; la UI continúa observando exclusivamente el estado local.
 8. **R2 — envío y reconciliación de outbox, entregado mediante la PR #60.** La decisión del propietario del 2 de septiembre fija `{id}` como `Manga.ID` `int64` serializado en decimal; el UUID de entrada no forma el path y la discrepancia `string` queda como deuda contractual. R2.1 reutiliza el GET completo R1 e implementa POST y procesamiento conservador de intenciones no tombstone; R2.2 añade GET/DELETE individual, tombstones y la confirmación destructiva de UI. Ambos cortes están validados localmente y R2.2 cuenta con aceptación live multidispositivo de la ruta decimal y la ausencia reconciliada; el status/body exacto del primer DELETE y el GET presente `200` siguen sin caracterización directa. Retry/backoff, `blockedAuth`, rechazo/reversión y resolución manual permanecen en cortes posteriores.
-9. **Advanced Release Gate.** Completar el logout con operaciones pendientes, aislamiento A→B, recuperación después de crash y toda la evidencia de catálogo, Cuenta, Colección, sincronización, iPhone/iPad, accesibilidad, build, tests y DocC.
-10. **Deluxe.** Iniciar WidgetKit, watchOS, App Group, `SessionFence` y los puentes de datos únicamente después de que Advanced quede aceptado.
+9. **Cota transversal de números de tomo, implementada y validada localmente mediante el issue #63.** Fija 300 como máximo inclusivo compartido, preserva `nil` como total desconocido y protege editor, mutación, R1 y R2 frente a valores históricos o remotos fuera de rango sin truncado ni transporte accidental. Permanece sin commit ni entrega hasta autorización posterior.
+10. **Advanced Release Gate.** Completar el logout con operaciones pendientes, aislamiento A→B, recuperación después de crash y toda la evidencia de catálogo, Cuenta, Colección, sincronización, iPhone/iPad, accesibilidad, build, tests y DocC.
+11. **Deluxe.** Iniciar WidgetKit, watchOS, App Group, `SessionFence` y los puentes de datos únicamente después de que Advanced quede aceptado.
 
 S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad autenticable, pero permanece antes del gate Advanced y en una unidad separada porque incorpora el `App-Token`. S2.1 y S2.2 cierran superficies de Cuenta sin iniciar persistencia de producto. La outbox sí pertenece a L1: el worker de R2 puede llegar después, pero ninguna mutación expuesta puede escribir Colección sin registrar o coalescer su intención en la misma operación lógica.
 

@@ -365,6 +365,67 @@ struct CollectionRemoteImportTests {
         #expect(entry.confirmedState == entry.state)
     }
 
+    @Test("A complete remote collection accepts and materializes the global maximum")
+    func completeRemoteCollectionAcceptsTheGlobalMaximum() async throws(any Error) {
+        let container = try makeContainer()
+        let actor = CollectionMutationActor(modelContainer: container)
+
+        try await actor.importRemote(
+            [
+                Self.remoteEntry(
+                    remoteID: UUID(),
+                    mangaID: 42,
+                    title: "Complete boundary",
+                    ownedVolumes: [300, 1, 300],
+                    readingVolume: 299,
+                    totalVolumes: 300,
+                    isComplete: true
+                )
+            ],
+            authorization: Self.authorization(for: Self.userID)
+        )
+
+        let store = try readRemoteStore(container)
+        let entry = try #require(store.entries.first)
+        #expect(entry.state.ownedVolumes.count == 300)
+        #expect(Array(entry.state.ownedVolumes.prefix(3)) == [1, 2, 3])
+        #expect(Array(entry.state.ownedVolumes.suffix(3)) == [298, 299, 300])
+        #expect(entry.state.readingVolume == 299)
+        #expect(entry.state.isComplete)
+        #expect(entry.state.knownTotalVolumes == 300)
+        #expect(entry.confirmedState == entry.state)
+        #expect(store.operations.isEmpty)
+    }
+
+    @Test("An unknown remote total accepts owned and reading volumes through 300")
+    func unknownRemoteTotalPreservesTheGlobalBoundary() async throws(any Error) {
+        let container = try makeContainer()
+        let actor = CollectionMutationActor(modelContainer: container)
+
+        try await actor.importRemote(
+            [
+                Self.remoteEntry(
+                    remoteID: UUID(),
+                    mangaID: 42,
+                    title: "Unknown total boundary",
+                    ownedVolumes: [300, 299, 300],
+                    readingVolume: 300,
+                    totalVolumes: nil
+                )
+            ],
+            authorization: Self.authorization(for: Self.userID)
+        )
+
+        let store = try readRemoteStore(container)
+        let entry = try #require(store.entries.first)
+        #expect(entry.state.ownedVolumes == [299, 300])
+        #expect(entry.state.readingVolume == 300)
+        #expect(entry.state.knownTotalVolumes == nil)
+        #expect(entry.state.isComplete == false)
+        #expect(entry.confirmedState == entry.state)
+        #expect(store.operations.isEmpty)
+    }
+
     @Test("A complete remote collection without a known total rejects the whole snapshot")
     func completeRemoteCollectionRequiresKnownTotal() async throws(any Error) {
         let container = try makeContainer()
@@ -384,6 +445,280 @@ struct CollectionRemoteImportTests {
         }
         #expect(try readRemoteStore(container).entries.isEmpty)
         #expect(try readRemoteStore(container).operations.isEmpty)
+    }
+
+    @Test("An incompatible historical store rejects R1 without rewriting either persisted half")
+    func incompatibleHistoricalStoreRejectsRemoteImport() async throws(any Error) {
+        let container = try makeContainer()
+        let historicalState = CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 299,
+            isComplete: false,
+            knownTotalVolumes: 301,
+            isTombstone: false
+        )
+        let context = ModelContext(container)
+        context.insert(
+            CollectionEntry(
+                userID: Self.userID,
+                mangaID: 42,
+                state: historicalState,
+                confirmedState: nil,
+                mangaSnapshot: CollectionMangaSnapshot(
+                    manga: Self.remoteEntry(
+                        remoteID: UUID(),
+                        mangaID: 42,
+                        title: "Historical local",
+                        ownedVolumes: [1],
+                        readingVolume: 299,
+                        totalVolumes: 301
+                    ).manga
+                )
+            )
+        )
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: Self.operationID,
+                userID: Self.userID,
+                mangaID: 42,
+                sequence: 1,
+                desiredState: historicalState
+            )
+        )
+        try context.save()
+        let priorStore = try readRemoteStore(container)
+        let actor = CollectionMutationActor(modelContainer: container)
+
+        await #expect(throws: CollectionRemoteImportError.incompatibleStoredVolumeState) {
+            try await actor.importRemote(
+                [
+                    remoteEntry(
+                        mangaID: 42,
+                        title: "Would replace",
+                        ownedVolumes: [1],
+                        readingVolume: nil
+                    )
+                ],
+                authorization: Self.authorization(for: Self.userID)
+            )
+        }
+
+        #expect(try readRemoteStore(container) == priorStore)
+    }
+
+    @Test("R1 preserves a historical tombstone after an incompatible confirmed cursor")
+    func historicalConfirmedCursorDoesNotBlockRemoteImport() async throws(any Error) {
+        let container = try makeContainer()
+        let historicalState = CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 299,
+            isComplete: false,
+            knownTotalVolumes: 301,
+            isTombstone: false
+        )
+        let tombstone = CollectionSnapshot(
+            ownedVolumes: historicalState.ownedVolumes,
+            readingVolume: historicalState.readingVolume,
+            isComplete: historicalState.isComplete,
+            knownTotalVolumes: historicalState.knownTotalVolumes,
+            isTombstone: true
+        )
+        let nextOperationID = UUID(uuidString: "BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF")!
+        let context = ModelContext(container)
+        context.insert(
+            CollectionEntry(
+                userID: Self.userID,
+                mangaID: 42,
+                state: tombstone,
+                confirmedState: historicalState
+            )
+        )
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: Self.operationID,
+                userID: Self.userID,
+                mangaID: 42,
+                sequence: 1,
+                desiredState: historicalState,
+                state: .confirmed
+            )
+        )
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: nextOperationID,
+                userID: Self.userID,
+                mangaID: 42,
+                sequence: 2,
+                desiredState: tombstone
+            )
+        )
+        try context.save()
+        let actor = CollectionMutationActor(modelContainer: container)
+        let remote = remoteEntry(
+            mangaID: 42,
+            title: "Remote base",
+            ownedVolumes: [1, 2],
+            readingVolume: 2
+        )
+
+        try await actor.importRemote([remote], authorization: Self.authorization(for: Self.userID))
+
+        let store = try readRemoteStore(container)
+        let entry = try #require(store.entries.first)
+        let operations = store.operations.sorted { $0.sequence < $1.sequence }
+        #expect(entry.state == tombstone)
+        #expect(
+            entry.confirmedState == CollectionSnapshot(
+                ownedVolumes: [1, 2],
+                readingVolume: 2,
+                isComplete: false,
+                knownTotalVolumes: 3,
+                isTombstone: false
+            )
+        )
+        #expect(operations.map(\.state) == [.confirmed, .queued])
+        #expect(operations.map(\.desiredState) == [historicalState, tombstone])
+    }
+
+    @Test("Deleting supersedes an incompatible recovered POST before R1 and DELETE")
+    func deletionSupersedesHistoricalSendingPost() async throws(any Error) {
+        let container = try makeContainer()
+        let historicalState = CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 299,
+            isComplete: false,
+            knownTotalVolumes: 301,
+            isTombstone: false
+        )
+        let tombstoneOperationID = UUID(uuidString: "BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF")!
+        let context = ModelContext(container)
+        context.insert(
+            CollectionEntry(
+                userID: Self.userID,
+                mangaID: 42,
+                state: historicalState,
+                confirmedState: nil
+            )
+        )
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: Self.operationID,
+                userID: Self.userID,
+                mangaID: 42,
+                sequence: 1,
+                desiredState: historicalState,
+                state: .sending
+            )
+        )
+        try context.save()
+        let actor = CollectionMutationActor(modelContainer: container)
+
+        let deletion = try await actor.apply(
+            CollectionMutationCommand(
+                authority: Self.authority(for: Self.userID),
+                mangaID: 42,
+                knownTotalVolumes: nil,
+                change: .delete
+            ),
+            newOperationID: tombstoneOperationID
+        )
+
+        var store = try readRemoteStore(container)
+        #expect(deletion.sequence == 2)
+        #expect(store.operations.map(\.operationID) == [tombstoneOperationID])
+        #expect(store.operations.map(\.sequence) == [2])
+        #expect(store.operations.map(\.state) == [.queued])
+        #expect(store.operations.first?.desiredState.isTombstone == true)
+
+        let remote = Self.remoteEntry(
+            remoteID: UUID(),
+            mangaID: 42,
+            title: "Possibly applied incompatible base",
+            ownedVolumes: [1],
+            readingVolume: 299,
+            totalVolumes: 301
+        )
+        try await actor.importRemote([remote], authorization: Self.authorization(for: Self.userID))
+
+        store = try readRemoteStore(container)
+        #expect(store.entries.first?.state.isTombstone == true)
+        #expect(store.entries.first?.confirmedState == nil)
+        #expect(store.operations.map(\.state) == [.queued])
+
+        let claim = try #require(try await actor.claimNextUpload(authorization: Self.authorization(for: Self.userID)))
+        guard case let .send(workItem) = claim else {
+            Issue.record("Expected the superseding tombstone to be sent as DELETE.")
+            return
+        }
+        #expect(workItem.operationID == tombstoneOperationID)
+        #expect(workItem.sequence == 2)
+        #expect(workItem.isTombstone)
+        #expect(try readRemoteStore(container).operations.map(\.state) == [.sending])
+    }
+
+    @Test("An earlier blocked operation does not exempt a later tombstone from R1 validation")
+    func fencedDeletionDoesNotExemptInvalidRemoteData() async throws(any Error) {
+        let container = try makeContainer()
+        let visibleState = CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 1,
+            isComplete: false,
+            knownTotalVolumes: 3,
+            isTombstone: false
+        )
+        let tombstone = CollectionSnapshot(
+            ownedVolumes: visibleState.ownedVolumes,
+            readingVolume: visibleState.readingVolume,
+            isComplete: visibleState.isComplete,
+            knownTotalVolumes: visibleState.knownTotalVolumes,
+            isTombstone: true
+        )
+        let nextOperationID = UUID(uuidString: "BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF")!
+        let context = ModelContext(container)
+        context.insert(
+            CollectionEntry(
+                userID: Self.userID,
+                mangaID: 42,
+                state: tombstone,
+                confirmedState: visibleState
+            )
+        )
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: Self.operationID,
+                userID: Self.userID,
+                mangaID: 42,
+                sequence: 1,
+                desiredState: visibleState,
+                state: .blockedOutcome
+            )
+        )
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: nextOperationID,
+                userID: Self.userID,
+                mangaID: 42,
+                sequence: 2,
+                desiredState: tombstone
+            )
+        )
+        try context.save()
+        let priorStore = try readRemoteStore(container)
+        let actor = CollectionMutationActor(modelContainer: container)
+        let incompatibleRemote = Self.remoteEntry(
+            remoteID: UUID(),
+            mangaID: 42,
+            title: "Fenced incompatible remote",
+            ownedVolumes: [1],
+            readingVolume: 299,
+            totalVolumes: 301
+        )
+
+        await #expect(throws: CollectionRemoteImportError.knownTotalExceedsMaximum(total: 301, maximum: 300)) {
+            try await actor.importRemote([incompatibleRemote], authorization: Self.authorization(for: Self.userID))
+        }
+
+        #expect(try readRemoteStore(container) == priorStore)
     }
 
     @Test("Cancellation before the transaction preserves the prior remote snapshot")
@@ -483,6 +818,12 @@ enum RejectedRemoteBatch: CaseIterable, CustomTestStringConvertible {
     case nonPositiveVolume
     case nonPositiveReadingVolume
     case invalidVolume
+    case excessiveKnownTotal
+    case extremeKnownTotal
+    case excessiveUnknownTotalOwnedVolume
+    case extremeUnknownTotalOwnedVolume
+    case excessiveUnknownTotalReadingVolume
+    case extremeUnknownTotalReadingVolume
     case duplicateManga
 
     var entries: [CollectionRemoteEntry] {
@@ -534,6 +875,74 @@ enum RejectedRemoteBatch: CaseIterable, CustomTestStringConvertible {
                     readingVolume: nil
                 )
             ]
+        case .excessiveKnownTotal:
+            [
+                CollectionRemoteImportTests.remoteEntry(
+                    remoteID: UUID(uuidString: "30000000-0000-0000-0000-000000000001")!,
+                    mangaID: 84,
+                    title: "Excessive known total",
+                    ownedVolumes: [1],
+                    readingVolume: nil,
+                    totalVolumes: 301,
+                    isComplete: true
+                )
+            ]
+        case .extremeKnownTotal:
+            [
+                CollectionRemoteImportTests.remoteEntry(
+                    remoteID: UUID(uuidString: "30000000-0000-0000-0000-000000000002")!,
+                    mangaID: 84,
+                    title: "Extreme known total",
+                    ownedVolumes: [1],
+                    readingVolume: nil,
+                    totalVolumes: .max,
+                    isComplete: true
+                )
+            ]
+        case .excessiveUnknownTotalOwnedVolume:
+            [
+                CollectionRemoteImportTests.remoteEntry(
+                    remoteID: UUID(uuidString: "30000000-0000-0000-0000-000000000003")!,
+                    mangaID: 84,
+                    title: "Excessive owned volume",
+                    ownedVolumes: [301],
+                    readingVolume: nil,
+                    totalVolumes: nil
+                )
+            ]
+        case .extremeUnknownTotalOwnedVolume:
+            [
+                CollectionRemoteImportTests.remoteEntry(
+                    remoteID: UUID(uuidString: "30000000-0000-0000-0000-000000000004")!,
+                    mangaID: 84,
+                    title: "Extreme owned volume",
+                    ownedVolumes: [.max],
+                    readingVolume: nil,
+                    totalVolumes: nil
+                )
+            ]
+        case .excessiveUnknownTotalReadingVolume:
+            [
+                CollectionRemoteImportTests.remoteEntry(
+                    remoteID: UUID(uuidString: "30000000-0000-0000-0000-000000000005")!,
+                    mangaID: 84,
+                    title: "Excessive reading volume",
+                    ownedVolumes: [1],
+                    readingVolume: 301,
+                    totalVolumes: nil
+                )
+            ]
+        case .extremeUnknownTotalReadingVolume:
+            [
+                CollectionRemoteImportTests.remoteEntry(
+                    remoteID: UUID(uuidString: "30000000-0000-0000-0000-000000000006")!,
+                    mangaID: 84,
+                    title: "Extreme reading volume",
+                    ownedVolumes: [1],
+                    readingVolume: .max,
+                    totalVolumes: nil
+                )
+            ]
         case .duplicateManga:
             [
                 CollectionRemoteImportTests.remoteEntry(
@@ -564,6 +973,14 @@ enum RejectedRemoteBatch: CaseIterable, CustomTestStringConvertible {
             .nonPositiveVolume(0)
         case .invalidVolume:
             .volumeExceedsKnownTotal(volume: 4, total: 3)
+        case .excessiveKnownTotal:
+            .knownTotalExceedsMaximum(total: 301, maximum: 300)
+        case .extremeKnownTotal:
+            .knownTotalExceedsMaximum(total: .max, maximum: 300)
+        case .excessiveUnknownTotalOwnedVolume, .excessiveUnknownTotalReadingVolume:
+            .volumeExceedsMaximum(volume: 301, maximum: 300)
+        case .extremeUnknownTotalOwnedVolume, .extremeUnknownTotalReadingVolume:
+            .volumeExceedsMaximum(volume: .max, maximum: 300)
         case .duplicateManga:
             .duplicateMangaID(42)
         }
@@ -575,6 +992,12 @@ enum RejectedRemoteBatch: CaseIterable, CustomTestStringConvertible {
         case .nonPositiveVolume: "nonpositive volume"
         case .nonPositiveReadingVolume: "nonpositive reading volume"
         case .invalidVolume: "invalid volume"
+        case .excessiveKnownTotal: "known total 301"
+        case .extremeKnownTotal: "known total Int64.max"
+        case .excessiveUnknownTotalOwnedVolume: "owned volume 301 without total"
+        case .extremeUnknownTotalOwnedVolume: "owned volume Int64.max without total"
+        case .excessiveUnknownTotalReadingVolume: "reading volume 301 without total"
+        case .extremeUnknownTotalReadingVolume: "reading volume Int64.max without total"
         case .duplicateManga: "duplicate manga"
         }
     }

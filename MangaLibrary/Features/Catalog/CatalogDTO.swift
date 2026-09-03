@@ -15,6 +15,9 @@ struct CatalogPageDTO: Decodable {
         mangas.reserveCapacity(items.count)
 
         for item in items {
+            guard item.reportedTotalVolumes.map(CollectionVolumePolicy.contains) ?? true else {
+                throw CatalogAPIClientError.contractDrift
+            }
             let manga = item.manga()
             guard identities.insert(manga.id).inserted else {
                 throw CatalogAPIClientError.duplicateMangaID(manga.id)

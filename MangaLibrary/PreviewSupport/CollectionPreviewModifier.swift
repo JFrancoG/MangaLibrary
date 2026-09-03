@@ -88,4 +88,8 @@ enum CollectionPreviewScenarios {
     enum UnknownTotalEditor: CollectionPreviewScenario {
         static let seed = CollectionPreviewSeed.content
     }
+
+    enum HistoricalIncompatibleEditor: CollectionPreviewScenario {
+        static let seed = CollectionPreviewSeed.historicalIncompatible
+    }
 }

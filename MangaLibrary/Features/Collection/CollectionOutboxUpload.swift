@@ -42,6 +42,7 @@ enum CollectionOutboxUploadClaim: Equatable {
 enum CollectionOutboxUploadError: Error, Equatable {
     case sessionChanged
     case staleOperation
+    case invalidVolumeState
     case persistenceConflict
     case cancelled
 }
@@ -133,9 +134,11 @@ extension CollectionMutationActor {
 
     /// Resolves one exact tombstone and its remote evidence in a single commit.
     ///
-    /// Presence advances only the confirmed baseline and presentation snapshot,
-    /// then persists uncertainty. Absence confirms the sequence and retires the
-    /// tombstone entry only when no later local intent owns its visible state.
+    /// Compatible presence advances the confirmed baseline and presentation
+    /// snapshot, then persists uncertainty. Incompatible volume data is not
+    /// adopted because presence alone proves that deletion is unconfirmed.
+    /// Absence confirms the sequence and retires the tombstone entry only when
+    /// no later local intent owns its visible state.
     func resolveDeletion(
         _ workItem: CollectionOutboxUploadWorkItem,
         evidence: CollectionDeletionEvidence,
@@ -159,6 +162,8 @@ extension CollectionMutationActor {
                 candidate = try validatedRemoteCandidate(remoteEntry)
             } catch CollectionRemoteImportError.cancelled {
                 throw .cancelled
+            } catch let error where error.isUnsupportedRemoteVolumeData {
+                candidate = nil
             } catch {
                 throw .persistenceConflict
             }
@@ -174,8 +179,9 @@ extension CollectionMutationActor {
 
                     switch evidence {
                     case .present:
-                        guard let candidate else { throw CollectionOutboxUploadError.persistenceConflict }
-                        entry.reconcileRemote(candidate.state, mangaSnapshot: candidate.mangaSnapshot)
+                        if let candidate {
+                            entry.reconcileRemote(candidate.state, mangaSnapshot: candidate.mangaSnapshot)
+                        }
                         guard operation.markBlockedOutcomeIfSending() else {
                             throw CollectionOutboxUploadError.staleOperation
                         }
@@ -284,9 +290,13 @@ extension CollectionMutationActor {
                 operation.userID == userID,
                 operation.mangaID > 0,
                 operation.sequence > 0,
-                operation.isTombstone == operation.desiredState.isTombstone,
-                isValidUploadState(operation.desiredState)
+                operation.isTombstone == operation.desiredState.isTombstone
             else { throw CollectionOutboxUploadError.persistenceConflict }
+            if operation.state != .confirmed {
+                guard CollectionVolumePolicy.isValid(operation.desiredState, allowingHistoricalTombstone: true) else {
+                    throw CollectionOutboxUploadError.invalidVolumeState
+                }
+            }
 
             operationsByMangaID[operation.mangaID, default: []].append(operation)
         }
@@ -419,9 +429,16 @@ extension CollectionMutationActor {
         for laterOperation in laterOperations {
             guard
                 laterOperation.sequence > sequence,
-                laterOperation.isTombstone == laterOperation.desiredState.isTombstone,
-                isValidUploadState(laterOperation.desiredState)
+                laterOperation.isTombstone == laterOperation.desiredState.isTombstone
             else { throw CollectionOutboxUploadError.persistenceConflict }
+            if laterOperation.state != .confirmed {
+                guard CollectionVolumePolicy.isValid(
+                    laterOperation.desiredState,
+                    allowingHistoricalTombstone: true
+                ) else {
+                    throw CollectionOutboxUploadError.invalidVolumeState
+                }
+            }
         }
         return laterOperations.contains { $0.state != .confirmed }
     }
@@ -436,28 +453,4 @@ extension CollectionMutationActor {
         return lhs.operationID.uuidString < rhs.operationID.uuidString
     }
 
-    private func isValidUploadState(_ state: CollectionSnapshot) -> Bool {
-        guard state.ownedVolumes.allSatisfy({ $0 > 0 }) else { return false }
-        guard state.ownedVolumes == Array(Set(state.ownedVolumes)).sorted() else { return false }
-        guard state.readingVolume.map({ $0 > 0 }) ?? true else { return false }
-
-        if let total = state.knownTotalVolumes {
-            guard total > 0 else { return false }
-            guard state.ownedVolumes.allSatisfy({ $0 <= total }) else { return false }
-            guard state.readingVolume.map({ $0 <= total }) ?? true else { return false }
-            if state.isComplete {
-                guard
-                    let count = Int(exactly: total),
-                    state.ownedVolumes.count == count,
-                    state.ownedVolumes.enumerated().allSatisfy({ index, volume in
-                        volume == Int64(index) + 1
-                    })
-                else { return false }
-            }
-        } else if state.isComplete {
-            return false
-        }
-
-        return true
-    }
 }

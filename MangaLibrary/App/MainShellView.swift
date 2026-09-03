@@ -84,6 +84,9 @@ struct MainShellView: View {
     }
 
     private static func transientCollectionNotice(for error: any Error, userID: UUID) -> AccountCollectionNotice? {
+        if let uploadError = error as? CollectionOutboxUploadError, uploadError == .invalidVolumeState {
+            return AccountCollectionNotice(userID: userID, reason: .unsupportedVolumeData)
+        }
         guard let error = error as? CollectionSyncError else { return nil }
 
         return switch error {
@@ -93,6 +96,8 @@ struct MainShellView: View {
             AccountCollectionNotice(userID: userID, reason: .authorizationDenied)
         case .authenticationIncompatible:
             AccountCollectionNotice(userID: userID, reason: .authenticationIncompatible)
+        case .unsupportedVolumeData:
+            AccountCollectionNotice(userID: userID, reason: .unsupportedVolumeData)
         }
     }
 }
