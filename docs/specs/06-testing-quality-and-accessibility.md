@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.24
+**Versión:** 1.25
 **Fecha:** 2026-09-03
 
 ## Propósito
@@ -232,7 +232,7 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 ### Interfaz
 
 XCUITest se limita a los menores recorridos deterministas que demuestren wiring
-crítico no cubierto con Swift Testing. En el alcance actual ejecuta seis; el
+crítico no cubierto con Swift Testing. En el alcance actual ejecuta ocho; el
 recorrido de Colección cubre tanto alta como eliminación confirmada:
 
 - bootstrap mock Debug → primera fila de Catálogo → detalle de la misma
@@ -254,6 +254,13 @@ recorrido de Colección cubre tanto alta como eliminación confirmada:
 - bootstrap mock Debug → login sintético → fallo R1 de autorización → formulario
   cerrado, Cuenta todavía autenticada y aviso seguro de Colección visible, sin
   red, Keychain, disco live ni transición a `authenticationRequired`.
+- bootstrap mock Debug → detalle de Colección con una proyección raíz más nueva
+  que cualquier entrada disponible para una consulta contextual → resumen y
+  apertura posterior del editor derivados de esa proyección, sin una segunda
+  fuente SwiftData, red, Keychain o almacenamiento live.
+- bootstrap mock Debug → `NavigationSplitView` regular con A persistido y el
+  detalle ya seleccionado → importación B por el actor real → fila, resumen y
+  apertura posterior del editor en B sin reseleccionar, red, Keychain o disco.
 
 Un flujo UI adicional solo se incorpora cuando exista un riesgo observable que
 no pueda caracterizarse con estado, modelo, integración o preview, y se elimina

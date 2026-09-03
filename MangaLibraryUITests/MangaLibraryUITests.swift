@@ -106,7 +106,9 @@ final class MangaLibraryUITests: XCTestCase {
         XCTAssertTrue(collectionTab.waitForExistence(timeout: 2))
         collectionTab.tap()
 
-        let importedManga = app.buttons["collection.row.2"]
+        let importedManga = app.descendants(matching: .any)
+            .matching(identifier: "collection.row.2")
+            .firstMatch
         XCTAssertTrue(importedManga.waitForExistence(timeout: 5))
         XCTAssertTrue(importedManga.label.contains("A deliberately long manga title"))
 
@@ -150,17 +152,22 @@ final class MangaLibraryUITests: XCTestCase {
 
         collectionTab.tap()
 
-        let savedManga = app.buttons["collection.row.1"]
+        let savedManga = app.descendants(matching: .any)
+            .matching(identifier: "collection.row.1")
+            .firstMatch
         XCTAssertTrue(savedManga.waitForExistence(timeout: 2))
         XCTAssertTrue(savedManga.label.contains("Fullmetal Alchemist"))
         savedManga.tap()
 
         let editCollection = app.buttons["collection.entry.edit.1"]
         XCTAssertTrue(editCollection.waitForExistence(timeout: 2))
-        for _ in 0..<4 where editCollection.frame.maxY >= collectionTab.frame.minY {
-            app.swipeUp(velocity: .slow)
+        let presentsBottomTabBar = collectionTab.frame.midY > app.windows.firstMatch.frame.midY
+        if presentsBottomTabBar {
+            for _ in 0..<4 where editCollection.frame.maxY >= collectionTab.frame.minY {
+                app.swipeUp(velocity: .slow)
+            }
+            XCTAssertLessThan(editCollection.frame.maxY, collectionTab.frame.minY)
         }
-        XCTAssertLessThan(editCollection.frame.maxY, collectionTab.frame.minY)
         XCTAssertTrue(editCollection.isHittable)
         editCollection.tap()
 
@@ -219,6 +226,92 @@ final class MangaLibraryUITests: XCTestCase {
         XCTAssertTrue(deleteButton.waitForNonExistence(timeout: 2))
         XCTAssertTrue(importedManga.waitForExistence(timeout: 2))
         XCTAssertTrue(savedManga.waitForNonExistence(timeout: 2))
+    }
+
+    @MainActor
+    func testCollectionDetailUsesRootProjection() throws {
+        let app = XCUIApplication()
+        app.launchArguments.append(contentsOf: [
+            "-ui-testing",
+            "-ui-testing-collection-detail-projection",
+        ])
+        app.launch()
+
+        let detail = app.descendants(matching: .any)["manga.detail.2"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            ["Owned, 1 and 12", "En propiedad, 1 y 12"].contains {
+                app.staticTexts[$0].waitForExistence(timeout: 2)
+            }
+        )
+        XCTAssertTrue(
+            ["Reading, Volume 8", "Lectura, Tomo 8"].contains {
+                app.staticTexts[$0].waitForExistence(timeout: 2)
+            }
+        )
+
+        let editCollection = app.buttons["collection.entry.edit.2"]
+        for _ in 0..<4 where editCollection.exists == false {
+            detail.swipeUp()
+        }
+        XCTAssertTrue(editCollection.waitForExistence(timeout: 2))
+        editCollection.tap()
+        XCTAssertTrue(app.buttons["collection.editor.owned.remove.12"].waitForExistence(timeout: 2))
+        XCTAssertEqual(app.textFields["collection.editor.reading-input"].value as? String, "8")
+    }
+
+    @MainActor
+    func testMountedCollectionDetailUpdatesWithoutReselection() throws {
+        let app = XCUIApplication()
+        app.launchArguments.append(contentsOf: [
+            "-ui-testing",
+            "-ui-testing-mounted-collection-detail",
+        ])
+        app.launch()
+
+        let row = app.descendants(matching: .any)
+            .matching(identifier: "collection.row.2")
+            .firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.label.contains("Owned volumes: 1") || row.label.contains("Tomos en propiedad: 1"))
+        XCTAssertTrue(row.label.contains("Reading volume 1") || row.label.contains("Leyendo el tomo 1"))
+        row.tap()
+
+        let detail = app.descendants(matching: .any)["manga.detail.2"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 2))
+        XCTAssertTrue(
+            ["Owned, 1", "En propiedad, 1"].contains {
+                app.staticTexts[$0].waitForExistence(timeout: 2)
+            }
+        )
+
+        let update = app.buttons["ui-testing.collection.apply-synchronized-state"]
+        XCTAssertTrue(update.waitForExistence(timeout: 2))
+        update.tap()
+
+        XCTAssertTrue(
+            ["Owned, 1 and 12", "En propiedad, 1 y 12"].contains {
+                app.staticTexts[$0].waitForExistence(timeout: 5)
+            }
+        )
+        XCTAssertTrue(
+            ["Reading, Volume 8", "Lectura, Tomo 8"].contains {
+                app.staticTexts[$0].waitForExistence(timeout: 2)
+            }
+        )
+        if row.exists {
+            XCTAssertTrue(row.label.contains("Owned volumes: 2") || row.label.contains("Tomos en propiedad: 2"))
+            XCTAssertTrue(row.label.contains("Reading volume 8") || row.label.contains("Leyendo el tomo 8"))
+        }
+
+        let editCollection = app.buttons["collection.entry.edit.2"]
+        for _ in 0..<4 where editCollection.exists == false {
+            detail.swipeUp()
+        }
+        XCTAssertTrue(editCollection.waitForExistence(timeout: 2))
+        editCollection.tap()
+        XCTAssertTrue(app.buttons["collection.editor.owned.remove.12"].waitForExistence(timeout: 2))
+        XCTAssertEqual(app.textFields["collection.editor.reading-input"].value as? String, "8")
     }
 
     @MainActor
