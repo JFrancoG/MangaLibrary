@@ -1,11 +1,11 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-03
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2 y las correcciones #55, #58 y #61 entregadas; #63 está implementada y validada localmente, sin commit ni entrega autorizados
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2 y las correcciones #55, #58, #61 y #63 entregadas
 
 ## Cota global de 300 números de tomo — issue #63
 
-- El [issue #63 — fijar en 300 el máximo global de tomos](https://github.com/JFrancoG/MangaLibrary/issues/63) parte de la deuda transversal identificada al entregar R1. La rama `codex/63-max-300-collection-volumes` parte de `main@53e6b0c5afba`, limpio y sincronizado con `origin/main`.
+- El [issue #63 — fijar en 300 el máximo global de tomos](https://github.com/JFrancoG/MangaLibrary/issues/63) parte de la deuda transversal identificada al entregar R1. La rama `codex/63-max-300-collection-volumes` parte de `main@53e6b0c5afba`, limpio y sincronizado con `origin/main`; la implementación se versiona en `71f8682` y se entrega mediante la [PR #64](https://github.com/JFrancoG/MangaLibrary/pull/64).
 - La decisión de producto del 3 de septiembre de 2026 fija `300` como máximo inclusivo para total conocido, tomos en propiedad y volumen de lectura. `nil` conserva exclusivamente la semántica de total editorial desconocido y no relaja la cota de los números individuales.
 - SDD 03 v1.4 y SDD 04 v1.23 exigen validar antes de materializar rangos, rechazar R1 atómicamente sin afectar sesión y detener R2 antes del claim o transporte. Un estado histórico incompatible se conserva sin truncado ni edición o POST; una eliminación explícita puede crear y enviar una tombstone porque DELETE solo transporta `Manga.ID`.
 - `CollectionVolumePolicy` es la única representación de `1...300`, la comprobación de pertenencia, el total conocido compatible y la construcción acotada de una colección completa. Catálogo rechaza un total explícito fuera de rango antes de proyectarlo; `nil` continúa siendo desconocido. Editor, mutación atómica, R1 y R2 reutilizan la misma política y errores tipados, sin dependencias, cambios de esquema, proyecto, entitlements u OpenAPI.
@@ -32,9 +32,8 @@ No se llamó al backend, no se realizó ninguna escritura live y no se usaron
 cuentas, JWT o Keychain reales. Tampoco se ejecutaron VoiceOver, Voice Control,
 Switch Control, Acceso total con teclado o Accessibility Inspector ni se extrapola
 su cobertura desde previews. Retry/backoff y la resolución interactiva de
-`blockedOutcome` permanecen fuera de #63. El issue #63 continúa abierto y la rama
-local conserva todos los cambios sin commit, push, PR, merge ni borrado, conforme
-a la autorización recibida.
+`blockedOutcome` permanecen fuera de #63. La fusión de la PR #64 cierra el issue
+#63 y el cierre autorizado incluye retirar después la rama local y remota.
 
 ## Detalle de Colección coherente en iPad — issue #61
 
@@ -976,7 +975,7 @@ La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden d
 6. **L2 — Colección local y offline, entregada mediante la PR #50.** `@Query` queda restringida a la identidad activa y excluye tombstones; Colección posee navegación independiente y alta, edición y eliminación mediante la ruta semántica de L1. El esquema V2 añade presentación offline con migración lightweight, y tomos, lectura, colección completa, tombstones y aislamiento A/B sobreviven a reapertura sin red.
 7. **R1 — lectura e importación remota, entregada mediante la [PR #54](https://github.com/JFrancoG/MangaLibrary/pull/54).** Consume la colección de la persona autenticada al iniciar o restaurar sesión y reconcilia el snapshot completo en SwiftData sin pisar intenciones locales posteriores. Aquí empieza la integración con la persistencia remota; la UI continúa observando exclusivamente el estado local.
 8. **R2 — envío y reconciliación de outbox, entregado mediante la PR #60.** La decisión del propietario del 2 de septiembre fija `{id}` como `Manga.ID` `int64` serializado en decimal; el UUID de entrada no forma el path y la discrepancia `string` queda como deuda contractual. R2.1 reutiliza el GET completo R1 e implementa POST y procesamiento conservador de intenciones no tombstone; R2.2 añade GET/DELETE individual, tombstones y la confirmación destructiva de UI. Ambos cortes están validados localmente y R2.2 cuenta con aceptación live multidispositivo de la ruta decimal y la ausencia reconciliada; el status/body exacto del primer DELETE y el GET presente `200` siguen sin caracterización directa. Retry/backoff, `blockedAuth`, rechazo/reversión y resolución manual permanecen en cortes posteriores.
-9. **Cota transversal de números de tomo, implementada y validada localmente mediante el issue #63.** Fija 300 como máximo inclusivo compartido, preserva `nil` como total desconocido y protege editor, mutación, R1 y R2 frente a valores históricos o remotos fuera de rango sin truncado ni transporte accidental. Permanece sin commit ni entrega hasta autorización posterior.
+9. **Cota transversal de números de tomo, entregada mediante la PR #64.** Fija 300 como máximo inclusivo compartido, preserva `nil` como total desconocido y protege editor, mutación, R1 y R2 frente a valores históricos o remotos fuera de rango sin truncado ni transporte accidental.
 10. **Advanced Release Gate.** Completar el logout con operaciones pendientes, aislamiento A→B, recuperación después de crash y toda la evidencia de catálogo, Cuenta, Colección, sincronización, iPhone/iPad, accesibilidad, build, tests y DocC.
 11. **Deluxe.** Iniciar WidgetKit, watchOS, App Group, `SessionFence` y los puentes de datos únicamente después de que Advanced quede aceptado.
 
