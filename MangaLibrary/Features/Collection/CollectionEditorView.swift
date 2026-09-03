@@ -32,9 +32,11 @@ struct CollectionEditorView: View {
                     }
                 }
 
-                ownedVolumesSection
-                readingProgressSection
-                completionSection
+                if model.isVolumeStateEditable {
+                    ownedVolumesSection
+                    readingProgressSection
+                    completionSection
+                }
 
                 if let message = failureMessage {
                     Section {
@@ -136,8 +138,8 @@ struct CollectionEditorView: View {
 
     private var ownedVolumesSection: some View {
         Section("Owned volumes") {
-            if let total = model.knownTotalVolumes {
-                ForEach(Int64(1)...total, id: \.self) { volume in
+            if let knownVolumeNumbers = model.knownVolumeNumbers {
+                ForEach(knownVolumeNumbers, id: \.self) { volume in
                     Toggle(
                         "Volume \(volume)",
                         isOn: Binding {
@@ -153,19 +155,33 @@ struct CollectionEditorView: View {
                     .font(.footnote)
                     .foregroundStyle(.textSecondary)
 
-                HStack(alignment: .firstTextBaseline) {
-                    TextField("Volume number", text: $model.volumeInput)
-                        .keyboardType(.numberPad)
-                        .accessibilityIdentifier("collection.editor.volume-input")
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline) {
+                        TextField("Volume number", text: $model.volumeInput)
+                            .keyboardType(.numberPad)
+                            .accessibilityIdentifier("collection.editor.volume-input")
 
-                    Button("Add", systemImage: "plus") {
-                        model.addUnknownVolume()
+                        Button("Add", systemImage: "plus") {
+                            model.addUnknownVolume()
+                        }
+                        .labelStyle(.iconOnly)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
+                        .accessibilityLabel("Add volume")
+                        .accessibilityIdentifier("collection.editor.volume-add")
                     }
-                    .labelStyle(.iconOnly)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(.rect)
-                    .accessibilityLabel("Add volume")
-                    .accessibilityIdentifier("collection.editor.volume-add")
+
+                    if model.inputFailure == .invalidOwnedVolume {
+                        Text("Enter a whole volume number from 1 to \(CollectionVolumePolicy.maximum).")
+                            .font(.footnote)
+                            .foregroundStyle(.dangerInk)
+                            .accessibilityIdentifier("collection.editor.volume-error")
+                    } else if model.inputFailure == .pendingOwnedVolume {
+                        Text("Add or clear the pending volume before saving.")
+                            .font(.footnote)
+                            .foregroundStyle(.dangerInk)
+                            .accessibilityIdentifier("collection.editor.volume-error")
+                    }
                 }
 
                 if model.sortedOwnedVolumes.isEmpty {
@@ -187,27 +203,15 @@ struct CollectionEditorView: View {
                     }
                 }
             }
-
-            if model.inputFailure == .invalidOwnedVolume {
-                Text("Enter a positive whole volume number.")
-                    .font(.footnote)
-                    .foregroundStyle(.dangerInk)
-                    .accessibilityIdentifier("collection.editor.volume-error")
-            } else if model.inputFailure == .pendingOwnedVolume {
-                Text("Add or clear the pending volume before saving.")
-                    .font(.footnote)
-                    .foregroundStyle(.dangerInk)
-                    .accessibilityIdentifier("collection.editor.volume-error")
-            }
         }
     }
 
     private var readingProgressSection: some View {
         Section("Reading progress") {
-            if let total = model.knownTotalVolumes {
+            if let knownVolumeNumbers = model.knownVolumeNumbers {
                 Picker("Current volume", selection: readingVolumeSelection) {
                     Text("Not set").tag(Int64?.none)
-                    ForEach(Int64(1)...total, id: \.self) { volume in
+                    ForEach(knownVolumeNumbers, id: \.self) { volume in
                         Text("Volume \(volume)").tag(Int64?.some(volume))
                     }
                 }
@@ -219,7 +223,7 @@ struct CollectionEditorView: View {
             }
 
             if model.inputFailure == .invalidReadingVolume {
-                Text("Enter a positive whole volume number within the known total.")
+                Text("Enter a whole volume number from 1 to \(CollectionVolumePolicy.maximum).")
                     .font(.footnote)
                     .foregroundStyle(.dangerInk)
                     .accessibilityIdentifier("collection.editor.reading-error")
@@ -237,10 +241,10 @@ struct CollectionEditorView: View {
                     model.setComplete(complete)
                 }
             )
-            .disabled(model.knownTotalVolumes == nil)
+            .disabled(model.knownVolumeNumbers == nil)
             .accessibilityIdentifier("collection.editor.complete")
 
-            if model.knownTotalVolumes == nil {
+            if model.knownVolumeNumbers == nil {
                 Text("A published total is required before marking the collection complete.")
                     .font(.footnote)
                     .foregroundStyle(.textSecondary)
@@ -315,4 +319,12 @@ private enum SubmissionRequest: Hashable {
 ) {
     @Previewable @Environment(\.modelContext) var modelContext
     CollectionPreviewSupport.unknownTotalEditor(container: modelContext.container)
+}
+
+#Preview(
+    "Historical incompatible editor",
+    traits: .modifier(CollectionPreviewModifier<CollectionPreviewScenarios.HistoricalIncompatibleEditor>())
+) {
+    @Previewable @Environment(\.modelContext) var modelContext
+    CollectionPreviewSupport.historicalIncompatibleEditor(container: modelContext.container)
 }

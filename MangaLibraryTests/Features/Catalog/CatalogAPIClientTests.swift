@@ -269,14 +269,37 @@ struct CatalogAPIClientTests {
         #expect(manga.coverURL == URL(string: "https://images.example.test/fullmetal-alchemist.jpg"))
     }
 
-    @Test("Only a positive published volume total becomes known collection metadata", arguments: ["null", "0", "-1"])
-    func unavailablePublishedVolumeTotalRemainsUnknown(volumesJSON: String) async throws {
+    @Test(
+        "An unsupported published volume total rejects the catalog page",
+        arguments: ["0", "-1", "301", String(Int64.max)]
+    )
+    func unsupportedPublishedVolumeTotalRejectsPage(volumesJSON: String) async throws {
         let item = CatalogJSONFixtures.manga(volumesJSON: volumesJSON)
+        let client = try makeClient(returning: CatalogJSONFixtures.page(items: [item]))
+
+        await #expect(throws: CatalogAPIClientError.contractDrift) {
+            try await client.fetch(CatalogPageRequest())
+        }
+    }
+
+    @Test("An explicitly null published volume total remains unknown")
+    func nullPublishedVolumeTotalRemainsUnknown() async throws {
+        let item = CatalogJSONFixtures.manga(volumesJSON: "null")
         let client = try makeClient(returning: CatalogJSONFixtures.page(items: [item]))
 
         let page = try await client.fetch(CatalogPageRequest())
 
         #expect(page.items.first?.totalVolumes == nil)
+    }
+
+    @Test("The maximum supported published volume total remains known")
+    func maximumPublishedVolumeTotalRemainsKnown() async throws {
+        let item = CatalogJSONFixtures.manga(volumesJSON: "300")
+        let client = try makeClient(returning: CatalogJSONFixtures.page(items: [item]))
+
+        let page = try await client.fetch(CatalogPageRequest())
+
+        #expect(page.items.first?.totalVolumes == CollectionVolumePolicy.maximum)
     }
 
     @Test("A missing optional published volume total remains unknown")

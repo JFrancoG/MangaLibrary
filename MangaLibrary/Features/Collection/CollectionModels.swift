@@ -9,8 +9,10 @@ import SwiftData
 extension MangaLibrarySchema.V1 {
     /// A value representation of one local collection state at a specific sequence.
     ///
-    /// Product mutations obtain instances from ``CollectionMutationActor`` so owned
-    /// volumes are canonical and every value satisfies the active known-total rules.
+    /// Product mutations obtain active instances from ``CollectionMutationActor``
+    /// with canonical owned volumes that satisfy the current rules. Explicit
+    /// deletion may instead retain incompatible legacy values in an opaque
+    /// tombstone that is never serialized as a POST.
     struct CollectionSnapshot: Codable, Equatable {
         let ownedVolumes: [Int64]
         let readingVolume: Int64?
@@ -138,6 +140,32 @@ typealias CollectionEntry = MangaLibrarySchema.V2.CollectionEntry
 typealias CollectionOutboxOperation = MangaLibrarySchema.V2.CollectionOutboxOperation
 typealias CollectionMangaSnapshot = MangaLibrarySchema.V2.MangaSnapshot
 
+extension CollectionVolumePolicy {
+    static func isValid(_ state: CollectionSnapshot, allowingHistoricalTombstone: Bool = false) -> Bool {
+        if allowingHistoricalTombstone, state.isTombstone {
+            return true
+        }
+
+        guard state.ownedVolumes.allSatisfy(contains) else { return false }
+        guard state.ownedVolumes == Array(Set(state.ownedVolumes)).sorted() else { return false }
+        guard state.readingVolume.map(contains) ?? true else { return false }
+
+        if let total = state.knownTotalVolumes {
+            guard contains(total) else { return false }
+            guard state.ownedVolumes.allSatisfy({ $0 <= total }) else { return false }
+            guard state.readingVolume.map({ $0 <= total }) ?? true else { return false }
+        }
+
+        if state.isComplete {
+            guard let completeVolumes = completeVolumes(for: state.knownTotalVolumes) else { return false }
+
+            return state.ownedVolumes == completeVolumes
+        }
+
+        return true
+    }
+}
+
 /// A semantic collection edit that can cross into the SwiftData model actor.
 ///
 /// A non-`nil` total replaces the actor's prior knowledge only when it keeps the
@@ -173,10 +201,13 @@ struct CollectionMutationResult: Equatable {
 enum CollectionMutationError: Error, Equatable {
     case invalidIdentity
     case nonPositiveKnownTotal(Int64)
+    case knownTotalExceedsMaximum(total: Int64, maximum: Int64)
     case nonPositiveVolume(Int64)
+    case volumeExceedsMaximum(volume: Int64, maximum: Int64)
     case volumeExceedsKnownTotal(volume: Int64, total: Int64)
     case completeRequiresKnownTotal
     case knownTotalInvalidatesCurrentState(Int64)
+    case incompatibleStoredVolumeState
     case mangaSnapshotRequired
     case mangaSnapshotIdentityMismatch(expected: Manga.ID, actual: Manga.ID)
     case collectionEntryNotFound

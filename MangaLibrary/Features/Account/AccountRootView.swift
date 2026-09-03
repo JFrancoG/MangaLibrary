@@ -15,6 +15,7 @@ struct AccountCollectionNotice: Equatable {
         case authorizationDenied
         case authenticationIncompatible
         case uploadOutcomeUnconfirmed
+        case unsupportedVolumeData
     }
 
     let userID: UUID
@@ -28,6 +29,8 @@ struct AccountCollectionNotice: Equatable {
             "Your session is still active, but the collection service could not verify the renewed access. Signing in again is not required."
         case .uploadOutcomeUnconfirmed:
             "Your session is still active and your local collection is safe, but a remote change could not be confirmed. It will not be sent again automatically."
+        case .unsupportedVolumeData:
+            "Your session is still active. Synchronization stopped after detecting unsupported or inconsistent volume data. The incompatible data was not applied or sent."
         }
     }
 
@@ -39,6 +42,8 @@ struct AccountCollectionNotice: Equatable {
             "account.collection-sync.authentication-incompatible"
         case .uploadOutcomeUnconfirmed:
             "account.collection-sync.upload-outcome-unconfirmed"
+        case .unsupportedVolumeData:
+            "account.collection-sync.unsupported-volume-data"
         }
     }
 }
@@ -401,6 +406,19 @@ struct AccountRootView: View {
         collectionNotice: AccountCollectionNotice(
             userID: AccountPreviewSupport.account.id,
             reason: .uploadOutcomeUnconfirmed
+        )
+    )
+}
+
+#Preview(
+    "Account Collection volume notice",
+    traits: .modifier(CollectionPreviewModifier<CollectionPreviewScenarios.Empty>())
+) {
+    AccountRootView(
+        model: AccountPreviewSupport.model(state: .authenticated(AccountPreviewSupport.account, notice: nil)),
+        collectionNotice: AccountCollectionNotice(
+            userID: AccountPreviewSupport.account.id,
+            reason: .unsupportedVolumeData
         )
     )
 }

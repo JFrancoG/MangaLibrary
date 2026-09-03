@@ -67,6 +67,106 @@ struct CollectionOutboxTransitionTests {
         )
     }
 
+    @Test("A historical out-of-range tombstone remains claimable for bodyless DELETE")
+    func historicalOutOfRangeTombstoneCanBeClaimed() async throws(any Error) {
+        let container = try makeContainer()
+        let tombstone = Self.state(
+            ownedVolumes: [1],
+            readingVolume: 299,
+            knownTotalVolumes: 301,
+            isTombstone: true
+        )
+        try seed(
+            container,
+            entry: Self.entry(state: tombstone, confirmedState: Self.baseState),
+            operations: [Self.operation(sequence: 1, desiredState: tombstone)]
+        )
+
+        let actor = CollectionMutationActor(modelContainer: container)
+        let claim = try #require(try await actor.claimNextUpload(authorization: Self.authorization(for: Self.userA)))
+        let workItem = try requireSendWorkItem(claim)
+
+        #expect(workItem.ownedVolumes == [1])
+        #expect(workItem.readingVolume == 299)
+        #expect(workItem.isTombstone)
+        #expect(try readStore(container).operations.map(\.state) == [.sending])
+    }
+
+    @Test("An incompatible confirmed cursor cannot block a later historical tombstone")
+    func historicalConfirmedCursorDoesNotBlockDeleteClaim() async throws(any Error) {
+        let container = try makeContainer()
+        let historicalState = Self.state(ownedVolumes: [1], readingVolume: 299, knownTotalVolumes: 301)
+        let tombstone = Self.state(
+            ownedVolumes: historicalState.ownedVolumes,
+            readingVolume: historicalState.readingVolume,
+            knownTotalVolumes: historicalState.knownTotalVolumes,
+            isTombstone: true
+        )
+        try seed(
+            container,
+            entry: Self.entry(state: tombstone, confirmedState: historicalState),
+            operations: [
+                Self.operation(sequence: 1, desiredState: historicalState, state: .confirmed),
+                Self.operation(operationID: Self.operationB, sequence: 2, desiredState: tombstone),
+            ]
+        )
+
+        let actor = CollectionMutationActor(modelContainer: container)
+        let claim = try #require(try await actor.claimNextUpload(authorization: Self.authorization(for: Self.userA)))
+        let workItem = try requireSendWorkItem(claim)
+
+        #expect(workItem.operationID == Self.operationB)
+        #expect(workItem.sequence == 2)
+        #expect(workItem.isTombstone)
+        #expect(try readStore(container).operations.map(\.state) == [.confirmed, .sending])
+    }
+
+    @Test("A queued POST at the global boundary remains claimable")
+    func maximumUnknownTotalUploadCanBeClaimed() async throws(any Error) {
+        let container = try makeContainer()
+        let desiredState = Self.state(ownedVolumes: [299, 300], readingVolume: 300, knownTotalVolumes: nil)
+        try seed(
+            container,
+            entry: Self.entry(state: desiredState, confirmedState: nil),
+            operations: [Self.operation(sequence: 1, desiredState: desiredState)]
+        )
+
+        let actor = CollectionMutationActor(modelContainer: container)
+        let claim = try #require(try await actor.claimNextUpload(authorization: Self.authorization(for: Self.userA)))
+        let workItem = try requireSendWorkItem(claim)
+
+        #expect(workItem.ownedVolumes == [299, 300])
+        #expect(workItem.readingVolume == 300)
+        #expect(workItem.isComplete == false)
+        #expect(workItem.isTombstone == false)
+        #expect(try readStore(container).operations.map(\.state) == [.sending])
+    }
+
+    @Test(
+        "An invalid queued POST cannot be claimed or alter a later intent",
+        arguments: InvalidUploadVolumeScenario.allCases
+    )
+    private func invalidVolumeStateFailsBeforeClaim(_ scenario: InvalidUploadVolumeScenario) async throws(any Error) {
+        let container = try makeContainer()
+        let validLaterState = Self.state(ownedVolumes: [1], readingVolume: 1)
+        try seed(
+            container,
+            entry: Self.entry(state: scenario.state, confirmedState: nil),
+            operations: [
+                Self.operation(sequence: 1, desiredState: scenario.state),
+                Self.operation(operationID: Self.operationB, sequence: 2, desiredState: validLaterState),
+            ]
+        )
+        let priorStore = try readStore(container)
+        let actor = CollectionMutationActor(modelContainer: container)
+
+        await #expect(throws: CollectionOutboxUploadError.invalidVolumeState) {
+            try await actor.claimNextUpload(authorization: Self.authorization(for: Self.userA))
+        }
+
+        #expect(try readStore(container) == priorStore)
+    }
+
     @Test("A session can only claim its own user's uploads")
     func authorizationDoesNotCrossUserIdentity() async throws(any Error) {
         let container = try makeContainer()
@@ -262,6 +362,40 @@ struct CollectionOutboxTransitionTests {
         #expect(entry.mangaSnapshot?.title == "Remote Forty-Two")
     }
 
+    @Test("Incompatible remote presence blocks a tombstone without adopting its values")
+    func incompatibleTombstonePresenceIsNotAdopted() async throws(any Error) {
+        let container = try makeContainer()
+        let historicalState = Self.state(ownedVolumes: [1], readingVolume: 299, knownTotalVolumes: 301)
+        let tombstone = Self.state(
+            ownedVolumes: historicalState.ownedVolumes,
+            readingVolume: historicalState.readingVolume,
+            knownTotalVolumes: historicalState.knownTotalVolumes,
+            isTombstone: true
+        )
+        try seed(
+            container,
+            entry: Self.entry(state: tombstone, confirmedState: Self.baseState),
+            operations: [Self.operation(sequence: 4, desiredState: tombstone, state: .sending)]
+        )
+
+        let actor = CollectionMutationActor(modelContainer: container)
+        let authorization = Self.authorization(for: Self.userA)
+        let claim = try #require(try await actor.claimNextUpload(authorization: authorization))
+        let workItem = try requireReconcileWorkItem(claim)
+        let evidence = CollectionDeletionEvidence.present(Self.remoteEntry(state: historicalState))
+
+        let resolution = try await actor.resolveDeletion(workItem, evidence: evidence, authorization: authorization)
+
+        let persisted = try readStore(container)
+        #expect(resolution == .blockedOutcome)
+        #expect(persisted.entries == [Self.persistedEntry(state: tombstone, confirmedState: Self.baseState)])
+        #expect(persisted.operations.map(\.state) == [.blockedOutcome])
+
+        let context = ModelContext(container)
+        let entry = try #require(try context.fetch(FetchDescriptor<CollectionEntry>()).first)
+        #expect(entry.mangaSnapshot == nil)
+    }
+
     @Test("Confirmation requires the exact operation UUID and sequence", arguments: StaleConfirmationIdentity.allCases)
     private func staleIdentityCannotConfirmPersistedWork(identity: StaleConfirmationIdentity) async throws(any Error) {
         let container = try makeContainer()
@@ -356,13 +490,14 @@ struct CollectionOutboxTransitionTests {
         ownedVolumes: [Int64],
         readingVolume: Int64? = nil,
         isComplete: Bool = false,
+        knownTotalVolumes: Int64? = 3,
         isTombstone: Bool = false
     ) -> CollectionSnapshot {
         CollectionSnapshot(
             ownedVolumes: ownedVolumes,
             readingVolume: readingVolume,
             isComplete: isComplete,
-            knownTotalVolumes: 3,
+            knownTotalVolumes: knownTotalVolumes,
             isTombstone: isTombstone
         )
     }
@@ -458,6 +593,57 @@ struct CollectionOutboxTransitionTests {
     private static let mangaA: Manga.ID = 42
     private static let operationA = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
     private static let operationB = UUID(uuidString: "BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF")!
+}
+
+private enum InvalidUploadVolumeScenario: CaseIterable, CustomTestStringConvertible {
+    case excessiveKnownTotal
+    case extremeKnownTotal
+    case excessiveUnknownTotalOwnedVolume
+    case extremeUnknownTotalOwnedVolume
+    case excessiveUnknownTotalReadingVolume
+    case extremeUnknownTotalReadingVolume
+
+    var state: CollectionSnapshot {
+        switch self {
+        case .excessiveKnownTotal:
+            makeState(knownTotalVolumes: 301)
+        case .extremeKnownTotal:
+            makeState(knownTotalVolumes: .max)
+        case .excessiveUnknownTotalOwnedVolume:
+            makeState(ownedVolumes: [301], knownTotalVolumes: nil)
+        case .extremeUnknownTotalOwnedVolume:
+            makeState(ownedVolumes: [.max], knownTotalVolumes: nil)
+        case .excessiveUnknownTotalReadingVolume:
+            makeState(readingVolume: 301, knownTotalVolumes: nil)
+        case .extremeUnknownTotalReadingVolume:
+            makeState(readingVolume: .max, knownTotalVolumes: nil)
+        }
+    }
+
+    var testDescription: String {
+        switch self {
+        case .excessiveKnownTotal: "known total 301"
+        case .extremeKnownTotal: "known total Int64.max"
+        case .excessiveUnknownTotalOwnedVolume: "owned volume 301 without total"
+        case .extremeUnknownTotalOwnedVolume: "owned volume Int64.max without total"
+        case .excessiveUnknownTotalReadingVolume: "reading volume 301 without total"
+        case .extremeUnknownTotalReadingVolume: "reading volume Int64.max without total"
+        }
+    }
+
+    private func makeState(
+        ownedVolumes: [Int64] = [1],
+        readingVolume: Int64? = nil,
+        knownTotalVolumes: Int64?
+    ) -> CollectionSnapshot {
+        CollectionSnapshot(
+            ownedVolumes: ownedVolumes,
+            readingVolume: readingVolume,
+            isComplete: false,
+            knownTotalVolumes: knownTotalVolumes,
+            isTombstone: false
+        )
+    }
 }
 
 private enum StaleConfirmationIdentity: CaseIterable {

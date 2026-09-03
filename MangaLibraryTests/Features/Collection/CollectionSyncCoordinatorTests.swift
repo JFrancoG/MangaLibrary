@@ -158,6 +158,37 @@ struct CollectionSyncCoordinatorTests {
         #expect(importCount.withLock { $0 } == 1)
     }
 
+    @Test("Unsupported volume data preserves the session and does not mutate recovered outbox work")
+    func unsupportedVolumeDataSkipsUnusableSnapshotRecovery() async throws(any Error) {
+        let authority = SessionAuthority(userID: Self.userA, generation: Self.generationA)
+        let currentAuthority = Mutex(authority)
+        let validationCount = Mutex(0)
+        let recoveryCount = Mutex(0)
+        let coordinator = CollectionSyncCoordinator(
+            authorize: {
+                Self.authorization(authority: authority, accessToken: "fixture-access-A")
+            },
+            validateAuthorization: { authorization in
+                validationCount.withLock { $0 += 1 }
+                return currentAuthority.withLock { $0 == authorization.authority }
+            },
+            fetchRemote: { _ in [Self.remoteEntry] },
+            importRemote: { _, _ in
+                throw CollectionRemoteImportError.knownTotalExceedsMaximum(total: 301, maximum: 300)
+            }
+        )
+
+        await #expect(throws: CollectionSyncError.unsupportedVolumeData) {
+            try await coordinator.importAuthenticatedCollection { _ in
+                recoveryCount.withLock { $0 += 1 }
+            }
+        }
+
+        #expect(currentAuthority.withLock { $0 } == authority)
+        #expect(validationCount.withLock { $0 } == 2)
+        #expect(recoveryCount.withLock { $0 } == 0)
+    }
+
     @Test(
         "A session persistence failure precedes unusable-snapshot recovery",
         arguments: CollectionSessionPersistenceFailure.allCases

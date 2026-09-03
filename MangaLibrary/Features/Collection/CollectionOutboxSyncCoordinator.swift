@@ -544,7 +544,7 @@ actor CollectionOutboxSyncCoordinator {
                 throw CollectionOutboxSyncError.sessionChanged
             case .cancelled:
                 throw CancellationError()
-            case .staleOperation, .persistenceConflict:
+            case .staleOperation, .invalidVolumeState, .persistenceConflict:
                 throw error
             }
         } catch let error as CollectionRemoteImportError {

@@ -109,6 +109,57 @@ struct CollectionPersistenceTests {
         #expect(operation.isTombstone == false)
     }
 
+    @Test("An out-of-range V1 store reopens unchanged and remains quarantined")
+    func historicalOutOfRangeStoreSurvivesReopening() async throws {
+        let location = try makeStoreLocation()
+        defer { removeStoreLocation(location.directory) }
+        let historicalState = MangaLibrarySchema.V1.CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 300,
+            isComplete: false,
+            knownTotalVolumes: .max,
+            isTombstone: false
+        )
+        try seedV1Store(at: location.store, state: historicalState)
+
+        do {
+            let migrated = try MangaLibrarySchema.makeContainer(storeURL: location.store)
+            let context = ModelContext(migrated)
+            let entry = try #require(context.fetch(FetchDescriptor<CollectionEntry>()).first)
+            let operation = try #require(context.fetch(FetchDescriptor<CollectionOutboxOperation>()).first)
+            let actor = CollectionMutationActor(modelContainer: migrated)
+
+            #expect(entry.state.ownedVolumes == historicalState.ownedVolumes)
+            #expect(entry.state.readingVolume == historicalState.readingVolume)
+            #expect(entry.state.knownTotalVolumes == historicalState.knownTotalVolumes)
+            #expect(operation.desiredState == entry.state)
+            await #expect(throws: CollectionMutationError.incompatibleStoredVolumeState) {
+                try await actor.apply(
+                    CollectionMutationCommand(
+                        authority: Self.authorityA,
+                        mangaID: 42,
+                        knownTotalVolumes: nil,
+                        change: .setReadingVolume(299)
+                    ),
+                    newOperationID: Self.operationB
+                )
+            }
+        }
+
+        let reopened = try MangaLibrarySchema.makeContainer(storeURL: location.store)
+        let context = ModelContext(reopened)
+        let entry = try #require(context.fetch(FetchDescriptor<CollectionEntry>()).first)
+        let operation = try #require(context.fetch(FetchDescriptor<CollectionOutboxOperation>()).first)
+
+        #expect(entry.state.ownedVolumes == historicalState.ownedVolumes)
+        #expect(entry.state.readingVolume == historicalState.readingVolume)
+        #expect(entry.state.knownTotalVolumes == historicalState.knownTotalVolumes)
+        #expect(entry.state.isTombstone == false)
+        #expect(operation.desiredState == entry.state)
+        #expect(operation.sequence == 7)
+        #expect(operation.state == .queued)
+    }
+
     @Test("Add, edit, delete, and user isolation survive reopening the same disk store")
     func collectionLifecycleAndIsolationSurviveReopening() async throws {
         let location = try makeStoreLocation()
@@ -258,7 +309,7 @@ struct CollectionPersistenceTests {
         )
     }
 
-    private func seedV1Store(at storeURL: URL) throws {
+    private func seedV1Store(at storeURL: URL, state: MangaLibrarySchema.V1.CollectionSnapshot? = nil) throws {
         let schema = Schema(versionedSchema: MangaLibrarySchema.V1.self)
         let configuration = ModelConfiguration(
             "MangaLibrary",
@@ -269,7 +320,7 @@ struct CollectionPersistenceTests {
         )
         let container = try ModelContainer(for: schema, configurations: configuration)
         let context = ModelContext(container)
-        let state = MangaLibrarySchema.V1.CollectionSnapshot(
+        let state = state ?? MangaLibrarySchema.V1.CollectionSnapshot(
             ownedVolumes: [1, 3],
             readingVolume: 2,
             isComplete: false,

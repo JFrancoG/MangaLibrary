@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-09-03 | ✨ feat(collection): cap volume numbers at 300
 - 2026-09-03 | ✨ feat(collection): sync collection deletions
 - 2026-09-02 | ✨ feat(collection): upload queued collection changes
 - 2026-09-02 | ✨ feat(collection): import remote snapshot
@@ -31,6 +32,7 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-03 | 📝 docs(delivery): record volume cap pull request
 - 2026-09-03 | 📝 docs(delivery): record R2 pull request
 - 2026-09-02 | 📝 docs(delivery): record single-JWT PR
 - 2026-09-02 | 📝 docs(session): adopt single-JWT authority and Keychain V3

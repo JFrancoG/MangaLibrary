@@ -197,6 +197,35 @@ struct CollectionAPIClientTests {
         #expect(try context.fetchCount(FetchDescriptor<CollectionOutboxOperation>()) == 0)
     }
 
+    @Test(
+        "An excessive reported total remains raw and fails the DTO to SwiftData pipeline",
+        arguments: [301, Int64.max]
+    )
+    func excessiveReportedTotalRejectsImport(_ reportedTotal: Int64) async throws(any Error) {
+        let remoteID = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
+        let client = try makeClient(
+            data: Self.snapshot(Self.entry(remoteID: remoteID, mangaID: 42, volumes: reportedTotal))
+        )
+        let remoteEntries = try await client.fetch(accessToken: "fixture-access")
+        let remoteEntry = try #require(remoteEntries.first)
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let actor = CollectionMutationActor(modelContainer: container)
+        let authority = SessionAuthority(userID: Self.userID, generation: UUID())
+        let commitGate = SessionCommitGate(activeAuthority: authority)
+
+        #expect(remoteEntry.manga.totalVolumes == nil)
+        #expect(remoteEntry.reportedTotalVolumes == reportedTotal)
+        await #expect(
+            throws: CollectionRemoteImportError.knownTotalExceedsMaximum(total: reportedTotal, maximum: 300)
+        ) {
+            try await actor.importRemote(remoteEntries, authorization: commitGate.authorization(for: authority))
+        }
+
+        let context = ModelContext(container)
+        #expect(try context.fetchCount(FetchDescriptor<CollectionEntry>()) == 0)
+        #expect(try context.fetchCount(FetchDescriptor<CollectionOutboxOperation>()) == 0)
+    }
+
     @Test("An unexpected HTTP status retains its safe network category")
     func unexpectedStatusRemainsNetworkFailure() async throws(any Error) {
         let baseURL = try #require(URL(string: "https://collection.example.test"))

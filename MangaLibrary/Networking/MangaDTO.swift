@@ -45,9 +45,7 @@ struct MangaDTO: Decodable {
     }
 
     private func validatedTotalVolumes() -> Int64? {
-        guard let volumes, volumes > 0 else { return nil }
-
-        return volumes
+        CollectionVolumePolicy.supportedKnownTotal(volumes)
     }
 
     private func validatedCoverURL() -> URL? {

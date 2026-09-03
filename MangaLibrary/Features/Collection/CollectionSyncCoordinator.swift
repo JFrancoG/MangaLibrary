@@ -15,11 +15,14 @@ enum CollectionSyncError: Error, Equatable {
     case sessionChanged
     case authorizationDenied(origin: CollectionSyncFailureOrigin, statusCode: Int)
     case authenticationIncompatible(origin: CollectionSyncFailureOrigin, statusCode: Int)
+    case unsupportedVolumeData
 }
 
 /// The authenticated snapshot already imported by R1 and reusable by R2.
 ///
 /// It carries the exact session authority but never retains an access credential.
+/// Entries stay raw so R2 can classify an opaque incompatible presence for an
+/// exact tombstone without R1 importing or reinterpreting its volume values.
 struct CollectionImportedSnapshot {
     let authority: SessionAuthority
     let entries: [CollectionRemoteEntry]
@@ -173,6 +176,11 @@ actor CollectionSyncCoordinator {
                     guard try await validateAuthorization(authorization) else {
                         throw CollectionSyncError.sessionChanged
                     }
+                    if let importError = importError as? CollectionRemoteImportError,
+                       importError.isUnsupportedVolumeData {
+                        Self.logUnsupportedVolumeData()
+                        throw CollectionSyncError.unsupportedVolumeData
+                    }
                     throw importError
                 }
                 try Task.checkCancellation()
@@ -183,6 +191,8 @@ actor CollectionSyncCoordinator {
                 throw CancellationError()
             } catch CollectionSyncError.sessionChanged {
                 throw CollectionSyncError.sessionChanged
+            } catch CollectionSyncError.unsupportedVolumeData {
+                throw CollectionSyncError.unsupportedVolumeData
             } catch CollectionRemoteImportError.cancelled {
                 throw CancellationError()
             } catch CollectionRemoteImportError.sessionChanged {
@@ -240,6 +250,10 @@ actor CollectionSyncCoordinator {
                 "R1 authentication incompatible: origin=renewedSessionIdentity status=\(statusCode, privacy: .public)"
             )
         }
+    }
+
+    private static func logUnsupportedVolumeData() {
+        logger.error("R1 unsupported volume data: action=preserveSessionAndCollection")
     }
 
     private static func authenticationIncompatibility(

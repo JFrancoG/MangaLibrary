@@ -70,6 +70,49 @@ struct CollectionAPIClientSubmitTests {
         #expect(body.readingVolume == nil)
     }
 
+    @Test("Submit sends owned and reading volumes at the global boundary")
+    func submitAcceptsTheGlobalVolumeMaximum() async throws(any Error) {
+        let recorder = CollectionSubmitRequestRecorder(data: Data("42".utf8))
+        let client = try makeClient { request in
+            await recorder.load(request)
+        }
+
+        _ = try await client.submit(
+            mangaID: 42,
+            ownedVolumes: [299, 300],
+            readingVolume: 300,
+            isComplete: false,
+            accessToken: "fixture-access"
+        )
+
+        let requests = await recorder.requests()
+        let request = try #require(requests.first)
+        let body = try payload(from: request)
+        #expect(requests.count == 1)
+        #expect(body.volumesOwned == [299, 300])
+        #expect(body.readingVolume == 300)
+    }
+
+    @Test("Submit rejects out-of-range volume state before transport", arguments: InvalidSubmitVolumeScenario.allCases)
+    private func invalidVolumeStateDoesNotLoadData(_ scenario: InvalidSubmitVolumeScenario) async throws(any Error) {
+        let recorder = CollectionSubmitRequestRecorder(data: Data("42".utf8))
+        let client = try makeClient { request in
+            await recorder.load(request)
+        }
+
+        await #expect(throws: CollectionAPIClientError.invalidVolumeState) {
+            _ = try await client.submit(
+                mangaID: 42,
+                ownedVolumes: scenario.ownedVolumes,
+                readingVolume: scenario.readingVolume,
+                isComplete: false,
+                accessToken: "fixture-access"
+            )
+        }
+
+        #expect(await recorder.requests().isEmpty)
+    }
+
     @Test("An empty access token fails before transport")
     func emptyAccessTokenDoesNotLoadData() async throws(any Error) {
         let recorder = CollectionSubmitRequestRecorder(data: Data("42".utf8))
@@ -153,6 +196,38 @@ struct CollectionAPIClientSubmitTests {
     private func payload(from request: URLRequest) throws(any Error) -> CollectionSubmitPayload {
         let data = try #require(request.httpBody)
         return try JSONDecoder().decode(CollectionSubmitPayload.self, from: data)
+    }
+}
+
+private enum InvalidSubmitVolumeScenario: CaseIterable, CustomTestStringConvertible {
+    case excessiveOwnedVolume
+    case extremeOwnedVolume
+    case excessiveReadingVolume
+    case extremeReadingVolume
+
+    var ownedVolumes: [Int64] {
+        switch self {
+        case .excessiveOwnedVolume: [301]
+        case .extremeOwnedVolume: [.max]
+        case .excessiveReadingVolume, .extremeReadingVolume: [1]
+        }
+    }
+
+    var readingVolume: Int64? {
+        switch self {
+        case .excessiveOwnedVolume, .extremeOwnedVolume: nil
+        case .excessiveReadingVolume: 301
+        case .extremeReadingVolume: .max
+        }
+    }
+
+    var testDescription: String {
+        switch self {
+        case .excessiveOwnedVolume: "owned volume 301"
+        case .extremeOwnedVolume: "owned volume Int64.max"
+        case .excessiveReadingVolume: "reading volume 301"
+        case .extremeReadingVolume: "reading volume Int64.max"
+        }
     }
 }
 

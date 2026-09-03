@@ -242,6 +242,27 @@ enum CollectionPreviewSupport {
         )
     }
 
+    static func historicalIncompatibleEditor(container: ModelContainer) -> some View {
+        let manga = CatalogPreviewSupport.mangas[0]
+        let state = requireEntry(mangaID: manga.id, in: container).state
+        let context = makeContext(
+            state: .authenticated(AccountPreviewSupport.account, notice: nil),
+            container: container
+        )
+
+        return CollectionEditorView(
+            seed: CollectionEditorSeed(
+                identity: CollectionIdentity(userID: AccountPreviewSupport.account.id, mangaID: manga.id),
+                authority: AccountPreviewSupport.account.authority,
+                title: manga.title,
+                mangaSnapshot: CollectionMangaSnapshot(manga: manga),
+                state: state,
+                isExistingEntry: true
+            ),
+            mutation: context.mutation
+        )
+    }
+
     static func makeContainer(seed: CollectionPreviewSeed) throws -> ModelContainer {
         let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
 
@@ -250,6 +271,8 @@ enum CollectionPreviewSupport {
             break
         case .content:
             try seedContent(in: container)
+        case .historicalIncompatible:
+            try seedHistoricalIncompatibleContent(in: container)
         }
 
         return container
@@ -318,6 +341,27 @@ enum CollectionPreviewSupport {
         try context.save()
     }
 
+    private static func seedHistoricalIncompatibleContent(in container: ModelContainer) throws {
+        let context = ModelContext(container)
+        let manga = CatalogPreviewSupport.mangas[0]
+        context.insert(
+            CollectionEntry(
+                userID: AccountPreviewSupport.account.id,
+                mangaID: manga.id,
+                state: CollectionSnapshot(
+                    ownedVolumes: [1],
+                    readingVolume: 300,
+                    isComplete: false,
+                    knownTotalVolumes: .max,
+                    isTombstone: false
+                ),
+                confirmedState: nil,
+                mangaSnapshot: CollectionMangaSnapshot(manga: manga)
+            )
+        )
+        try context.save()
+    }
+
     private static func requireEntry(mangaID: Manga.ID, in container: ModelContainer) -> CollectionEntry {
         do {
             let context = ModelContext(container)
@@ -339,6 +383,7 @@ enum CollectionPreviewSupport {
 enum CollectionPreviewSeed {
     case empty
     case content
+    case historicalIncompatible
 }
 
 private struct CollectionPreviewContext {

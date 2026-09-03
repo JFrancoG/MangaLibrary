@@ -168,6 +168,102 @@ struct CollectionMutationActorTests {
         #expect(try readStore(container) == PersistedCollectionStore(entries: [], operations: []))
     }
 
+    @Test("A known total above 300 preserves the previous atomic state", arguments: [Int64(301), Int64.max])
+    func excessiveKnownTotalPreservesCollectionAndOutbox(total: Int64) async throws(any Error) {
+        let container = try makeContainer()
+        let actor = CollectionMutationActor(modelContainer: container)
+        _ = try await actor.apply(
+            Self.command(
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                knownTotalVolumes: 3,
+                change: .replaceOwnedVolumes([1])
+            ),
+            newOperationID: Self.operationA
+        )
+        let priorStore = try readStore(container)
+
+        await #expect(
+            throws: CollectionMutationError.knownTotalExceedsMaximum(total: total, maximum: 300)
+        ) {
+            try await actor.apply(
+                Self.command(
+                    userID: Self.userA,
+                    mangaID: Self.mangaA,
+                    knownTotalVolumes: total,
+                    change: .setComplete(true)
+                ),
+                newOperationID: Self.operationB
+            )
+        }
+
+        #expect(try readStore(container) == priorStore)
+    }
+
+    @Test("An owned volume above 300 is invalid even without a known total", arguments: [Int64(301), Int64.max])
+    func excessiveUnknownTotalOwnedVolumePreservesCollectionAndOutbox(volume: Int64) async throws(any Error) {
+        let container = try makeContainer()
+        let actor = CollectionMutationActor(modelContainer: container)
+        _ = try await actor.apply(
+            Self.command(
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                knownTotalVolumes: nil,
+                change: .replaceOwnedVolumes([1])
+            ),
+            newOperationID: Self.operationA
+        )
+        let priorStore = try readStore(container)
+
+        await #expect(
+            throws: CollectionMutationError.volumeExceedsMaximum(volume: volume, maximum: 300)
+        ) {
+            try await actor.apply(
+                Self.command(
+                    userID: Self.userA,
+                    mangaID: Self.mangaA,
+                    knownTotalVolumes: nil,
+                    change: .replaceOwnedVolumes([1, volume])
+                ),
+                newOperationID: Self.operationB
+            )
+        }
+
+        #expect(try readStore(container) == priorStore)
+    }
+
+    @Test("A reading volume above 300 is invalid even without a known total", arguments: [Int64(301), Int64.max])
+    func excessiveUnknownTotalReadingVolumePreservesCollectionAndOutbox(volume: Int64) async throws(any Error) {
+        let container = try makeContainer()
+        let actor = CollectionMutationActor(modelContainer: container)
+        _ = try await actor.apply(
+            Self.command(
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                knownTotalVolumes: nil,
+                change: .setReadingVolume(299)
+            ),
+            newOperationID: Self.operationA
+        )
+        let priorStore = try readStore(container)
+
+        await #expect(
+            throws: CollectionMutationError.volumeExceedsMaximum(volume: volume, maximum: 300)
+        ) {
+            try await actor.apply(
+                Self.command(
+                    userID: Self.userA,
+                    mangaID: Self.mangaA,
+                    knownTotalVolumes: nil,
+                    change: .setReadingVolume(volume)
+                ),
+                newOperationID: Self.operationB
+            )
+        }
+
+        #expect(try readStore(container) == priorStore)
+    }
+
     @Test("An owned volume above the known total is rejected without either persisted half")
     func ownedVolumeAboveKnownTotalLeavesTheStoreEmpty() async throws(any Error) {
         let container = try makeContainer()
@@ -418,6 +514,34 @@ struct CollectionMutationActorTests {
         #expect(store.operations.first?.desiredState == removed.state)
     }
 
+    @Test("A complete collection at the global maximum materializes exactly 300 volumes")
+    func completeStateAcceptsTheGlobalMaximum() async throws(any Error) {
+        let container = try makeContainer()
+        let actor = CollectionMutationActor(modelContainer: container)
+
+        let completed = try await actor.apply(
+            Self.command(
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                knownTotalVolumes: 300,
+                change: .setComplete(true)
+            ),
+            newOperationID: Self.operationA
+        )
+
+        #expect(completed.state.ownedVolumes.count == 300)
+        #expect(Array(completed.state.ownedVolumes.prefix(3)) == [1, 2, 3])
+        #expect(Array(completed.state.ownedVolumes.suffix(3)) == [298, 299, 300])
+        #expect(completed.state.readingVolume == nil)
+        #expect(completed.state.isComplete)
+        #expect(completed.state.knownTotalVolumes == 300)
+
+        let store = try readStore(container)
+        #expect(store.entries.map(\.state) == [completed.state])
+        #expect(store.operations.map(\.desiredState) == [completed.state])
+        #expect(store.operations.map(\.state) == [.queued])
+    }
+
     @Test("A newly known total that invalidates current data is rejected atomically")
     func incompatibleKnownTotalPreservesTheUnknownTotalState() async throws(any Error) {
         let container = try makeContainer()
@@ -482,6 +606,76 @@ struct CollectionMutationActorTests {
         #expect(store.entries.first?.state.knownTotalVolumes == nil)
         #expect(store.operations.first?.sequence == 1)
         #expect(store.operations.first?.operationID == Self.operationA)
+    }
+
+    @Test("An incompatible historical state is immutable through edits but can become an explicit tombstone")
+    func incompatibleHistoricalStateCanOnlyBeTombstoned() async throws(any Error) {
+        let container = try makeContainer()
+        let historicalState = CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 299,
+            isComplete: false,
+            knownTotalVolumes: 301,
+            isTombstone: false
+        )
+        let seedContext = ModelContext(container)
+        seedContext.insert(
+            CollectionEntry(
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                state: historicalState,
+                confirmedState: nil,
+                mangaSnapshot: CollectionMangaSnapshot(manga: Self.manga(id: Self.mangaA))
+            )
+        )
+        seedContext.insert(
+            CollectionOutboxOperation(
+                operationID: Self.operationA,
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                sequence: 1,
+                desiredState: historicalState
+            )
+        )
+        try seedContext.save()
+        let priorStore = try readStore(container)
+        let actor = CollectionMutationActor(modelContainer: container)
+
+        await #expect(throws: CollectionMutationError.incompatibleStoredVolumeState) {
+            try await actor.apply(
+                Self.command(
+                    userID: Self.userA,
+                    mangaID: Self.mangaA,
+                    knownTotalVolumes: nil,
+                    change: .setReadingVolume(300)
+                ),
+                newOperationID: Self.operationB
+            )
+        }
+        #expect(try readStore(container) == priorStore)
+
+        let deletion = try await actor.apply(
+            CollectionMutationCommand(
+                authority: Self.authority(for: Self.userA),
+                mangaID: Self.mangaA,
+                knownTotalVolumes: nil,
+                change: .delete
+            ),
+            newOperationID: Self.operationC
+        )
+
+        #expect(deletion.state.ownedVolumes == historicalState.ownedVolumes)
+        #expect(deletion.state.readingVolume == historicalState.readingVolume)
+        #expect(deletion.state.knownTotalVolumes == historicalState.knownTotalVolumes)
+        #expect(deletion.state.isTombstone)
+        #expect(deletion.outboxOperationID == Self.operationA)
+        #expect(deletion.sequence == 2)
+
+        let deletedStore = try readStore(container)
+        #expect(deletedStore.entries.map(\.state) == [deletion.state])
+        #expect(deletedStore.operations.map(\.operationID) == [Self.operationA])
+        #expect(deletedStore.operations.map(\.sequence) == [2])
+        #expect(deletedStore.operations.map(\.desiredState) == [deletion.state])
     }
 
     @Test("Repeated upserts stay unique and the same manga remains isolated by user")

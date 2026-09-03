@@ -12,14 +12,50 @@ enum CollectionRemoteImportError: Error, Equatable {
     case duplicateRemoteID(UUID)
     case duplicateMangaID(Manga.ID)
     case nonPositiveKnownTotal(Int64)
+    case knownTotalExceedsMaximum(total: Int64, maximum: Int64)
     case nonPositiveVolume(Int64)
+    case volumeExceedsMaximum(volume: Int64, maximum: Int64)
     case volumeExceedsKnownTotal(volume: Int64, total: Int64)
     case completeRequiresKnownTotal
+    case incompatibleStoredVolumeState
     case orphanedLocalEntry(Manga.ID)
     case orphanedPendingIntent(Manga.ID)
     case sessionChanged
     case persistenceConflict
     case cancelled
+}
+
+extension CollectionRemoteImportError {
+    var isUnsupportedRemoteVolumeData: Bool {
+        switch self {
+        case .nonPositiveKnownTotal,
+             .knownTotalExceedsMaximum,
+             .nonPositiveVolume,
+             .volumeExceedsMaximum,
+             .volumeExceedsKnownTotal,
+             .completeRequiresKnownTotal:
+            true
+        case .invalidIdentity,
+             .duplicateRemoteID,
+             .duplicateMangaID,
+             .incompatibleStoredVolumeState,
+             .orphanedLocalEntry,
+             .orphanedPendingIntent,
+             .sessionChanged,
+             .persistenceConflict,
+             .cancelled:
+            false
+        }
+    }
+
+    var isUnsupportedVolumeData: Bool {
+        isUnsupportedRemoteVolumeData || self == .incompatibleStoredVolumeState
+    }
+}
+
+private struct CollectionValidatedRemoteSnapshot {
+    let candidates: [Manga.ID: CollectionRemoteCandidate]
+    let opaqueRemotePresenceMangaIDs: Set<Manga.ID>
 }
 
 extension CollectionMutationActor {
@@ -30,7 +66,9 @@ extension CollectionMutationActor {
     /// Every remote candidate is validated before the transaction mutates the
     /// context. A non-confirmed outbox operation owns the visible local state;
     /// the import advances only its confirmed baseline and presentation data.
-    /// No outbox operation is created or changed by this route.
+    /// An incompatible row may be ignored only for its exact processable local
+    /// deletion, without importing it or treating it as remote absence. No
+    /// outbox operation is created or changed by this route.
     func importRemote(
         _ remoteEntries: [CollectionRemoteEntry],
         authorization: SessionCommitAuthorization,
@@ -38,13 +76,12 @@ extension CollectionMutationActor {
     ) throws(CollectionRemoteImportError) {
         do {
             try Task.checkCancellation()
-            let remoteByMangaID = try validatedRemoteEntries(remoteEntries)
             let userID = authorization.authority.userID
 
             try authorization.perform {
                 try modelContext.transaction {
                     try Task.checkCancellation()
-                    try reconcile(remoteByMangaID, for: userID, afterMutation: afterMutation)
+                    try reconcile(remoteEntries, for: userID, afterMutation: afterMutation)
                     try Task.checkCancellation()
                 }
             }
@@ -64,10 +101,13 @@ extension CollectionMutationActor {
     }
 
     private func validatedRemoteEntries(
-        _ remoteEntries: [CollectionRemoteEntry]
-    ) throws(CollectionRemoteImportError) -> [Manga.ID: CollectionRemoteCandidate] {
+        _ remoteEntries: [CollectionRemoteEntry],
+        allowingUnsupportedVolumeDataFor processableDeletionMangaIDs: Set<Manga.ID>
+    ) throws(CollectionRemoteImportError) -> CollectionValidatedRemoteSnapshot {
         var remoteIDs: Set<UUID> = []
+        var remoteMangaIDs: Set<Manga.ID> = []
         var candidates: [Manga.ID: CollectionRemoteCandidate] = [:]
+        var opaqueRemotePresenceMangaIDs: Set<Manga.ID> = []
         candidates.reserveCapacity(remoteEntries.count)
 
         for remoteEntry in remoteEntries {
@@ -76,13 +116,22 @@ extension CollectionMutationActor {
                 throw .duplicateRemoteID(remoteEntry.remoteID)
             }
 
-            let candidate = try validatedRemoteCandidate(remoteEntry)
-            let mangaID = candidate.mangaSnapshot.mangaID
-            guard candidates[mangaID] == nil else { throw .duplicateMangaID(mangaID) }
-            candidates[mangaID] = candidate
+            let mangaID = remoteEntry.manga.id
+            guard mangaID > 0 else { throw .invalidIdentity }
+            guard remoteMangaIDs.insert(mangaID).inserted else { throw .duplicateMangaID(mangaID) }
+
+            do {
+                candidates[mangaID] = try validatedRemoteCandidate(remoteEntry)
+            } catch let error
+                where error.isUnsupportedRemoteVolumeData && processableDeletionMangaIDs.contains(mangaID) {
+                opaqueRemotePresenceMangaIDs.insert(mangaID)
+            }
         }
 
-        return candidates
+        return CollectionValidatedRemoteSnapshot(
+            candidates: candidates,
+            opaqueRemotePresenceMangaIDs: opaqueRemotePresenceMangaIDs
+        )
     }
 
     /// Validates and canonicalizes one remote entry with the same rules as R1.
@@ -104,6 +153,9 @@ extension CollectionMutationActor {
     ) throws(CollectionRemoteImportError) -> CollectionSnapshot {
         let knownTotal = remoteEntry.reportedTotalVolumes
         if let knownTotal, knownTotal <= 0 { throw .nonPositiveKnownTotal(knownTotal) }
+        if let knownTotal, CollectionVolumePolicy.contains(knownTotal) == false {
+            throw .knownTotalExceedsMaximum(total: knownTotal, maximum: CollectionVolumePolicy.maximum)
+        }
 
         for volume in remoteEntry.ownedVolumes {
             try validateRemoteVolume(volume, knownTotal: knownTotal)
@@ -114,8 +166,10 @@ extension CollectionMutationActor {
 
         let ownedVolumes: [Int64]
         if remoteEntry.isComplete {
-            guard let knownTotal, knownTotal > 0 else { throw .completeRequiresKnownTotal }
-            ownedVolumes = Array(1...knownTotal)
+            guard let completeVolumes = CollectionVolumePolicy.completeVolumes(for: knownTotal) else {
+                throw .completeRequiresKnownTotal
+            }
+            ownedVolumes = completeVolumes
         } else {
             ownedVolumes = Array(Set(remoteEntry.ownedVolumes)).sorted()
         }
@@ -131,13 +185,16 @@ extension CollectionMutationActor {
 
     private func validateRemoteVolume(_ volume: Int64, knownTotal: Int64?) throws(CollectionRemoteImportError) {
         guard volume > 0 else { throw .nonPositiveVolume(volume) }
+        guard CollectionVolumePolicy.contains(volume) else {
+            throw .volumeExceedsMaximum(volume: volume, maximum: CollectionVolumePolicy.maximum)
+        }
         if let knownTotal, volume > knownTotal {
             throw .volumeExceedsKnownTotal(volume: volume, total: knownTotal)
         }
     }
 
     private func reconcile(
-        _ remoteByMangaID: [Manga.ID: CollectionRemoteCandidate],
+        _ remoteEntries: [CollectionRemoteEntry],
         for userID: UUID,
         afterMutation: RemoteImportCheckpoint
     ) throws(any Error) {
@@ -150,11 +207,17 @@ extension CollectionMutationActor {
             guard
                 entry.userID == userID,
                 entry.mangaID > 0,
-                isValidRemotePersistedState(entry.state),
-                entry.confirmedState.map(isValidRemotePersistedState) ?? true,
                 entry.mangaSnapshot.map({ $0.mangaID == entry.mangaID }) ?? true,
                 entriesByMangaID[entry.mangaID] == nil
             else { throw CollectionRemoteImportError.persistenceConflict }
+            guard CollectionVolumePolicy.isValid(entry.state, allowingHistoricalTombstone: true) else {
+                throw CollectionRemoteImportError.incompatibleStoredVolumeState
+            }
+            if entry.isTombstone == false,
+               let confirmedState = entry.confirmedState,
+               CollectionVolumePolicy.isValid(confirmedState) == false {
+                throw CollectionRemoteImportError.incompatibleStoredVolumeState
+            }
 
             entriesByMangaID[entry.mangaID] = entry
         }
@@ -164,12 +227,27 @@ extension CollectionMutationActor {
                 operation.userID == userID,
                 operation.mangaID > 0,
                 operation.sequence > 0,
-                isValidRemotePersistedState(operation.desiredState),
                 operation.isTombstone == operation.desiredState.isTombstone
             else { throw CollectionRemoteImportError.persistenceConflict }
+            if operation.state != .confirmed {
+                guard CollectionVolumePolicy.isValid(operation.desiredState, allowingHistoricalTombstone: true) else {
+                    throw CollectionRemoteImportError.incompatibleStoredVolumeState
+                }
+            }
 
             operationsByMangaID[operation.mangaID, default: []].append(operation)
         }
+
+        let processableDeletionMangaIDs = processableDeletionMangaIDs(
+            entriesByMangaID: entriesByMangaID,
+            operationsByMangaID: operationsByMangaID
+        )
+        let validatedRemoteSnapshot = try validatedRemoteEntries(
+            remoteEntries,
+            allowingUnsupportedVolumeDataFor: processableDeletionMangaIDs
+        )
+        let remoteByMangaID = validatedRemoteSnapshot.candidates
+        let opaqueRemotePresenceMangaIDs = validatedRemoteSnapshot.opaqueRemotePresenceMangaIDs
 
         for (mangaID, pairOperations) in operationsByMangaID where entriesByMangaID[mangaID] == nil {
             if pairOperations.contains(where: { $0.state != .confirmed }) {
@@ -214,6 +292,9 @@ extension CollectionMutationActor {
 
         for (mangaID, entry) in entriesByMangaID {
             try Task.checkCancellation()
+            if opaqueRemotePresenceMangaIDs.contains(mangaID) {
+                continue
+            }
             let pairOperations = operationsByMangaID[mangaID, default: []]
             let hasPendingIntent = pairOperations.contains { $0.state != .confirmed }
 
@@ -225,6 +306,34 @@ extension CollectionMutationActor {
             mutationCount += 1
             try afterMutation(mutationCount)
         }
+    }
+
+    /// Identifies exact deletions that can progress without reading volume values.
+    ///
+    /// Only the earliest non-confirmed operation for a pair can authorize the
+    /// exception. Blocked or superseded work continues to fence later intent.
+    private func processableDeletionMangaIDs(
+        entriesByMangaID: [Manga.ID: CollectionEntry],
+        operationsByMangaID: [Manga.ID: [CollectionOutboxOperation]]
+    ) -> Set<Manga.ID> {
+        var mangaIDs: Set<Manga.ID> = []
+
+        for (mangaID, entry) in entriesByMangaID where entry.isTombstone {
+            let pendingOperations = operationsByMangaID[mangaID, default: []].filter { $0.state != .confirmed }
+            guard let firstSequence = pendingOperations.map(\.sequence).min() else { continue }
+            let firstOperations = pendingOperations.filter { $0.sequence == firstSequence }
+            guard
+                firstOperations.count == 1,
+                let firstPendingOperation = firstOperations.first,
+                firstPendingOperation.state == .queued || firstPendingOperation.state == .sending,
+                firstPendingOperation.isTombstone,
+                firstPendingOperation.desiredState == entry.state
+            else { continue }
+
+            mangaIDs.insert(mangaID)
+        }
+
+        return mangaIDs
     }
 
     private func fetchEntries(for userID: UUID) throws(any Error) -> [CollectionEntry] {
@@ -239,31 +348,6 @@ extension CollectionMutationActor {
         return try modelContext.fetch(descriptor)
     }
 
-    private func isValidRemotePersistedState(_ state: CollectionSnapshot) -> Bool {
-        guard state.ownedVolumes.allSatisfy({ $0 > 0 }) else { return false }
-        guard state.ownedVolumes == Array(Set(state.ownedVolumes)).sorted() else { return false }
-        guard state.readingVolume.map({ $0 > 0 }) ?? true else { return false }
-
-        if let total = state.knownTotalVolumes {
-            guard total > 0 else { return false }
-            guard state.ownedVolumes.allSatisfy({ $0 <= total }) else { return false }
-            guard state.readingVolume.map({ $0 <= total }) ?? true else { return false }
-        }
-
-        if state.isComplete {
-            guard
-                let total = state.knownTotalVolumes,
-                total > 0,
-                let count = Int(exactly: total),
-                state.ownedVolumes.count == count
-            else { return false }
-            guard state.ownedVolumes.enumerated().allSatisfy({ index, volume in
-                volume == Int64(index) + 1
-            }) else { return false }
-        }
-
-        return true
-    }
 }
 
 struct CollectionRemoteCandidate {

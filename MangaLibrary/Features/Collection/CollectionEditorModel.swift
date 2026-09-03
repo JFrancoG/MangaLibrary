@@ -55,7 +55,8 @@ final class CollectionEditorModel {
         }
     }
     private(set) var inputFailure: CollectionEditorInputFailure?
-    private(set) var submissionState: SubmissionState = .idle
+    private(set) var submissionState: SubmissionState
+    let isVolumeStateEditable: Bool
 
     private let mutation: CollectionMutation
 
@@ -64,14 +65,21 @@ final class CollectionEditorModel {
         self.mutation = mutation
         ownedVolumes = Set(seed.state.ownedVolumes)
         readingVolumeText = seed.state.readingVolume.map(String.init) ?? ""
+        let isVolumeStateEditable = CollectionVolumePolicy.isValid(seed.state)
+        self.isVolumeStateEditable = isVolumeStateEditable
+        submissionState = isVolumeStateEditable ? .idle : .failed(.incompatibleStoredVolumeState)
     }
 
     var knownTotalVolumes: Int64? { seed.state.knownTotalVolumes }
 
-    var isComplete: Bool {
-        guard let knownTotalVolumes, knownTotalVolumes > 0 else { return false }
+    var knownVolumeNumbers: [Int64]? {
+        CollectionVolumePolicy.completeVolumes(for: knownTotalVolumes)
+    }
 
-        return ownedVolumes == Set(1...knownTotalVolumes)
+    var isComplete: Bool {
+        guard let knownVolumeNumbers else { return false }
+
+        return ownedVolumes == Set(knownVolumeNumbers)
     }
 
     var isSubmitting: Bool {
@@ -84,7 +92,7 @@ final class CollectionEditorModel {
     }
 
     var canSave: Bool {
-        isSubmitting == false
+        isVolumeStateEditable && isSubmitting == false
     }
 
     var sortedOwnedVolumes: [Int64] {
@@ -96,6 +104,11 @@ final class CollectionEditorModel {
     }
 
     func setOwned(_ ownsVolume: Bool, volume: Int64) {
+        guard isVolumeStateEditable, CollectionVolumePolicy.contains(volume) else {
+            inputFailure = .invalidOwnedVolume
+            return
+        }
+
         inputFailure = nil
         if ownsVolume {
             ownedVolumes.insert(volume)
@@ -105,8 +118,10 @@ final class CollectionEditorModel {
     }
 
     func addUnknownVolume() {
+        guard isVolumeStateEditable else { return }
+
         let normalized = volumeInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let volume = Int64(normalized), volume > 0 else {
+        guard let volume = Int64(normalized), CollectionVolumePolicy.contains(volume) else {
             inputFailure = .invalidOwnedVolume
             return
         }
@@ -122,12 +137,16 @@ final class CollectionEditorModel {
     }
 
     func setComplete(_ complete: Bool) {
-        guard let knownTotalVolumes, knownTotalVolumes > 0 else { return }
+        guard isVolumeStateEditable, let knownVolumeNumbers else { return }
 
-        ownedVolumes = complete ? Set(1...knownTotalVolumes) : []
+        ownedVolumes = complete ? Set(knownVolumeNumbers) : []
     }
 
     func save() async -> Bool {
+        guard isVolumeStateEditable else {
+            submissionState = .failed(.incompatibleStoredVolumeState)
+            return false
+        }
         guard hasPendingVolumeInput == false else {
             inputFailure = .pendingOwnedVolume
             return false
@@ -186,7 +205,7 @@ final class CollectionEditorModel {
     private var parsedReadingVolume: ParsedReadingVolume {
         let normalized = readingVolumeText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard normalized.isEmpty == false else { return .valid(nil) }
-        guard let volume = Int64(normalized), volume > 0 else { return .invalid }
+        guard let volume = Int64(normalized), CollectionVolumePolicy.contains(volume) else { return .invalid }
         if let knownTotalVolumes, volume > knownTotalVolumes {
             return .invalid
         }
@@ -221,10 +240,11 @@ extension CollectionEditorSeed {
                 ownedVolumes: [],
                 readingVolume: nil,
                 isComplete: false,
-                knownTotalVolumes: manga.totalVolumes,
+                knownTotalVolumes: CollectionVolumePolicy.supportedKnownTotal(manga.totalVolumes),
                 isTombstone: false
             )
         }
+        guard CollectionVolumePolicy.isValid(existingState) else { return existingState }
 
         return CollectionSnapshot(
             ownedVolumes: existingState.ownedVolumes,
@@ -237,6 +257,7 @@ extension CollectionEditorSeed {
 
     private static func resolvedKnownTotal(manga: Manga, existingState: CollectionSnapshot) -> Int64? {
         guard let publishedTotal = manga.totalVolumes else { return existingState.knownTotalVolumes }
+        guard CollectionVolumePolicy.contains(publishedTotal) else { return existingState.knownTotalVolumes }
         guard existingState.isComplete == false else { return existingState.knownTotalVolumes }
         guard existingState.ownedVolumes.allSatisfy({ $0 <= publishedTotal }) else {
             return existingState.knownTotalVolumes
@@ -261,14 +282,20 @@ extension CollectionMutationError {
             "This manga cannot be identified."
         case let .nonPositiveKnownTotal(total):
             "The published total \(total) is invalid."
+        case let .knownTotalExceedsMaximum(total, maximum):
+            "The published total \(total) exceeds the supported maximum of \(maximum)."
         case let .nonPositiveVolume(volume):
             "Volume \(volume) must be positive."
+        case let .volumeExceedsMaximum(volume, maximum):
+            "Volume \(volume) exceeds the supported maximum of \(maximum)."
         case let .volumeExceedsKnownTotal(volume, total):
             "Volume \(volume) exceeds the published total of \(total)."
         case .completeRequiresKnownTotal:
             "A published total is required before marking the collection complete."
         case let .knownTotalInvalidatesCurrentState(total):
             "The published total of \(total) conflicts with the saved collection."
+        case .incompatibleStoredVolumeState:
+            "This collection contains unsupported volume data. Your saved data has not changed; you can remove the manga, but these values cannot be edited or uploaded as they are."
         case .mangaSnapshotRequired:
             "Offline manga details are required before adding this item."
         case .mangaSnapshotIdentityMismatch:

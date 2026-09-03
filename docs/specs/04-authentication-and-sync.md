@@ -1,7 +1,7 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.22
+- Versión: 1.23
 - Última revisión: 2026-09-03
 
 ## Propósito y alcance
@@ -377,6 +377,12 @@ Bearer ligado a su generación y envía exactamente `manga`, `volumesOwned`,
 opaco: no sustituye el UUID de operación local ni se interpreta como identidad
 de manga o de entrada.
 
+Antes de la transición `queued → sending`, R2 valida que el estado deseado de
+una intención no tombstone cumpla la cota inclusiva `1...300` de SDD 03. Un total,
+tomo propio o volumen de lectura histórico fuera de esa cota produce un error
+local tipado: la operación no se reclama, no se construye ni envía un POST, no se
+modifica otra secuencia y sesión y Keychain permanecen intactos.
+
 El arranque autenticado importa primero el snapshot R1 y entrega a la composición
 solo su `SessionAuthority` y sus entradas por valor, nunca el access. El worker
 R2 solicita una autorización vigente y exige que usuario y generación coincidan
@@ -435,6 +441,33 @@ opaco. Una respuesta directa distinta, un body inválido o un fallo de transport
 se consideran resultado potencialmente posterior al envío y nunca provocan un
 segundo DELETE automático.
 
+Como excepción estrecha, una tombstone creada mediante eliminación explícita
+puede reclamarse y enviarse aunque conserve como base un estado histórico
+incompatible con la cota. El DELETE solo transporta la identidad del manga: nunca
+serializa su total, propiedad o lectura. Esta excepción no hace válido ese estado,
+no permite editarlo ni convertirlo en POST. Una presencia incompatible obtenida
+por GET nunca se adopta como base; para una tombstone exacta basta, no obstante,
+para demostrar que el borrado sigue sin confirmarse.
+
+Una operación `confirmed` es únicamente un cursor monotónico y no vuelve a ser
+payload. Sus valores históricos se conservan, pero quedan fuera de la validación
+volumétrica previa al claim y a R1; sus identidades, secuencia, tipo de operación y
+relación usuario + manga continúan validándose. Un cursor confirmado incompatible
+no puede bloquear la importación ni una tombstone posterior, y nunca se convierte
+de nuevo en POST.
+
+Un POST histórico incompatible recuperado en `sending` sigue siendo una escritura
+de resultado remoto incierto. Si la persona elimina explícitamente ese manga, la
+mutación retira N de forma atómica después de calcular la siguiente secuencia y
+crea la tombstone N+1; no lo marca `confirmed` ni intenta reconciliar o repetir su
+payload inválido. R1 puede actualizar una base remota compatible y R2 reclama el
+DELETE, que domina si el POST antiguo llegó a aplicarse y si no lo hizo. Cuando
+el snapshot conserva la fila incompatible, R1 permite exclusivamente que
+progrese la primera tombstone `queued` o `sending` de esa misma pareja: retiene
+la entrada remota bruta como presencia opaca para R2, no importa sus valores y no
+confirma ausencia. Una tombstone `queued` envía DELETE; una `sending` no lo repite
+y queda en `blockedOutcome` al observar la presencia.
+
 Cuando el DELETE ya ha retornado ese `200` válido, cualquier fallo posterior de
 revalidación o persistencia es local: conserva su categoría, no se reclasifica
 como resultado remoto incierto, no ejecuta GET individual y no bloquea la
@@ -443,10 +476,12 @@ reanudarse desde su cursor persistido sin volver a borrar en red.
 
 La reconciliación posterior a un DELETE incierto usa como máximo una vez
 `GET /collection/manga/{mangaID}`. Un `200` debe decodificar una única entrada
-válida cuyo `manga.id` coincida exactamente con el segmento solicitado: demuestra
-que el efecto deseado no está confirmado. La misma transacción valida y adopta
-su estado como base remota y datos de presentación, conserva intacta la intención
-local visible y deja la operación en `blockedOutcome`, sin reintento automático.
+cuyo `manga.id` coincida exactamente con el segmento solicitado: demuestra que
+el efecto deseado no está confirmado. Si sus valores son válidos, la misma
+transacción los adopta como base remota y datos de presentación; si son
+incompatibles con la cota, los conserva opacos y no modifica esa base. En ambos
+casos mantiene intacta la intención local visible y deja la operación en
+`blockedOutcome`, sin reintento automático.
 El `404` descrito por OpenAPI como «manga no presente en la colección» es la única
 ausencia concluyente y confirma la tombstone. Esta interpretación queda limitada
 al GET individual exacto: no se generaliza al DELETE ni a otros endpoints. Un
@@ -542,12 +577,23 @@ acotada al GET seguro: R1 no incorpora backoff, repetición general ni una acci�
 manual de retry.
 
 La importación usa la misma instancia de `CollectionMutationActor` y una única
-transacción SwiftData para el snapshot completo. Primero valida y canonicaliza
-todo el lote; solo después modifica el contexto y ejecuta un único commit. Un
-UUID o manga duplicado, un payload inválido, cancelación observada o fallo de
-persistencia aborta el lote entero y conserva colección y outbox previas. R1 no
-crea, coalesce, reactiva, envía ni cambia el estado de ninguna operación de
-outbox.
+transacción SwiftData para el snapshot completo. Primero clasifica y valida todo
+el lote, incluida cualquier presencia opaca contextual; solo después modifica el
+contexto y ejecuta un único commit. Un UUID o manga duplicado, un payload inválido
+fuera de esa excepción, cancelación observada o fallo de persistencia aborta el
+lote entero y conserva colección y outbox previas. R1 no crea, coalesce, reactiva,
+envía ni cambia el estado de ninguna operación de outbox.
+
+La validación incluye la cota global de SDD 03 y ocurre antes de materializar
+cualquier rango: un total conocido, tomo poseído o lectura fuera de `1...300`,
+incluidos `301` e `Int64.max`, invalida el snapshot completo. La única excepción
+es una fila que coincide con la primera tombstone local procesable de esa pareja:
+R1 conserva su presencia opaca para R2, pero no la materializa, no la interpreta
+como ausencia y continúa validando identidad y duplicados del lote. El rechazo
+ordinario conserva Colección, outbox, sesión y Keychain y se presenta como
+incompatibilidad segura de datos de Colección, nunca como fallo de autenticación
+ni como motivo para retry. El GET individual de reconciliación exige identidad
+exacta y solo adopta como base una presencia que supere la validación volumétrica.
 
 Para cada pareja usuario + manga, una outbox en cualquier estado distinto de
 `confirmed` representa una intención local pendiente. La reconciliación aplica
@@ -567,12 +613,14 @@ estas reglas:
   inferencia: invalida la importación y hace fallar cerrado el lote.
 
 Los volúmenes en propiedad se deduplican y ordenan de forma canónica. Cualquier
-volumen propio o de lectura no positivo, un valor superior al total conocido o
-`completeCollection == true` sin un total válido invalida el lote; la ruta aplica
-además las invariantes completas de la SDD 03 y nunca descarta valores para
-fabricar un estado aceptable. Red, autenticación, deriva de contrato, cancelación
-o persistencia fallida no borran el estado local ni convierten la red en fuente
-de UI. Salvo la recuperación protocolaria única de un `401` y el aviso mínimo que
+volumen propio o de lectura fuera de `1...300`, un valor superior al total
+conocido, un total conocido fuera de `1...300` o `completeCollection == true` sin
+un total válido invalida el lote; `nil` continúa significando total desconocido y
+no elimina la cota de los números individuales. La ruta aplica además las
+invariantes completas de la SDD 03 y nunca descarta valores para fabricar un
+estado aceptable. Red, autenticación, deriva de contrato, cancelación o
+persistencia fallida no borran el estado local ni convierten la red en fuente de
+UI. Salvo la recuperación protocolaria única de un `401` y el aviso mínimo que
 evita pedir credenciales válidas, R1 no añade retry automático, presentación de
 progreso ni resolución visible de conflictos.
 
@@ -621,6 +669,7 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 | Advanced | Snapshot R1 presente con intención pendiente | Conserva estado local, tombstone y outbox; actualiza únicamente la base confirmada y la presentación remota. |
 | Advanced | Snapshot R1 ausente | Retira solo una entrada confirmada sin intención pendiente; conserva una intención pendiente con ausencia confirmada y falla cerrado ante un huérfano sin base ni outbox. |
 | Advanced | Lote R1 inválido, cancelado o no persistible | No aplica ninguna parte y conserva colección y outbox previas. |
+| Advanced | R1 recibe total, propiedad o lectura `301` o `Int64.max` sin una tombstone exacta procesable | Falla antes de materializar rangos, revierte el lote completo y conserva sesión, Keychain, colección y outbox. |
 | Advanced | Respuesta R1 de una generación anterior | No modifica la colección ni la outbox de la sesión vigente. |
 | Advanced | Refresh preventivo previo a R1 rechazado por `/users/jwt/me` | No llama a Colección, conserva la sesión todavía válida y presenta incompatibilidad de identidad renovada. |
 | Advanced | Primer `401` R1 de la request vigente | Fuerza una única renovación single-flight, revalida la identidad y repite una sola vez el GET seguro. |
@@ -631,6 +680,12 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 | Advanced | Vuelo de refresh A residual después de activar B | La autorización y una recuperación `401` de B ignoran el vuelo no coincidente; A termina como `sessionChanged` y no modifica ni bloquea B. |
 | Advanced | Waiter cancelado mientras falla la persistencia Keychain | El fallo seguro de carga, guardado, reemplazo o limpieza prevalece sobre la cancelación y Cuenta lo presenta solo si aún coincide UUID y generación. |
 | Advanced | Error transitorio | La operación pasa por `retry` y no duplica efectos visibles. |
+| Advanced | R2 encuentra una intención no tombstone histórica fuera de `1...300` | No la reclama ni emite POST, conserva su estado y no altera otra intención, sesión o Keychain. |
+| Advanced | Eliminación explícita de un estado histórico incompatible | Crea y puede enviar una tombstone mediante DELETE sin transportar total, propiedad o lectura; no habilita su edición o POST. |
+| Advanced | POST histórico incompatible N recuperado en `sending` y eliminación explícita | La transacción retira N sin confirmarlo, conserva la secuencia y crea N+1; R1 no queda bloqueado y R2 reclama el DELETE. |
+| Advanced | R1 observa la fila incompatible de una tombstone exacta `queued` | No importa ni confirma ausencia para esa fila; conserva la presencia bruta y R2 envía DELETE. |
+| Advanced | R1 observa la fila incompatible de una tombstone exacta `sending` | No adopta sus valores; R2 usa la presencia bruta, persiste `blockedOutcome` y no repite DELETE. |
+| Advanced | Una operación bloqueada anterior cerca la tombstone | La excepción contextual no se aplica y el snapshot incompatible se rechaza completo. |
 | Advanced | Efecto remoto aplicado y respuesta perdida | La reconciliación reconoce el estado deseado, pasa a `confirmed` y no repite el request. |
 | Advanced | Resultado remoto inconcluso | Pasa a `blockedOutcome`, conserva ambos estados para resolver y no revierte ni reintenta automáticamente. |
 | Advanced | DELETE de tombstone confirmado con `200` e `Int64` | Confirma la operación exacta, retira la entrada si no existe N+1 y no ejecuta GET individual. |
