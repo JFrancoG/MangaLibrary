@@ -285,7 +285,9 @@ struct CollectionOutboxDeleteSyncTests {
         CollectionOutboxSyncCoordinator(
             authorize: { await probe.authorization() },
             validateAuthorization: validateAuthorization,
-            claimNextUpload: { authorization in try await probe.claim(authorization) },
+            claimNextUpload: { authorization, _ in
+                try await probe.claim(authorization)
+            },
             submit: { item, token in try await probe.delete(item, accessToken: token) },
             fetchRemote: { token in try await probe.fetchFull(accessToken: token) },
             fetchRemoteEntry: { mangaID, token in
@@ -307,6 +309,7 @@ struct CollectionOutboxDeleteSyncTests {
         userID: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,
         mangaID: 42,
         sequence: 3,
+        retryCount: 0,
         ownedVolumes: [1, 3],
         readingVolume: 2,
         isComplete: false,

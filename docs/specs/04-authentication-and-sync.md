@@ -1,7 +1,7 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.23
+- Versión: 1.24
 - Última revisión: 2026-09-03
 
 ## Propósito y alcance
@@ -278,7 +278,13 @@ Para una misma pareja usuario + manga:
 Las mutaciones aún no confirmadas de una misma pareja se coalescen hacia la intención vigente siempre que ninguna confirmación intermedia sea necesaria para interpretar el resultado.
 
 - La coalescencia conserva una secuencia superior a todas las intenciones reemplazadas.
+- Una operación `retry` acredita que el intento anterior no se envió. Una edición
+  o eliminación posterior puede coalescerla con el mismo UUID, una secuencia
+  superior y estado `queued`, retirando contador y deadline ya obsoletos.
 - No cambia el UUID de una operación que ya está `sending`; crea o mantiene la siguiente intención ordenada.
+- Si el fallo positivamente pre-envío de N se conoce cuando N+1 ya está
+  `queued`, N se retira en vez de programar un payload que ya no representa la
+  intención vigente.
 - Una edición posterior a una tombstone puede cancelar la eliminación pendiente solo si todavía no fue confirmada y el resultado queda expresado como una intención válida.
 - Nunca se coalescen operaciones de usuarios o mangas diferentes.
 
@@ -312,27 +318,30 @@ Los únicos estados normativos de outbox son:
 
 - `queued → sending`
 - `sending → confirmed`
-- `sending → retry → sending`
-- `queued | sending | retry → blockedAuth`
+- `sending → retry → sending` únicamente cuando una frontera caracterizada
+  demuestra positivamente que el transporte no inició el envío
+- `queued | retry → blockedAuth` cuando la autoridad se pierde antes de que exista
+  una escritura de resultado incierto
 - `blockedAuth → queued` al restaurar una sesión válida para el mismo usuario
 - `sending → blockedOutcome` cuando se pierde una respuesta y repetir no está demostrado como seguro
 - `blockedOutcome → confirmed` cuando una lectura concluyente demuestra el efecto deseado o la persona acepta el estado remoto reconciliado
-- `blockedOutcome → queued` únicamente cuando la reconciliación demuestra que el efecto no se aplicó y el reintento es seguro
 - `sending → rejected`
 - `rejected → confirmed` únicamente después de restaurar localmente la última versión confirmada y registrar el rechazo como resuelto; no significa que el servidor aceptara la intención rechazada
 
 Una cancelación por finalización de proceso no equivale a rechazo: tras recuperar consistencia, la operación vuelve a un estado procesable sin duplicar su identidad.
 
-`blockedOutcome` es un bloqueo visible, no una cola oculta que reintenta indefinidamente. Si la lectura remota no permite concluir qué ocurrió, la interfaz ofrece conservar el estado remoto como nueva base o volver a emitir conscientemente la intención local. La segunda opción resuelve primero la operación ambigua contra la base remota y crea una intención nueva con su propia secuencia; nunca convierte la incertidumbre en `rejected`.
+`blockedOutcome` es un bloqueo visible, no una cola oculta que reintenta indefinidamente. Si la lectura remota no permite confirmar el efecto deseado, la interfaz futura de R2.4 ofrecerá conservar el estado remoto como nueva base o volver a emitir conscientemente la intención local. La segunda opción resolverá primero la operación ambigua como `confirmed` contra la base remota y creará una intención `queued` nueva con su propia secuencia; nunca reencola la operación incierta ni la convierte en `rejected`.
 
 ## Fallos y reintentos
 
 - Solo los fallos clasificados como transitorios pasan a `retry`.
 - El reintento aplica una espera acotada y cancelable; su política exacta se prueba con reloj controlado.
-- Un fallo de autenticación pasa a `blockedAuth`, no consume indefinidamente reintentos de red.
+- Una pérdida de autenticación confirmada bloquea `queued` y `retry`; una
+  `sending` potencialmente aplicada reconcilia y no consume indefinidamente
+  reintentos de red.
 - Un rechazo permanente pasa a `rejected` y revierte colección o tombstone al último estado confirmado.
 - Perder la respuesta después de enviar pasa a `blockedOutcome` salvo que el contrato caracterizado garantice un reintento seguro.
-- La reconciliación consulta primero el estado remoto: coincidencia con el estado deseado confirma sin repetir; ausencia concluyente del efecto permite reencolar; un resultado todavía ambiguo permanece bloqueado y visible.
+- La reconciliación consulta primero el estado remoto: coincidencia con el estado deseado confirma sin repetir; cualquier divergencia conserva `blockedOutcome` hasta la decisión consciente de R2.4 y nunca reencola automáticamente la operación incierta.
 - Si una respuesta no puede vincularse inequívocamente con usuario, manga, UUID y secuencia local, no modifica el estado confirmado.
 - Ningún mensaje de error conserva tokens o contraseña.
 
@@ -393,8 +402,10 @@ procesable de cada pareja. Antes del claim comprueba la generación y la gate
 exacta se consume dentro de la misma transacción `queued → sending`; esa
 transacción es la última validación antes de invocar el POST. Si la autorización
 ya no es válida, no reclama ni cambia el estado. Después de exponer `sending`,
-cualquier interrupción se considera potencialmente posterior al envío y exige
-reconciliación. La confirmación consume de nuevo la gate de commit y una respuesta
+una cancelación o una interrupción sin evidencia del transporte se considera
+potencialmente posterior al envío y exige reconciliación; solo una prueba
+inequívoca de que el transporte no inició el envío permite el retry R2.3. La
+confirmación consume de nuevo la gate de commit y una respuesta
 de N actualiza solo la base confirmada; si ya existe N+1, su estado optimista
 continúa visible. Las mutaciones posteriores vuelven a activar la misma capacidad
 a partir de la outbox observada en SwiftData.
@@ -413,9 +424,10 @@ de reemplazo usa la autoridad de sesión vigente, no la antigüedad del vuelo: u
 snapshot o fallo A tardío se rechaza antes de tocar B, mientras un trigger B
 validado cancela y reconcilia cualquier vuelo A anterior. Un fallo
 observado después de invocar un POST sí exige un GET completo nuevo porque la
-evidencia R1 es anterior a esa escritura. Transporte, status no publicado o body
-inválido no provocan un segundo POST automático; tampoco se borra la sesión ni
-se piden de nuevo credenciales válidas.
+evidencia R1 es anterior a esa escritura. Un status no publicado, un body
+inválido o un fallo de transporte que no demuestre que el envío nunca comenzó no
+provocan un segundo POST automático; tampoco se borra la sesión ni se piden de
+nuevo credenciales válidas.
 
 R2.1 no procesa tombstones ni materializa todavía GET individual, DELETE,
 retry/backoff, `blockedAuth`, rechazo/reversión o resolución manual del conflicto.
@@ -438,8 +450,8 @@ Una tombstone nueva ejecuta exactamente un
 Bearer JWT y sin body, query, `App-Token` ni UUID remoto. Solo `200` con un
 `Int64` válido confirma directamente el transporte; el entero continúa siendo
 opaco. Una respuesta directa distinta, un body inválido o un fallo de transporte
-se consideran resultado potencialmente posterior al envío y nunca provocan un
-segundo DELETE automático.
+sin prueba inequívoca de que el envío nunca comenzó se consideran resultado
+potencialmente posterior al envío y no provocan un segundo DELETE automático.
 
 Como excepción estrecha, una tombstone creada mediante eliminación explícita
 puede reclamarse y enviarse aunque conserve como base un estado histórico
@@ -467,6 +479,14 @@ progrese la primera tombstone `queued` o `sending` de esa misma pareja: retiene
 la entrada remota bruta como presencia opaca para R2, no importa sus valores y no
 confirma ausencia. Una tombstone `queued` envía DELETE; una `sending` no lo repite
 y queda en `blockedOutcome` al observar la presencia.
+
+R2.3 amplía esa excepción a una cadena formada íntegramente por operaciones
+acreditadas como no enviadas (`blockedAuth`, `queued` o `retry`): R1 puede usar
+como presencia opaca la última cuando sea la tombstone que coincide con la
+entrada. Sus predecesoras son seguras para superseder y la recuperación las
+retira atómicamente antes del claim. Una operación anterior `sending`,
+`blockedOutcome` o `rejected` continúa cercando la tombstone y no habilita la
+excepción.
 
 Cuando el DELETE ya ha retornado ese `200` válido, cualquier fallo posterior de
 revalidación o persistencia es local: conserva su categoría, no se reclasifica
@@ -544,7 +564,11 @@ la sesión B. Una respuesta `200` tampoco autoriza por sí sola la importación:
 volver del transporte se revalida que el JWT exacto continúe vigente y que su
 gate siga autorizando la generación. Si vence entre esa comprobación y el commit
 SwiftData, la propia gate aborta la importación y el coordinador vuelve a Sesión
-para converger antes de presentar el resultado.
+para converger antes de presentar el resultado. R2 aplica la misma regla a cada
+frontera de store: un `sessionChanged` de la gate obliga a revalidar la request
+exacta. Si la causa es expiración, Sesión invalida el envelope y transforma el
+trabajo `queued` o `retry` en `blockedAuth`; si fue sustitución de JWT o
+generación, la revalidación es un no-op sobre la autoridad nueva.
 
 Un primer `401` vigente fuerza una renovación single-flight aunque el JWT todavía
 esté fuera de la ventana preventiva. La renovación queda ligada a la generación y
@@ -587,9 +611,11 @@ envía ni cambia el estado de ninguna operación de outbox.
 La validación incluye la cota global de SDD 03 y ocurre antes de materializar
 cualquier rango: un total conocido, tomo poseído o lectura fuera de `1...300`,
 incluidos `301` e `Int64.max`, invalida el snapshot completo. La única excepción
-es una fila que coincide con la primera tombstone local procesable de esa pareja:
-R1 conserva su presencia opaca para R2, pero no la materializa, no la interpreta
-como ausencia y continúa validando identidad y duplicados del lote. El rechazo
+es una fila que coincide con la primera tombstone local procesable de esa pareja
+o, durante la recuperación R2.3, con la última de una secuencia formada
+exclusivamente por operaciones `blockedAuth`, `queued` o `retry`: R1 conserva su
+presencia opaca para R2, pero no la materializa, no la interpreta como ausencia
+y continúa validando identidad y duplicados del lote. El rechazo
 ordinario conserva Colección, outbox, sesión y Keychain y se presenta como
 incompatibilidad segura de datos de Colección, nunca como fallo de autenticación
 ni como motivo para retry. El GET individual de reconciliación exige identidad
@@ -623,6 +649,103 @@ persistencia fallida no borran el estado local ni convierten la red en fuente de
 UI. Salvo la recuperación protocolaria única de un `401` y el aviso mínimo que
 evita pedir credenciales válidas, R1 no añade retry automático, presentación de
 progreso ni resolución visible de conflictos.
+
+## Recuperación automática de outbox R2.3
+
+R2.3 materializa las transiciones automáticas `retry`, `blockedAuth` y
+`rejected` sin alterar la política conservadora de resultados inciertos de
+R2.1/R2.2. La clasificación se decide antes de mutar SwiftData y es cerrada:
+
+- `retry` solo se admite si una frontera caracterizada clasifica positivamente
+  el fallo como anterior al inicio del envío;
+- perder una respuesta, recibir un timeout, perder una conexión después de
+  invocar el transporte, obtener una respuesta no HTTP, un payload inválido o
+  cualquier status no caracterizado no demuestra ausencia del efecto. Esos
+  resultados conservan la reconciliación de R2.2 y terminan en
+  `blockedOutcome` si la lectura tampoco permite concluir;
+- ningún status HTTP se convierte por conveniencia en retry o rechazo
+  permanente. El OpenAPI vigente solo publica `200` para las escrituras de
+  Colección y no tipa sus errores;
+- la composición live vigente no posee una señal fiable de fase pre-envío y,
+  por tanto, clasifica todos los errores reales de `URLSession` como resultado
+  potencialmente aplicado. El backoff queda materializado para una frontera
+  futura caracterizada, pero no se activa por status, body o error de transporte
+  inferidos;
+- `rejected` exige una clasificación positiva inyectada en la frontera del
+  coordinador o incorporada posteriormente por un contrato remoto ya
+  caracterizado. La implementación live vigente no inventa esa clasificación a
+  partir de un status o body desconocidos.
+
+### Espera persistida y cancelable
+
+Al programar `sending → retry`, la misma transacción incrementa de forma segura
+`retryCount` y persiste `nextRetryAt` usando un reloj inyectable. El primer retry
+espera un segundo; los siguientes esperan 2, 4, 8 y 16 segundos, y el sexto y
+todos los posteriores esperan como máximo 30 segundos. El contador nunca hace
+wrap y la confirmación o resolución definitiva retira el deadline.
+
+El backoff pertenece a la intención exacta, no a la pareja para siempre. Una
+edición o eliminación local durante la espera reemplaza ese payload seguro no
+enviado, conserva su UUID, avanza la secuencia y vuelve a `queued` con contador
+y deadline limpios. Si N todavía figuraba `sending` cuando se creó N+1, pero la
+frontera acredita después que N no llegó a enviarse, la misma transacción retira
+N y deja progresar N+1; nunca espera para repetir primero el estado obsoleto.
+Una vez que la frontera ha acreditado positivamente que el intento no comenzó,
+persistir N como `retry` o retirarla ante N+1 es un punto de no retorno local:
+la cancelación del vuelo no puede borrar esa evidencia. Al terminar ese commit,
+la cancelación vuelve a propagarse antes de reclamar o emitir otra request.
+La observabilidad registra `backoff` o `superseded` únicamente después de ese
+commit y refleja cuál de las dos resoluciones ocurrió realmente.
+
+El worker procesa primero cualquier pareja accionable sin quedar bloqueado por
+el deadline futuro de otra. Si solo queda trabajo `retry`, espera hasta el
+deadline más temprano mediante una suspensión estructurada y cancelable. Una
+operación ya vencida se procesa inmediatamente al relanzar o reactivar el
+coordinador. Tras despertar vuelve a comprobar usuario, generación, UUID,
+secuencia, estado y autorización de commit antes de ejecutar
+`retry → sending`; una intención posterior u otra sesión convierten el efecto
+tardío en no-op. Cancelar o sustituir el vuelo conserva el retry y su fecha
+durables y no emite otra request.
+
+### Bloqueo y recuperación de autenticación
+
+Cuando el propietario de sesión confirma que una autoridad dejó de ser válida,
+R2 puede convertir atómicamente las operaciones `queued` y `retry` de ese
+usuario en `blockedAuth`. Una operación `sending` cuyo resultado pueda haberse
+aplicado no pierde esa identidad ni se reencola: permanece preparada para la
+reconciliación conservadora ya definida. Ningún fallo ordinario de red o de
+Colección se presenta como pérdida de autenticación.
+
+Después de que R1 importe una sesión válida, R2 reactiva `blockedAuth → queued`
+solo para el mismo UUID de usuario y bajo una autorización de commit vigente.
+Para cada pareja compara toda intención segura no enviada (`blockedAuth`,
+`queued` o `retry`) y conserva únicamente la de mayor secuencia, con su UUID e
+intención vigente; las anteriores quedan supersedidas dentro de la misma
+transacción. La retenida pasa de `blockedAuth` a `queued`; si una edición más
+reciente ya estaba `queued`, o ya existía un `retry` más reciente, conserva su
+semántica propia. Así nunca reaparece una cola bloqueada obsoleta por delante de
+la intención actual. Una sesión de otro usuario, una generación sustituida o
+una autorización ya vencida no modifica ni envía esas operaciones.
+
+### Rechazo y reversión
+
+Una clasificación positiva de rechazo permanente ejecuta semánticamente
+`sending → rejected → confirmed` dentro de una única transacción SwiftData. No
+existe un intervalo persistido donde Colección y outbox discrepen:
+
+- si la operación rechazada todavía posee el estado visible, se restaura su
+  última base confirmada;
+- si esa base es ausencia, se retira la entrada local activa o la tombstone;
+- rechazar una tombstone restaura la entrada confirmada cuando existía;
+- si ya existe N+1, su intención optimista mantiene precedencia visual y N solo
+  conserva la base confirmada anterior;
+- la operación rechazada termina como cursor `confirmed`, con el retry resuelto,
+  sin afirmar que el servidor aceptara su payload.
+
+Un fallo de persistencia, cancelación o cerca inválida revierte juntas la
+restauración y la transición de outbox. `blockedOutcome` nunca entra en esta
+ruta, y sesión y Keychain permanecen intactos salvo que el propietario de sesión
+haya confirmado de forma independiente una pérdida real de autoridad.
 
 ## Arranque y reconciliación Advanced
 
@@ -680,12 +803,20 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 | Advanced | Vuelo de refresh A residual después de activar B | La autorización y una recuperación `401` de B ignoran el vuelo no coincidente; A termina como `sessionChanged` y no modifica ni bloquea B. |
 | Advanced | Waiter cancelado mientras falla la persistencia Keychain | El fallo seguro de carga, guardado, reemplazo o limpieza prevalece sobre la cancelación y Cuenta lo presenta solo si aún coincide UUID y generación. |
 | Advanced | Error transitorio | La operación pasa por `retry` y no duplica efectos visibles. |
+| Advanced | Retry 1–6 y posteriores | Persiste esperas de 1, 2, 4, 8, 16 y 30 segundos; después conserva el tope de 30 segundos sin overflow. |
+| Advanced | Retry futuro en una pareja y trabajo accionable en otra | Procesa primero la pareja accionable; el deadline no bloquea globalmente la outbox. |
+| Advanced | Cancelación o sustitución durante el backoff | Conserva `retry`, contador y deadline sin emitir otra request; el sustituto espera el mismo deadline y al reactivarse vuelve a cercar sesión y operación. |
+| Advanced | Resultado potencialmente aplicado o status no caracterizado | Reconcilia y, si no obtiene evidencia concluyente, conserva `blockedOutcome`; nunca lo convierte por conveniencia en retry o rechazo. |
+| Advanced | Pérdida de autoridad antes de una escritura incierta | `queued` y `retry` del usuario pasan a `blockedAuth`; una `sending` incierta permanece para reconciliación. |
+| Advanced | Sesión válida posterior del mismo usuario | Después de R1, conserva la última intención segura no enviada por manga; una `blockedAuth` retenida pasa a `queued` y una N+1 `queued` o `retry` más reciente prevalece sobre la bloqueada. |
+| Advanced | Sesión posterior de otro usuario | No reactiva, muestra ni envía las operaciones bloqueadas de la identidad anterior. |
 | Advanced | R2 encuentra una intención no tombstone histórica fuera de `1...300` | No la reclama ni emite POST, conserva su estado y no altera otra intención, sesión o Keychain. |
 | Advanced | Eliminación explícita de un estado histórico incompatible | Crea y puede enviar una tombstone mediante DELETE sin transportar total, propiedad o lectura; no habilita su edición o POST. |
 | Advanced | POST histórico incompatible N recuperado en `sending` y eliminación explícita | La transacción retira N sin confirmarlo, conserva la secuencia y crea N+1; R1 no queda bloqueado y R2 reclama el DELETE. |
 | Advanced | R1 observa la fila incompatible de una tombstone exacta `queued` | No importa ni confirma ausencia para esa fila; conserva la presencia bruta y R2 envía DELETE. |
 | Advanced | R1 observa la fila incompatible de una tombstone exacta `sending` | No adopta sus valores; R2 usa la presencia bruta, persiste `blockedOutcome` y no repite DELETE. |
-| Advanced | Una operación bloqueada anterior cerca la tombstone | La excepción contextual no se aplica y el snapshot incompatible se rechaza completo. |
+| Advanced | Todas las operaciones N…N+1 son `blockedAuth`, `queued` o `retry` y N+1 es tombstone | R1 conserva la presencia incompatible opaca; la recuperación supersede N y reclama únicamente el DELETE N+1. |
+| Advanced | Una operación `sending`, `blockedOutcome` o `rejected` anterior cerca la tombstone | La excepción contextual no se aplica y el snapshot incompatible se rechaza completo. |
 | Advanced | Efecto remoto aplicado y respuesta perdida | La reconciliación reconoce el estado deseado, pasa a `confirmed` y no repite el request. |
 | Advanced | Resultado remoto inconcluso | Pasa a `blockedOutcome`, conserva ambos estados para resolver y no revierte ni reintenta automáticamente. |
 | Advanced | DELETE de tombstone confirmado con `200` e `Int64` | Confirma la operación exacta, retira la entrada si no existe N+1 y no ejecuta GET individual. |
@@ -693,6 +824,9 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 | Advanced | DELETE incierto y GET individual `200` coincidente | Conserva la tombstone en `blockedOutcome`, mantiene la sesión y no repite DELETE. |
 | Advanced | Tombstone `sending` recuperada con snapshot R1 | Ausencia confirma y presencia bloquea con cero requests adicionales. |
 | Advanced | Rechazo permanente | Se restaura la última versión confirmada y el rechazo queda resuelto de forma observable. |
+| Advanced | Rechazo positivo con base ausente | La transacción restaura ausencia, resuelve la operación como cursor `confirmed` y no deja una entrada optimista huérfana. |
+| Advanced | Rechazo positivo con intención N+1 | Resuelve N contra su base confirmada sin sobrescribir el estado visible ni la secuencia posterior. |
+| Advanced | Fallo al persistir una reversión | Colección y outbox conservan juntas el estado anterior; no queda una mitad restaurada ni un falso `confirmed`. |
 | Advanced | Respuesta antigua | No sobrescribe una secuencia local posterior. |
 | Advanced | Cambio de usuario | No muestra ni envía datos u operaciones del usuario anterior. |
 | Advanced | Logout completado | El registro ya no existe y la selección anterior de Colección no resuelve un detalle bajo la generación eliminada. |
@@ -732,10 +866,14 @@ WatchOS y WidgetKit consumen proyecciones y no abren nuevos escritores autoritat
 - No se presupone un endpoint de revocación, idempotency key o resolución de conflictos que OpenAPI no declare.
 - Una operación con UUID estable mejora la idempotencia local, pero no garantiza idempotencia del servidor si su contrato no la soporta.
 - La recuperación después de un cierre durante `sending` debe reconciliar antes de repetir; si no puede demostrar el resultado, conserva `blockedOutcome` para resolución visible.
-- R2.2 no implementa retry/backoff general, reactivación `blockedAuth`,
-  rechazo/reversión, acción manual de retry ni resolución interactiva de
-  conflictos; esas capacidades permanecen en R2 y en el cierre posterior de
-  Advanced.
+- R2.3 no incorpora una acción manual de retry ni resolución interactiva de
+  `blockedOutcome`; esas capacidades permanecen en R2.4 y en el cierre posterior
+  de Advanced.
+- No existe scheduler de background, `BGTask`, polling perpetuo ni ejecución
+  garantizada fuera del ciclo de vida del coordinador. La fecha persistida permite
+  continuar con seguridad al siguiente trigger aplicable.
+- Ningún error de escritura no publicado se adopta como rechazo permanente hasta
+  que una revisión normativa caracterice de forma positiva esa respuesta.
 
 ## Especificaciones y decisiones relacionadas
 

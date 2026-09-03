@@ -45,7 +45,10 @@ struct AppComposition {
             apiClient: sessionClient,
             persistence: .live(),
             now: { Date() },
-            makeGeneration: { UUID() }
+            makeGeneration: { UUID() },
+            authenticationInvalidationObserver: { authorization in
+                try await collectionMutations.blockUploadsForAuthentication(authorization: authorization)
+            }
         )
         let collectionClient = CollectionAPIClient(httpClient: httpClient, configuration: apiConfiguration)
         let collectionSyncCoordinator = CollectionSyncCoordinator(

@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.27
+**Versión:** 1.29
 **Fecha:** 2026-09-03
 
 ## Propósito
@@ -48,8 +48,9 @@ transporte, la gate de commit de sesión y la importación atómica R1 con red
 sintética y un container V2 aislado; y a `CollectionAPIClientSubmitTests`,
 `CollectionAPIClientIndividualTests`, `CollectionOutboxTransitionTests`,
 `CollectionOutboxSyncCoordinatorTests`, `CollectionOutboxDeleteSyncTests`,
-`CollectionOutboxPipelineTests` y `CollectionOutboxDeletePipelineTests`, que
-recorren POST, GET/DELETE individual, la máquina persistida y la composición
+`CollectionOutboxPipelineTests`, `CollectionOutboxDeletePipelineTests` y
+`CollectionOutboxRecoveryCoordinatorTests`, que recorren POST, GET/DELETE
+individual, la máquina persistida, la recuperación automática y la composición
 R1 → outbox de R2 sin alcanzar producción. `UI` contiene
 únicamente `MangaLibraryUITests`. Toda suite nueva se clasifica en `Fast`,
 `Integration` o `UI` mediante su target y, cuando corresponda, su tag, en el
@@ -95,6 +96,12 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
   publica `signedOut`, sin fase durable intermedia;
 - punto de no retorno y rechazo de cancelación tras un fence Deluxe cerrado y verificado;
 - coalescencia, reintento, cancelación e idempotencia de mutaciones;
+- clasificador R2.3 cerrado: solo una señal positiva de una frontera
+  caracterizada que demuestre que el envío no comenzó permite `retry`; timeout,
+  conexión perdida, status no publicado, divergencia reconciliada y resultado
+  todavía ambiguo conservan `blockedOutcome`;
+- política de backoff `1, 2, 4, 8, 16, 30` segundos, tope posterior de 30
+  segundos, contador sin wrap y selección del deadline accionable más temprano;
 - `Codable & Sendable`, compatibilidad y estados del snapshot Deluxe;
 - `publicationGeneration`, `sessionGeneration`, revisión `UInt64` estrictamente monotónica y persistida sin wrap y rotación de epoch con fence cerrado;
 - `SessionFence` versionado, `fenceRevision`, sesión opcional permitida y decisión del provider mediante doble lectura idéntica alrededor del envelope;
@@ -249,12 +256,56 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
   Un DELETE incierto realiza un único GET individual: `404` confirma, una entrada
   `200` o un fallo ordinario bloquean y ningún caso repite DELETE; una tombstone
   `sending` recuperada reutiliza el snapshot R1 sin otra request;
+- R2.3 con reloj controlado y store SwiftData real: `sending → retry` persiste
+  contador y deadline; antes de vencer realiza cero requests, al vencer reutiliza
+  UUID y secuencia una sola vez, y una pareja accionable no queda bloqueada por
+  el deadline futuro de otra;
+- edición y eliminación durante backoff: una `retry` inequívocamente no enviada
+  se coalesce con el mismo UUID, secuencia nueva y backoff limpio. Si N recibe la
+  clasificación pre-envío después de crear N+1, N se retira y solo N+1 puede
+  progresar;
+- cancelación posterior a la clasificación pre-envío: persiste N como `retry` o
+  la retira ante N+1 antes de propagar cancelación, y ejecuta cero requests
+  posteriores;
+- cancelación, relanzamiento y sustitución A→B durante el backoff: el deadline
+  permanece durable, una respuesta o wakeup tardíos no envían y cada reanudación
+  vuelve a validar usuario, generación, operación y autorización de commit;
+- pérdida de autoridad que convierte únicamente `queued` y `retry` seguros del
+  usuario en `blockedAuth`; una `sending` incierta conserva reconciliación. R1 y
+  una sesión válida posterior del mismo UUID reactivan la operación, mientras
+  otro usuario, una generación sustituida o una gate vencida realizan cero
+  transiciones y cero requests;
+- rechazo permanente proporcionado por una clasificación positiva inyectada:
+  restaura atómicamente una base presente o ausente, recupera una entrada tras
+  rechazar su tombstone, conserva N+1 visible y revierte ambas mitades ante fallo
+  de persistencia. Ningún status o body no publicado activa por sí solo esta ruta;
 - escritura y lectura concurrentes del snapshot y portadas en App Group, fallo de disco, manifest anterior, retención y limpieza, en directorios temporales y después en sandbox o dispositivo autorizado;
 - recuperación tras crash en la secuencia fence cerrado → invalidación/Keychain → envelope redactado → reload;
 - doble lectura con sustitución concurrente del fence; sesión B cuyo envelope precede a la apertura; sanitización tardía de A convertida en no-op tras abrir B;
 - bootstrap Deluxe cerrado ante una sesión Advanced activa, autorización explícita de su propietario y revalidación antes de abrir el fence;
 - WatchConnectivity no alcanzable y reemplazo del contexto pendiente mediante `WCSession.updateApplicationContext(_:)`, incluidos epoch nuevo y entrega tardía de A sin bootstrap observado;
 - composición del widget sin SwiftData, Keychain, red, polling, ActivityKit, WidgetKit push ni `BGTask`.
+
+#### Matriz focal R2.3
+
+| Caso | Estímulo controlado | Oráculo independiente |
+| --- | --- | --- |
+| Fallo inequívocamente pre-envío | El transporte inyectado acredita que no inició la request | `sending → retry`, `retryCount` incrementado y primer deadline a +1 s; cero reconciliaciones y cero escrituras remotas observadas. |
+| Resultado potencialmente aplicado | Timeout, conexión perdida tras iniciar transporte, respuesta no HTTP, body inválido o status no caracterizado | Ejecuta solo la reconciliación aplicable; si no concluye conserva `blockedOutcome`, sesión y estado local, sin segundo POST/DELETE ni status inventado. |
+| Reconciliación demuestra que la intención no se aplicó | Snapshot o GET individual caracterizado diverge del efecto deseado | Conserva `blockedOutcome`, no repite la escritura y difiere a R2.4 cualquier nueva intención consciente. |
+| Secuencia y tope del backoff | Se clasifican seis fallos retryables y después más fallos sobre la misma operación | Deadlines relativos 1, 2, 4, 8, 16 y 30 s; los posteriores continúan en 30 s y el contador no hace wrap. |
+| Espera y vencimiento | El reloj permanece antes del deadline y luego avanza exactamente hasta él | Antes: cero requests. Al vencer: una transición `retry → sending` y una única request con el mismo UUID y secuencia. |
+| Parejas independientes | A tiene deadline futuro y B está `queued` o `retry` vencida | B progresa sin esperar a A; el worker solo suspende cuando no existe otra pareja accionable. |
+| Cancelación, relanzamiento y reemplazo | Se cancela la espera, se recrea el coordinador o el mismo coordinador sustituye un vuelo suspendido | Persisten `retryCount` y `nextRetryAt`; el sustituto respeta el mismo deadline, no hay request tardía y cada reanudación vuelve a validar usuario, generación, UUID y secuencia. |
+| Cancelación tras evidencia pre-envío | El vuelo se cancela después de que la frontera acredita que N no se envió | El commit local de esa evidencia termina: N queda `retry` o se retira ante N+1; después no se reclama ni envía más trabajo. |
+| Pérdida de autoridad | La sesión confirma pérdida mientras existen `queued`, `retry` y `sending` incierta | Solo `queued` y `retry` del mismo usuario pasan a `blockedAuth`; `sending` conserva la ruta de reconciliación y Keychain no se muta desde R2. |
+| Expiración en frontera R2 | El JWT vence después de la revalidación rápida y antes de reservar el vuelo o de cualquier commit del store | La gate impide reservar o mutar, R2 vuelve a Sesión, retira el envelope y pasa el trabajo seguro a `blockedAuth`; cero requests. |
+| Recuperación de autorización | R1 termina bajo una sesión válida del mismo UUID | Conserva una única intención segura no enviada vigente por manga; una N+1 `queued` o `retry` más reciente prevalece sobre N `blockedAuth`. Otro UUID, una generación obsoleta o una gate vencida producen cero cambios y cero requests. |
+| Edición durante backoff | La persona edita o elimina mientras N está `retry`, o crea N+1 antes de clasificar N como no enviada | La intención vigente queda en una única operación procesable; no se envía primero el payload obsoleto ni se conserva su deadline. |
+| Recuperación de DELETE histórica segura | N es un POST seguro no enviado, N+1 una tombstone y ambos están en `blockedAuth`, `queued` o `retry`; R1 recibe presencia remota incompatible | R1 conserva la presencia opaca, la recuperación retira N y solo N+1 progresa como DELETE; cualquier predecesora incierta mantiene el rechazo fail-closed. |
+| Rechazo positivo con base presente o ausente | El clasificador inyectado devuelve rechazo permanente | La misma transacción restaura la base confirmada o la ausencia y resuelve `sending → rejected → confirmed`; ningún error live no caracterizado activa la ruta. |
+| Rechazo de tombstone y N+1 | Se rechaza DELETE con base presente o existe una intención posterior N+1 | Restaura la entrada confirmada cuando corresponde y conserva N+1 como estado visible y pendiente. |
+| Fallo de reversión | El store inyecta un fallo al persistir la restauración | Rollback conjunto: Colección y outbox retienen el estado previo, sin restauración parcial ni cursor `confirmed` falso. |
 
 ### Interfaz
 
@@ -305,6 +356,13 @@ un loader controlado y un container real aislado por caso. Verifican el efecto
 persistido desde un `ModelContext` independiente y no acceden a Keychain, cuentas,
 red o almacenamiento de producción. La clasificación documenta cobertura
 prevista y no acredita por sí misma ninguna ejecución.
+
+Las suites R2.3 sustituyen fecha y espera mediante un reloj controlado que solo
+avanza por una acción explícita del test. Los oráculos leen `state`, `retryCount`,
+`nextRetryAt`, Colección y base confirmada desde otro `ModelContext`; no esperan
+segundos reales ni dependen del scheduler. La clasificación de rechazo permanente
+se inyecta como evidencia positiva y no simula que el OpenAPI publique un status
+que todavía no declara.
 
 Los tests de frescura de WidgetKit observarán los límites sustituibles de publicación, almacenamiento y recarga. Comprobarán que cada mutación, reconciliación, reversión, restauración, importación o redacción aplicable parte de un commit local completado o fence seguro verificado y solicita una sola vez `reloadTimelines(ofKind:)` con el `kind` esperado únicamente después de dejar el bridge seguro.
 

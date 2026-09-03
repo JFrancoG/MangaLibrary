@@ -58,6 +58,11 @@ private struct CollectionValidatedRemoteSnapshot {
     let opaqueRemotePresenceMangaIDs: Set<Manga.ID>
 }
 
+private struct CollectionProcessableDeletionContext {
+    let mangaIDs: Set<Manga.ID>
+    let supersededSafelyUnsentOperationIDs: Set<UUID>
+}
+
 extension CollectionMutationActor {
     typealias RemoteImportCheckpoint = @Sendable (Int) throws(any Error) -> Void
 
@@ -227,24 +232,36 @@ extension CollectionMutationActor {
                 operation.userID == userID,
                 operation.mangaID > 0,
                 operation.sequence > 0,
+                operation.retryCount >= 0,
                 operation.isTombstone == operation.desiredState.isTombstone
             else { throw CollectionRemoteImportError.persistenceConflict }
-            if operation.state != .confirmed {
-                guard CollectionVolumePolicy.isValid(operation.desiredState, allowingHistoricalTombstone: true) else {
-                    throw CollectionRemoteImportError.incompatibleStoredVolumeState
-                }
+            if operation.state == .retry {
+                guard
+                    let nextRetryAt = operation.nextRetryAt,
+                    nextRetryAt.timeIntervalSinceReferenceDate.isFinite
+                else { throw CollectionRemoteImportError.persistenceConflict }
+            } else if operation.state != .confirmed {
+                guard operation.nextRetryAt == nil else { throw CollectionRemoteImportError.persistenceConflict }
             }
 
             operationsByMangaID[operation.mangaID, default: []].append(operation)
         }
 
-        let processableDeletionMangaIDs = processableDeletionMangaIDs(
+        let processableDeletions = processableDeletionContext(
             entriesByMangaID: entriesByMangaID,
             operationsByMangaID: operationsByMangaID
         )
+        for operation in operations where operation.state != .confirmed {
+            guard
+                CollectionVolumePolicy.isValid(
+                    operation.desiredState,
+                    allowingHistoricalTombstone: true
+                ) || processableDeletions.supersededSafelyUnsentOperationIDs.contains(operation.operationID)
+            else { throw CollectionRemoteImportError.incompatibleStoredVolumeState }
+        }
         let validatedRemoteSnapshot = try validatedRemoteEntries(
             remoteEntries,
-            allowingUnsupportedVolumeDataFor: processableDeletionMangaIDs
+            allowingUnsupportedVolumeDataFor: processableDeletions.mangaIDs
         )
         let remoteByMangaID = validatedRemoteSnapshot.candidates
         let opaqueRemotePresenceMangaIDs = validatedRemoteSnapshot.opaqueRemotePresenceMangaIDs
@@ -311,29 +328,66 @@ extension CollectionMutationActor {
     /// Identifies exact deletions that can progress without reading volume values.
     ///
     /// Only the earliest non-confirmed operation for a pair can authorize the
-    /// exception. Blocked or superseded work continues to fence later intent.
-    private func processableDeletionMangaIDs(
+    /// exception. A retryable or authentication-blocked deletion can recover;
+    /// uncertain, rejected, or superseded work continues to fence later intent.
+    private func processableDeletionContext(
         entriesByMangaID: [Manga.ID: CollectionEntry],
         operationsByMangaID: [Manga.ID: [CollectionOutboxOperation]]
-    ) -> Set<Manga.ID> {
+    ) -> CollectionProcessableDeletionContext {
         var mangaIDs: Set<Manga.ID> = []
+        var supersededSafelyUnsentOperationIDs: Set<UUID> = []
 
         for (mangaID, entry) in entriesByMangaID where entry.isTombstone {
             let pendingOperations = operationsByMangaID[mangaID, default: []].filter { $0.state != .confirmed }
-            guard let firstSequence = pendingOperations.map(\.sequence).min() else { continue }
-            let firstOperations = pendingOperations.filter { $0.sequence == firstSequence }
+            let orderedOperations = pendingOperations.sorted { $0.sequence < $1.sequence }
             guard
-                firstOperations.count == 1,
-                let firstPendingOperation = firstOperations.first,
-                firstPendingOperation.state == .queued || firstPendingOperation.state == .sending,
-                firstPendingOperation.isTombstone,
-                firstPendingOperation.desiredState == entry.state
+                Set(orderedOperations.map(\.sequence)).count == orderedOperations.count,
+                let firstPendingOperation = orderedOperations.first
             else { continue }
+            let processableDeletion: CollectionOutboxOperation?
+            if isProcessableDeletion(firstPendingOperation, matching: entry) {
+                processableDeletion = firstPendingOperation
+            } else if
+                orderedOperations.allSatisfy(isSafelyUnsent),
+                let latestSafelyUnsentOperation = orderedOperations.last,
+                isProcessableDeletion(latestSafelyUnsentOperation, matching: entry)
+            {
+                processableDeletion = latestSafelyUnsentOperation
+                supersededSafelyUnsentOperationIDs.formUnion(orderedOperations.dropLast().map(\.operationID))
+            } else {
+                processableDeletion = nil
+            }
+            guard processableDeletion != nil else { continue }
 
             mangaIDs.insert(mangaID)
         }
 
-        return mangaIDs
+        return CollectionProcessableDeletionContext(
+            mangaIDs: mangaIDs,
+            supersededSafelyUnsentOperationIDs: supersededSafelyUnsentOperationIDs
+        )
+    }
+
+    private func isSafelyUnsent(_ operation: CollectionOutboxOperation) -> Bool {
+        switch operation.state {
+        case .queued, .retry, .blockedAuth:
+            true
+        case .sending, .blockedOutcome, .rejected, .confirmed:
+            false
+        }
+    }
+
+    private func isProcessableDeletion(
+        _ operation: CollectionOutboxOperation,
+        matching entry: CollectionEntry
+    ) -> Bool {
+        let isProcessable = switch operation.state {
+        case .queued, .sending, .retry, .blockedAuth:
+            true
+        case .blockedOutcome, .rejected, .confirmed:
+            false
+        }
+        return isProcessable && operation.isTombstone && operation.desiredState == entry.state
     }
 
     private func fetchEntries(for userID: UUID) throws(any Error) -> [CollectionEntry] {

@@ -689,7 +689,9 @@ struct CollectionSyncCoordinatorTests {
         let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
         let actor = CollectionMutationActor(modelContainer: container)
         let coordinator = CollectionSyncCoordinator(
-            authorize: { try await controller.requestAuthorization() },
+            authorize: {
+                try await controller.requestAuthorization()
+            },
             validateAuthorization: { authorization in
                 try await controller.authorizes(authorization)
             },
@@ -707,6 +709,174 @@ struct CollectionSyncCoordinatorTests {
         let context = ModelContext(container)
         #expect(try context.fetchCount(FetchDescriptor<CollectionEntry>()) == 0)
         #expect(try context.fetchCount(FetchDescriptor<CollectionOutboxOperation>()) == 0)
+        #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userA))
+        #expect(storage.snapshot().record == nil)
+    }
+
+    @Test("JWT expiry at the R2 claim boundary blocks safe work and converges session state")
+    func expirationAtOutboxClaimRequiresAuthentication() async throws(any Error) {
+        let clock = Mutex(Self.now)
+        let session = try makePersistedSession()
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let sessionLoader = R1SessionDataLoader(replies: [.data(Self.identityResponse)])
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let mutationActor = CollectionMutationActor(modelContainer: container)
+        let controller = try makeSessionController(
+            loader: sessionLoader,
+            storage: storage,
+            now: { clock.withLock { $0 } },
+            authenticationInvalidationObserver: { authorization in
+                try await mutationActor.blockUploadsForAuthentication(authorization: authorization)
+            }
+        )
+        _ = try await controller.restore()
+        let authorization = try await controller.requestAuthorization()
+        _ = try await mutationActor.apply(
+            CollectionMutationCommand(
+                authority: authorization.authority,
+                mangaID: 42,
+                mangaSnapshot: CollectionMangaSnapshot(manga: Self.remoteEntry.manga),
+                knownTotalVolumes: 3,
+                change: .replaceOwnedVolumes([1])
+            ),
+            authorization: authorization.commitAuthorization,
+            newOperationID: Self.pendingOperationID
+        )
+        let validationCount = Mutex(0)
+        let submitCount = Mutex(0)
+        let coordinator = CollectionOutboxSyncCoordinator(
+            authorize: {
+                try await controller.requestAuthorization()
+            },
+            validateAuthorization: { requestAuthorization in
+                let isValid = try await controller.authorizes(requestAuthorization)
+                let invocation = validationCount.withLock { count in
+                    count += 1
+                    return count
+                }
+                if invocation == 3 {
+                    clock.withLock {
+                        $0 = $0.addingTimeInterval(601)
+                    }
+                }
+                return isValid
+            },
+            claimNextUpload: { commitAuthorization, now in
+                try await mutationActor.claimNextUpload(authorization: commitAuthorization, now: now)
+            },
+            submit: { _, _ in
+                submitCount.withLock {
+                    $0 += 1
+                }
+            },
+            fetchRemote: { _ in [] },
+            importRemote: { _, _ in },
+            confirmUpload: { item, commitAuthorization in
+                try await mutationActor.confirmUpload(item, authorization: commitAuthorization)
+            },
+            blockUploadOutcome: { item, commitAuthorization in
+                try await mutationActor.blockUploadOutcome(item, authorization: commitAuthorization)
+            },
+            reactivateBlockedUploads: { commitAuthorization in
+                try await mutationActor.reactivateBlockedUploads(authorization: commitAuthorization)
+            },
+            hasBlockedOutcome: { commitAuthorization in
+                try await mutationActor.hasBlockedUploadOutcome(authorization: commitAuthorization)
+            }
+        )
+
+        await #expect(throws: CollectionOutboxSyncError.sessionChanged) {
+            try await coordinator.synchronizeAuthenticatedOutbox()
+        }
+
+        let context = ModelContext(container)
+        let operation = try #require(try context.fetch(FetchDescriptor<CollectionOutboxOperation>()).first)
+        #expect(operation.state == .blockedAuth)
+        #expect(submitCount.withLock { $0 } == 0)
+        #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userA))
+        #expect(storage.snapshot().record == nil)
+    }
+
+    @Test("JWT expiry before an R2 flight is reserved blocks safe work and converges session state", arguments: [1, 2])
+    func expirationBeforeOutboxFlightRequiresAuthentication(expirationAfterValidation: Int) async throws(any Error) {
+        let clock = Mutex(Self.now)
+        let session = try makePersistedSession()
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let sessionLoader = R1SessionDataLoader(replies: [.data(Self.identityResponse)])
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let mutationActor = CollectionMutationActor(modelContainer: container)
+        let controller = try makeSessionController(
+            loader: sessionLoader,
+            storage: storage,
+            now: { clock.withLock { $0 } },
+            authenticationInvalidationObserver: { authorization in
+                try await mutationActor.blockUploadsForAuthentication(authorization: authorization)
+            }
+        )
+        _ = try await controller.restore()
+        let authorization = try await controller.requestAuthorization()
+        _ = try await mutationActor.apply(
+            CollectionMutationCommand(
+                authority: authorization.authority,
+                mangaID: 42,
+                mangaSnapshot: CollectionMangaSnapshot(manga: Self.remoteEntry.manga),
+                knownTotalVolumes: 3,
+                change: .replaceOwnedVolumes([1])
+            ),
+            authorization: authorization.commitAuthorization,
+            newOperationID: Self.pendingOperationID
+        )
+        let validationCount = Mutex(0)
+        let submitCount = Mutex(0)
+        let coordinator = CollectionOutboxSyncCoordinator(
+            authorize: {
+                try await controller.requestAuthorization()
+            },
+            validateAuthorization: { requestAuthorization in
+                let isValid = try await controller.authorizes(requestAuthorization)
+                let invocation = validationCount.withLock { count in
+                    count += 1
+                    return count
+                }
+                if invocation == expirationAfterValidation {
+                    clock.withLock {
+                        $0 = $0.addingTimeInterval(601)
+                    }
+                }
+                return isValid
+            },
+            claimNextUpload: { commitAuthorization, now in
+                try await mutationActor.claimNextUpload(authorization: commitAuthorization, now: now)
+            },
+            submit: { _, _ in
+                submitCount.withLock {
+                    $0 += 1
+                }
+            },
+            fetchRemote: { _ in [] },
+            importRemote: { _, _ in },
+            confirmUpload: { item, commitAuthorization in
+                try await mutationActor.confirmUpload(item, authorization: commitAuthorization)
+            },
+            blockUploadOutcome: { item, commitAuthorization in
+                try await mutationActor.blockUploadOutcome(item, authorization: commitAuthorization)
+            },
+            reactivateBlockedUploads: { commitAuthorization in
+                try await mutationActor.reactivateBlockedUploads(authorization: commitAuthorization)
+            },
+            hasBlockedOutcome: { commitAuthorization in
+                try await mutationActor.hasBlockedUploadOutcome(authorization: commitAuthorization)
+            }
+        )
+
+        await #expect(throws: CollectionOutboxSyncError.sessionChanged) {
+            try await coordinator.synchronizeAuthenticatedOutbox()
+        }
+
+        let context = ModelContext(container)
+        let operation = try #require(try context.fetch(FetchDescriptor<CollectionOutboxOperation>()).first)
+        #expect(operation.state == .blockedAuth)
+        #expect(submitCount.withLock { $0 } == 0)
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userA))
         #expect(storage.snapshot().record == nil)
     }
@@ -970,7 +1140,8 @@ struct CollectionSyncCoordinatorTests {
     private func makeSessionController(
         loader: R1SessionDataLoader,
         storage: ControlledSessionPersistenceStorage,
-        now: @escaping @Sendable () -> Date = { Self.now }
+        now: @escaping @Sendable () -> Date = { Self.now },
+        authenticationInvalidationObserver: @escaping SessionController.AuthenticationInvalidationObserver = { _ in }
     ) throws(any Error) -> SessionController {
         let baseURL = try #require(URL(string: "https://session.example.test"))
         return SessionController(
@@ -981,7 +1152,8 @@ struct CollectionSyncCoordinatorTests {
             ),
             persistence: SessionPersistenceActor(operations: storage.operations()),
             now: now,
-            makeGeneration: { Self.generationA }
+            makeGeneration: { Self.generationA },
+            authenticationInvalidationObserver: authenticationInvalidationObserver
         )
     }
 

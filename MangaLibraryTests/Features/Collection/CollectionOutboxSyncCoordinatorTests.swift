@@ -281,7 +281,9 @@ struct CollectionOutboxSyncCoordinatorTests {
         let coordinator = CollectionOutboxSyncCoordinator(
             authorize: { await probe.authorization() },
             validateAuthorization: { authorization in await probe.validates(authorization) },
-            claimNextUpload: { authorization in try await probe.claim(authorization) },
+            claimNextUpload: { authorization, _ in
+                try await probe.claim(authorization)
+            },
             submit: { item, accessToken in try await probe.submit(item, accessToken: accessToken) },
             fetchRemote: { accessToken in try await probe.fetchRemote(accessToken: accessToken) },
             importRemote: { entries, authorization in
@@ -316,7 +318,9 @@ struct CollectionOutboxSyncCoordinatorTests {
         let outboxCoordinator = CollectionOutboxSyncCoordinator(
             authorize: { await probe.authorization() },
             validateAuthorization: { authorization in await probe.validates(authorization) },
-            claimNextUpload: { authorization in try await probe.claim(authorization) },
+            claimNextUpload: { authorization, _ in
+                try await probe.claim(authorization)
+            },
             submit: { item, accessToken in try await probe.submit(item, accessToken: accessToken) },
             fetchRemote: { accessToken in try await probe.fetchRemote(accessToken: accessToken) },
             importRemote: { entries, authorization in
@@ -496,7 +500,9 @@ struct CollectionOutboxSyncCoordinatorTests {
         CollectionOutboxSyncCoordinator(
             authorize: { await probe.authorization() },
             validateAuthorization: validateAuthorization,
-            claimNextUpload: { authorization in try await probe.claim(authorization) },
+            claimNextUpload: { authorization, _ in
+                try await probe.claim(authorization)
+            },
             submit: { item, accessToken in try await probe.submit(item, accessToken: accessToken) },
             fetchRemote: { accessToken in try await probe.fetchRemote(accessToken: accessToken) },
             importRemote: { entries, authorization in
@@ -516,7 +522,9 @@ struct CollectionOutboxSyncCoordinatorTests {
         CollectionOutboxSyncCoordinator(
             authorize: { await probe.authorization() },
             validateAuthorization: { authorization in await probe.validates(authorization) },
-            claimNextUpload: { authorization in try await probe.claim(authorization) },
+            claimNextUpload: { authorization, _ in
+                try await probe.claim(authorization)
+            },
             nextRecoveredUpload: { authorization in try await probe.nextRecovered(authorization) },
             submit: { item, accessToken in try await probe.submit(item, accessToken: accessToken) },
             fetchRemote: { accessToken in try await probe.fetchRemote(accessToken: accessToken) },
@@ -571,6 +579,7 @@ struct CollectionOutboxSyncCoordinatorTests {
         userID: UUID(uuidString: "11111111-2222-3333-4444-555555555555")!,
         mangaID: 42,
         sequence: 3,
+        retryCount: 0,
         ownedVolumes: [1, 3],
         readingVolume: 2,
         isComplete: false,

@@ -444,6 +444,120 @@ struct CollectionMutationActorTests {
         #expect(store.operations.map(\.desiredState) == [reactivated.state])
     }
 
+    @Test("Editing during backoff replaces the retry without sending stale state")
+    func editingDuringBackoffCoalescesTheRetry() async throws(any Error) {
+        let container = try makeContainer()
+        let priorState = CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 1,
+            isComplete: false,
+            knownTotalVolumes: 3,
+            isTombstone: false
+        )
+        let seedContext = ModelContext(container)
+        seedContext.insert(
+            CollectionEntry(
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                state: priorState,
+                confirmedState: nil
+            )
+        )
+        seedContext.insert(
+            CollectionOutboxOperation(
+                operationID: Self.operationA,
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                sequence: 1,
+                desiredState: priorState,
+                state: .retry,
+                retryCount: 3,
+                nextRetryAt: Date(timeIntervalSince1970: 1_800_000_030)
+            )
+        )
+        try seedContext.save()
+
+        let actor = CollectionMutationActor(modelContainer: container)
+        let result = try await actor.apply(
+            Self.command(
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                knownTotalVolumes: 3,
+                change: .replaceOwnedVolumes([1, 2])
+            ),
+            newOperationID: Self.operationB
+        )
+
+        let store = try readStore(container)
+        #expect(result.outboxOperationID == Self.operationA)
+        #expect(result.sequence == 2)
+        #expect(store.operations.count == 1)
+        #expect(store.operations.first?.operationID == Self.operationA)
+        #expect(store.operations.first?.sequence == 2)
+        #expect(store.operations.first?.desiredState == result.state)
+        #expect(store.operations.first?.state == .queued)
+        #expect(store.operations.first?.retryCount == 0)
+        #expect(store.operations.first?.nextRetryAt == nil)
+    }
+
+    @Test("Deleting during backoff replaces the retry with one queued tombstone")
+    func deletingDuringBackoffCoalescesTheRetry() async throws(any Error) {
+        let container = try makeContainer()
+        let priorState = CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 1,
+            isComplete: false,
+            knownTotalVolumes: 3,
+            isTombstone: false
+        )
+        let seedContext = ModelContext(container)
+        seedContext.insert(
+            CollectionEntry(
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                state: priorState,
+                confirmedState: priorState
+            )
+        )
+        seedContext.insert(
+            CollectionOutboxOperation(
+                operationID: Self.operationA,
+                userID: Self.userA,
+                mangaID: Self.mangaA,
+                sequence: 1,
+                desiredState: priorState,
+                state: .retry,
+                retryCount: 2,
+                nextRetryAt: Date(timeIntervalSince1970: 1_800_000_030)
+            )
+        )
+        try seedContext.save()
+
+        let actor = CollectionMutationActor(modelContainer: container)
+        let result = try await actor.apply(
+            CollectionMutationCommand(
+                authority: Self.authority(for: Self.userA),
+                mangaID: Self.mangaA,
+                knownTotalVolumes: 3,
+                change: .delete
+            ),
+            newOperationID: Self.operationB
+        )
+
+        let store = try readStore(container)
+        #expect(result.outboxOperationID == Self.operationA)
+        #expect(result.sequence == 2)
+        #expect(result.state.isTombstone)
+        #expect(store.operations.count == 1)
+        #expect(store.operations.first?.operationID == Self.operationA)
+        #expect(store.operations.first?.sequence == 2)
+        #expect(store.operations.first?.desiredState == result.state)
+        #expect(store.operations.first?.state == .queued)
+        #expect(store.operations.first?.retryCount == 0)
+        #expect(store.operations.first?.nextRetryAt == nil)
+        #expect(store.operations.first?.isTombstone == true)
+    }
+
     @Test("Complete state requires a total, preserves volumes when cleared, and falls when one volume is removed")
     func completeStateCanonicalizesAndFallsOnRemoval() async throws(any Error) {
         let container = try makeContainer()

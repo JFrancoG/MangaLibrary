@@ -120,6 +120,27 @@ final class SessionCommitGate: Sendable {
         }
     }
 
+    /// Suspends ordinary commits and returns the exact capability reserved for authentication invalidation.
+    ///
+    /// Both effects share one critical section. A normal commit therefore either finishes before
+    /// suspension or observes the disabled gate, while the returned capability remains fenced to
+    /// the same authority and credential identity.
+    func suspendForAuthenticationInvalidation(_ authority: SessionAuthority) -> SessionInvalidationAuthorization? {
+        let credentialIdentity: SessionCommitCredentialIdentity? = activeSession.withLock { activeSession in
+            guard let current = activeSession, current.authority == authority else { return nil }
+            activeSession = ActiveSession(
+                authority: current.authority,
+                expiresAt: current.expiresAt,
+                credentialIdentity: current.credentialIdentity,
+                isEnabled: false
+            )
+            return current.credentialIdentity
+        }
+        return credentialIdentity.map { credentialIdentity in
+            SessionInvalidationAuthorization(authority: authority, credentialIdentity: credentialIdentity, gate: self)
+        }
+    }
+
     func invalidate(_ authority: SessionAuthority) {
         activeSession.withLock {
             if $0?.authority == authority {
@@ -176,8 +197,33 @@ final class SessionCommitGate: Sendable {
                 throw SessionCommitAuthorizationError.sessionChanged
             }
             guard let expiresAt = activeSession?.expiresAt, expiresAt > now() else {
-                activeSession = nil
+                if let current = activeSession {
+                    activeSession = ActiveSession(
+                        authority: current.authority,
+                        expiresAt: current.expiresAt,
+                        credentialIdentity: current.credentialIdentity,
+                        isEnabled: false
+                    )
+                }
                 throw SessionCommitAuthorizationError.credentialExpired
+            }
+
+            return try commit()
+        }
+    }
+
+    fileprivate func withAuthorizedAuthenticationInvalidation<Result>(
+        for authority: SessionAuthority,
+        credentialIdentity: SessionCommitCredentialIdentity,
+        _ commit: () throws -> Result
+    ) throws -> Result {
+        try activeSession.withLock { activeSession in
+            guard
+                activeSession?.authority == authority,
+                activeSession?.credentialIdentity === credentialIdentity,
+                activeSession?.isEnabled == false
+            else {
+                throw SessionCommitAuthorizationError.sessionChanged
             }
 
             return try commit()
@@ -204,6 +250,35 @@ struct SessionCommitAuthorization {
 
     func perform<Result>(_ commit: () throws -> Result) throws -> Result {
         try gate.withAuthorizedCommit(for: authority, credentialIdentity: credentialIdentity, commit)
+    }
+}
+
+/// A generation-scoped capability that can commit only while ordinary session commits are suspended.
+///
+/// Authentication invalidation deliberately ignores credential expiry: expiry is one of the events
+/// that requires the caller to persist its fail-closed local consequences before the gate disappears.
+struct SessionInvalidationAuthorization {
+    let authority: SessionAuthority
+
+    fileprivate let credentialIdentity: SessionCommitCredentialIdentity
+    private let gate: SessionCommitGate
+
+    fileprivate init(
+        authority: SessionAuthority,
+        credentialIdentity: SessionCommitCredentialIdentity,
+        gate: SessionCommitGate
+    ) {
+        self.authority = authority
+        self.credentialIdentity = credentialIdentity
+        self.gate = gate
+    }
+
+    func perform<Result>(_ commit: () throws -> Result) throws -> Result {
+        try gate.withAuthorizedAuthenticationInvalidation(
+            for: authority,
+            credentialIdentity: credentialIdentity,
+            commit
+        )
     }
 }
 
