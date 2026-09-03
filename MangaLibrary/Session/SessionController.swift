@@ -48,6 +48,9 @@ actor SessionController {
     typealias Clock = @Sendable () -> Date
     typealias GenerationFactory = @Sendable () -> UUID
     typealias SynchronizationObserver = @Sendable (SynchronizationPoint) async -> Void
+    typealias AuthenticationInvalidationObserver = @Sendable (
+        SessionInvalidationAuthorization
+    ) async throws(any Error) -> Void
 
     enum SynchronizationPoint: Hashable {
         case accessCredentialAwaitingRefresh
@@ -105,6 +108,7 @@ actor SessionController {
     private let renewalWindow: TimeInterval
     private let commitGate: SessionCommitGate
     private let synchronizationObserver: SynchronizationObserver
+    private let authenticationInvalidationObserver: AuthenticationInvalidationObserver
 
     private static let logger = Logger(subsystem: "com.plusprojects.MangaLibrary", category: "Session")
 
@@ -124,7 +128,8 @@ actor SessionController {
         now: @escaping Clock,
         makeGeneration: @escaping GenerationFactory,
         renewalWindow: TimeInterval = 5 * 60,
-        synchronizationObserver: @escaping SynchronizationObserver = { _ in }
+        synchronizationObserver: @escaping SynchronizationObserver = { _ in },
+        authenticationInvalidationObserver: @escaping AuthenticationInvalidationObserver
     ) {
         self.apiClient = apiClient
         self.persistence = persistence
@@ -132,6 +137,7 @@ actor SessionController {
         self.makeGeneration = makeGeneration
         self.renewalWindow = renewalWindow
         self.synchronizationObserver = synchronizationObserver
+        self.authenticationInvalidationObserver = authenticationInvalidationObserver
         commitGate = SessionCommitGate(now: now)
     }
 
@@ -715,8 +721,15 @@ actor SessionController {
 
         let transition = PendingTransition.authenticationInvalidation(authority)
         pendingTransition = transition
-        commitGate.suspend(authority)
         do {
+            guard let invalidationAuthorization = commitGate.suspendForAuthenticationInvalidation(authority) else {
+                throw SessionControllerError.sessionChanged
+            }
+            do {
+                try await authenticationInvalidationObserver(invalidationAuthorization)
+            } catch {
+                Self.logger.error("Session invalidation observer failed; authentication cleanup continues")
+            }
             guard try await persistence.remove(expected: authority) else {
                 throw SessionControllerError.sessionChanged
             }

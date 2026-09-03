@@ -461,6 +461,84 @@ struct SessionControllerTests {
         #expect(storage.snapshot().record == nil)
     }
 
+    @Test("Authentication expiry grants only the exact invalidation commit")
+    func expiredSessionInvokesExactInvalidationAuthorization() async throws(any Error) {
+        let clock = TestSessionClock(now: Self.now)
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
+        let observer = SessionInvalidationObserverProbe()
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            clock: clock,
+            authenticationInvalidationObserver: { authorization in
+                observer.observe(authorization)
+            }
+        )
+        _ = try await controller.restore()
+        let normalAuthorization = try await controller.requestAuthorization()
+        observer.install(normalAuthorization.commitAuthorization)
+        clock.advance(by: 601)
+
+        #expect(throws: SessionCommitAuthorizationError.credentialExpired) {
+            try normalAuthorization.commitAuthorization.perform { true }
+        }
+
+        #expect(try await controller.commitAuthorization(for: session.authority) == nil)
+
+        let evidence = observer.evidence()
+        #expect(evidence.authorities == [session.authority])
+        #expect(evidence.successfulInvalidationCommits == 1)
+        #expect(evidence.rejectedNormalCommits == 1)
+        #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
+        #expect(storage.snapshot().record == nil)
+        let invalidationAuthorization = try #require(observer.latestAuthorization())
+        #expect(throws: SessionCommitAuthorizationError.sessionChanged) {
+            try invalidationAuthorization.perform { true }
+        }
+    }
+
+    @Test("Caller cancellation cannot skip authentication invalidation persistence")
+    func cancelledCallerStillRunsAuthenticationInvalidationObserver() async throws(any Error) {
+        let clock = TestSessionClock(now: Self.now)
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
+        let observerSawCancellation = Atomic(false)
+        let invalidationCommitCount = Mutex(0)
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            clock: clock,
+            authenticationInvalidationObserver: { authorization in
+                observerSawCancellation.store(Task.isCancelled, ordering: .releasing)
+                try authorization.perform {
+                    invalidationCommitCount.withLock {
+                        $0 += 1
+                    }
+                }
+            }
+        )
+        _ = try await controller.restore()
+        clock.advance(by: 601)
+
+        let task = Task {
+            withUnsafeCurrentTask {
+                $0?.cancel()
+            }
+            return try await controller.commitAuthorization(for: session.authority)
+        }
+        let authorization = try await task.value
+
+        #expect(authorization == nil)
+        let sawCancellation = observerSawCancellation.load(ordering: .acquiring)
+        #expect(sawCancellation)
+        #expect(invalidationCommitCount.withLock { $0 } == 1)
+        #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
+        #expect(storage.snapshot().record == nil)
+    }
+
     @Test("Local authorization expiry preserves a failed Keychain cleanup")
     func expiredLocalAuthorizationSurfacesCleanupFailure() async throws(any Error) {
         let clock = TestSessionClock(now: Self.now)
@@ -783,6 +861,66 @@ struct SessionControllerTests {
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record == nil)
         #expect(try await controller.authorizes(authorization) == false)
+    }
+
+    @Test("A permanently rejected refresh grants only the exact invalidation commit")
+    func rejectedRefreshInvokesExactInvalidationAuthorization() async throws(any Error) {
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse), .network(.statusCode(401))])
+        let observer = SessionInvalidationObserverProbe()
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            authenticationInvalidationObserver: { authorization in
+                observer.observe(authorization)
+            }
+        )
+        _ = try await controller.restore()
+        let normalAuthorization = try await controller.requestAuthorization()
+        observer.install(normalAuthorization.commitAuthorization)
+
+        await #expect(throws: SessionControllerError.authenticationRequired) {
+            try await controller.recoverAuthorization(after: normalAuthorization)
+        }
+
+        let evidence = observer.evidence()
+        #expect(evidence.authorities == [session.authority])
+        #expect(evidence.successfulInvalidationCommits == 1)
+        #expect(evidence.rejectedNormalCommits == 1)
+        #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
+        #expect(storage.snapshot().record == nil)
+    }
+
+    @Test("An invalidation observer failure cannot preserve rejected credentials")
+    func failedInvalidationObserverDoesNotPreventAuthenticationCleanup() async throws(any Error) {
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse), .network(.statusCode(401))])
+        let observerWasInvoked = Atomic(false)
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            authenticationInvalidationObserver: { _ in
+                observerWasInvoked.store(true, ordering: .releasing)
+                throw SessionInvalidationObserverTestError.expected
+            }
+        )
+        _ = try await controller.restore()
+        let authorization = try await controller.requestAuthorization()
+
+        await #expect(throws: SessionControllerError.authenticationRequired) {
+            try await controller.recoverAuthorization(after: authorization)
+        }
+
+        let wasInvoked = observerWasInvoked.load(ordering: .acquiring)
+        #expect(wasInvoked)
+        #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
+        #expect(storage.snapshot().record == nil)
+        #expect(try await controller.authorizes(authorization) == false)
+        #expect(throws: SessionCommitAuthorizationError.sessionChanged) {
+            try authorization.commitAuthorization.perform { true }
+        }
     }
 
     @Test("An access rejected by renewed identity validation keeps the session envelope")
@@ -1940,14 +2078,16 @@ struct SessionControllerTests {
         storage: ControlledSessionPersistenceStorage,
         clock: TestSessionClock = TestSessionClock(now: Self.now),
         generationFactory: @escaping @Sendable () -> UUID = { Self.generation },
-        synchronizationObserver: @escaping SessionController.SynchronizationObserver = { _ in }
+        synchronizationObserver: @escaping SessionController.SynchronizationObserver = { _ in },
+        authenticationInvalidationObserver: @escaping SessionController.AuthenticationInvalidationObserver = { _ in }
     ) throws(any Error) -> SessionController {
         try makeController(
             loadData: { request in try await loader.load(request) },
             storage: storage,
             clock: clock,
             generationFactory: generationFactory,
-            synchronizationObserver: synchronizationObserver
+            synchronizationObserver: synchronizationObserver,
+            authenticationInvalidationObserver: authenticationInvalidationObserver
         )
     }
 
@@ -1956,7 +2096,8 @@ struct SessionControllerTests {
         storage: ControlledSessionPersistenceStorage,
         clock: TestSessionClock = TestSessionClock(now: Self.now),
         generationFactory: @escaping @Sendable () -> UUID = { Self.generation },
-        synchronizationObserver: @escaping SessionController.SynchronizationObserver = { _ in }
+        synchronizationObserver: @escaping SessionController.SynchronizationObserver = { _ in },
+        authenticationInvalidationObserver: @escaping SessionController.AuthenticationInvalidationObserver = { _ in }
     ) throws(any Error) -> SessionController {
         let baseURL = try #require(URL(string: "https://session.example.test"))
         let apiClient = SessionAPIClient(
@@ -1969,7 +2110,8 @@ struct SessionControllerTests {
             persistence: SessionPersistenceActor(operations: storage.operations()),
             now: { clock.value() },
             makeGeneration: generationFactory,
-            synchronizationObserver: synchronizationObserver
+            synchronizationObserver: synchronizationObserver,
+            authenticationInvalidationObserver: authenticationInvalidationObserver
         )
     }
 
@@ -2063,6 +2205,74 @@ struct SessionControllerTests {
         isAdmin: false,
         role: "user"
     )
+}
+
+private enum SessionInvalidationObserverTestError: Error {
+    case expected
+}
+
+private final class SessionInvalidationObserverProbe: Sendable {
+    struct Evidence: Equatable {
+        let authorities: [SessionAuthority]
+        let successfulInvalidationCommits: Int
+        let rejectedNormalCommits: Int
+    }
+
+    private struct State {
+        var normalAuthorization: SessionCommitAuthorization?
+        var invalidationAuthorization: SessionInvalidationAuthorization?
+        var authorities: [SessionAuthority] = []
+        var successfulInvalidationCommits = 0
+        var rejectedNormalCommits = 0
+    }
+
+    private let state = Mutex(State())
+
+    func install(_ authorization: SessionCommitAuthorization) {
+        state.withLock {
+            $0.normalAuthorization = authorization
+        }
+    }
+
+    func observe(_ authorization: SessionInvalidationAuthorization) {
+        let invalidationCommitSucceeded = (try? authorization.perform { true }) == true
+        let normalCommitWasRejected = state.withLock { state in
+            guard let normalAuthorization = state.normalAuthorization else { return false }
+            do {
+                _ = try normalAuthorization.perform { true }
+                return false
+            } catch SessionCommitAuthorizationError.sessionChanged {
+                return true
+            } catch {
+                return false
+            }
+        }
+
+        state.withLock { state in
+            state.invalidationAuthorization = authorization
+            state.authorities.append(authorization.authority)
+            if invalidationCommitSucceeded {
+                state.successfulInvalidationCommits += 1
+            }
+            if normalCommitWasRejected {
+                state.rejectedNormalCommits += 1
+            }
+        }
+    }
+
+    func latestAuthorization() -> SessionInvalidationAuthorization? {
+        state.withLock(\.invalidationAuthorization)
+    }
+
+    func evidence() -> Evidence {
+        state.withLock {
+            Evidence(
+                authorities: $0.authorities,
+                successfulInvalidationCommits: $0.successfulInvalidationCommits,
+                rejectedNormalCommits: $0.rejectedNormalCommits
+            )
+        }
+    }
 }
 
 private actor ScriptedSessionDataLoader {

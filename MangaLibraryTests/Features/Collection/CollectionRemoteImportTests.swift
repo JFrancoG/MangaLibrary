@@ -305,7 +305,7 @@ struct CollectionRemoteImportTests {
                 desiredState: localState,
                 state: outboxState,
                 retryCount: 3,
-                nextRetryAt: Date(timeIntervalSince1970: 1_700_000_000)
+                nextRetryAt: outboxState == .retry ? Date(timeIntervalSince1970: 1_700_000_000) : nil
             )
         )
         try context.save()
@@ -580,6 +580,113 @@ struct CollectionRemoteImportTests {
         #expect(operations.map(\.desiredState) == [historicalState, tombstone])
     }
 
+    @Test("R1 keeps a recoverable historical deletion opaque", arguments: [CollectionOutboxState.retry, .blockedAuth])
+    func recoverableHistoricalDeletionDoesNotAdoptIncompatibleRemoteValues(
+        _ outboxState: CollectionOutboxState
+    ) async throws(any Error) {
+        let container = try makeContainer()
+        let historicalTombstone = CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 299,
+            isComplete: false,
+            knownTotalVolumes: 301,
+            isTombstone: true
+        )
+        let localManga = Self.remoteEntry(
+            remoteID: UUID(),
+            mangaID: 42,
+            title: "Historical local",
+            ownedVolumes: [1],
+            readingVolume: 299,
+            totalVolumes: 301
+        ).manga
+        let context = ModelContext(container)
+        context.insert(
+            CollectionEntry(
+                userID: Self.userID,
+                mangaID: 42,
+                state: historicalTombstone,
+                confirmedState: nil,
+                mangaSnapshot: CollectionMangaSnapshot(manga: localManga)
+            )
+        )
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: Self.operationID,
+                userID: Self.userID,
+                mangaID: 42,
+                sequence: 1,
+                desiredState: historicalTombstone,
+                state: outboxState,
+                retryCount: 2,
+                nextRetryAt: outboxState == .retry ? Date(timeIntervalSince1970: 1_700_000_000) : nil
+            )
+        )
+        try context.save()
+        let priorStore = try readRemoteStore(container)
+        let actor = CollectionMutationActor(modelContainer: container)
+        let incompatibleRemote = Self.remoteEntry(
+            remoteID: UUID(),
+            mangaID: 42,
+            title: "Incompatible remote",
+            ownedVolumes: [1],
+            readingVolume: 299,
+            totalVolumes: 301
+        )
+
+        try await actor.importRemote([incompatibleRemote], authorization: Self.authorization(for: Self.userID))
+
+        #expect(try readRemoteStore(container) == priorStore)
+    }
+
+    @Test("A blocked-outcome deletion cannot make incompatible remote values opaque")
+    func blockedOutcomeDeletionDoesNotExemptInvalidRemoteData() async throws(any Error) {
+        let container = try makeContainer()
+        let historicalTombstone = CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 299,
+            isComplete: false,
+            knownTotalVolumes: 301,
+            isTombstone: true
+        )
+        let context = ModelContext(container)
+        context.insert(
+            CollectionEntry(
+                userID: Self.userID,
+                mangaID: 42,
+                state: historicalTombstone,
+                confirmedState: nil
+            )
+        )
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: Self.operationID,
+                userID: Self.userID,
+                mangaID: 42,
+                sequence: 1,
+                desiredState: historicalTombstone,
+                state: .blockedOutcome
+            )
+        )
+        try context.save()
+        let priorStore = try readRemoteStore(container)
+        let actor = CollectionMutationActor(modelContainer: container)
+        let incompatibleRemote = Self.remoteEntry(
+            remoteID: UUID(),
+            mangaID: 42,
+            title: "Incompatible remote",
+            ownedVolumes: [1],
+            readingVolume: 299,
+            totalVolumes: 301
+        )
+
+        await #expect(throws: CollectionRemoteImportError.knownTotalExceedsMaximum(total: 301, maximum: 300)) {
+            try await actor.importRemote([incompatibleRemote], authorization: Self.authorization(for: Self.userID))
+        }
+
+        #expect(try readRemoteStore(container) == priorStore)
+    }
+
     @Test("Deleting supersedes an incompatible recovered POST before R1 and DELETE")
     func deletionSupersedesHistoricalSendingPost() async throws(any Error) {
         let container = try makeContainer()
@@ -654,6 +761,96 @@ struct CollectionRemoteImportTests {
         #expect(workItem.sequence == 2)
         #expect(workItem.isTombstone)
         #expect(try readRemoteStore(container).operations.map(\.state) == [.sending])
+    }
+
+    @Test(
+        "R1 and recovery preserve a current historical deletion over its unsent POST",
+        arguments: [CollectionOutboxState.blockedAuth, .queued, .retry]
+    )
+    func blockedHistoricalDeletionSupersedesItsUnsentPredecessor(
+        latestState: CollectionOutboxState
+    ) async throws(any Error) {
+        let container = try makeContainer()
+        let historicalState = CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 299,
+            isComplete: false,
+            knownTotalVolumes: 301,
+            isTombstone: false
+        )
+        let tombstone = CollectionSnapshot(
+            ownedVolumes: historicalState.ownedVolumes,
+            readingVolume: historicalState.readingVolume,
+            isComplete: historicalState.isComplete,
+            knownTotalVolumes: historicalState.knownTotalVolumes,
+            isTombstone: true
+        )
+        let tombstoneOperationID = UUID(uuidString: "BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF")!
+        let context = ModelContext(container)
+        context.insert(
+            CollectionEntry(
+                userID: Self.userID,
+                mangaID: 42,
+                state: tombstone,
+                confirmedState: nil
+            )
+        )
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: Self.operationID,
+                userID: Self.userID,
+                mangaID: 42,
+                sequence: 1,
+                desiredState: historicalState,
+                state: .blockedAuth,
+                retryCount: 1
+            )
+        )
+        let retryDeadline = Date(timeIntervalSince1970: 1_700_000_000)
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: tombstoneOperationID,
+                userID: Self.userID,
+                mangaID: 42,
+                sequence: 2,
+                desiredState: tombstone,
+                state: latestState,
+                retryCount: latestState == .retry ? 2 : 0,
+                nextRetryAt: latestState == .retry ? retryDeadline : nil
+            )
+        )
+        try context.save()
+        let actor = CollectionMutationActor(modelContainer: container)
+        let authorization = Self.authorization(for: Self.userID)
+        let remote = Self.remoteEntry(
+            remoteID: UUID(),
+            mangaID: 42,
+            title: "Incompatible historical base",
+            ownedVolumes: [1],
+            readingVolume: 299,
+            totalVolumes: 301
+        )
+
+        try await actor.importRemote([remote], authorization: authorization)
+        try await actor.reactivateBlockedUploads(authorization: authorization)
+
+        var store = try readRemoteStore(container)
+        #expect(store.entries.first?.state == tombstone)
+        #expect(store.operations.map(\.operationID) == [tombstoneOperationID])
+        #expect(store.operations.map(\.sequence) == [2])
+        #expect(store.operations.map(\.state) == [latestState == .blockedAuth ? .queued : latestState])
+        #expect(store.operations.map(\.retryCount) == [latestState == .retry ? 2 : 0])
+        #expect(store.operations.map(\.nextRetryAt) == [latestState == .retry ? retryDeadline : nil])
+        let claim = try #require(try await actor.claimNextUpload(authorization: authorization, now: retryDeadline))
+        guard case let .send(workItem) = claim else {
+            Issue.record("Expected the reactivated tombstone to be sent as DELETE.")
+            return
+        }
+        #expect(workItem.operationID == tombstoneOperationID)
+        #expect(workItem.sequence == 2)
+        #expect(workItem.isTombstone)
+        store = try readRemoteStore(container)
+        #expect(store.operations.map(\.state) == [.sending])
     }
 
     @Test("An earlier blocked operation does not exempt a later tombstone from R1 validation")

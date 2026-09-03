@@ -217,8 +217,8 @@ struct CollectionOutboxDeletePipelineTests {
         CollectionOutboxSyncCoordinator(
             authorize: { authorization },
             validateAuthorization: { candidate in candidate.authority == authorization.authority },
-            claimNextUpload: { commitAuthorization in
-                try await mutationActor.claimNextUpload(authorization: commitAuthorization)
+            claimNextUpload: { commitAuthorization, now in
+                try await mutationActor.claimNextUpload(authorization: commitAuthorization, now: now)
             },
             submit: { workItem, accessToken in
                 let createsLaterIntent = try await probe.submit(workItem, accessToken: accessToken)

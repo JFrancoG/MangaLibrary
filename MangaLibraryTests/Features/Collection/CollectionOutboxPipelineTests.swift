@@ -5,6 +5,7 @@
 
 import Foundation
 import SwiftData
+import Synchronization
 import Testing
 @testable import MangaLibrary
 
@@ -58,8 +59,8 @@ struct CollectionOutboxPipelineTests {
         let outboxCoordinator = CollectionOutboxSyncCoordinator(
             authorize: { requestAuthorization },
             validateAuthorization: { authorization in authorization.authority == authority },
-            claimNextUpload: { authorization in
-                try await mutationActor.claimNextUpload(authorization: authorization)
+            claimNextUpload: { authorization, now in
+                try await mutationActor.claimNextUpload(authorization: authorization, now: now)
             },
             submit: { workItem, accessToken in
                 _ = try await client.submit(
@@ -358,8 +359,8 @@ struct CollectionOutboxPipelineTests {
         let coordinator = CollectionOutboxSyncCoordinator(
             authorize: { requestAuthorization },
             validateAuthorization: { _ in false },
-            claimNextUpload: { authorization in
-                try await mutationActor.claimNextUpload(authorization: authorization)
+            claimNextUpload: { authorization, now in
+                try await mutationActor.claimNextUpload(authorization: authorization, now: now)
             },
             submit: { _, _ in await submissionCounter.record() },
             fetchRemote: { _ in [] },
@@ -418,8 +419,8 @@ struct CollectionOutboxPipelineTests {
         let outboxCoordinator = CollectionOutboxSyncCoordinator(
             authorize: { requestAuthorization },
             validateAuthorization: { _ in true },
-            claimNextUpload: { authorization in
-                try await mutationActor.claimNextUpload(authorization: authorization)
+            claimNextUpload: { authorization, now in
+                try await mutationActor.claimNextUpload(authorization: authorization, now: now)
             },
             submit: { _, _ in await submissionCounter.record() },
             fetchRemote: { _ in [] },
@@ -450,6 +451,399 @@ struct CollectionOutboxPipelineTests {
         let notice = AccountCollectionNotice.persistedUploadOutcome(userID: Self.userID, operations: operations)
         #expect(notice == AccountCollectionNotice(userID: Self.userID, reason: .uploadOutcomeUnconfirmed))
         #expect(await submissionCounter.count() == 0)
+    }
+
+    @Test("A proven pre-send failure persists, waits, and retries through the real store")
+    func preSendFailureRetriesAfterPersistedDeadline() async throws(any Error) {
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let mutationActor = CollectionMutationActor(modelContainer: container)
+        let authority = SessionAuthority(userID: Self.userID, generation: Self.generation)
+        let gate = SessionCommitGate(activeAuthority: authority)
+        let commitAuthorization = gate.authorization(for: authority)
+        _ = try await mutationActor.apply(
+            CollectionMutationCommand(
+                authority: authority,
+                mangaID: 42,
+                mangaSnapshot: CollectionMangaSnapshot(manga: Self.manga),
+                knownTotalVolumes: 3,
+                change: .replaceState(ownedVolumes: [1, 3], readingVolume: 2, isComplete: false)
+            ),
+            authorization: commitAuthorization,
+            newOperationID: Self.operationID
+        )
+        let requestAuthorization = SessionRequestAuthorization(
+            authority: authority,
+            accessToken: "synthetic-access",
+            commitAuthorization: commitAuthorization
+        )
+        let clock = Mutex(Date(timeIntervalSince1970: 1_800_000_000))
+        let authorizationCount = Mutex(0)
+        let sleepDurations = Mutex<[TimeInterval]>([])
+        let probe = RetryPipelineProbe()
+        let coordinator = CollectionOutboxSyncCoordinator(
+            authorize: {
+                authorizationCount.withLock {
+                    $0 += 1
+                }
+                return requestAuthorization
+            },
+            validateAuthorization: { $0.authority == authority },
+            claimNextUpload: { authorization, now in
+                try await mutationActor.claimNextUpload(authorization: authorization, now: now)
+            },
+            submit: { workItem, _ in
+                try await probe.submit(workItem)
+            },
+            fetchRemote: { _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            importRemote: { _, _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            confirmUpload: { workItem, authorization in
+                try await mutationActor.confirmUpload(workItem, authorization: authorization)
+            },
+            scheduleRetry: { workItem, nextRetryAt, authorization in
+                try await mutationActor.scheduleUploadRetry(
+                    workItem,
+                    nextRetryAt: nextRetryAt,
+                    authorization: authorization
+                )
+            },
+            blockUploadOutcome: { _, _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            reactivateBlockedUploads: { authorization in
+                try await mutationActor.reactivateBlockedUploads(authorization: authorization)
+            },
+            resolvePermanentRejection: { _, _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            hasBlockedOutcome: { authorization in
+                try await mutationActor.hasBlockedUploadOutcome(authorization: authorization)
+            },
+            classifySubmissionFailure: { error in
+                error is RetryPipelineProbe.PreSendFailure ? .notSentTransient : .potentiallyApplied
+            },
+            now: { clock.withLock { $0 } },
+            sleep: { delay in
+                sleepDurations.withLock {
+                    $0.append(delay)
+                }
+                clock.withLock {
+                    $0 = $0.addingTimeInterval(delay)
+                }
+            }
+        )
+
+        try await coordinator.synchronizeAuthenticatedOutbox()
+
+        let context = ModelContext(container)
+        let entry = try #require(try context.fetch(FetchDescriptor<CollectionEntry>()).first)
+        let operation = try #require(try context.fetch(FetchDescriptor<CollectionOutboxOperation>()).first)
+        #expect(entry.state == Self.desiredState)
+        #expect(entry.confirmedState == Self.desiredState)
+        #expect(operation.state == .confirmed)
+        #expect(operation.retryCount == 0)
+        #expect(operation.nextRetryAt == nil)
+        #expect(await probe.attemptRetryCounts() == [0, 1])
+        #expect(authorizationCount.withLock { $0 } == 2)
+        #expect(sleepDurations.withLock { $0 } == [1])
+    }
+
+    @Test("Cancellation after pre-send evidence persists retry before stopping the worker")
+    func cancellationAfterPreSendEvidencePersistsRetryWithoutAnotherClaim() async throws(any Error) {
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let mutationActor = CollectionMutationActor(modelContainer: container)
+        let authority = SessionAuthority(userID: Self.userID, generation: Self.generation)
+        let gate = SessionCommitGate(activeAuthority: authority)
+        let commitAuthorization = gate.authorization(for: authority)
+        _ = try await mutationActor.apply(
+            CollectionMutationCommand(
+                authority: authority,
+                mangaID: 42,
+                mangaSnapshot: CollectionMangaSnapshot(manga: Self.manga),
+                knownTotalVolumes: 3,
+                change: .replaceState(ownedVolumes: [1, 3], readingVolume: 2, isComplete: false)
+            ),
+            authorization: commitAuthorization,
+            newOperationID: Self.operationID
+        )
+        let requestAuthorization = SessionRequestAuthorization(
+            authority: authority,
+            accessToken: "synthetic-access",
+            commitAuthorization: commitAuthorization
+        )
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let claimCount = Mutex(0)
+        let submissionCount = Mutex(0)
+        let coordinator = CollectionOutboxSyncCoordinator(
+            authorize: { requestAuthorization },
+            validateAuthorization: { $0.authority == authority },
+            claimNextUpload: { authorization, date in
+                claimCount.withLock {
+                    $0 += 1
+                }
+                return try await mutationActor.claimNextUpload(authorization: authorization, now: date)
+            },
+            submit: { _, _ in
+                submissionCount.withLock {
+                    $0 += 1
+                }
+                withUnsafeCurrentTask {
+                    $0?.cancel()
+                }
+                throw RetryPipelineProbe.PreSendFailure()
+            },
+            fetchRemote: { _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            importRemote: { _, _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            confirmUpload: { _, _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            scheduleRetry: { workItem, nextRetryAt, authorization in
+                try await mutationActor.scheduleUploadRetry(
+                    workItem,
+                    nextRetryAt: nextRetryAt,
+                    authorization: authorization
+                )
+            },
+            blockUploadOutcome: { _, _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            reactivateBlockedUploads: { authorization in
+                try await mutationActor.reactivateBlockedUploads(authorization: authorization)
+            },
+            resolvePermanentRejection: { _, _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            hasBlockedOutcome: { authorization in
+                try await mutationActor.hasBlockedUploadOutcome(authorization: authorization)
+            },
+            classifySubmissionFailure: { error in
+                error is RetryPipelineProbe.PreSendFailure ? .notSentTransient : .potentiallyApplied
+            },
+            now: { now },
+            sleep: { _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            }
+        )
+
+        await #expect(throws: CancellationError.self) {
+            try await coordinator.synchronizeAuthenticatedOutbox()
+        }
+
+        let context = ModelContext(container)
+        let operation = try #require(try context.fetch(FetchDescriptor<CollectionOutboxOperation>()).first)
+        #expect(operation.state == .retry)
+        #expect(operation.retryCount == 1)
+        #expect(operation.nextRetryAt == now.addingTimeInterval(1))
+        #expect(claimCount.withLock { $0 } == 1)
+        #expect(submissionCount.withLock { $0 } == 1)
+    }
+
+    @Test("A retry survives actor and coordinator recreation without an early request")
+    func persistedRetrySurvivesWorkerRecreation() async throws(any Error) {
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let authority = SessionAuthority(userID: Self.userID, generation: Self.generation)
+        let gate = SessionCommitGate(activeAuthority: authority)
+        let commitAuthorization = gate.authorization(for: authority)
+        let requestAuthorization = SessionRequestAuthorization(
+            authority: authority,
+            accessToken: "synthetic-access",
+            commitAuthorization: commitAuthorization
+        )
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let deadline = start.addingTimeInterval(1)
+        let originalWorkItem: CollectionOutboxUploadWorkItem
+        do {
+            let mutationActor = CollectionMutationActor(modelContainer: container)
+            _ = try await mutationActor.apply(
+                CollectionMutationCommand(
+                    authority: authority,
+                    mangaID: 42,
+                    mangaSnapshot: CollectionMangaSnapshot(manga: Self.manga),
+                    knownTotalVolumes: 3,
+                    change: .replaceState(ownedVolumes: [1, 3], readingVolume: 2, isComplete: false)
+                ),
+                authorization: commitAuthorization,
+                newOperationID: Self.operationID
+            )
+            let claim = try #require(
+                try await mutationActor.claimNextUpload(authorization: commitAuthorization, now: start)
+            )
+            guard case let .send(workItem) = claim else { throw PipelineTestError.unexpectedClaim }
+            originalWorkItem = workItem
+            try await mutationActor.scheduleUploadRetry(
+                workItem,
+                nextRetryAt: deadline,
+                authorization: commitAuthorization
+            )
+        }
+
+        let submittedItems = Mutex<[CollectionOutboxUploadWorkItem]>([])
+        do {
+            let mutationActor = CollectionMutationActor(modelContainer: container)
+            let coordinator = Self.retryCoordinator(
+                mutationActor: mutationActor,
+                requestAuthorization: requestAuthorization,
+                now: { start },
+                sleep: { _ in
+                    throw CancellationError()
+                },
+                submit: { item in
+                    submittedItems.withLock {
+                        $0.append(item)
+                    }
+                }
+            )
+
+            await #expect(throws: CancellationError.self) {
+                try await coordinator.synchronizeAuthenticatedOutbox()
+            }
+        }
+        #expect(submittedItems.withLock { $0 }.isEmpty)
+        let waitingContext = ModelContext(container)
+        let waitingOperation = try #require(
+            try waitingContext.fetch(FetchDescriptor<CollectionOutboxOperation>()).first
+        )
+        #expect(waitingOperation.state == .retry)
+        #expect(waitingOperation.retryCount == 1)
+        #expect(waitingOperation.nextRetryAt == deadline)
+
+        do {
+            let mutationActor = CollectionMutationActor(modelContainer: container)
+            let coordinator = Self.retryCoordinator(
+                mutationActor: mutationActor,
+                requestAuthorization: requestAuthorization,
+                now: { deadline },
+                sleep: { _ in
+                    throw RetryPipelineProbe.Failure.unexpectedEffect
+                },
+                submit: { item in
+                    submittedItems.withLock {
+                        $0.append(item)
+                    }
+                }
+            )
+
+            try await coordinator.synchronizeAuthenticatedOutbox()
+        }
+
+        let submissions = submittedItems.withLock { $0 }
+        #expect(submissions.count == 1)
+        let submittedItem = try #require(submissions.first)
+        #expect(submittedItem.operationID == originalWorkItem.operationID)
+        #expect(submittedItem.sequence == originalWorkItem.sequence)
+        #expect(submittedItem.retryCount == 1)
+        let context = ModelContext(container)
+        let operation = try #require(try context.fetch(FetchDescriptor<CollectionOutboxOperation>()).first)
+        #expect(operation.state == .confirmed)
+        #expect(operation.retryCount == 0)
+        #expect(operation.nextRetryAt == nil)
+    }
+
+    @Test("A later edit wins when the prior attempt is proven unsent")
+    func laterIntentSupersedesPreSendFailureBeforeRetryScheduling() async throws(any Error) {
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let mutationActor = CollectionMutationActor(modelContainer: container)
+        let authority = SessionAuthority(userID: Self.userID, generation: Self.generation)
+        let gate = SessionCommitGate(activeAuthority: authority)
+        let commitAuthorization = gate.authorization(for: authority)
+        let initialResult = try await mutationActor.apply(
+            CollectionMutationCommand(
+                authority: authority,
+                mangaID: 42,
+                mangaSnapshot: CollectionMangaSnapshot(manga: Self.manga),
+                knownTotalVolumes: 3,
+                change: .replaceOwnedVolumes([1])
+            ),
+            authorization: commitAuthorization,
+            newOperationID: Self.operationID
+        )
+        let requestAuthorization = SessionRequestAuthorization(
+            authority: authority,
+            accessToken: "synthetic-access",
+            commitAuthorization: commitAuthorization
+        )
+        let laterOperationID = UUID(uuidString: "BBBBBBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF")!
+        let submittedItems = Mutex<[CollectionOutboxUploadWorkItem]>([])
+        let coordinator = CollectionOutboxSyncCoordinator(
+            authorize: { requestAuthorization },
+            validateAuthorization: { $0.authority == authority },
+            claimNextUpload: { authorization, now in
+                try await mutationActor.claimNextUpload(authorization: authorization, now: now)
+            },
+            submit: { item, _ in
+                submittedItems.withLock {
+                    $0.append(item)
+                }
+                if item.operationID == Self.operationID {
+                    _ = try await mutationActor.apply(
+                        CollectionMutationCommand(
+                            authority: authority,
+                            mangaID: 42,
+                            mangaSnapshot: nil,
+                            knownTotalVolumes: 3,
+                            change: .replaceState(ownedVolumes: [1, 2], readingVolume: 2, isComplete: false)
+                        ),
+                        authorization: commitAuthorization,
+                        newOperationID: laterOperationID
+                    )
+                    throw RetryPipelineProbe.PreSendFailure()
+                }
+            },
+            fetchRemote: { _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            importRemote: { _, _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            confirmUpload: { item, authorization in
+                try await mutationActor.confirmUpload(item, authorization: authorization)
+            },
+            scheduleRetry: { item, nextRetryAt, authorization in
+                try await mutationActor.scheduleUploadRetry(
+                    item,
+                    nextRetryAt: nextRetryAt,
+                    authorization: authorization
+                )
+            },
+            blockUploadOutcome: { _, _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            reactivateBlockedUploads: { authorization in
+                try await mutationActor.reactivateBlockedUploads(authorization: authorization)
+            },
+            hasBlockedOutcome: { authorization in
+                try await mutationActor.hasBlockedUploadOutcome(authorization: authorization)
+            },
+            classifySubmissionFailure: { error in
+                error is RetryPipelineProbe.PreSendFailure ? .notSentTransient : .potentiallyApplied
+            },
+            now: { Date(timeIntervalSince1970: 1_800_000_000) },
+            sleep: { _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            }
+        )
+
+        try await coordinator.synchronizeAuthenticatedOutbox()
+
+        let submissions = submittedItems.withLock { $0 }
+        #expect(submissions.map(\.operationID) == [Self.operationID, laterOperationID])
+        #expect(submissions.map(\.sequence) == [initialResult.sequence, 2])
+        #expect(submissions.map(\.ownedVolumes) == [[1], [1, 2]])
+        #expect(submissions.map(\.retryCount) == [0, 0])
+        let context = ModelContext(container)
+        let entry = try #require(try context.fetch(FetchDescriptor<CollectionEntry>()).first)
+        let operations = try context.fetch(FetchDescriptor<CollectionOutboxOperation>())
+        #expect(entry.state.ownedVolumes == [1, 2])
+        #expect(entry.confirmedState?.ownedVolumes == [1, 2])
+        #expect(operations.map(\.operationID) == [laterOperationID])
+        #expect(operations.map(\.state) == [.confirmed])
     }
 
     private static let userID = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
@@ -534,8 +928,8 @@ struct CollectionOutboxPipelineTests {
         CollectionOutboxSyncCoordinator(
             authorize: { requestAuthorization },
             validateAuthorization: { authorization in authorization.authority == requestAuthorization.authority },
-            claimNextUpload: { authorization in
-                try await mutationActor.claimNextUpload(authorization: authorization)
+            claimNextUpload: { authorization, now in
+                try await mutationActor.claimNextUpload(authorization: authorization, now: now)
             },
             nextRecoveredUpload: { authorization in
                 try await mutationActor.nextRecoveredUpload(authorization: authorization)
@@ -556,6 +950,45 @@ struct CollectionOutboxPipelineTests {
             hasBlockedOutcome: { authorization in
                 try await mutationActor.hasBlockedUploadOutcome(authorization: authorization)
             }
+        )
+    }
+
+    private static func retryCoordinator(
+        mutationActor: CollectionMutationActor,
+        requestAuthorization: SessionRequestAuthorization,
+        now: @escaping CollectionOutboxSyncCoordinator.Now,
+        sleep: @escaping CollectionOutboxSyncCoordinator.Sleep,
+        submit: @escaping @Sendable (CollectionOutboxUploadWorkItem) throws(any Error) -> Void
+    ) -> CollectionOutboxSyncCoordinator {
+        CollectionOutboxSyncCoordinator(
+            authorize: { requestAuthorization },
+            validateAuthorization: { $0.authority == requestAuthorization.authority },
+            claimNextUpload: { authorization, date in
+                try await mutationActor.claimNextUpload(authorization: authorization, now: date)
+            },
+            submit: { item, _ in
+                try submit(item)
+            },
+            fetchRemote: { _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            importRemote: { _, _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            confirmUpload: { item, authorization in
+                try await mutationActor.confirmUpload(item, authorization: authorization)
+            },
+            blockUploadOutcome: { _, _ in
+                throw RetryPipelineProbe.Failure.unexpectedEffect
+            },
+            reactivateBlockedUploads: { authorization in
+                try await mutationActor.reactivateBlockedUploads(authorization: authorization)
+            },
+            hasBlockedOutcome: { authorization in
+                try await mutationActor.hasBlockedUploadOutcome(authorization: authorization)
+            },
+            now: now,
+            sleep: sleep
         )
     }
 
@@ -616,6 +1049,27 @@ private actor SubmissionCounter {
 
     func count() -> Int {
         submissionCount
+    }
+}
+
+private actor RetryPipelineProbe {
+    struct PreSendFailure: Error {}
+
+    enum Failure: Error {
+        case unexpectedEffect
+    }
+
+    private var retryCounts: [Int] = []
+
+    func submit(_ workItem: CollectionOutboxUploadWorkItem) throws {
+        retryCounts.append(workItem.retryCount)
+        if retryCounts.count == 1 {
+            throw PreSendFailure()
+        }
+    }
+
+    func attemptRetryCounts() -> [Int] {
+        retryCounts
     }
 }
 

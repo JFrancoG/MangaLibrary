@@ -42,10 +42,11 @@ actor CollectionMutationActor {
 
     /// Applies one semantic edit to a user and manga pair.
     ///
-    /// A queued operation for the same pair keeps its UUID and receives a higher
-    /// sequence. Operations in other states remain untouched; a later queued
-    /// intent is created when necessary. An explicit deletion supersedes a
-    /// recovered pre-policy `sending` POST whose volume state is no longer valid.
+    /// A safely unsent `queued` or `retry` operation for the same pair keeps its
+    /// UUID, receives a higher sequence and clears any obsolete backoff. Work
+    /// whose remote outcome may exist remains untouched; a later queued intent
+    /// is created when necessary. An explicit deletion supersedes a recovered
+    /// pre-policy `sending` POST whose volume state is no longer valid.
     ///
     /// - Parameters:
     ///   - command: Identity, optional total knowledge and the semantic edit.
@@ -130,11 +131,11 @@ actor CollectionMutationActor {
         if case .delete = command.change {
             supersedeInvalidHistoricalSendingUploads(in: outbox)
         }
-        let queued = outbox.filter { $0.state == .queued }
-        guard queued.count <= 1 else { throw CollectionMutationError.persistenceConflict }
+        let safelyUnsent = outbox.filter { $0.state == .queued || $0.state == .retry }
+        guard safelyUnsent.count <= 1 else { throw CollectionMutationError.persistenceConflict }
 
         let operation: CollectionOutboxOperation
-        if let existingOperation = queued.first {
+        if let existingOperation = safelyUnsent.first {
             existingOperation.coalesce(sequence: sequence, desiredState: desiredState)
             operation = existingOperation
         } else {

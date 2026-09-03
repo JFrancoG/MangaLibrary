@@ -202,6 +202,58 @@ extension MangaLibrarySchema.V2 {
             return true
         }
 
+        func markSendingIfRetryIsDue(at date: Date) -> Bool {
+            guard state == .retry, let nextRetryAt, nextRetryAt <= date else { return false }
+
+            state = .sending
+            self.nextRetryAt = nil
+            return true
+        }
+
+        func markRetryIfSending(nextRetryAt: Date) -> Bool {
+            guard state == .sending else { return false }
+
+            state = .retry
+            if retryCount < Int.max {
+                retryCount += 1
+            }
+            self.nextRetryAt = nextRetryAt
+            return true
+        }
+
+        func markBlockedAuthIfUnsent() -> Bool {
+            guard state == .queued || state == .retry else { return false }
+
+            state = .blockedAuth
+            nextRetryAt = nil
+            return true
+        }
+
+        func markQueuedIfBlockedAuth() -> Bool {
+            guard state == .blockedAuth else { return false }
+
+            state = .queued
+            nextRetryAt = nil
+            return true
+        }
+
+        func markRejectedIfSending() -> Bool {
+            guard state == .sending else { return false }
+
+            state = .rejected
+            nextRetryAt = nil
+            return true
+        }
+
+        func markConfirmedIfRejected() -> Bool {
+            guard state == .rejected else { return false }
+
+            state = .confirmed
+            retryCount = 0
+            nextRetryAt = nil
+            return true
+        }
+
         func markConfirmedIfSending() -> Bool {
             guard state == .sending else { return false }
 
