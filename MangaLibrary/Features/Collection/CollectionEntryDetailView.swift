@@ -9,17 +9,20 @@ import SwiftUI
 struct CollectionEntryDetailView: View {
     @State private var editorSeed: CollectionEditorSeed?
 
-    let entry: CollectionEntry
+    let mangaID: Manga.ID
+    let mangaSnapshot: CollectionMangaSnapshot?
+    let state: CollectionSnapshot
     let scope: CollectionUserScope
     let restriction: CollectionAccess.MutationRestriction?
     let mutation: CollectionMutation
 
     var body: some View {
-        if let mangaSnapshot = entry.mangaSnapshot {
-            let manga = mangaSnapshot.manga(knownTotalVolumes: entry.knownTotalVolumes)
+        if let mangaSnapshot {
+            let manga = mangaSnapshot.manga(knownTotalVolumes: state.knownTotalVolumes)
             MangaDetailView(manga: manga) {
-                CollectionControlsView(
+                CollectionControlsContentView(
                     manga: manga,
+                    existingState: state,
                     access: .user(scope, restriction: restriction),
                     mutation: mutation,
                     editAccessibilityIdentifier: "collection.entry.edit.\(manga.id)"
@@ -29,7 +32,7 @@ struct CollectionEntryDetailView: View {
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("Manga #\(entry.mangaID)")
+                    Text("Manga #\(mangaID)")
                         .font(.title2.bold())
                         .foregroundStyle(.textPrimary)
 
@@ -41,7 +44,7 @@ struct CollectionEntryDetailView: View {
                         )
                     )
 
-                    CollectionStateSummary(state: entry.state)
+                    CollectionStateSummary(state: state)
 
                     if let restriction {
                         CollectionReadOnlyBanner(restriction: restriction)
@@ -50,7 +53,7 @@ struct CollectionEntryDetailView: View {
                             editorSeed = seed(authority: authority)
                         }
                         .buttonStyle(.borderedProminent)
-                        .accessibilityIdentifier("collection.edit.\(entry.mangaID)")
+                        .accessibilityIdentifier("collection.edit.\(mangaID)")
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -69,17 +72,17 @@ struct CollectionEntryDetailView: View {
             .onChange(of: scope.authority) { _, _ in
                 editorSeed = nil
             }
-            .accessibilityIdentifier("collection.missing-details.\(entry.mangaID)")
+            .accessibilityIdentifier("collection.missing-details.\(mangaID)")
         }
     }
 
     private func seed(authority: SessionAuthority) -> CollectionEditorSeed {
         CollectionEditorSeed(
-            identity: CollectionIdentity(userID: scope.userID, mangaID: entry.mangaID),
+            identity: CollectionIdentity(userID: scope.userID, mangaID: mangaID),
             authority: authority,
             title: nil,
             mangaSnapshot: nil,
-            state: entry.state,
+            state: state,
             isExistingEntry: true
         )
     }

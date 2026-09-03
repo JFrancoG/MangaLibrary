@@ -1,7 +1,40 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-03
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2 y las correcciones #55 y #58 entregadas; R2 cuenta con aceptación live multidispositivo de DELETE/reconciliación y se entrega mediante la PR #60
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2 y las correcciones #55, #58 y #61 entregadas; #61 se entrega mediante la PR #62 con aceptación live del propietario
+
+## Detalle de Colección coherente en iPad — issue #61
+
+- El [issue #61 — actualizar el detalle seleccionado de Colección en iPad](https://github.com/JFrancoG/MangaLibrary/issues/61) parte de la captura live donde la fila seleccionada mostraba 23 tomos y lectura 3, mientras el panel estable del mismo manga conservaba los tomos 1, 2, 3, 4 y 8 y lectura 2. La rama `codex/61-ipad-collection-detail-sync` partió de `main@6a650a4`; la implementación se versiona en `d786ba8` y se entrega mediante la [PR #62](https://github.com/JFrancoG/MangaLibrary/pull/62). Su fusión cierra #61 y el cierre autorizado incluye retirar la rama local y remota.
+- La causa estructural queda demostrada: `CollectionUserRootView` ya poseía el `@Query` que alimenta fila y selección, pero `CollectionEntryDetailView` descartaba ese `state` en la rama con snapshot y montaba `CollectionControlsView`, que ejecutaba otro `@Query` para la misma pareja usuario + manga. El iPad podía presentar dos proyecciones observables dentro del mismo `NavigationSplitView`. La fila actualizada y el único `ModelContainer` descartaban una falta global de persistencia.
+- La raíz proyecta ahora `mangaID`, `CollectionMangaSnapshot` y `CollectionSnapshot` por valor hacia el detalle. `CollectionControlsContentView` presenta ese valor y genera desde él el seed de una apertura posterior del editor, sin SwiftData ni estado persistente duplicado. `CollectionControlsView` queda como adaptador con `@Query` solo para el detalle de Catálogo, donde no existe una entrada resuelta por la raíz. Una sheet ya abierta conserva deliberadamente su borrador.
+- El cambio restaura ARCH-013/ARCH-016 y las políticas ya vigentes de SDD 01, 03 y 04; no cambia la semántica de producto y no requiere ADR, esquema, migración, API, R1/R2, sesión, Keychain u outbox. SDD 06 v1.25 registra los dos niveles de regresión y eleva a ocho los recorridos UI.
+
+### RED / GREEN y validación local de #61
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| RED/GREEN discriminante | `testCollectionDetailUsesRootProjection` inyecta B por la frontera raíz mientras el almacén contextual no contiene esa entrada. Restaurar temporalmente el segundo `@Query` antiguo produjo 0/1 y la implementación final aprueba; comprueba además que una apertura posterior del editor usa `[1, 12]` y lectura 8. |
+| Recorrido montado A→B | `testMountedCollectionDetailUpdatesWithoutReselection` monta `CollectionUserRootView`, selecciona una entrada A persistida, importa B mediante el `CollectionMutationActor` real y comprueba fila, resumen y seed del editor sin reseleccionar. Aprueba en iPad y, para detalle/editor, en iPhone compacto. Es cobertura complementaria de wiring: también pasa con la consulta antigua en el fixture hermético y no se presenta como RED discriminante. |
+| Xcode MCP — `UI` y `ReleaseGate` | `UI` aprueba 8/8. El `ReleaseGate` monolítico final aprueba 472/472 en iPad Air 11-inch (M4), iOS 27: 0 fallos, skips, expected failures o casos no ejecutados. La selección completa también se verificó en sus particiones de 464 Swift Testing y 8 UI. |
+| Xcode MCP — compacta | Los dos recorridos nuevos aprueban 2/2 en iPhone 17 Simulator/iOS 27. La lista desaparece legítimamente al navegar; el detalle montado y el editor actualizan a B sin volver atrás ni seleccionar de nuevo. |
+| Xcode MCP — build y diagnósticos | El build-for-testing final aprueba en 0,205 s con 0 errores o warnings estructurados. El log incremental conserva dos emisiones exactas de `appintentsmetadataprocessor` acotadas por ADR-0011 y ningún warning de Swift, Clang o DocC. Los siete archivos Swift afectados devuelven 0 diagnósticos focales. |
+| Xcode MCP — previews | La nueva preview directa de `CollectionControlsContentView` usa B y un container en memoria; se renderiza e inspecciona sin errores en español, Large, XXX Large y AX5 sobre iPad Pro 13-inch (M5)/iOS 27. Detalle, raíz y adaptador también se revisan en esas variantes; no se observan truncados, solapamientos ni pérdida de la acción. |
+| `Scripts/validate-docc.sh` | Ocho escenarios deterministas del clasificador aprobados; archive Release generado con warnings DocC como errores y únicamente la emisión externa exacta acotada por ADR-0011. El archive permanece local y no se publica. |
+| Integridad, estilo y revisiones | `git diff --check`, el Audit de `swift-source-style` y los escaneos de secretos y escapes de concurrencia quedan limpios. `project.pbxproj` conserva SHA-256 `ee6cd588ee1ba5666a71b8b42cbc19338af70025072d35a4efe1acb14732ab76`. Las reauditorías iOS/datos y SwiftUI/accesibilidad cierran sin hallazgos P0–P3 tras añadir el recorrido montado, el registro durable y la preview directa. |
+
+### Límite de la evidencia
+
+La captura del propietario demuestra la divergencia real, pero el actor y ambos
+queries se actualizan correctamente en el fixture A→B de simulador incluso al
+restaurar el segundo query. Por tanto, la causa inmediata exacta de invalidación
+del runtime físico no se atribuye más allá de lo demostrado. La corrección elimina
+la fuente competidora que hacía posible representar dos estados y el RED
+determinista impide reintroducirla. El propietario repitió el recorrido live y
+comunicó que el fallo quedó arreglado; esa ejecución no fue observada por el
+agente. No se ha usado backend, cuenta, Keychain o disco live desde los gates del
+agente, ni se han ejecutado VoiceOver, Voice Control, Switch Control, Acceso total
+con teclado o Accessibility Inspector.
 
 ## R2.2 — GET/DELETE individual y envío de tombstones — issue #57
 

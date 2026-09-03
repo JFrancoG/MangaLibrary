@@ -82,7 +82,9 @@ struct CollectionUserRootView: View {
     private func detail(mangaID: Manga.ID) -> some View {
         if let entry = entries.first(where: { $0.mangaID == mangaID }) {
             CollectionEntryDetailView(
-                entry: entry,
+                mangaID: entry.mangaID,
+                mangaSnapshot: entry.mangaSnapshot,
+                state: entry.state,
                 scope: scope,
                 restriction: restriction,
                 mutation: mutation

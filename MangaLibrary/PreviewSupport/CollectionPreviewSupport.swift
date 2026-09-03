@@ -89,6 +89,30 @@ enum CollectionPreviewSupport {
         controls(state: .authenticated(AccountPreviewSupport.account, notice: nil), container: container)
     }
 
+    static func projectedControls(container: ModelContainer) -> some View {
+        let context = makeContext(
+            state: .authenticated(AccountPreviewSupport.account, notice: nil),
+            container: container
+        )
+        let manga = CatalogPreviewSupport.mangas[1]
+        let state = CollectionSnapshot(
+            ownedVolumes: [1, 12],
+            readingVolume: 8,
+            isComplete: false,
+            knownTotalVolumes: manga.totalVolumes,
+            isTombstone: false
+        )
+
+        return CollectionControlsContentView(
+            manga: manga,
+            existingState: state,
+            access: context.accountModel.state.collectionAccess,
+            mutation: context.mutation,
+            editAccessibilityIdentifier: "collection.entry.edit.\(manga.id)"
+        )
+        .padding()
+    }
+
     static func signedOutControls(container: ModelContainer) -> some View {
         controls(state: .signedOut(failure: nil), container: container)
     }
@@ -121,7 +145,9 @@ enum CollectionPreviewSupport {
 
         return NavigationStack {
             CollectionEntryDetailView(
-                entry: entry,
+                mangaID: entry.mangaID,
+                mangaSnapshot: entry.mangaSnapshot,
+                state: entry.state,
                 scope: CollectionUserScope(
                     userID: AccountPreviewSupport.account.id,
                     authority: AccountPreviewSupport.account.authority
@@ -141,7 +167,9 @@ enum CollectionPreviewSupport {
 
         return NavigationStack {
             CollectionEntryDetailView(
-                entry: entry,
+                mangaID: entry.mangaID,
+                mangaSnapshot: entry.mangaSnapshot,
+                state: entry.state,
                 scope: CollectionUserScope(
                     userID: AccountPreviewSupport.account.id,
                     authority: AccountPreviewSupport.account.authority
