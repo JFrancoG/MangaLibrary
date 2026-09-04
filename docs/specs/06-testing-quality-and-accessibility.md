@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.32
+**Versión:** 1.33
 **Fecha:** 2026-09-04
 
 ## Propósito
@@ -28,33 +28,28 @@ Definir evidencia proporcional al riesgo para entregar Advanced y Deluxe con cer
 
 Los cuatro ficheros versionados viven en `TestPlans/` y el scheme compartido
 `MangaLibrary` deja `Fast` como plan predeterminado. Los planes unitarios usan
-filtros Include Tags de Swift Testing: `Fast` incluye el tag `fast`, aplicado a
-`APIConfigurationTests`, `CatalogAPIClientTests`, `CatalogQueryTests`,
-`CatalogModelTests`, `LibraryColorTests`, `SessionAPIClientTests`,
-`SessionPersistenceFailureTests`, `SessionControllerTests` y
-`AccountModelTests`, `UserRegistrationClientTests` y `CollectionAccessTests`
-porque usan valores, bytes, recursos locales o capacidades directas y
-deterministas. `Integration` incluye el tag `integration`, aplicado a
-`HTTPClientTests`, que atraviesa la frontera real de `URLSession` mediante un
-`URLProtocol` limitado a su sesión; a `SessionPersistenceActorTests` y
-`SessionPersistenceStoreTests`, que recorren la coordinación serializada y el
-único envelope Keychain V3 en un service aislado; y a
-`CollectionMutationActorTests`, `CollectionMutationAuthorizationTests`,
-`CollectionPersistenceTests` y `CollectionEditorModelTests`, que recorren el
-container real, la capacidad autenticada, migración y reapertura; y a
-`CollectionAPIClientTests`, `CollectionRemotePipelineTests`,
-`CollectionSyncCoordinatorTests` y `CollectionRemoteImportTests`, que cubren el
-transporte, la gate de commit de sesión y la importación atómica R1 con red
-sintética y un container V2 aislado; y a `CollectionAPIClientSubmitTests`,
-`CollectionAPIClientIndividualTests`, `CollectionOutboxTransitionTests`,
-`CollectionOutboxSyncCoordinatorTests`, `CollectionOutboxDeleteSyncTests`,
-`CollectionOutboxPipelineTests`, `CollectionOutboxDeletePipelineTests` y
-`CollectionOutboxRecoveryCoordinatorTests`, que recorren POST, GET/DELETE
-individual, la máquina persistida, la recuperación automática y la composición
-R1 → outbox de R2 sin alcanzar producción. `UI` contiene
-únicamente `MangaLibraryUITests`. Toda suite nueva se clasifica en `Fast`,
-`Integration` o `UI` mediante su target y, cuando corresponda, su tag, en el
-mismo cambio que la introduce. No se filtra por nombres de funciones o suites.
+filtros Include Tags de Swift Testing. Cada suite de `MangaLibraryTests` declara
+exactamente una clasificación heredable: `fast` para valores, bytes, recursos
+locales y capacidades directas deterministas; `integration` cuando cruza una
+frontera real controlada de `URLSession`, Keychain, SwiftData, migración,
+persistencia o composición. Los tags no se duplican en cada `@Test` ni se
+sustituyen por listas de nombres. `UI` contiene únicamente
+`MangaLibraryUITests`.
+
+`Scripts/validate-test-plans.sh` es el gate estático de esta clasificación. La
+categoría permanece legible en la misma línea que `@Suite` para que el gate no
+dependa de un parser o paquete externo. Debe fallar si una suite carece de
+categoría, declara ambas, repite esos tags en un test, deriva los filtros o
+targets de cualquier plan, o deja de mantener `Fast` como predeterminado. Toda
+suite nueva actualiza y supera este gate en el mismo cambio que la introduce.
+
+La selección runtime de `Fast` e `Integration` se acredita ejecutando cada plan
+con el runner nativo y leyendo `totalTestCount`, aprobados, fallos y omisiones
+del resumen de su `.xcresult`. La suma de ambos inventarios debe cubrir todas las
+declaraciones Swift Testing y el gate estático garantiza su partición exclusiva
+por suite. `GetTestList` puede servir como inventario y localizador, pero su
+campo `isEnabled` no es autoridad de selección mientras el bridge de Xcode 27 no
+proyecte los tags heredados de `@Suite`.
 
 `ReleaseGate.xctestplan` incluye completos los targets `MangaLibraryTests` y
 `MangaLibraryUITests`. Por ello también detecta un test nuevo todavía no

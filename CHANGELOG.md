@@ -36,6 +36,7 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-04 | 📝 docs(delivery): record Q2 pull request
 - 2026-09-04 | 📝 docs(delivery): record A1 pull request
 - 2026-09-04 | 📝 docs(validation): record R2.4 DocC gate
 - 2026-09-04 | 📝 docs(delivery): record R2.4 pull request
@@ -67,6 +68,7 @@ All notable changes to this project are documented in this file.
 
 ### Tests
 
+- 2026-09-04 | ✅ test(tooling): enforce the native test-plan partition
 - 2026-09-02 | ✅ test(collection): cover safe POST outbox pipeline
 - 2026-09-02 | ✅ test(session): cover JWT renewal and V3 migration
 - 2026-09-01 | ✅ test(collection): cover persistence contract

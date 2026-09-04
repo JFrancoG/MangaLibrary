@@ -82,6 +82,18 @@ Cada plan se selecciona desde **Product > Test Plan** en Xcode. El plan
 requiere por separado el build limpio, el gate DocC y la evidencia manual que
 corresponda.
 
+La clasificación versionada se comprueba sin ejecutar tests:
+
+```sh
+./Scripts/validate-test-plans.sh
+```
+
+El gate exige que cada `@Suite` declare una sola categoría `fast` o
+`integration`, valida los targets y filtros de los cuatro planes y conserva
+`Fast` como predeterminado. La cardinalidad runtime se obtiene del resumen
+nativo del `.xcresult` generado al ejecutar cada plan; el inventario de
+`GetTestList` no se usa como oráculo de selección para tags heredados de suite.
+
 ## Privacidad
 
 No se versionan credenciales, tokens utilizables, cuentas reales, rutas privadas, transcripciones completas, notas personales ni binarios de presentación o vídeo. La única fuente docente completa aprobada es el enunciado saneado: su valor demostrativo de `App-Token` contiene 42 `X` y el original exacto permanece fuera de Git. La configuración local sensible continúa ignorada.
