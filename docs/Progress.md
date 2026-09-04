@@ -1,11 +1,11 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-04
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4 y las correcciones #55, #58, #61, #63 y #65 entregadas; A1 implementado y validado localmente en #71, sin entrega autorizada
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1 y las correcciones #55, #58, #61, #63 y #65 entregados
 
 ## A1 — logout con operaciones pendientes — issue #71
 
-- El [issue #71 — completar logout con operaciones pendientes](https://github.com/JFrancoG/MangaLibrary/issues/71) permanece abierto. La rama local `codex/71-a1-pending-outbox-logout` parte de `main@a1f203e`, limpio y sincronizado con `origin/main`; no se han autorizado commit, push, PR, merge, cierre del issue ni borrado de rama.
+- A1 se entrega mediante la [PR #72](https://github.com/JFrancoG/MangaLibrary/pull/72), que cierra el [issue #71 — completar logout con operaciones pendientes](https://github.com/JFrancoG/MangaLibrary/issues/71). La rama `codex/71-a1-pending-outbox-logout` partió de `main@a1f203e`, limpio y sincronizado con `origin/main`.
 - SDD 04 v1.27 y SDD 06 v1.32 cierran la semántica antes de implementarla. `queued`, `sending`, `retry`, `blockedAuth`, `blockedOutcome` y `rejected` exigen una decisión; `confirmed` no. Cada intento obtiene una capacidad de logout nueva, ligada a usuario, generación e identidad de credencial, mientras las mutaciones ordinarias permanecen suspendidas.
 - El primer intento con trabajo pendiente reactiva la sesión y rota la cerca. Cuenta presenta un alert nativo localizado con las decisiones «mantener la sesión» o «descartar en este dispositivo y cerrar sesión»; esperar conserva sesión, Keychain, navegación, selección, Colección y outbox, permite que R2 continúe el trabajo automatizable y deja accesible la revisión que requiera una decisión.
 - El descarte explícito vuelve a consultar bajo una cerca nueva y ejecuta una única transacción SwiftData. Cada entrada retorna a `confirmedState` o se elimina si nunca tuvo base remota; no intenta deshacer un efecto que ya pudiera existir en la nube. Todas las intenciones reproducibles de la pareja desaparecen y la secuencia máxima se conserva como cursor `confirmed`, con retry y deadline limpiados, para que la siguiente mutación continúe en `max + 1`.
@@ -32,9 +32,8 @@ llamó al backend, se usó una cuenta o Keychain live ni se realizó una escritu
 de producción. La evidencia demuestra las invariantes locales, el alert y el
 recorrido hermético, pero no certifica aún el Advanced Release Gate global. La
 regresión independiente de descubrimiento de tags de `Fast` e `Integration`
-permanece fuera de #71. El issue y la rama continúan abiertos y todos los cambios
-siguen sin commit a la espera de validación del propietario y una autorización
-de entrega separada.
+permanece fuera de #71. La PR #72 entrega A1, cierra el issue y permite retirar
+la rama de trabajo; no inicia la certificación global ni el siguiente corte.
 
 ## R2.4 — resolución interactiva de resultados inciertos — issue #69
 
@@ -1109,7 +1108,7 @@ La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden d
 7. **R1 — lectura e importación remota, entregada mediante la [PR #54](https://github.com/JFrancoG/MangaLibrary/pull/54).** Consume la colección de la persona autenticada al iniciar o restaurar sesión y reconcilia el snapshot completo en SwiftData sin pisar intenciones locales posteriores. Aquí empieza la integración con la persistencia remota; la UI continúa observando exclusivamente el estado local.
 8. **R2 — envío y reconciliación de outbox.** R2.1 y R2.2 están entregados mediante la PR #60. La decisión del propietario del 2 de septiembre fija `{id}` como `Manga.ID` `int64` serializado en decimal; el UUID de entrada no forma el path y la discrepancia `string` queda como deuda contractual. R2.1 reutiliza el GET completo R1 e implementa POST y procesamiento conservador de intenciones no tombstone; R2.2 añade GET/DELETE individual, tombstones y la confirmación destructiva de UI. Ambos cortes están validados localmente y R2.2 cuenta con aceptación live multidispositivo de la ruta decimal y la ausencia reconciliada; el status/body exacto del primer DELETE y el GET presente `200` siguen sin caracterización directa. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, `blockedAuth` recuperable y rechazo positivo con reversión atómica. R2.4 se entrega mediante la PR #70 con revisión fresca, adopción remota o nueva intención consciente y resolución atómica del `blockedOutcome`.
 9. **Cota transversal de números de tomo, entregada mediante la PR #64.** Fija 300 como máximo inclusivo compartido, preserva `nil` como total desconocido y protege editor, mutación, R1 y R2 frente a valores históricos o remotos fuera de rango sin truncado ni transporte accidental.
-10. **Advanced Release Gate.** A1 implementa y valida localmente en el issue #71 el logout con operaciones pendientes, descarte transaccional, aislamiento A→B y recuperación binaria ante fallo; su entrega aún no está autorizada. Después falta cerrar la regresión de planes estrechos y reunir la aceptación global de catálogo, Cuenta, Colección, sincronización, iPhone/iPad, accesibilidad, build, tests y DocC.
+10. **Advanced Release Gate.** A1 se entrega mediante la PR #72 con logout ante operaciones pendientes, descarte transaccional, aislamiento A→B y recuperación binaria ante fallo. Después falta cerrar la regresión de planes estrechos y reunir la aceptación global de catálogo, Cuenta, Colección, sincronización, iPhone/iPad, accesibilidad, build, tests y DocC.
 11. **Deluxe.** Iniciar WidgetKit, watchOS, App Group, `SessionFence` y los puentes de datos únicamente después de que Advanced quede aceptado.
 
 S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad autenticable, pero permanece antes del gate Advanced y en una unidad separada porque incorpora el `App-Token`. S2.1 y S2.2 cierran superficies de Cuenta sin iniciar persistencia de producto. La outbox sí pertenece a L1: el worker de R2 puede llegar después, pero ninguna mutación expuesta puede escribir Colección sin registrar o coalescer su intención en la misma operación lógica.
@@ -1129,7 +1128,7 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 - La entrega original de S2 no acreditó una escritura live; la observación manual posterior de `201` y su compatibilidad quedan registradas en S2.2 sin exponer datos de cuenta.
 - S2.2 entregó mediante la PR #40 la validación y presentación de credenciales y la autoridad Keychain V2 vigente en ese momento; #58 cambia solo la infraestructura de sesión a JWT único/V3 y no altera el workflow visual ni incorpora persistencia de producto.
 - L1 entrega mediante la PR #44 `ModelContainer`, esquema V1, modelos SwiftData, outbox y primera mutación atómica. L2 entrega mediante la PR #50 el esquema V2, `@Query`, presentación offline y UI de Colección. R1 entrega mediante la PR #54 la lectura e importación remota con reconciliación local-first. R2.1/R2.2 entregan mediante la PR #60 el POST, GET/DELETE individual, vaciado seguro de intenciones no tombstone y tombstones, con aceptación live multidispositivo y la deuda contractual descrita en su evidencia. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, recuperación de `blockedAuth` y rechazo/reversión atómicos. R2.4 se entrega mediante la PR #70 con resolución manual durable de `blockedOutcome`.
-- A1 permanece sin entregar en la rama local del issue #71, pero su forma actual ya integra la outbox en logout, conserva la sesión al esperar y descarta de forma transaccional antes de retirar Keychain. El Advanced Release Gate global continúa pendiente.
+- A1 se entrega mediante la PR #72: integra la outbox en logout, conserva la sesión al esperar y descarta de forma transaccional antes de retirar Keychain. El Advanced Release Gate global continúa pendiente.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La evidencia física histórica comprende la instalación y visualización del icono observada por el propietario y las comprobaciones sintéticas de S1 y Keychain V2. #58 se valida en simulador con Keychain V3 aislado y no constituye por sí sola una repetición física ni una prueba automatizada contra producción. No existe todavía evidencia de accesibilidad física, App Group o WatchConnectivity.
 - No se ha autorizado publicación DocC ni GitHub Pages.
