@@ -1,11 +1,11 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-04
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1 y las correcciones #55, #58, #61, #63 y #65 entregados; Q2 implementado en rama
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, Q2, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1 y las correcciones #55, #58, #61, #63 y #65 entregados
 
 ## Q2 — partición ejecutable de planes estrechos — issue #73
 
-- El [issue #73 — reparar la selección por tags de Fast e Integration](https://github.com/JFrancoG/MangaLibrary/issues/73) parte de `main@ef7336f`, limpio y sincronizado con `origin/main`, en la rama `codex/73-q2-test-tag-discovery`.
+- El [issue #73 — reparar la selección por tags de Fast e Integration](https://github.com/JFrancoG/MangaLibrary/issues/73) parte de `main@ef7336f`, limpio y sincronizado con `origin/main`, en la rama `codex/73-q2-test-tag-discovery`. La implementación se versiona en `4c98a7c` y se entrega mediante la [PR #74](https://github.com/JFrancoG/MangaLibrary/pull/74).
 - La caracterización corrige el diagnóstico histórico: el editor nativo de Xcode incluye 224 de 493 declaraciones en `Fast`, y `RunAllTests` sí aplica los tags heredados de `@Suite`. El campo `isEnabled` de `GetTestList` continúa proyectando 0 habilitadas y no representa la selección que ejecuta el plan.
 - El diagnóstico mínimo con un tag directo y la prueba de escribir `.fast` en el plan no repararon esa proyección y se retiraron por completo. La forma nativa correcta continúa siendo `.tags(.fast)` o `.tags(.integration)` en la suite y `fast` o `integration` en Include Tags.
 - SDD 06 v1.33 establece el `.xcresult` del runner nativo como autoridad de cardinalidad runtime. El nuevo `Scripts/validate-test-plans.sh` cerca la configuración estática: clasificación exclusiva en cada una de las 37 suites, ausencia de duplicación en tests, filtros exactos, targets completos de `UI` y `ReleaseGate` y `Fast` predeterminado.
@@ -22,8 +22,9 @@
 | Xcode MCP — build | El build-for-testing de `Fast` aprueba en 6,805 s sin errores estructurados. El log conserva dos emisiones externas exactas de `appintentsmetadataprocessor`, una por cada target construido, acotadas por ADR 0011; no aparecen warnings de Swift o Clang. |
 
 Q2 no modifica tests ni comportamiento de producto, no añade targets o
-dependencias y no certifica por sí solo la candidata Advanced. La entrega,
-fusión, cierre del issue y retirada de rama requieren autorización posterior.
+dependencias y no certifica por sí solo la candidata Advanced. El propietario
+autorizó expresamente commit, push, PR, fusión, cierre del issue y retirada de
+la rama; esa entrega no inicia Deluxe ni sustituye el Advanced Release Gate.
 
 ## A1 — logout con operaciones pendientes — issue #71
 
@@ -1138,7 +1139,7 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 ### Trabajo transversal pendiente
 
 1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
-2. Entregar Q2 y usar sus planes estrechos ejecutables como evidencia previa al Advanced Release Gate.
+2. Ejecutar el Advanced Release Gate global usando los planes estrechos acreditados por Q2 como evidencia previa.
 3. Mantener la clasificación de cada suite nueva mediante su target y tag en el mismo cambio que la introduce.
 4. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
 
