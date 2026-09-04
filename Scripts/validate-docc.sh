@@ -14,12 +14,6 @@ readonly OUTPUT_ARCHIVE="${OUTPUT_DIRECTORY}/MangaLibrary.doccarchive"
 readonly DEFAULT_DEVELOPER_DIRECTORY="/Applications/Xcode-beta.app/Contents/Developer"
 readonly SELECTED_DEVELOPER_DIRECTORY="${MANGALIBRARY_DEVELOPER_DIR:-${DEFAULT_DEVELOPER_DIRECTORY}}"
 readonly XCODEBUILD="${SELECTED_DEVELOPER_DIRECTORY}/usr/bin/xcodebuild"
-readonly ALLOWED_TOOL_WARNING_XCODE_BUILD="27A5252f"
-readonly ALLOWED_TOOL_WARNING_MESSAGE="Metadata extraction skipped, no AppIntents.framework dependency found"
-readonly TOOL_DIAGNOSTIC_PRODUCER_PATTERN='appintentsmetadataprocessor\[[^]]+\]'
-readonly TOOL_DIAGNOSTIC_MESSAGE_PATTERN='Metadata extraction skipped, no AppIntents\.framework dependency found'
-readonly KNOWN_TOOL_DIAGNOSTIC_PATTERN="(^|[[:space:]])${TOOL_DIAGNOSTIC_PRODUCER_PATTERN}[[:space:]][[:alpha:]][[:alpha:]-]*:[[:space:]]${TOOL_DIAGNOSTIC_MESSAGE_PATTERN}$"
-readonly ALLOWED_TOOL_WARNING_PATTERN="(^|[[:space:]])${TOOL_DIAGNOSTIC_PRODUCER_PATTERN}[[:space:]]warning:[[:space:]]${TOOL_DIAGNOSTIC_MESSAGE_PATTERN}$"
 
 fail() {
     printf 'error: %s\n' "$1" >&2
@@ -60,120 +54,24 @@ redact_output() {
         -e "s#${HOME}#<home>#g"
 }
 
-collect_tool_diagnostic_lines() {
+collect_diagnostic_lines() {
     local build_output="$1"
 
-    grep -E "(^|[[:space:]])(warning|error):|${KNOWN_TOOL_DIAGNOSTIC_PATTERN}" <<< "${build_output}" || true
+    grep -E '(^|[[:space:]])(warning|error):' <<< "${build_output}" || true
 }
 
-count_severity_markers() {
-    local diagnostic="$1"
-    local markers
+validate_diagnostics() {
+    local build_output="$1"
+    local diagnostics
 
-    markers="$(grep -Eo '(^|[[:space:]])(warning|error):' <<< "${diagnostic}" || true)"
-    if [[ -z "${markers}" ]]; then
-        printf '0\n'
-    else
-        wc -l <<< "${markers}" | tr -d '[:space:]'
-        printf '\n'
+    diagnostics="$(collect_diagnostic_lines "${build_output}")"
+    if [[ -n "${diagnostics}" ]]; then
+        printf 'Diagnósticos bloqueantes:\n' >&2
+        printf '%s\n' "${diagnostics}" | redact_output >&2
+        fail "xcodebuild docbuild emitió warnings o errores."
     fi
-}
 
-classify_tool_diagnostics() {
-    local build_output="$1"
-    local xcode_build="$2"
-    local diagnostic
-    local severity_marker_count
-    local allowed_warning_count=0
-    local unexpected_diagnostic_count=0
-
-    while IFS= read -r diagnostic; do
-        [[ -n "${diagnostic}" ]] || continue
-
-        severity_marker_count="$(count_severity_markers "${diagnostic}")"
-
-        if [[ "${diagnostic}" =~ ${ALLOWED_TOOL_WARNING_PATTERN} ]] && ((severity_marker_count == 1)); then
-            ((allowed_warning_count += 1))
-        else
-            ((unexpected_diagnostic_count += 1))
-        fi
-    done < <(collect_tool_diagnostic_lines "${build_output}")
-
-    if ((unexpected_diagnostic_count > 0)); then
-        printf 'unexpected\n'
-    elif ((allowed_warning_count > 1)); then
-        printf 'too-many:%s\n' "${allowed_warning_count}"
-    elif ((allowed_warning_count == 1)) && [[ "${xcode_build}" != "${ALLOWED_TOOL_WARNING_XCODE_BUILD}" ]]; then
-        printf 'wrong-build\n'
-    elif ((allowed_warning_count == 1)); then
-        printf 'allowed\n'
-    else
-        printf 'clean\n'
-    fi
-}
-
-require_diagnostic_classification() {
-    local output="$1"
-    local xcode_build="$2"
-    local expected="$3"
-    local context="$4"
-    local actual
-
-    actual="$(classify_tool_diagnostics "${output}" "${xcode_build}")"
-    [[ "${actual}" == "${expected}" ]] || \
-        fail "Autotest del clasificador (${context}): se esperaba ${expected} y se obtuvo ${actual}."
-}
-
-self_test_tool_diagnostic_classifier() {
-    local allowed_warning="appintentsmetadataprocessor[123:456] warning: ${ALLOWED_TOOL_WARNING_MESSAGE}"
-    local changed_severity="appintentsmetadataprocessor[123:456] note: ${ALLOWED_TOOL_WARNING_MESSAGE}"
-    local unexpected_warning="otherprocessor[123:456] warning: Unexpected diagnostic"
-    local unexpected_error="otherprocessor[123:456] error: Unexpected diagnostic"
-    local hidden_diagnostic="otherprocessor[123:456] warning: hidden ${allowed_warning}"
-
-    require_diagnostic_classification "" "${ALLOWED_TOOL_WARNING_XCODE_BUILD}" clean "cero diagnósticos"
-    require_diagnostic_classification "${allowed_warning}" "${ALLOWED_TOOL_WARNING_XCODE_BUILD}" allowed "una emisión exacta"
-    require_diagnostic_classification "${allowed_warning}"$'\n'"${allowed_warning}" "${ALLOWED_TOOL_WARNING_XCODE_BUILD}" too-many:2 "dos emisiones exactas"
-    require_diagnostic_classification "${allowed_warning}"$'\n'"${unexpected_warning}" "${ALLOWED_TOOL_WARNING_XCODE_BUILD}" unexpected "warning adicional"
-    require_diagnostic_classification "${unexpected_error}" "${ALLOWED_TOOL_WARNING_XCODE_BUILD}" unexpected "error adicional"
-    require_diagnostic_classification "${changed_severity}" "${ALLOWED_TOOL_WARNING_XCODE_BUILD}" unexpected "severidad modificada"
-    require_diagnostic_classification "${hidden_diagnostic}" "${ALLOWED_TOOL_WARNING_XCODE_BUILD}" unexpected "dos diagnósticos en una línea"
-    require_diagnostic_classification "${allowed_warning}" "different-build" wrong-build "build no autorizado"
-
-    printf 'Clasificador de diagnósticos: 8 escenarios deterministas aprobados.\n'
-}
-
-validate_tool_diagnostics() {
-    local build_output="$1"
-    local classification
-
-    classification="$(classify_tool_diagnostics "${build_output}" "${XCODE_BUILD}")"
-
-    case "${classification}" in
-        clean)
-            printf 'Diagnósticos: cero warnings y cero errores. La excepción temporal no fue necesaria.\n'
-            ;;
-        allowed)
-            printf 'Diagnóstico externo autorizado por ADR-0011:\n'
-            printf 'appintentsmetadataprocessor warning: %s\n' "${ALLOWED_TOOL_WARNING_MESSAGE}"
-            printf 'Límite: exactamente una emisión en Xcode build %s; no es un warning de Swift, Clang ni DocC.\n' \
-                "${ALLOWED_TOOL_WARNING_XCODE_BUILD}"
-            ;;
-        unexpected)
-            printf 'Diagnósticos no autorizados:\n' >&2
-            collect_tool_diagnostic_lines "${build_output}" | redact_output >&2
-            fail "xcodebuild docbuild emitió warnings o errores no autorizados."
-            ;;
-        too-many:*)
-            fail "Se esperaba como máximo un warning externo autorizado y se encontraron ${classification#too-many:}."
-            ;;
-        wrong-build)
-            fail "El warning externo solo está autorizado para Xcode build ${ALLOWED_TOOL_WARNING_XCODE_BUILD}; el build actual es ${XCODE_BUILD}."
-            ;;
-        *)
-            fail "El clasificador de diagnósticos devolvió un estado desconocido: ${classification}."
-            ;;
-    esac
+    printf 'Diagnósticos: cero warnings y cero errores.\n'
 }
 
 [[ -f "${REPOSITORY_ROOT}/AGENTS.md" ]] || fail "No se reconoce la raíz del repositorio."
@@ -191,8 +89,6 @@ readonly XCODE_BUILD="$(/usr/bin/awk '/^Build version / { print $3; exit }' <<< 
 grep -Eq '^Xcode 27([.]|$)' <<< "${XCODE_VERSION}" || fail "El toolchain seleccionado no es Xcode 27."
 [[ -n "${XCODE_BUILD}" ]] || fail "No se pudo determinar el build del Xcode seleccionado."
 grep -Eq 'Apple Swift version 6[.]4([ .(]|$)' <<< "${SWIFT_VERSION}" || fail "El compilador seleccionado no es Apple Swift 6.4."
-self_test_tool_diagnostic_classifier
-
 readonly XCODEBUILD_HELP="$("${XCODEBUILD}" -help 2>&1)"
 for option in -project -scheme -configuration -destination -derivedDataPath -sdk -json; do
     require_text "${XCODEBUILD_HELP}" "${option}" "Ayuda instalada de xcodebuild"
@@ -225,6 +121,7 @@ for target in "${TARGETS[@]}"; do
         require_setting "${settings}" SWIFT_TREAT_WARNINGS_AS_ERRORS YES "${context}"
         require_setting "${settings}" SWIFT_STRICT_CONCURRENCY complete "${context}"
         require_setting "${settings}" SWIFT_DEFAULT_ACTOR_ISOLATION nonisolated "${context}"
+        require_setting "${settings}" LM_SKIP_METADATA_EXTRACTION YES "${context}"
         require_setting_contains "${settings}" OTHER_DOCC_FLAGS --warnings-as-errors "${context}"
     done
 done
@@ -253,7 +150,7 @@ if ! build_output="$("${XCODEBUILD}" docbuild \
     fail "xcodebuild docbuild no terminó correctamente."
 fi
 
-validate_tool_diagnostics "${build_output}"
+validate_diagnostics "${build_output}"
 
 shopt -s nullglob
 archives=("${TEMPORARY_DIRECTORY}"/DerivedData/Build/Products/*/MangaLibrary.doccarchive)
@@ -264,5 +161,5 @@ archives=("${TEMPORARY_DIRECTORY}"/DerivedData/Build/Products/*/MangaLibrary.doc
 
 printf 'Archive: .build/docc/MangaLibrary.doccarchive\n'
 printf 'Resultado: archive generado con los warnings de DocC tratados como errores.\n'
-printf 'Política: cualquier warning o error no autorizado, deriva de firma o exceso de emisiones hace fallar el gate.\n'
+printf 'Política: cualquier warning o error hace fallar el gate; no existen allowlists.\n'
 printf 'Excluido: publicación, GitHub Pages, tutoriales, hardware e integración live.\n'

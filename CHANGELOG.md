@@ -67,6 +67,10 @@ All notable changes to this project are documented in this file.
 - 2026-08-30 | 📝 docs(session): define versioned Keychain and ledger authority
 - 2026-08-28 | 📝 docs(roadmap): sequence identity, local persistence and sync
 
+### Maintenance
+
+- 2026-09-04 | 🔧 chore(release): enforce clean Advanced gate
+
 ### Tests
 
 - 2026-09-04 | ✅ test(tooling): enforce the native test-plan partition
