@@ -1153,6 +1153,8 @@ struct CollectionSyncCoordinatorTests {
             persistence: SessionPersistenceActor(operations: storage.operations()),
             now: now,
             makeGeneration: { Self.generationA },
+            logoutPendingChangesObserver: { _ in false },
+            logoutPendingChangesDiscarder: { _ in },
             authenticationInvalidationObserver: authenticationInvalidationObserver
         )
     }

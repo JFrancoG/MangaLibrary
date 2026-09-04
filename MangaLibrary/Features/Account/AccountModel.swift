@@ -20,12 +20,13 @@ final class AccountModel {
     /// The struct's sendability is inferred from its stored `@Sendable` closures.
     struct Operations {
         typealias SnapshotOperation = @Sendable () async throws(any Error) -> SessionSnapshot
+        typealias LogoutOperation = @Sendable (Bool) async throws(any Error) -> SessionSnapshot
 
         let currentSnapshot: @Sendable () async -> SessionSnapshot
         let restore: SnapshotOperation
         let login: @Sendable (String, String) async throws(any Error) -> SessionSnapshot
         let register: UserRegistrationClient.Operation
-        let logout: SnapshotOperation
+        let logout: LogoutOperation
 
         static func live(controller: SessionController, register: @escaping UserRegistrationClient.Operation) -> Self {
             Self(
@@ -33,7 +34,9 @@ final class AccountModel {
                 restore: { try await controller.restore() },
                 login: { email, password in try await controller.login(email: email, password: password) },
                 register: register,
-                logout: { try await controller.logout() }
+                logout: { discardPendingChanges in
+                    try await controller.logout(discardPendingChanges: discardPendingChanges)
+                }
             )
         }
     }
@@ -43,6 +46,7 @@ final class AccountModel {
         case authenticationRequired
         case temporarilyUnavailable
         case persistenceUnavailable
+        case pendingCollectionPersistenceUnavailable
         case transitionInProgress
         case sessionChanged
         case notAuthenticated
@@ -60,6 +64,8 @@ final class AccountModel {
                 "Protected session data is temporarily unavailable."
             case .persistenceUnavailable:
                 "The session could not be saved securely."
+            case .pendingCollectionPersistenceUnavailable:
+                "Pending Collection changes could not be checked or discarded. Your local changes remain. Try again."
             case .transitionInProgress:
                 "Another account action is already in progress."
             case .sessionChanged:
@@ -138,6 +144,7 @@ final class AccountModel {
 
     private(set) var state: State
     private(set) var registrationState: RegistrationState
+    private(set) var showsPendingLogoutConfirmation: Bool
 
     @ObservationIgnored private let operations: Operations
     @ObservationIgnored private var activeOperationIdentity: OperationIdentity?
@@ -147,11 +154,12 @@ final class AccountModel {
     init(initialState: State = .restoring, registrationState: RegistrationState = .idle, operations: Operations) {
         state = initialState
         self.registrationState = registrationState
+        showsPendingLogoutConfirmation = false
         self.operations = operations
         sessionAuthority = switch initialState {
-        case let .authenticated(account, _): account.authority
+        case let .authenticated(account, _), let .signingOut(account): account.authority
         case .restoring, .restorationFailed, .signedOut, .authenticating,
-             .authenticationRequired, .signingOut: nil
+             .authenticationRequired: nil
         }
     }
 
@@ -286,9 +294,41 @@ final class AccountModel {
 
         let fallback = state
         let identity = beginOperation()
+        showsPendingLogoutConfirmation = false
         state = .signingOut(account)
 
-        await resolve(identity: identity, fallback: fallback, operation: operations.logout)
+        do {
+            let snapshot = try await operations.logout(false)
+            try Task.checkCancellation()
+            guard isCurrent(identity) else { return }
+            apply(snapshot, failure: nil)
+            finish(identity)
+        } catch let error as SessionControllerError where error == .pendingCollectionChanges {
+            await presentPendingLogoutDecision(identity: identity, fallback: fallback, account: account)
+        } catch is CancellationError {
+            await recoverAfterCancellation(identity: identity, fallback: fallback)
+        } catch {
+            await recover(identity: identity, fallback: fallback, failure: Self.map(error))
+        }
+    }
+
+    /// Keeps the authenticated session active so the normal Collection worker can finish its work.
+    func staySignedInWithPendingChanges() {
+        showsPendingLogoutConfirmation = false
+    }
+
+    /// Reauthorizes and atomically discards unresolved Collection work before signing out.
+    func discardPendingChangesAndSignOut() async {
+        guard case let .authenticated(account, _) = state else { return }
+
+        let fallback = state
+        let identity = beginOperation()
+        showsPendingLogoutConfirmation = false
+        state = .signingOut(account)
+
+        await resolve(identity: identity, fallback: fallback) {
+            try await operations.logout(true)
+        }
     }
 
     /// Reconciles a session transition discovered by Collection infrastructure.
@@ -399,6 +439,34 @@ final class AccountModel {
         }
     }
 
+    private func presentPendingLogoutDecision(
+        identity: OperationIdentity,
+        fallback: State,
+        account: SessionAccount
+    ) async {
+        let snapshot = await operations.currentSnapshot()
+        guard Task.isCancelled == false else {
+            await recoverAfterCancellation(identity: identity, fallback: fallback)
+            return
+        }
+        guard isCurrent(identity) else { return }
+
+        switch snapshot {
+        case let .active(currentAccount) where currentAccount.authority == account.authority:
+            apply(snapshot, failure: nil)
+            showsPendingLogoutConfirmation = true
+        case .notRestored:
+            state = fallback
+        case .signedOut:
+            apply(snapshot, failure: nil)
+        case .active:
+            apply(snapshot, failure: .sessionChanged)
+        case .authenticationRequired:
+            apply(snapshot, failure: .authenticationRequired)
+        }
+        finish(identity)
+    }
+
     private func signInAfterRegistration(identity: OperationIdentity, email: String, password: String) async {
         do {
             let snapshot = try await operations.login(email, password)
@@ -457,6 +525,7 @@ final class AccountModel {
     }
 
     private func apply(_ snapshot: SessionSnapshot, failure: Failure?) {
+        showsPendingLogoutConfirmation = false
         switch snapshot {
         case .notRestored:
             state = .restoring
@@ -549,6 +618,10 @@ final class AccountModel {
             .temporarilyUnavailable
         case .persistenceUnavailable:
             .persistenceUnavailable
+        case .pendingCollectionPersistenceUnavailable:
+            .pendingCollectionPersistenceUnavailable
+        case .pendingCollectionChanges:
+            .unavailable
         case .transitionInProgress:
             .transitionInProgress
         case .sessionChanged:

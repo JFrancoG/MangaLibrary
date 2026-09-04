@@ -27,6 +27,8 @@ enum SessionControllerError: Error, Equatable {
     case authenticationRequired
     case temporarilyUnavailable
     case persistenceUnavailable
+    case pendingCollectionPersistenceUnavailable
+    case pendingCollectionChanges
     case transitionInProgress
     case sessionChanged
     case notAuthenticated
@@ -51,6 +53,8 @@ actor SessionController {
     typealias AuthenticationInvalidationObserver = @Sendable (
         SessionInvalidationAuthorization
     ) async throws(any Error) -> Void
+    typealias LogoutPendingChangesObserver = @Sendable (SessionLogoutAuthorization) async throws(any Error) -> Bool
+    typealias LogoutPendingChangesDiscarder = @Sendable (SessionLogoutAuthorization) async throws(any Error) -> Void
 
     enum SynchronizationPoint: Hashable {
         case accessCredentialAwaitingRefresh
@@ -109,6 +113,8 @@ actor SessionController {
     private let commitGate: SessionCommitGate
     private let synchronizationObserver: SynchronizationObserver
     private let authenticationInvalidationObserver: AuthenticationInvalidationObserver
+    private let logoutPendingChangesObserver: LogoutPendingChangesObserver
+    private let logoutPendingChangesDiscarder: LogoutPendingChangesDiscarder
 
     private static let logger = Logger(subsystem: "com.plusprojects.MangaLibrary", category: "Session")
 
@@ -129,6 +135,8 @@ actor SessionController {
         makeGeneration: @escaping GenerationFactory,
         renewalWindow: TimeInterval = 5 * 60,
         synchronizationObserver: @escaping SynchronizationObserver = { _ in },
+        logoutPendingChangesObserver: @escaping LogoutPendingChangesObserver,
+        logoutPendingChangesDiscarder: @escaping LogoutPendingChangesDiscarder,
         authenticationInvalidationObserver: @escaping AuthenticationInvalidationObserver
     ) {
         self.apiClient = apiClient
@@ -137,6 +145,8 @@ actor SessionController {
         self.makeGeneration = makeGeneration
         self.renewalWindow = renewalWindow
         self.synchronizationObserver = synchronizationObserver
+        self.logoutPendingChangesObserver = logoutPendingChangesObserver
+        self.logoutPendingChangesDiscarder = logoutPendingChangesDiscarder
         self.authenticationInvalidationObserver = authenticationInvalidationObserver
         commitGate = SessionCommitGate(now: now)
     }
@@ -443,8 +453,12 @@ actor SessionController {
         throw SessionControllerError.authenticationRequired
     }
 
-    /// Signs out by deleting the exact current Keychain generation.
-    func logout() async throws(any Error) -> SessionSnapshot {
+    /// Signs out after resolving the exact user's pending Collection work.
+    ///
+    /// The first attempt inspects the outbox while normal commits are suspended. If work remains,
+    /// the session is reactivated and presentation must obtain an explicit discard decision. A
+    /// confirmed discard uses a fresh logout capability before deleting the exact Keychain generation.
+    func logout(discardPendingChanges: Bool = false) async throws(any Error) -> SessionSnapshot {
         guard pendingTransition == nil else { throw SessionControllerError.transitionInProgress }
         guard committingRefreshIdentity == nil else { throw SessionControllerError.transitionInProgress }
         guard case let .active(authenticated) = state else { throw SessionControllerError.notAuthenticated }
@@ -452,8 +466,18 @@ actor SessionController {
 
         let transition = PendingTransition.logout(authenticated.session.authority)
         pendingTransition = transition
-        commitGate.suspend(authenticated.session.authority)
         do {
+            guard let logoutAuthorization = commitGate.suspendForLogout(authenticated.session.authority) else {
+                throw SessionControllerError.sessionChanged
+            }
+            if discardPendingChanges {
+                try await logoutPendingChangesDiscarder(logoutAuthorization)
+            } else {
+                let hasPendingChanges = try await logoutPendingChangesObserver(logoutAuthorization)
+                try Task.checkCancellation()
+                if hasPendingChanges { throw SessionControllerError.pendingCollectionChanges }
+            }
+
             guard try await persistence.remove(expected: authenticated.session.authority) else {
                 throw SessionControllerError.sessionChanged
             }
@@ -479,6 +503,7 @@ actor SessionController {
             } else {
                 clearPendingTransition(transition)
             }
+            if error is CancellationError { throw CancellationError() }
             throw map(error)
         }
     }
@@ -543,6 +568,8 @@ actor SessionController {
             case .network, .unavailable, .contractDrift:
                 break
             case .invalidCredentials, .temporarilyUnavailable, .persistenceUnavailable,
+                 .pendingCollectionPersistenceUnavailable,
+                 .pendingCollectionChanges,
                  .transitionInProgress, .sessionChanged, .notAuthenticated:
                 throw error
             }

@@ -1,7 +1,7 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.25
+- Versión: 1.27
 - Última revisión: 2026-09-04
 
 ## Propósito y alcance
@@ -169,7 +169,43 @@ registro. Logout debe:
 7. hacer que refresh, requests y envíos suspendidos revaliden la generación antes de aplicar efectos;
 8. mantener colección y outbox conservadas bajo la identidad que las creó y no enviarlas bajo otra sesión.
 
-Descartar operaciones pendientes elimina esas intenciones de forma atómica y restaura la colección al último estado confirmado antes de retirar la sesión. La confirmación debe explicar que los cambios locales no sincronizados se perderán.
+Cualquier operación en `queued`, `sending`, `retry`, `blockedAuth`,
+`blockedOutcome` o `rejected` cuenta como pendiente; un cursor `confirmed` no.
+El primer intento suspende los commits ordinarios y consulta la outbox mediante
+una capacidad `SessionLogoutAuthorization` ligada a usuario, generación y
+revisión exactos. Si encuentra trabajo pendiente, aborta la transición, rota la
+revisión al reactivar la sesión y presenta la decisión; no conserva esa
+capacidad mientras el aviso está abierto. Esperar equivale a permanecer con la
+sesión iniciada, conserva navegación, Keychain, Colección y outbox y permite que
+el worker R2 continúe con el trabajo automatizable; cualquier estado que exija
+una decisión permanece disponible para revisión.
+
+Confirmar el descarte inicia otro intento, vuelve a suspender y consultar bajo
+una capacidad nueva y restaura todas las parejas afectadas en una única
+transacción SwiftData. Una entrada vuelve a `confirmedState` o se elimina si la
+base confirmada es ausencia. Por pareja se retiene únicamente la operación de
+secuencia máxima como cursor `confirmed`, con retry y deadline eliminados, y se
+retiran las demás; así no queda trabajo reproducible y una mutación posterior
+continúa en `max + 1`. Esta transición directa de cualquier estado no
+`confirmed` a `confirmed` es exclusiva del descarte explícito de logout y no
+afirma que el servidor aceptara la intención. La confirmación explica que los
+cambios pendientes de este dispositivo volverán a su última base confirmada y
+que esto no revierte un efecto que ya pudiera existir en la nube; una lectura R1
+posterior puede volver a importarlo.
+
+Un fallo o cancelación antes del commit de descarte revierte la transacción
+completa y no inicia el borrado Keychain. Si el JWT continúa vigente, reactiva
+la sesión; si vence durante el intento, conserva el envelope sin volver a
+autorizarlo y publica `authenticationRequired`. Una vez confirmado el descarte
+local, esos cambios no se resucitan: si el borrado Keychain falla, la sesión
+vuelve a estar activa para poder reintentar solo mientras el JWT siga vigente,
+pero Colección conserva las bases restauradas y los cursores resueltos.
+
+Un fallo de SwiftData al comprobar o descartar pendientes se clasifica de forma
+separada de un fallo de Keychain. Cuenta informa de que no ha podido comprobarse
+o completarse la decisión de Colección y de que no se retiró ningún cambio
+local; el estado de autenticación se deriva por separado del snapshot vigente.
+No atribuye el problema al almacenamiento seguro de credenciales.
 
 La eliminación del registro es a la vez invalidación y limpieza; Advanced no
 persiste `logoutPrepared`, `invalidatedCleanupPending`, revisión ni otra fase. Si
@@ -177,8 +213,9 @@ el borrado falla o el proceso termina antes de confirmarlo, logout no completa y
 el envelope todavía presente puede restaurar la sesión; un fallo devuelve además
 la sesión en memoria a su estado activo para poder reintentar. Si el registro ya
 no existe, la restauración permanece en `signedOut`. Una cancelación solo puede
-aceptarse antes de iniciar el borrado; después no existe una transición durable
-que cancelar o recuperar.
+aceptarse antes del primer commit irreversible: el descarte SwiftData cuando se
+ha confirmado esa decisión o el borrado Keychain cuando no había pendientes.
+Después no existe una fase durable de logout que cancelar o recuperar.
 
 Cada efecto transporta la generación esperada. Si el propietario o el envelope
 ya no coinciden, actúa como no-op y no borra credenciales, rutas, datos u
@@ -327,6 +364,10 @@ Los únicos estados normativos de outbox son:
 - `blockedOutcome → confirmed` cuando una lectura individual fresca demuestra el efecto deseado, la persona acepta el estado remoto observado o confirma conscientemente una nueva intención local
 - `sending → rejected`
 - `rejected → confirmed` únicamente después de restaurar localmente la última versión confirmada y registrar el rechazo como resuelto; no significa que el servidor aceptara la intención rechazada
+- `queued | sending | retry | blockedAuth | blockedOutcome | rejected → confirmed`
+  únicamente durante el descarte explícito de logout, después de restaurar o
+  retirar la entrada en la misma transacción y reteniendo solo el cursor de
+  secuencia máxima; tampoco significa que el servidor aceptara la intención
 
 Una cancelación por finalización de proceso no equivale a rechazo: tras recuperar consistencia, la operación vuelve a un estado procesable sin duplicar su identidad.
 
@@ -842,7 +883,7 @@ El servidor es autoridad después de confirmar, pero una lectura remota no debe 
 | Advanced | Activación de B durante el logout de A | El propietario no activa B hasta que el borrado de A termina con éxito o error. |
 | Advanced | Efecto tardío de A tras activar B | La comprobación de generación lo convierte en no-op; credenciales, rutas, datos y operaciones de B permanecen intactos. |
 | Advanced | Editor o comando A tras activar otra generación del mismo UUID | No solicita una capacidad para B, y la cerca del model actor rechaza también una capacidad B directa; colección y outbox quedan intactas. |
-| Advanced | Logout con cambios pendientes | Exige esperar o confirmar el descarte; el descarte restaura el último estado confirmado y no deja outbox reproducible bajo otra sesión. |
+| Advanced | Logout con cambios pendientes | Exige mantener la sesión o confirmar el descarte mediante dos intentos cercados distintos; esperar conserva todo y reanuda R2, mientras el descarte restaura o elimina cada entrada, retiene `max` como cursor `confirmed` y no deja outbox reproducible bajo otra sesión. |
 | Advanced | Edición sin red | La UI cambia vía SwiftData y queda una operación persistida `queued` o `retry`. |
 | Advanced | Reinicio de app | La intención pendiente conserva UUID, secuencia y posibilidad de envío. |
 | Advanced | Varias ediciones del mismo manga | Se coalescen sin perder la intención más reciente ni permitir respuestas fuera de orden. |
