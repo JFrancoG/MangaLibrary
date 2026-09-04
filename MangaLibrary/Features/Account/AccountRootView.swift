@@ -11,6 +11,25 @@ enum AccountRoute: Hashable {
     case reviewBlockedOutcomes
 }
 
+extension AccountModel.State {
+    var accountNavigationAuthority: SessionAuthority? {
+        switch self {
+        case let .authenticated(account, _), let .signingOut(account):
+            account.authority
+        case .restoring, .restorationFailed, .signedOut, .authenticating, .authenticationRequired:
+            nil
+        }
+    }
+}
+
+private enum PendingLogoutDecisionCopy {
+    static let title: LocalizedStringResource = "Unresolved Collection changes"
+    static let message: LocalizedStringResource =
+        "Some Collection changes are still unresolved. Stay signed in to continue syncing or review changes that need attention. If you discard and sign out, this device returns to its last confirmed version; changes that may already be in the cloud are not removed. This cannot be undone."
+    static let staySignedIn: LocalizedStringResource = "Stay signed in"
+    static let discardAndSignOut: LocalizedStringResource = "Discard on this device and sign out"
+}
+
 struct AccountCollectionNotice: Equatable {
     enum Reason: Equatable {
         case authorizationDenied
@@ -53,6 +72,7 @@ struct AccountRootView: View {
     private enum Action: Hashable {
         case retryRestore
         case signOut
+        case discardPendingChangesAndSignOut
     }
 
     let model: AccountModel
@@ -118,11 +138,26 @@ struct AccountRootView: View {
                 await model.restore()
             case .signOut:
                 await model.signOut()
+            case .discardPendingChangesAndSignOut:
+                await model.discardPendingChangesAndSignOut()
             }
 
             if requestedAction == action {
                 requestedAction = nil
             }
+        }
+        .alert(PendingLogoutDecisionCopy.title, isPresented: pendingLogoutConfirmationBinding) {
+            Button(PendingLogoutDecisionCopy.staySignedIn, role: .cancel) {
+                model.staySignedInWithPendingChanges()
+            }
+            .accessibilityIdentifier("account.logout-pending.stay-signed-in")
+
+            Button(PendingLogoutDecisionCopy.discardAndSignOut, role: .destructive) {
+                requestedAction = .discardPendingChangesAndSignOut
+            }
+            .accessibilityIdentifier("account.logout-pending.discard-and-sign-out")
+        } message: {
+            Text(PendingLogoutDecisionCopy.message)
         }
     }
 
@@ -389,8 +424,18 @@ struct AccountRootView: View {
     }
 
     private var authenticatedAuthority: SessionAuthority? {
-        guard case let .authenticated(account, _) = model.state else { return nil }
-        return account.authority
+        model.state.accountNavigationAuthority
+    }
+
+    private var pendingLogoutConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { model.showsPendingLogoutConfirmation },
+            set: { isPresented in
+                if isPresented == false {
+                    model.staySignedInWithPendingChanges()
+                }
+            }
+        )
     }
 }
 
@@ -419,6 +464,33 @@ struct AccountRootView: View {
     AccountRootView(
         model: AccountPreviewSupport.model(state: .authenticated(AccountPreviewSupport.account, notice: nil))
     )
+}
+
+#Preview(
+    "Pending logout decision content",
+    traits: .modifier(CollectionPreviewModifier<CollectionPreviewScenarios.Empty>())
+) {
+    ScrollView {
+        VStack(alignment: .leading, spacing: 24) {
+            Text(PendingLogoutDecisionCopy.title)
+                .font(.title2.bold())
+
+            Text(PendingLogoutDecisionCopy.message)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 12) {
+                Button(PendingLogoutDecisionCopy.staySignedIn, role: .cancel) {}
+                    .buttonStyle(.bordered)
+
+                Button(PendingLogoutDecisionCopy.discardAndSignOut, role: .destructive) {}
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color.dangerFill)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+    }
+    .background(.canvas)
 }
 
 #Preview("Account authenticated without email") {

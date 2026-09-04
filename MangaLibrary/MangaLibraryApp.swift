@@ -65,10 +65,12 @@ extension MangaLibraryApp {
                 )
                 let testsMountedCollectionDetail = processArguments.contains("-ui-testing-mounted-collection-detail")
                 let testsBlockedOutcomeResolution = processArguments.contains("-ui-testing-blocked-outcome-resolution")
+                let testsPendingLogout = processArguments.contains("-ui-testing-pending-logout")
                 let disablesCollectionSynchronization =
                     testsCollectionDetailProjection
                     || testsMountedCollectionDetail
                     || testsBlockedOutcomeResolution
+                    || testsPendingLogout
                 let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
                 if testsMountedCollectionDetail {
                     try Self.seedUITestingMountedCollectionDetail(in: container)
@@ -76,11 +78,23 @@ extension MangaLibraryApp {
                 if testsBlockedOutcomeResolution {
                     try Self.seedUITestingBlockedOutcomes(in: container)
                 }
-                let accountState: AccountModel.State = testsMountedCollectionDetail || testsBlockedOutcomeResolution
-                    ? .authenticated(AccountPreviewSupport.account, notice: nil)
-                    : .signedOut(failure: nil)
-                let account = AccountPreviewSupport.model(state: accountState)
+                if testsPendingLogout {
+                    try Self.seedUITestingPendingLogout(in: container)
+                }
                 let mutationActor = CollectionMutationActor(modelContainer: container)
+                let account: AccountModel
+                if testsPendingLogout {
+                    let session = UITestingPendingLogoutSession(mutationActor: mutationActor)
+                    account = AccountModel(
+                        initialState: .authenticated(AccountPreviewSupport.account, notice: nil),
+                        operations: session.operations()
+                    )
+                } else {
+                    let accountState: AccountModel.State = testsMountedCollectionDetail || testsBlockedOutcomeResolution
+                        ? .authenticated(AccountPreviewSupport.account, notice: nil)
+                        : .signedOut(failure: nil)
+                    account = AccountPreviewSupport.model(state: accountState)
+                }
                 modelContainer = container
                 collectionMutation = CollectionMutation(
                     actor: mutationActor,
@@ -338,6 +352,44 @@ extension MangaLibraryApp {
         try context.save()
     }
 
+    private static func seedUITestingPendingLogout(in container: ModelContainer) throws {
+        let context = ModelContext(container)
+        let manga = CatalogPreviewSupport.mangas[0]
+        let confirmedState = CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 1,
+            isComplete: false,
+            knownTotalVolumes: manga.totalVolumes,
+            isTombstone: false
+        )
+        let localState = CollectionSnapshot(
+            ownedVolumes: [1, 2],
+            readingVolume: 2,
+            isComplete: false,
+            knownTotalVolumes: manga.totalVolumes,
+            isTombstone: false
+        )
+        context.insert(
+            CollectionEntry(
+                userID: AccountPreviewSupport.account.id,
+                mangaID: manga.id,
+                state: localState,
+                confirmedState: confirmedState,
+                mangaSnapshot: CollectionMangaSnapshot(manga: manga)
+            )
+        )
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: UUID(uuidString: "DADADADA-DADA-DADA-DADA-DADADADADADA")!,
+                userID: AccountPreviewSupport.account.id,
+                mangaID: manga.id,
+                sequence: 1,
+                desiredState: localState
+            )
+        )
+        try context.save()
+    }
+
     private static func uiTestingBlockedOutcomeResolution(
         actor: CollectionMutationActor
     ) -> CollectionBlockedOutcomeResolution {
@@ -393,3 +445,48 @@ extension MangaLibraryApp {
     }
 #endif
 }
+
+#if DEBUG
+private actor UITestingPendingLogoutSession {
+    private let mutationActor: CollectionMutationActor
+    private var snapshot = SessionSnapshot.active(AccountPreviewSupport.account)
+
+    init(mutationActor: CollectionMutationActor) {
+        self.mutationActor = mutationActor
+    }
+
+    nonisolated func operations() -> AccountModel.Operations {
+        AccountModel.Operations(
+            currentSnapshot: { [self] in await currentSnapshot() },
+            restore: { [self] in await currentSnapshot() },
+            login: { [self] _, _ in await currentSnapshot() },
+            register: { _, _ in .confirmed },
+            logout: { [self] discardPendingChanges in
+                try await logout(discardPendingChanges: discardPendingChanges)
+            }
+        )
+    }
+
+    private func currentSnapshot() -> SessionSnapshot {
+        snapshot
+    }
+
+    private func logout(discardPendingChanges: Bool) async throws(any Error) -> SessionSnapshot {
+        guard case .active = snapshot else { throw SessionControllerError.notAuthenticated }
+        let authority = AccountPreviewSupport.account.authority
+        let gate = SessionCommitGate(activeAuthority: authority)
+        guard let authorization = gate.suspendForLogout(authority) else {
+            throw SessionControllerError.sessionChanged
+        }
+
+        if discardPendingChanges {
+            try await mutationActor.discardPendingChangesForLogout(authorization: authorization)
+        } else if try await mutationActor.hasPendingChangesForLogout(authorization: authorization) {
+            throw SessionControllerError.pendingCollectionChanges
+        }
+
+        snapshot = .signedOut
+        return snapshot
+    }
+}
+#endif

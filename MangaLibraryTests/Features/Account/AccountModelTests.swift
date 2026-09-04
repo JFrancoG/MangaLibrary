@@ -125,6 +125,121 @@ struct AccountModelTests {
         #expect(model.state == .authenticated(Self.accountA, notice: .temporarilyUnavailable))
     }
 
+    @Test("Pending Collection work presents an explicit decision without signing out")
+    func pendingCollectionWorkKeepsTheAccountAuthenticated() async {
+        let session = ControlledAccountSession()
+        await session.setCurrentSnapshot(.active(Self.accountA))
+        await session.setLogoutResult(.failure(.pendingCollectionChanges))
+        let model = AccountModel(
+            initialState: .authenticated(Self.accountA, notice: nil),
+            operations: session.operations()
+        )
+
+        await model.signOut()
+
+        #expect(model.state == .authenticated(Self.accountA, notice: nil))
+        #expect(model.showsPendingLogoutConfirmation)
+        #expect(await session.logoutCalls() == [false])
+
+        model.staySignedInWithPendingChanges()
+
+        #expect(model.state == .authenticated(Self.accountA, notice: nil))
+        #expect(model.showsPendingLogoutConfirmation == false)
+        #expect(await session.logoutCalls() == [false])
+    }
+
+    @Test("An explicit discard retries logout and publishes signed out")
+    func confirmedPendingChangesDiscardSignsOut() async {
+        let session = ControlledAccountSession()
+        await session.setCurrentSnapshot(.active(Self.accountA))
+        await session.setLogoutResult(.failure(.pendingCollectionChanges))
+        await session.setLogoutResult(.success(.signedOut), discardPendingChanges: true)
+        let model = AccountModel(
+            initialState: .authenticated(Self.accountA, notice: nil),
+            operations: session.operations()
+        )
+        await model.signOut()
+
+        await model.discardPendingChangesAndSignOut()
+
+        #expect(model.state == .signedOut(failure: nil))
+        #expect(model.showsPendingLogoutConfirmation == false)
+        #expect(await session.logoutCalls() == [false, true])
+    }
+
+    @Test("Cancellation while reconciling pending logout never presents an abandoned decision")
+    func cancelledPendingLogoutDoesNotPresentTheDecision() async {
+        let session = ControlledAccountSession()
+        await session.setCurrentSnapshot(.active(Self.accountA))
+        await session.setLogoutResult(.failure(.pendingCollectionChanges))
+        await session.cancelNextLogoutBeforeReturning()
+        let model = AccountModel(
+            initialState: .authenticated(Self.accountA, notice: nil),
+            operations: session.operations()
+        )
+
+        let signOut = Task { @MainActor in
+            await model.signOut()
+        }
+        await signOut.value
+
+        #expect(model.state == .authenticated(Self.accountA, notice: nil))
+        #expect(model.showsPendingLogoutConfirmation == false)
+        #expect(await session.logoutCalls() == [false])
+    }
+
+    @Test("The pending logout transition preserves private Account navigation")
+    func pendingLogoutPreservesAccountNavigationAuthority() {
+        let authenticated = AccountModel.State.authenticated(Self.accountA, notice: nil)
+        let signingOut = AccountModel.State.signingOut(Self.accountA)
+
+        #expect(authenticated.accountNavigationAuthority == Self.accountA.authority)
+        #expect(signingOut.accountNavigationAuthority == authenticated.accountNavigationAuthority)
+        #expect(AccountModel.State.signedOut(failure: nil).accountNavigationAuthority == nil)
+    }
+
+    @Test("A failed confirmed discard keeps the account active without reopening the decision")
+    func failedPendingChangesDiscardKeepsTheAccountActive() async {
+        let session = ControlledAccountSession()
+        await session.setCurrentSnapshot(.active(Self.accountA))
+        await session.setLogoutResult(.failure(.pendingCollectionChanges))
+        await session.setLogoutResult(.failure(.pendingCollectionPersistenceUnavailable), discardPendingChanges: true)
+        let model = AccountModel(
+            initialState: .authenticated(Self.accountA, notice: nil),
+            operations: session.operations()
+        )
+        await model.signOut()
+
+        await model.discardPendingChangesAndSignOut()
+
+        #expect(model.state == .authenticated(Self.accountA, notice: .pendingCollectionPersistenceUnavailable))
+        #expect(model.showsPendingLogoutConfirmation == false)
+        #expect(await session.logoutCalls() == [false, true])
+    }
+
+    @Test("An expired session and a Collection persistence failure remain a coherent presentation")
+    func failedPendingChangesDiscardAfterExpirationRequiresAuthentication() async {
+        let session = ControlledAccountSession()
+        await session.setCurrentSnapshot(.active(Self.accountA))
+        await session.setLogoutResult(.failure(.pendingCollectionChanges))
+        await session.setLogoutResult(.failure(.pendingCollectionPersistenceUnavailable), discardPendingChanges: true)
+        let model = AccountModel(
+            initialState: .authenticated(Self.accountA, notice: nil),
+            operations: session.operations()
+        )
+        await model.signOut()
+        await session.setCurrentSnapshot(.authenticationRequired(Self.accountA.id))
+
+        await model.discardPendingChangesAndSignOut()
+
+        #expect(
+            model.state
+                == .authenticationRequired(userID: Self.accountA.id, failure: .pendingCollectionPersistenceUnavailable)
+        )
+        #expect(model.showsPendingLogoutConfirmation == false)
+        #expect(await session.logoutCalls() == [false, true])
+    }
+
     @Test("Collection sync publishes an authoritative reauthentication requirement")
     func collectionSyncReconcilesAuthenticationRequired() async {
         let session = ControlledAccountSession()
@@ -863,9 +978,14 @@ private actor ControlledAccountSession {
     private var registrationPlans: [String: RegistrationPlan] = [:]
     private var loginPlans: [String: LoginPlan] = [:]
     private var recordedRemoteCalls: [AccountRemoteCall] = []
-    private var logoutResult: Result<SessionSnapshot, SessionControllerError> = .success(.signedOut)
+    private var logoutResults: [Bool: Result<SessionSnapshot, SessionControllerError>] = [
+        false: .success(.signedOut),
+        true: .success(.signedOut),
+    ]
+    private var recordedLogoutCalls: [Bool] = []
     private var currentSnapshotGate: AccountOperationGate?
     private var gatedSnapshot: SessionSnapshot?
+    private var cancelsNextLogoutBeforeReturning = false
 
     nonisolated func operations() -> AccountModel.Operations {
         AccountModel.Operations(
@@ -877,7 +997,9 @@ private actor ControlledAccountSession {
             register: { [self] email, password in
                 await register(email: email, password: password)
             },
-            logout: { [self] in try await logout() }
+            logout: { [self] discardPendingChanges in
+                try await logout(discardPendingChanges: discardPendingChanges)
+            }
         )
     }
 
@@ -915,8 +1037,19 @@ private actor ControlledAccountSession {
         recordedRemoteCalls
     }
 
-    func setLogoutResult(_ result: Result<SessionSnapshot, SessionControllerError>) {
-        logoutResult = result
+    func setLogoutResult(
+        _ result: Result<SessionSnapshot, SessionControllerError>,
+        discardPendingChanges: Bool = false
+    ) {
+        logoutResults[discardPendingChanges] = result
+    }
+
+    func logoutCalls() -> [Bool] {
+        recordedLogoutCalls
+    }
+
+    func cancelNextLogoutBeforeReturning() {
+        cancelsNextLogoutBeforeReturning = true
     }
 
     private func currentSnapshot() async -> SessionSnapshot {
@@ -957,8 +1090,15 @@ private actor ControlledAccountSession {
         return result
     }
 
-    private func logout() throws(any Error) -> SessionSnapshot {
-        let result = try logoutResult.get()
+    private func logout(discardPendingChanges: Bool) throws(any Error) -> SessionSnapshot {
+        recordedLogoutCalls.append(discardPendingChanges)
+        if cancelsNextLogoutBeforeReturning {
+            cancelsNextLogoutBeforeReturning = false
+            withUnsafeCurrentTask { task in
+                task?.cancel()
+            }
+        }
+        let result = try #require(logoutResults[discardPendingChanges]).get()
         snapshot = result
         return result
     }

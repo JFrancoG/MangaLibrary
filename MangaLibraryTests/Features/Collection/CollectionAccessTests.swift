@@ -155,7 +155,7 @@ struct CollectionMutationAuthorizationTests {
                 restore: { .notRestored },
                 login: { _, _ in .notRestored },
                 register: { _, _ in .notSubmitted(.unavailable) },
-                logout: { .notRestored }
+                logout: { _ in .notRestored }
             )
         )
         let mutation = CollectionMutation(
@@ -426,7 +426,7 @@ struct CollectionMutationAuthorizationTests {
                 restore: { .notRestored },
                 login: { _, _ in .notRestored },
                 register: { _, _ in .notSubmitted(.unavailable) },
-                logout: { .notRestored }
+                logout: { _ in .notRestored }
             )
         )
     }

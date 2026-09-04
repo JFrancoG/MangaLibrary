@@ -108,6 +108,8 @@ private extension CollectionOutcomeResolutionSessionTests {
             persistence: SessionPersistenceActor(operations: storage.operations()),
             now: { now },
             makeGeneration: { generation },
+            logoutPendingChangesObserver: { _ in false },
+            logoutPendingChangesDiscarder: { _ in },
             authenticationInvalidationObserver: { _ in }
         )
         return R24SessionHarness(controller: controller, storage: storage, persistedSession: persistedSession)

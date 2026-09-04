@@ -141,6 +141,26 @@ final class SessionCommitGate: Sendable {
         }
     }
 
+    /// Suspends ordinary commits and returns the exact capability reserved for logout inspection and discard.
+    ///
+    /// The capability deliberately differs from authentication invalidation: logout may inspect or resolve
+    /// pending user work, while an authentication failure can only block work that is certainly unsent.
+    func suspendForLogout(_ authority: SessionAuthority) -> SessionLogoutAuthorization? {
+        let credentialIdentity: SessionCommitCredentialIdentity? = activeSession.withLock { activeSession in
+            guard let current = activeSession, current.authority == authority else { return nil }
+            activeSession = ActiveSession(
+                authority: current.authority,
+                expiresAt: current.expiresAt,
+                credentialIdentity: current.credentialIdentity,
+                isEnabled: false
+            )
+            return current.credentialIdentity
+        }
+        return credentialIdentity.map { credentialIdentity in
+            SessionLogoutAuthorization(authority: authority, credentialIdentity: credentialIdentity, gate: self)
+        }
+    }
+
     func invalidate(_ authority: SessionAuthority) {
         activeSession.withLock {
             if $0?.authority == authority {
@@ -229,6 +249,24 @@ final class SessionCommitGate: Sendable {
             return try commit()
         }
     }
+
+    fileprivate func withAuthorizedLogout<Result>(
+        for authority: SessionAuthority,
+        credentialIdentity: SessionCommitCredentialIdentity,
+        _ commit: () throws -> Result
+    ) throws -> Result {
+        try activeSession.withLock { activeSession in
+            guard
+                activeSession?.authority == authority,
+                activeSession?.credentialIdentity === credentialIdentity,
+                activeSession?.isEnabled == false
+            else {
+                throw SessionCommitAuthorizationError.sessionChanged
+            }
+
+            return try commit()
+        }
+    }
 }
 
 /// One generation-and-credential-scoped capability consumed at a synchronous commit boundary.
@@ -279,6 +317,31 @@ struct SessionInvalidationAuthorization {
             credentialIdentity: credentialIdentity,
             commit
         )
+    }
+}
+
+/// A generation-scoped capability valid only while the exact logout owns the suspended gate.
+///
+/// It does not expose credentials and intentionally ignores JWT expiry so an explicit local
+/// discard can finish without network access before the session bundle is removed.
+struct SessionLogoutAuthorization {
+    let authority: SessionAuthority
+
+    fileprivate let credentialIdentity: SessionCommitCredentialIdentity
+    private let gate: SessionCommitGate
+
+    fileprivate init(
+        authority: SessionAuthority,
+        credentialIdentity: SessionCommitCredentialIdentity,
+        gate: SessionCommitGate
+    ) {
+        self.authority = authority
+        self.credentialIdentity = credentialIdentity
+        self.gate = gate
+    }
+
+    func perform<Result>(_ commit: () throws -> Result) throws -> Result {
+        try gate.withAuthorizedLogout(for: authority, credentialIdentity: credentialIdentity, commit)
     }
 }
 

@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.30
+**Versión:** 1.32
 **Fecha:** 2026-09-04
 
 ## Propósito
@@ -94,6 +94,14 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
   la generación del bundle Keychain vigente;
 - logout Advanced binario: un fallo de borrado conserva la sesión y un éxito
   publica `signedOut`, sin fase durable intermedia;
+- logout con outbox: todos los estados no `confirmed` exigen una decisión,
+  esperar reactiva la sesión con una revisión nueva y descartar restaura cada
+  base o ausencia en una transacción, conserva el cursor máximo como
+  `confirmed` y no reinicia la secuencia;
+- un fallo SwiftData al comprobar o descartar pendientes conserva Keychain y se
+  presenta como indisponibilidad de Colección, distinta de un fallo de
+  persistencia segura de la sesión; mantiene la sesión activa si el JWT sigue
+  vigente y converge a `authenticationRequired` si vence durante el intento;
 - punto de no retorno y rechazo de cancelación tras un fence Deluxe cerrado y verificado;
 - coalescencia, reintento, cancelación e idempotencia de mutaciones;
 - clasificador R2.3 cerrado: solo una señal positiva de una frontera
@@ -143,6 +151,9 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
   concurrente y efectos tardíos de A convertidos en no-op después de activar B;
 - fallo de borrado que conserva A activa y permite reintentar, y cancelación
   reconciliada después de que el commit Keychain haya terminado;
+- fallo de inspección o descarte que no inicia el borrado Keychain y revierte
+  todo SwiftData; fallo Keychain posterior al descarte que conserva A activa
+  sin resucitar las intenciones ya descartadas;
 - fallo de borrado de logout que cruza la expiración: conserva el envelope
   residual y el error de limpieza, pero proyecta `authenticationRequired` y no
   reactiva la gate;
@@ -338,7 +349,7 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 ### Interfaz
 
 XCUITest se limita a los menores recorridos deterministas que demuestren wiring
-crítico no cubierto con Swift Testing. En el alcance actual ejecuta diez; el
+crítico no cubierto con Swift Testing. En el alcance actual ejecuta once; el
 recorrido de Colección cubre tanto alta como eliminación confirmada:
 
 - bootstrap mock Debug → primera fila de Catálogo → detalle de la misma
@@ -374,6 +385,10 @@ recorrido de Colección cubre tanto alta como eliminación confirmada:
 - bootstrap mock Debug → Cuenta autenticada con `blockedOutcome` y fallo R1 de
   autorización → aviso transitorio y aviso durable visibles simultáneamente, con
   la acción de revisión accesible y sin red, Keychain ni disco live.
+- bootstrap mock Debug → Cuenta autenticada con una intención `queued` → logout
+  presenta un alert nativo localizado → mantener sesión conserva la identidad y
+  una segunda confirmación destructiva descarta mediante el actor real y publica
+  `signedOut`, sin red, Keychain ni disco live.
 
 Un flujo UI adicional solo se incorpora cuando exista un riesgo observable que
 no pueda caracterizarse con estado, modelo, integración o preview, y se elimina
@@ -473,7 +488,7 @@ La prueba de assets no acredita por sí sola la interfaz. Que una pareja opaca s
 
 - build limpio y cero warnings;
 - `Fast`, `Integration` y flujos UI críticos aprobados;
-- catálogo, colección local, autenticación y sincronización cumplen sus contratos Advanced; logout demuestra borrado condicional del bundle Keychain, conservación de la sesión ante fallo, exclusión de otra activación y efectos tardíos condicionados sin depender de un bridge Deluxe;
+- catálogo, colección local, autenticación y sincronización cumplen sus contratos Advanced; logout demuestra decisión ante outbox pendiente, descarte transaccional, secuencia monotónica, borrado condicional del bundle Keychain, conservación de la sesión ante fallo, exclusión de otra activación y efectos tardíos condicionados sin depender de un bridge Deluxe;
 - accesibilidad y adaptación verificadas en la matriz acordada;
 - documentación y evidencia actualizadas.
 

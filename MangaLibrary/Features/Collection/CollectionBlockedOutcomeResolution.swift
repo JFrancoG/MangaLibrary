@@ -230,10 +230,11 @@ actor CollectionOutcomeResolutionCoordinator {
             }
         } catch let error as SessionControllerError {
             switch error {
-            case .temporarilyUnavailable, .persistenceUnavailable, .unavailable, .network, .contractDrift:
+            case .temporarilyUnavailable, .persistenceUnavailable, .pendingCollectionPersistenceUnavailable,
+                 .unavailable, .network, .contractDrift:
                 throw CollectionBlockedOutcomeError.unavailable
-            case .invalidCredentials, .authenticationRequired, .transitionInProgress, .sessionChanged,
-                 .notAuthenticated:
+            case .invalidCredentials, .authenticationRequired, .pendingCollectionChanges,
+                 .transitionInProgress, .sessionChanged, .notAuthenticated:
                 throw CollectionBlockedOutcomeError.sessionChanged
             }
         } catch {
@@ -312,10 +313,11 @@ actor CollectionOutcomeResolutionCoordinator {
             throw error
         } catch let error as SessionControllerError {
             switch error {
-            case .temporarilyUnavailable, .persistenceUnavailable, .unavailable, .network, .contractDrift:
+            case .temporarilyUnavailable, .persistenceUnavailable, .pendingCollectionPersistenceUnavailable,
+                 .unavailable, .network, .contractDrift:
                 throw CollectionBlockedOutcomeError.unavailable
-            case .invalidCredentials, .authenticationRequired, .transitionInProgress, .sessionChanged,
-                 .notAuthenticated:
+            case .invalidCredentials, .authenticationRequired, .pendingCollectionChanges,
+                 .transitionInProgress, .sessionChanged, .notAuthenticated:
                 throw CollectionBlockedOutcomeError.sessionChanged
             }
         } catch {
@@ -343,10 +345,11 @@ actor CollectionOutcomeResolutionCoordinator {
             }
         } catch let error as SessionControllerError {
             switch error {
-            case .temporarilyUnavailable, .persistenceUnavailable, .unavailable, .network, .contractDrift:
+            case .temporarilyUnavailable, .persistenceUnavailable, .pendingCollectionPersistenceUnavailable,
+                 .unavailable, .network, .contractDrift:
                 throw CollectionBlockedOutcomeError.unavailable
-            case .invalidCredentials, .authenticationRequired, .transitionInProgress, .sessionChanged,
-                 .notAuthenticated:
+            case .invalidCredentials, .authenticationRequired, .pendingCollectionChanges,
+                 .transitionInProgress, .sessionChanged, .notAuthenticated:
                 throw CollectionBlockedOutcomeError.sessionChanged
             }
         } catch {

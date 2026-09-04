@@ -279,6 +279,13 @@ extension MangaLibrarySchema.V2 {
             nextRetryAt = nil
             return true
         }
+
+        /// Retains the highest sequence as a non-replayable cursor after an explicit logout discard.
+        func resolveForLogoutDiscard() {
+            state = .confirmed
+            retryCount = 0
+            nextRetryAt = nil
+        }
     }
 }
 

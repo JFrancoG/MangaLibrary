@@ -47,6 +47,28 @@ struct AppComposition {
             persistence: .live(),
             now: { Date() },
             makeGeneration: { UUID() },
+            logoutPendingChangesObserver: { authorization in
+                do {
+                    return try await collectionMutations.hasPendingChangesForLogout(authorization: authorization)
+                } catch CollectionLogoutError.cancelled {
+                    throw CancellationError()
+                } catch CollectionLogoutError.sessionChanged {
+                    throw SessionControllerError.sessionChanged
+                } catch {
+                    throw SessionControllerError.pendingCollectionPersistenceUnavailable
+                }
+            },
+            logoutPendingChangesDiscarder: { authorization in
+                do {
+                    try await collectionMutations.discardPendingChangesForLogout(authorization: authorization)
+                } catch CollectionLogoutError.cancelled {
+                    throw CancellationError()
+                } catch CollectionLogoutError.sessionChanged {
+                    throw SessionControllerError.sessionChanged
+                } catch {
+                    throw SessionControllerError.pendingCollectionPersistenceUnavailable
+                }
+            },
             authenticationInvalidationObserver: { authorization in
                 try await collectionMutations.blockUploadsForAuthentication(authorization: authorization)
             }

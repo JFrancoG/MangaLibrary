@@ -563,6 +563,65 @@ final class MangaLibraryUITests: XCTestCase {
     }
 
     @MainActor
+    func testPendingCollectionChangesRequireAnExplicitLogoutDecision() throws {
+        let app = XCUIApplication()
+        app.launchArguments.append(contentsOf: [
+            "-ui-testing",
+            "-ui-testing-pending-logout",
+        ])
+        app.launch()
+
+        let collectionTab = app.buttons.matching(identifier: "tab.collection").firstMatch
+        XCTAssertTrue(collectionTab.waitForExistence(timeout: 5))
+        collectionTab.tap()
+        let pendingEntry = app.descendants(matching: .any)
+            .matching(identifier: "collection.row.1")
+            .firstMatch
+        XCTAssertTrue(pendingEntry.waitForExistence(timeout: 2))
+        pendingEntry.tap()
+        let selectedDetail = app.buttons["collection.entry.edit.1"]
+        XCTAssertTrue(selectedDetail.waitForExistence(timeout: 2))
+
+        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
+        XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
+        accountTab.tap()
+
+        let authenticated = app.descendants(matching: .any)["account.authenticated"]
+        let signOut = app.buttons["account.sign-out"]
+        XCTAssertTrue(authenticated.waitForExistence(timeout: 2))
+        XCTAssertTrue(signOut.waitForExistence(timeout: 2))
+        signOut.tap()
+
+        let alert = app.alerts.firstMatch
+        XCTAssertTrue(alert.waitForExistence(timeout: 2))
+        let visibleAlertText = alert.staticTexts.allElementsBoundByIndex.map(\.label)
+        XCTAssertGreaterThanOrEqual(visibleAlertText.count, 2)
+        XCTAssertTrue(visibleAlertText.allSatisfy { $0.isEmpty == false })
+
+        let staySignedIn = alert.buttons
+            .matching(identifier: "account.logout-pending.stay-signed-in")
+            .firstMatch
+        XCTAssertTrue(staySignedIn.waitForExistence(timeout: 2))
+        staySignedIn.tap()
+        XCTAssertTrue(alert.waitForNonExistence(timeout: 2))
+        XCTAssertTrue(authenticated.exists)
+        collectionTab.tap()
+        XCTAssertTrue(selectedDetail.waitForExistence(timeout: 2))
+        accountTab.tap()
+
+        signOut.tap()
+        XCTAssertTrue(alert.waitForExistence(timeout: 2))
+        let discard = alert.buttons
+            .matching(identifier: "account.logout-pending.discard-and-sign-out")
+            .firstMatch
+        XCTAssertTrue(discard.waitForExistence(timeout: 2))
+        discard.tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["account.signed-out"].waitForExistence(timeout: 2))
+        XCTAssertFalse(authenticated.exists)
+    }
+
+    @MainActor
     func testSyntheticAccountRegistrationSignsIn() throws(any Error) {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing")

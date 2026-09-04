@@ -68,7 +68,7 @@ private actor AccountPreviewSession {
             restore: { [self] in await restore() },
             login: { [self] email, _ in await login(email: email) },
             register: { _, _ in .confirmed },
-            logout: { [self] in try await logout() }
+            logout: { [self] _ in try await logout() }
         )
     }
 

@@ -1758,6 +1758,195 @@ struct SessionControllerTests {
         #expect(storage.snapshot().record == nil)
     }
 
+    @Test("Pending Collection work aborts logout and rotates the reactivated commit gate")
+    func pendingCollectionWorkKeepsTheExactSessionActive() async throws(any Error) {
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
+        let probe = SessionPendingLogoutProbe()
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            logoutPendingChangesObserver: { authorization in try probe.inspect(authorization) },
+            logoutPendingChangesDiscarder: { authorization in try probe.discard(authorization) }
+        )
+        _ = try await controller.restore()
+        let authorizationBeforeLogout = try await controller.requestAuthorization()
+        probe.install(authorizationBeforeLogout.commitAuthorization)
+
+        await #expect(throws: SessionControllerError.pendingCollectionChanges) {
+            try await controller.logout()
+        }
+
+        #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
+        #expect(storage.snapshot().record == session)
+        #expect(try await controller.authorizes(authorizationBeforeLogout) == false)
+        let authorizationAfterLogout = try await controller.requestAuthorization()
+        #expect(try await controller.authorizes(authorizationAfterLogout))
+        #expect(
+            probe.evidence()
+                == .init(inspections: 1, discards: 0, successfulLogoutCommits: 1, rejectedNormalCommits: 1)
+        )
+    }
+
+    @Test("Another account cannot activate while logout inspects pending work")
+    func loginCannotActivateDuringPendingWorkInspection() async throws(any Error) {
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
+        let inspectionGate = SessionRequestGate()
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            logoutPendingChangesObserver: { authorization in
+                _ = try authorization.perform { true }
+                await inspectionGate.suspendUntilOpen()
+                return true
+            }
+        )
+        _ = try await controller.restore()
+
+        let logout = Task { try await controller.logout() }
+        await inspectionGate.waitUntilArrived()
+        await #expect(throws: SessionControllerError.transitionInProgress) {
+            try await controller.login(email: "b@example.invalid", password: "synthetic-passphrase-b")
+        }
+        await inspectionGate.open()
+
+        await #expect(throws: SessionControllerError.pendingCollectionChanges) { try await logout.value }
+        #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
+        #expect(storage.snapshot().record == session)
+    }
+
+    @Test("Cancellation after pending-work inspection never requests a logout decision")
+    func cancellationAfterPendingInspectionKeepsTheExactSessionActive() async throws(any Error) {
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            logoutPendingChangesObserver: { authorization in
+                _ = try authorization.perform { true }
+                withUnsafeCurrentTask { task in
+                    task?.cancel()
+                }
+                return true
+            }
+        )
+        _ = try await controller.restore()
+
+        let logout = Task { try await controller.logout() }
+
+        await #expect(throws: CancellationError.self) { try await logout.value }
+        #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
+        #expect(storage.snapshot().record == session)
+        #expect(storage.snapshot().journal.filter { $0 == .removeAll }.isEmpty)
+    }
+
+    @Test("A failed discard keeps Keychain and the active session untouched")
+    func failedPendingChangesDiscardAbortsLogout() async throws(any Error) {
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            logoutPendingChangesDiscarder: { _ in
+                throw SessionControllerError.pendingCollectionPersistenceUnavailable
+            }
+        )
+        _ = try await controller.restore()
+
+        await #expect(throws: SessionControllerError.pendingCollectionPersistenceUnavailable) {
+            try await controller.logout(discardPendingChanges: true)
+        }
+
+        #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
+        #expect(storage.snapshot().record == session)
+        #expect(storage.snapshot().journal.filter { $0 == .removeAll }.isEmpty)
+    }
+
+    @Test("A discard failure does not claim an expired session remains active")
+    func failedPendingChangesDiscardAfterExpirationRequiresAuthentication() async throws(any Error) {
+        let clock = TestSessionClock(now: Self.now)
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            clock: clock,
+            logoutPendingChangesDiscarder: { _ in
+                clock.advance(by: 601)
+                throw SessionControllerError.pendingCollectionPersistenceUnavailable
+            }
+        )
+        _ = try await controller.restore()
+
+        await #expect(throws: SessionControllerError.pendingCollectionPersistenceUnavailable) {
+            try await controller.logout(discardPendingChanges: true)
+        }
+
+        #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
+        #expect(storage.snapshot().record == session)
+        #expect(storage.snapshot().journal.filter { $0 == .removeAll }.isEmpty)
+    }
+
+    @Test("A discarded outbox remains resolved when Keychain deletion fails and logout retries")
+    func failedKeychainDeletionDoesNotResurrectDiscardedWork() async throws(any Error) {
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
+        let probe = SessionPendingLogoutProbe()
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            logoutPendingChangesObserver: { authorization in try probe.inspect(authorization) },
+            logoutPendingChangesDiscarder: { authorization in try probe.discard(authorization) }
+        )
+        _ = try await controller.restore()
+        await #expect(throws: SessionControllerError.pendingCollectionChanges) {
+            try await controller.logout()
+        }
+        storage.failNext(.removeAll, with: .temporarilyUnavailable)
+
+        await #expect(throws: SessionControllerError.temporarilyUnavailable) {
+            try await controller.logout(discardPendingChanges: true)
+        }
+        #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
+        #expect(storage.snapshot().record == session)
+        #expect(probe.evidence().discards == 1)
+
+        #expect(try await controller.logout() == .signedOut)
+        #expect(storage.snapshot().record == nil)
+        #expect(
+            probe.evidence()
+                == .init(inspections: 2, discards: 1, successfulLogoutCommits: 3, rejectedNormalCommits: 0)
+        )
+    }
+
+    @Test("A cancelled discard never starts Keychain deletion")
+    func cancelledPendingChangesDiscardAbortsLogout() async throws(any Error) {
+        let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
+        let storage = ControlledSessionPersistenceStorage(record: session)
+        let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            logoutPendingChangesDiscarder: { _ in throw CancellationError() }
+        )
+        _ = try await controller.restore()
+
+        await #expect(throws: CancellationError.self) {
+            try await controller.logout(discardPendingChanges: true)
+        }
+
+        #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
+        #expect(storage.snapshot().record == session)
+        #expect(storage.snapshot().journal.filter { $0 == .removeAll }.isEmpty)
+    }
+
     @Test("A failed Keychain deletion keeps the session and a second logout retries")
     func failedLogoutCanBeRetriedFromTheActiveSession() async throws(any Error) {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
@@ -2079,6 +2268,8 @@ struct SessionControllerTests {
         clock: TestSessionClock = TestSessionClock(now: Self.now),
         generationFactory: @escaping @Sendable () -> UUID = { Self.generation },
         synchronizationObserver: @escaping SessionController.SynchronizationObserver = { _ in },
+        logoutPendingChangesObserver: @escaping SessionController.LogoutPendingChangesObserver = { _ in false },
+        logoutPendingChangesDiscarder: @escaping SessionController.LogoutPendingChangesDiscarder = { _ in },
         authenticationInvalidationObserver: @escaping SessionController.AuthenticationInvalidationObserver = { _ in }
     ) throws(any Error) -> SessionController {
         try makeController(
@@ -2087,6 +2278,8 @@ struct SessionControllerTests {
             clock: clock,
             generationFactory: generationFactory,
             synchronizationObserver: synchronizationObserver,
+            logoutPendingChangesObserver: logoutPendingChangesObserver,
+            logoutPendingChangesDiscarder: logoutPendingChangesDiscarder,
             authenticationInvalidationObserver: authenticationInvalidationObserver
         )
     }
@@ -2097,6 +2290,8 @@ struct SessionControllerTests {
         clock: TestSessionClock = TestSessionClock(now: Self.now),
         generationFactory: @escaping @Sendable () -> UUID = { Self.generation },
         synchronizationObserver: @escaping SessionController.SynchronizationObserver = { _ in },
+        logoutPendingChangesObserver: @escaping SessionController.LogoutPendingChangesObserver = { _ in false },
+        logoutPendingChangesDiscarder: @escaping SessionController.LogoutPendingChangesDiscarder = { _ in },
         authenticationInvalidationObserver: @escaping SessionController.AuthenticationInvalidationObserver = { _ in }
     ) throws(any Error) -> SessionController {
         let baseURL = try #require(URL(string: "https://session.example.test"))
@@ -2111,6 +2306,8 @@ struct SessionControllerTests {
             now: { clock.value() },
             makeGeneration: generationFactory,
             synchronizationObserver: synchronizationObserver,
+            logoutPendingChangesObserver: logoutPendingChangesObserver,
+            logoutPendingChangesDiscarder: logoutPendingChangesDiscarder,
             authenticationInvalidationObserver: authenticationInvalidationObserver
         )
     }
@@ -2269,6 +2466,72 @@ private final class SessionInvalidationObserverProbe: Sendable {
             Evidence(
                 authorities: $0.authorities,
                 successfulInvalidationCommits: $0.successfulInvalidationCommits,
+                rejectedNormalCommits: $0.rejectedNormalCommits
+            )
+        }
+    }
+}
+
+private final class SessionPendingLogoutProbe: Sendable {
+    struct Evidence: Equatable {
+        let inspections: Int
+        let discards: Int
+        let successfulLogoutCommits: Int
+        let rejectedNormalCommits: Int
+    }
+
+    private struct State {
+        var hasPendingChanges = true
+        var normalAuthorization: SessionCommitAuthorization?
+        var inspections = 0
+        var discards = 0
+        var successfulLogoutCommits = 0
+        var rejectedNormalCommits = 0
+    }
+
+    private let state = Mutex(State())
+
+    func install(_ authorization: SessionCommitAuthorization) {
+        state.withLock { $0.normalAuthorization = authorization }
+    }
+
+    func inspect(_ authorization: SessionLogoutAuthorization) throws -> Bool {
+        let logoutCommitSucceeded = try authorization.perform { true }
+        let normalCommitWasRejected = state.withLock { state in
+            guard let normalAuthorization = state.normalAuthorization else { return false }
+            do {
+                _ = try normalAuthorization.perform { true }
+                return false
+            } catch SessionCommitAuthorizationError.sessionChanged {
+                return true
+            } catch {
+                return false
+            }
+        }
+
+        return state.withLock { state in
+            state.inspections += 1
+            if logoutCommitSucceeded { state.successfulLogoutCommits += 1 }
+            if normalCommitWasRejected { state.rejectedNormalCommits += 1 }
+            return state.hasPendingChanges
+        }
+    }
+
+    func discard(_ authorization: SessionLogoutAuthorization) throws {
+        let logoutCommitSucceeded = try authorization.perform { true }
+        state.withLock { state in
+            state.hasPendingChanges = false
+            state.discards += 1
+            if logoutCommitSucceeded { state.successfulLogoutCommits += 1 }
+        }
+    }
+
+    func evidence() -> Evidence {
+        state.withLock {
+            Evidence(
+                inspections: $0.inspections,
+                discards: $0.discards,
+                successfulLogoutCommits: $0.successfulLogoutCommits,
                 rejectedNormalCommits: $0.rejectedNormalCommits
             )
         }
