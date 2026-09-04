@@ -7,6 +7,8 @@ import SwiftData
 import SwiftUI
 
 struct CollectionEntryDetailView: View {
+    @AccessibilityFocusState private var editActionFocused: Bool
+
     @State private var editorSeed: CollectionEditorSeed?
 
     let mangaID: Manga.ID
@@ -50,9 +52,11 @@ struct CollectionEntryDetailView: View {
                         CollectionReadOnlyBanner(restriction: restriction)
                     } else if let authority = scope.authority {
                         Button("Edit Collection", systemImage: "pencil") {
+                            editActionFocused = false
                             editorSeed = seed(authority: authority)
                         }
                         .buttonStyle(.borderedProminent)
+                        .accessibilityFocused($editActionFocused)
                         .accessibilityIdentifier("collection.edit.\(mangaID)")
                     }
                 }
@@ -61,7 +65,7 @@ struct CollectionEntryDetailView: View {
             }
             .background(.canvas)
             .navigationTitle("Collection item")
-            .sheet(item: $editorSeed) { editorSeed in
+            .sheet(item: $editorSeed, onDismiss: restoreEditActionFocus) { editorSeed in
                 CollectionEditorView(seed: editorSeed, mutation: mutation)
             }
             .onChange(of: restriction) { _, restriction in
@@ -85,6 +89,10 @@ struct CollectionEntryDetailView: View {
             state: state,
             isExistingEntry: true
         )
+    }
+
+    private func restoreEditActionFocus() {
+        editActionFocused = true
     }
 }
 

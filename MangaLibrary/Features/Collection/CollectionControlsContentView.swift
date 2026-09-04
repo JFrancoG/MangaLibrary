@@ -7,6 +7,8 @@ import SwiftData
 import SwiftUI
 
 struct CollectionControlsContentView: View {
+    @AccessibilityFocusState private var collectionActionFocused: Bool
+
     @State private var editorSeed: CollectionEditorSeed?
     @State private var isExpanded = true
 
@@ -44,7 +46,7 @@ struct CollectionControlsContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(.surface, in: .rect(cornerRadius: 16))
-        .sheet(item: $editorSeed) { seed in
+        .sheet(item: $editorSeed, onDismiss: restoreCollectionActionFocus) { seed in
             CollectionEditorView(seed: seed, mutation: mutation)
         }
         .onChange(of: access) { previousAccess, currentAccess in
@@ -67,11 +69,13 @@ struct CollectionControlsContentView: View {
                 readOnlyNotice(restriction)
             } else if let authority = scope.authority {
                 Button("Edit Collection") {
+                    collectionActionFocused = false
                     editorSeed = seed(authority: authority, existingState: existingState)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .frame(maxWidth: .infinity)
+                .accessibilityFocused($collectionActionFocused)
                 .accessibilityIdentifier(editAccessibilityIdentifier)
             }
         } else {
@@ -84,14 +88,20 @@ struct CollectionControlsContentView: View {
                 readOnlyNotice(restriction)
             } else if let authority = scope.authority {
                 Button("Add to Collection") {
+                    collectionActionFocused = false
                     editorSeed = seed(authority: authority, existingState: nil)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .frame(maxWidth: .infinity)
+                .accessibilityFocused($collectionActionFocused)
                 .accessibilityIdentifier("collection.add.\(manga.id)")
             }
         }
+    }
+
+    private func restoreCollectionActionFocus() {
+        collectionActionFocused = true
     }
 
     private func readOnlyNotice(_ restriction: CollectionAccess.MutationRestriction) -> some View {

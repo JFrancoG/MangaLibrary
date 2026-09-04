@@ -245,14 +245,20 @@ struct CatalogRootView: View {
             )
         }
         .labelStyle(.iconOnly)
-        .accessibilityValue("Active filters: \(model.query.activeFilterCount)")
+        .accessibilityLabel(filtersAccessibilityLabel)
+        .accessibilityAddTraits(model.query.activeFilterCount == 0 ? [] : .isSelected)
         .accessibilityIdentifier("catalog.filters")
+    }
+
+    private var filtersAccessibilityLabel: LocalizedStringResource {
+        model.query.activeFilterCount == 0 ? "Filters" : "Filters active"
     }
 
     private var listLayoutAction: some View {
         layoutAction(
             .list,
             title: "List",
+            selectedAccessibilityLabel: "List selected",
             systemImage: layout == .list ? "list.bullet.circle.fill" : "list.bullet",
             accessibilityIdentifier: "catalog.layout.list"
         )
@@ -262,6 +268,7 @@ struct CatalogRootView: View {
         layoutAction(
             .grid,
             title: "Grid",
+            selectedAccessibilityLabel: "Grid selected",
             systemImage: layout == .grid ? "square.grid.2x2.fill" : "square.grid.2x2",
             accessibilityIdentifier: "catalog.layout.grid"
         )
@@ -270,6 +277,7 @@ struct CatalogRootView: View {
     private func layoutAction(
         _ targetLayout: CatalogLayout,
         title: LocalizedStringKey,
+        selectedAccessibilityLabel: LocalizedStringKey,
         systemImage: String,
         accessibilityIdentifier: String
     ) -> some View {
@@ -279,6 +287,7 @@ struct CatalogRootView: View {
             Label(title, systemImage: systemImage)
                 .labelStyle(.iconOnly)
         }
+        .accessibilityLabel(layout == targetLayout ? Text(selectedAccessibilityLabel) : Text(title))
         .accessibilityAddTraits(layout == targetLayout ? .isSelected : [])
         .accessibilityIdentifier(accessibilityIdentifier)
     }

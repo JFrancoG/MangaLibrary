@@ -9,6 +9,8 @@ import SwiftUI
 struct CollectionEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
+    @AccessibilityFocusState private var deletionActionFocused: Bool
+
     @State private var model: CollectionEditorModel
     @State private var request: SubmissionRequest?
     @State private var confirmsDeletion = false
@@ -49,6 +51,7 @@ struct CollectionEditorView: View {
                 if model.seed.isExistingEntry {
                     Section {
                         Button("Remove from Collection", role: .destructive) {
+                            deletionActionFocused = false
                             confirmsDeletion = true
                         }
                         .font(.headline)
@@ -59,6 +62,7 @@ struct CollectionEditorView: View {
                         .tint(Color.dangerFill)
                         .frame(maxWidth: .infinity)
                         .disabled(model.isSubmitting)
+                        .accessibilityFocused($deletionActionFocused)
                         .accessibilityIdentifier("collection.editor.delete")
                     }
                     .listRowInsets(EdgeInsets())
@@ -110,8 +114,10 @@ struct CollectionEditorView: View {
                 }
                 .accessibilityIdentifier("collection.editor.delete.confirm")
 
-                Button("Cancel", role: .cancel) {}
-                    .accessibilityIdentifier("collection.editor.delete.cancel")
+                Button("Cancel", role: .cancel) {
+                    deletionActionFocused = true
+                }
+                .accessibilityIdentifier("collection.editor.delete.cancel")
             } message: {
                 Text(
                     """
