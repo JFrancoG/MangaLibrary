@@ -67,6 +67,7 @@ All notable changes to this project are documented in this file.
 
 ### Tests
 
+- 2026-09-04 | ✅ test(tooling): enforce the native test-plan partition
 - 2026-09-02 | ✅ test(collection): cover safe POST outbox pipeline
 - 2026-09-02 | ✅ test(session): cover JWT renewal and V3 migration
 - 2026-09-01 | ✅ test(collection): cover persistence contract
