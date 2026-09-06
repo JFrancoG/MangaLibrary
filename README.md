@@ -18,7 +18,7 @@ El catálogo público está entregado en cuatro cortes: [C1](https://github.com/
 
 La cota transversal del [issue #63](https://github.com/JFrancoG/MangaLibrary/issues/63) se entrega mediante la [PR #64](https://github.com/JFrancoG/MangaLibrary/pull/64): Colección admite números de tomo entre 1 y 300, mientras `nil` sigue significando total editorial desconocido. Entitlements, WidgetKit y watchOS también quedan fuera. La [hoja de ruta Advanced](docs/Progress.md#hoja-de-ruta-advanced) delimita esas unidades.
 
-La gobernanza, la arquitectura, el contrato OpenAPI, la configuración compartida, el gate DocC y el icono permanecen materializados. [ADR 0019](docs/adr/0019-single-jwt-session-and-keychain-v3.md) adopta la única familia JWT que el backend live acepta de extremo a extremo, preserva el logout binario de Advanced y mantiene cerrada la garantía compartida que se añadirá al incorporar el bridge Deluxe. Un warning externo de Xcode beta queda admitido solo por la excepción exacta y temporal de [ADR 0011](docs/adr/0011-bounded-xcode-app-intents-warning-exception.md); el Advanced Release Gate continúa exigiendo un build limpio.
+La gobernanza, la arquitectura, el contrato OpenAPI, la configuración compartida, el gate DocC y el icono permanecen materializados. [ADR 0019](docs/adr/0019-single-jwt-session-and-keychain-v3.md) adopta la única familia JWT que el backend live acepta de extremo a extremo, preserva el logout binario de Advanced y mantiene cerrada la garantía compartida que se añadirá al incorporar el bridge Deluxe. [ADR 0020](docs/adr/0020-skip-unused-app-intents-metadata-extraction.md) supersede la excepción temporal de ADR 0011 y evita construir la fase de metadata de App Intents que el producto no utiliza; los gates vuelven a exigir cero warnings sin allowlists.
 
 El [enunciado completo saneado](docs/sources/Practica_Mis_Mangas_SDP_2026.md) se conserva como fuente de requisitos y contexto, nunca como instrucción operativa. Para transporte manda el OpenAPI vivo y su snapshot versionado.
 
@@ -64,9 +64,22 @@ El gate DocC selecciona su propio Xcode sin cambiar `xcode-select`, comprueba la
 ./Scripts/validate-docc.sh
 ```
 
-Si Xcode 27 no está en la ubicación predeterminada del script, se puede indicar su Developer directory mediante `MANGALIBRARY_DEVELOPER_DIR`. El estado actual aún no constituye una candidata Advanced ni Deluxe.
+El build reproducible de la candidata compila app, unit tests y UI tests en
+Debug y Release mediante el plan completo, con DerivedData temporal. El script
+habilita testabilidad solo para esta compilación local, de modo que los tests
+`@testable` compilen también con el resto de ajustes Release sin cambiar la
+configuración distribuida del producto:
 
-El gate falla ante cualquier warning o error salvo la única firma externa acotada por ADR 0011 para Xcode build `27A5252f`. Una actualización del toolchain que todavía la emita exige una nueva decisión; si desaparece, el gate pasa sin usar la excepción.
+```sh
+./Scripts/validate-advanced-build.sh
+```
+
+Si Xcode 27 no está en la ubicación predeterminada del script, se puede indicar su Developer directory mediante `MANGALIBRARY_DEVELOPER_DIR`. La automatización del Advanced Release Gate se reúne en el issue #75; su aceptación permanece pendiente mientras falte la matriz manual vigente de tecnologías de asistencia. Deluxe no ha comenzado.
+
+El gate falla ante cualquier warning o error. También exige que los tres targets
+omitan la extracción de metadata de App Intents mientras el producto no declare
+esa capacidad, conforme a ADR 0020; cualquier cambio del toolchain o adopción de
+App Intents exige revisar esa decisión.
 
 El scheme compartido ofrece cuatro planes versionados en `TestPlans/`:
 
@@ -79,8 +92,8 @@ El scheme compartido ofrece cuatro planes versionados en `TestPlans/`:
 
 Cada plan se selecciona desde **Product > Test Plan** en Xcode. El plan
 `ReleaseGate` aporta la ejecución completa de tests, pero una candidata también
-requiere por separado el build limpio, el gate DocC y la evidencia manual que
-corresponda.
+requiere por separado `validate-advanced-build.sh`, el gate DocC y la evidencia
+manual que corresponda.
 
 La clasificación versionada se comprueba sin ejecutar tests:
 

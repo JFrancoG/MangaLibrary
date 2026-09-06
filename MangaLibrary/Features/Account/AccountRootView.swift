@@ -332,7 +332,6 @@ struct AccountRootView: View {
                         Text(email)
                             .font(.body)
                             .foregroundStyle(.textPrimary)
-                            .textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
                             .privacySensitive()
                     }

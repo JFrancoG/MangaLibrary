@@ -9,3 +9,7 @@ SWIFT_STRICT_CONCURRENCY = complete
 SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated
 ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOL_FRAMEWORKS = SwiftUI
 OTHER_DOCC_FLAGS = $(inherited) --warnings-as-errors
+
+// Manga Library does not declare App Intents. Prevent Swift Build from
+// constructing the metadata extraction task for any target.
+LM_SKIP_METADATA_EXTRACTION = YES

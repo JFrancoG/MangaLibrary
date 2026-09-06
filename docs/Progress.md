@@ -1,7 +1,39 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-09-04
+**Última actualización:** 2026-09-06
 **Estado general:** G0, Catálogo C1–C4, D1, Q1, Q2, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1 y las correcciones #55, #58, #61, #63 y #65 entregados
+
+## Advanced Release Gate — issue #75
+
+- El [issue #75 — certificar la versión Advanced](https://github.com/JFrancoG/MangaLibrary/issues/75) parte de `main@aa2e475`, limpio y sincronizado con `origin/main`, en la rama `codex/75-advanced-release-gate`. La matriz manual de las cuatro tecnologías de asistencia queda completa y la candidata continúa en revisión mediante la [PR #76](https://github.com/JFrancoG/MangaLibrary/pull/76), sin anticipar su fusión ni el cierre del issue.
+- La caracterización reproduce tres warnings externos —uno por target— porque Swift Build construía `ExtractAppIntentsMetadata` aunque el producto no declara App Intents. [ADR 0020](adr/0020-skip-unused-app-intents-metadata-extraction.md) supersede ADR 0011 y fija `LM_SKIP_METADATA_EXTRACTION = YES` en la configuración compartida: la tarea deja de construirse, sin filtrar logs, añadir una capacidad ficticia ni relajar warnings.
+- El gate DocC elimina el clasificador y la allowlist temporal. Ahora comprueba el ajuste efectivo en app, unit tests y UI tests para Debug y Release, y falla ante cualquier warning o error.
+
+### Evidencia automatizada actual de #75
+
+| Herramienta y acción | Resultado |
+| --- | --- |
+| `Scripts/validate-advanced-build.sh` | `ReleaseGate` compila app, unit tests y UI tests en Debug y Release con DerivedData temporal; ambas configuraciones terminan con cero warnings, errores o tareas de metadata de App Intents. Release habilita testabilidad solo como override local para sus imports `@testable`, sin cambiar la configuración distribuida. |
+| Xcode MCP — build-for-testing y build ordinario | `MangaLibrary.xcodeproj`, scheme `MangaLibrary`, Xcode 27 build `27A5252f`, Apple Swift 6.4. Ambos aprueban con cero warnings y errores; el log completo no contiene la tarea ni `appintentsmetadataprocessor`. |
+| `Scripts/validate-test-plans.sh` | 15 suites `Fast` y 22 `Integration`, clasificación exclusiva, filtros, targets, partición y plan predeterminado válidos. |
+| Xcode MCP + `.xcresult` — `Fast` | 224/224 declaraciones, 276 invocaciones, cero fallos, skips o runtime warnings. |
+| Xcode MCP + `.xcresult` — `Integration` | 269/269 declaraciones, 359 invocaciones, cero fallos, skips o runtime warnings. `224 + 269` cubre las 493 declaraciones Swift Testing. |
+| Xcode MCP + `.xcresult` — `UI` | iPhone: 11/11 aprobados. iPad Air 11-inch (M4): 11/11 aprobados en lotes 1 + 4 + 6 para respetar el timeout de la herramienta. Cero fallos, skips o casos no ejecutados. |
+| Xcode MCP + `.xcresult` — `ReleaseGate` | 504/504 declaraciones y 646 invocaciones aprobadas en iPhone 17 Simulator/iOS 27; cero fallos, skips, expected failures o runtime warnings. La acción nativa completó después de que expirase la espera monolítica del bridge. |
+| `Scripts/validate-docc.sh` | Archive Release generado con warnings-as-errors, cero warnings y errores y ninguna allowlist. Comprueba `LM_SKIP_METADATA_EXTRACTION = YES` en 3 targets × 2 configuraciones. |
+| OpenAPI live, lectura GET | `/docs` responde `200`; el snapshot vivo saneado conserva SHA-256 `9fbfc6dd7fbb3d439088860e902ce3e3d62c119b8dec64bfe65369be58842c7b`, idéntico al versionado. No se hicieron llamadas funcionales, credenciales ni escrituras live. |
+| Integridad y privacidad | `project.pbxproj` conserva SHA-256 `ee6cd588ee1ba5666a71b8b42cbc19338af70025072d35a4efe1acb14732ab76`; cero dependencias o entitlements versionados nuevos, cero escapes de concurrencia prohibidos y catálogos válidos sin unidades obsoletas. |
+
+### Adaptación, accesibilidad y límite de aceptación
+
+- Los once recorridos UI pasan tanto en iPhone como en iPad. Las previews actuales inspeccionadas cubren Catálogo, Cuenta, editor de Colección y detalle con combinaciones representativas de Light/Dark, contraste aumentado, orientación, controles resaltados y Dynamic Type Large, XXX Large y AX5. No se observaron solapamientos, truncado funcional ni controles desaparecidos; el contenido de tamaños AX continúa mediante scroll.
+- La rama de Reduce Motion permanece implementada y se ha inspeccionado estáticamente, pero una captura no acredita el comportamiento temporal de una animación.
+- VoiceOver se ha recorrido manualmente en un iPhone 11 físico con iOS 27 y locale español. Tabs, navegación, rotor, Cuenta, Filtros, detalle, editor y alert nativo conservan nombres, roles, lectura y orden comprensibles. La validación descubrió tres pérdidas de contexto: cierre del editor, cancelación del borrado y estado de los botones Filtros/Lista/Cuadrícula. La corrección restaura el foco a las acciones de origen y expone nombres localizados explícitos para los estados activos; el propietario repitió los tres casos y confirmó el resultado. La apariencia y el tamaño de texto no se variaron dentro de este recorrido VoiceOver y conservan únicamente la evidencia visual automatizada anterior.
+- XCUITest verifica de forma independiente que Lista y Cuadrícula intercambian el nombre accesible seleccionado y que aplicar un filtro cambia el nombre a «Filtros activos»; el recorrido focal termina 1/1. Esta prueba protege la semántica expuesta, pero no sustituye la locución manual ya ejecutada.
+- Control por voz se ha recorrido manualmente en el mismo iPhone 11 físico, iOS 27 y locale español. Tabs, barra de Catálogo, búsqueda, filtros, lista, detalle, Colección, editor, alert, Cuenta y autenticación responden mediante nombres o la cuadrícula numérica sin acciones dobles ni controles inaccesibles. Algunos títulos propios o ingleses necesitaron «Mostrar números»; el fallback nativo permitió abrirlos y no bloquea el recorrido. Desplazamiento, deslizamiento y cambio de pantalla retiraron sus overlays conforme al comportamiento del sistema.
+- Switch Control se ha recorrido manualmente en el iPhone 11 físico, iOS 27 y locale español mediante barrido automático y botón de pantalla completa. El barrido por grupos alcanza tabs, barra, búsqueda y teclado, filtros, mangas, detalle, Colección, editor, confirmación de borrado, Cuenta, login y registro; permite entrar, actuar y salir de cada grupo sin trampas ni omisiones.
+- Acceso total con teclado se ha recorrido manualmente en un iPad Pro 11-inch (M5) Simulator con iOS 27 y locale español, usando cursores para navegar, Espacio para activar y Return para finalizar la edición de texto. Shell regular, búsqueda, filtros, lista/detalle, editor, alert y autenticación conservan foco visible y navegación reversible. El recorrido RED descubrió que `.textSelection(.enabled)` convertía el correo autenticado en una trampa direccional que impedía alcanzar Cerrar sesión; tras retirar únicamente esa interacción, el propietario repitió el caso y confirmó que el foco alcanza el botón. El correo continúa disponible como contenido agrupado para VoiceOver.
+- La matriz manual vigente queda completa sin extrapolaciones: VoiceOver, Control por voz y Switch Control poseen evidencia en iPhone físico; Acceso total con teclado posee evidencia manual en iPad simulado y no se presenta como prueba de teclado o iPad físicos. Las pruebas y previews automatizadas complementan estos recorridos, pero no los sustituyen.
 
 ## Q2 — partición ejecutable de planes estrechos — issue #73
 
@@ -1131,29 +1163,29 @@ La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden d
 7. **R1 — lectura e importación remota, entregada mediante la [PR #54](https://github.com/JFrancoG/MangaLibrary/pull/54).** Consume la colección de la persona autenticada al iniciar o restaurar sesión y reconcilia el snapshot completo en SwiftData sin pisar intenciones locales posteriores. Aquí empieza la integración con la persistencia remota; la UI continúa observando exclusivamente el estado local.
 8. **R2 — envío y reconciliación de outbox.** R2.1 y R2.2 están entregados mediante la PR #60. La decisión del propietario del 2 de septiembre fija `{id}` como `Manga.ID` `int64` serializado en decimal; el UUID de entrada no forma el path y la discrepancia `string` queda como deuda contractual. R2.1 reutiliza el GET completo R1 e implementa POST y procesamiento conservador de intenciones no tombstone; R2.2 añade GET/DELETE individual, tombstones y la confirmación destructiva de UI. Ambos cortes están validados localmente y R2.2 cuenta con aceptación live multidispositivo de la ruta decimal y la ausencia reconciliada; el status/body exacto del primer DELETE y el GET presente `200` siguen sin caracterización directa. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, `blockedAuth` recuperable y rechazo positivo con reversión atómica. R2.4 se entrega mediante la PR #70 con revisión fresca, adopción remota o nueva intención consciente y resolución atómica del `blockedOutcome`.
 9. **Cota transversal de números de tomo, entregada mediante la PR #64.** Fija 300 como máximo inclusivo compartido, preserva `nil` como total desconocido y protege editor, mutación, R1 y R2 frente a valores históricos o remotos fuera de rango sin truncado ni transporte accidental.
-10. **Advanced Release Gate.** A1 se entrega mediante la PR #72 con logout ante operaciones pendientes, descarte transaccional, aislamiento A→B y recuperación binaria ante fallo. Después falta cerrar la regresión de planes estrechos y reunir la aceptación global de catálogo, Cuenta, Colección, sincronización, iPhone/iPad, accesibilidad, build, tests y DocC.
+10. **Advanced Release Gate — implementación en curso mediante el issue #75.** A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. La automatización global ya acredita build, planes, Swift Testing, UI en iPhone/iPad, ReleaseGate, DocC, contrato e integridad sin warnings ni allowlists; falta la aceptación manual vigente de tecnologías de asistencia antes de cerrar Advanced.
 11. **Deluxe.** Iniciar WidgetKit, watchOS, App Group, `SessionFence` y los puentes de datos únicamente después de que Advanced quede aceptado.
 
 S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad autenticable, pero permanece antes del gate Advanced y en una unidad separada porque incorpora el `App-Token`. S2.1 y S2.2 cierran superficies de Cuenta sin iniciar persistencia de producto. La outbox sí pertenece a L1: el worker de R2 puede llegar después, pero ninguna mutación expuesta puede escribir Colección sin registrar o coalescer su intención en la misma operación lógica.
 
 ### Trabajo transversal pendiente
 
-1. Revalidar ADR 0011 con cada beta, RC o versión estable de Xcode 27 y retirar la excepción cuando desaparezca el warning.
-2. Ejecutar el Advanced Release Gate global usando los planes estrechos acreditados por Q2 como evidencia previa.
+1. Ejecutar y registrar la matriz manual vigente de VoiceOver, Voice Control, Switch Control y Acceso total con teclado sobre las superficies Advanced afectadas.
+2. Revisar ADR 0020 ante cualquier cambio de toolchain o antes de adoptar App Intents; retirar la omisión cuando exista esa capacidad real.
 3. Mantener la clasificación de cada suite nueva mediante su target y tag en el mismo cambio que la introduce.
 4. Preparar evidencia, presentación y mecanismo final de entrega cuando exista confirmación externa.
 
 ## Estado técnico aún no alcanzado
 
-- El gate técnico del issue #3 se completa bajo ADR 0011; la excepción no acredita una candidata Advanced.
+- ADR 0020 supersede la excepción de ADR 0011 y el gate técnico vuelve a quedar limpio: la fase de metadata de App Intents no aplicable no se construye y cualquier warning o error continúa siendo bloqueante.
 - Catálogo C1–C4, D1, Q1, P1 y Library Red están entregados. La limpieza posterior de tests tautológicos de consulta está en `main@1839c29` y no cambia comportamiento de producto.
 - S1 conserva como historia la sesión dual de la PR #34 y la corrección Keychain V2 del 2026-09-01. La PR #59 entrega el JWT único y Keychain V3 conforme a ADR-0019.
 - La entrega original de S2 no acreditó una escritura live; la observación manual posterior de `201` y su compatibilidad quedan registradas en S2.2 sin exponer datos de cuenta.
 - S2.2 entregó mediante la PR #40 la validación y presentación de credenciales y la autoridad Keychain V2 vigente en ese momento; #58 cambia solo la infraestructura de sesión a JWT único/V3 y no altera el workflow visual ni incorpora persistencia de producto.
 - L1 entrega mediante la PR #44 `ModelContainer`, esquema V1, modelos SwiftData, outbox y primera mutación atómica. L2 entrega mediante la PR #50 el esquema V2, `@Query`, presentación offline y UI de Colección. R1 entrega mediante la PR #54 la lectura e importación remota con reconciliación local-first. R2.1/R2.2 entregan mediante la PR #60 el POST, GET/DELETE individual, vaciado seguro de intenciones no tombstone y tombstones, con aceptación live multidispositivo y la deuda contractual descrita en su evidencia. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, recuperación de `blockedAuth` y rechazo/reversión atómicos. R2.4 se entrega mediante la PR #70 con resolución manual durable de `blockedOutcome`.
-- A1 se entrega mediante la PR #72: integra la outbox en logout, conserva la sesión al esperar y descarta de forma transaccional antes de retirar Keychain. El Advanced Release Gate global continúa pendiente.
+- A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. El issue #75 reúne una ejecución global técnicamente verde; Advanced continúa pendiente únicamente de aceptación manual vigente de tecnologías de asistencia y de la entrega Git posterior que el propietario autorice.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
-- La evidencia física histórica comprende la instalación y visualización del icono observada por el propietario y las comprobaciones sintéticas de S1 y Keychain V2. #58 se valida en simulador con Keychain V3 aislado y no constituye por sí sola una repetición física ni una prueba automatizada contra producción. No existe todavía evidencia de accesibilidad física, App Group o WatchConnectivity.
+- La evidencia física histórica comprende la instalación y visualización del icono observada por el propietario, comprobaciones sintéticas de sesión y una matriz de accesibilidad anterior a las últimas superficies. No constituye una repetición física vigente del producto completo. No existe evidencia de App Group o WatchConnectivity, capacidades que pertenecen a Deluxe.
 - No se ha autorizado publicación DocC ni GitHub Pages.
 
 ## Pendiente externo

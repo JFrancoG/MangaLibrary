@@ -50,6 +50,17 @@ final class MangaLibraryUITests: XCTestCase {
 
         let filtersButton = app.buttons["catalog.filters"]
         XCTAssertTrue(filtersButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(["Filters", "Filtros"].contains(filtersButton.label))
+
+        let listButton = app.buttons["catalog.layout.list"]
+        let gridButton = app.buttons["catalog.layout.grid"]
+        XCTAssertTrue(["List selected", "Lista seleccionada"].contains(listButton.label))
+        XCTAssertTrue(["Grid", "Cuadrícula"].contains(gridButton.label))
+
+        gridButton.tap()
+        XCTAssertTrue(["List", "Lista"].contains(listButton.label))
+        XCTAssertTrue(["Grid selected", "Cuadrícula seleccionada"].contains(gridButton.label))
+
         filtersButton.tap()
 
         let compactCancelButton = app.buttons["catalog.filters.cancel.compact"]
@@ -69,6 +80,22 @@ final class MangaLibraryUITests: XCTestCase {
 
         filtersButton.tap()
         XCTAssertTrue(cancelButton.waitForExistence(timeout: 2))
+
+        let resultSet = app.descendants(matching: .any)["catalog.filters.result-set"]
+        XCTAssertTrue(resultSet.waitForExistence(timeout: 2))
+        resultSet.tap()
+
+        let bestManga = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label IN %@", ["Best manga", "Mejores mangas"]))
+            .firstMatch
+        XCTAssertTrue(bestManga.waitForExistence(timeout: 2))
+        bestManga.tap()
+
+        let applyFilters = app.buttons["catalog.filters.apply"]
+        XCTAssertTrue(applyFilters.waitForExistence(timeout: 2))
+        applyFilters.tap()
+        XCTAssertTrue(cancelButton.waitForNonExistence(timeout: 2))
+        XCTAssertTrue(["Filters active", "Filtros activos"].contains(filtersButton.label))
     }
 
     @MainActor

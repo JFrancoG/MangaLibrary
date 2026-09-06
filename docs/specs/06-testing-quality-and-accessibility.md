@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.33
+**Versión:** 1.34
 **Fecha:** 2026-09-04
 
 ## Propósito
@@ -441,18 +441,26 @@ Se inyectarán pérdida o corrupción de contador, overflow, disco lleno y carre
 - DocC se validará con warnings como errores.
 - Un warning de una dependencia o herramienta se atribuirá a su origen; no se presentará como un defecto corregido del código propio ni se suprimirá sin decisión explícita.
 
-ADR 0011 acepta durante el bootstrap una única firma externa de
-`appintentsmetadataprocessor` en Xcode build `27A5252f`. La excepción fija
-productor, severidad, mensaje, cantidad y build; cualquier deriva falla. No
-filtra la salida, no añade App Intents y no permite warnings de Swift, Clang o
-DocC. Cero diagnósticos pasa sin excepción. Si el warning persiste al cambiar de
-beta, RC o versión estable, el gate falla hasta una nueva decisión explícita.
+ADR 0020 supersede la excepción temporal de ADR 0011. Mientras Manga Library no
+declare App Intents, la configuración compartida fija
+`LM_SKIP_METADATA_EXTRACTION = YES` para que Swift Build no construya una fase
+sin entradas. No se filtran warnings ni se añade una capacidad ficticia. El
+gate exige el valor efectivo en todos los targets y configuraciones, la ausencia
+de la tarea y cero warnings o errores; adoptar App Intents obliga a revisar y
+retirar primero esta omisión.
 
-La excepción permite integrar la configuración reproducible, pero no satisface
-por sí sola el Advanced Release Gate: una candidata Advanced mantiene el
-requisito de build limpio y cero warnings.
-
-La política común se materializa en `Configuration/Shared.xcconfig`, conectada a Debug y Release a nivel de proyecto para que la hereden todos los targets actuales y futuros. `Scripts/validate-docc.sh` comprueba los valores efectivos de app, unit tests y UI tests en ambas configuraciones antes de construir documentación.
+La política común se materializa en `Configuration/Shared.xcconfig`, conectada a
+Debug y Release a nivel de proyecto para que la hereden todos los targets
+actuales y futuros. `Scripts/validate-advanced-build.sh` ejecuta
+`build-for-testing` con el plan `ReleaseGate` en ambas configuraciones, DerivedData
+temporal y destino genérico de simulador; falla ante cualquier warning, error o
+tarea de metadata de App Intents. Para compilar los imports `@testable` del
+target unitario bajo Release, habilita testabilidad exclusivamente como override
+de esa acción local; no cambia el valor distribuido del producto ni el resto de
+ajustes Release. `Scripts/validate-docc.sh` comprueba los valores efectivos de
+app, unit tests y UI tests en ambas configuraciones antes de construir
+documentación Release. Ambos seleccionan y verifican su Xcode sin modificar
+`xcode-select`.
 
 ## Calidad de producto
 
@@ -513,7 +521,8 @@ Un simulador no sustituye evidencia física cuando la capacidad dependa de hardw
 - [ADR 0001: toolchain, plataforma y warnings](../adr/0001-toolchain-platform-and-warning-policy.md)
 - [ADR 0005: estrategia híbrida de testing](../adr/0005-hybrid-testing-strategy.md)
 - [ADR 0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
-- [ADR 0011: excepción acotada para el warning de App Intents](../adr/0011-bounded-xcode-app-intents-warning-exception.md)
+- [ADR 0020: omitir la extracción de App Intents no utilizada](../adr/0020-skip-unused-app-intents-metadata-extraction.md)
+- [ADR 0011: excepción acotada para el warning de App Intents, superseded](../adr/0011-bounded-xcode-app-intents-warning-exception.md)
 - [Documentación y DocC](07-documentation-and-docc.md)
 - [ADR 0017: flujos nativos y respuesta HTTP con status validado](../adr/0017-validated-http-status-response-boundary.md)
 - [ADR 0018: bundle único de sesión en Keychain y logout atómico](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)

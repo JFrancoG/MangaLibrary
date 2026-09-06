@@ -38,6 +38,7 @@ struct CatalogFiltersView: View {
                             .tag(ResultSet.best)
                     }
                     .pickerStyle(.navigationLink)
+                    .accessibilityIdentifier("catalog.filters.result-set")
 
                     if resultSet == .best {
                         Text("Best manga is a separate server result set and cannot be combined with other filters.")

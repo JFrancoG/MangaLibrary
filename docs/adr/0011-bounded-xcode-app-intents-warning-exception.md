@@ -1,9 +1,9 @@
 # ADR-0011: Excepción acotada para el warning de App Intents de Xcode
 
-**Estado:** Accepted
+**Estado:** Superseded
 **Fecha:** 2026-08-25
 **Supersede:** —
-**Superseded by:** —
+**Superseded by:** [ADR 0020](0020-skip-unused-app-intents-metadata-extraction.md)
 
 ## Contexto
 

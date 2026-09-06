@@ -30,6 +30,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- 2026-09-06 | 🐛 fix(accessibility): unblock keyboard sign out
+- 2026-09-04 | 🐛 fix(accessibility): preserve VoiceOver context
 - 2026-09-02 | 🐛 fix(session): use Collection-compatible single JWT
 - 2026-09-02 | 🐛 fix(sync): prevent collection auth loop
 - 2026-08-31 | 🐛 fix(account): improve signed-out actions
@@ -65,6 +67,10 @@ All notable changes to this project are documented in this file.
 - 2026-08-30 | 📝 docs(session): record S1 delivery
 - 2026-08-30 | 📝 docs(session): define versioned Keychain and ledger authority
 - 2026-08-28 | 📝 docs(roadmap): sequence identity, local persistence and sync
+
+### Maintenance
+
+- 2026-09-04 | 🔧 chore(release): enforce clean Advanced gate
 
 ### Tests
 
