@@ -1,0 +1,191 @@
+{
+  "fixtureVersion": 1,
+  "authority": "synthetic-session-A",
+  "cases": [
+    {
+      "name": "reading-does-not-require-ownership",
+      "input": {
+        "session": "A",
+        "mangaID": 10,
+        "title": "Bosque de tinta",
+        "readingVolume": 2,
+        "totalVolumes": 3,
+        "ownedVolumes": [
+          1,
+          3
+        ],
+        "isComplete": false,
+        "isTombstone": false
+      },
+      "expected": {
+        "eligible": true,
+        "progressES": "Tomo 2 de 3",
+        "progressEN": "Volume 2 of 3"
+      }
+    },
+    {
+      "name": "last-volume-is-still-current",
+      "input": {
+        "session": "A",
+        "mangaID": 20,
+        "title": "Alba de papel",
+        "readingVolume": 3,
+        "totalVolumes": 3,
+        "ownedVolumes": [
+          1,
+          2,
+          3
+        ],
+        "isComplete": true,
+        "isTombstone": false
+      },
+      "expected": {
+        "eligible": true,
+        "progressES": "Tomo 3 de 3",
+        "progressEN": "Volume 3 of 3"
+      }
+    },
+    {
+      "name": "unknown-total-and-missing-title",
+      "input": {
+        "session": "A",
+        "mangaID": 30,
+        "title": null,
+        "readingVolume": 300,
+        "totalVolumes": null,
+        "ownedVolumes": [],
+        "isComplete": false,
+        "isTombstone": false
+      },
+      "expected": {
+        "eligible": true,
+        "titleES": "Manga #30",
+        "progressES": "Tomo 300 · Total desconocido",
+        "progressEN": "Volume 300 · Total unknown"
+      }
+    },
+    {
+      "name": "no-current-reading",
+      "input": {
+        "session": "A",
+        "mangaID": 40,
+        "title": "Cuaderno",
+        "readingVolume": null,
+        "totalVolumes": 1,
+        "ownedVolumes": [
+          1
+        ],
+        "isComplete": true,
+        "isTombstone": false
+      },
+      "expected": {
+        "eligible": false
+      }
+    },
+    {
+      "name": "tombstone",
+      "input": {
+        "session": "A",
+        "mangaID": 50,
+        "title": "Dunas",
+        "readingVolume": 1,
+        "totalVolumes": 2,
+        "ownedVolumes": [
+          1
+        ],
+        "isComplete": false,
+        "isTombstone": true
+      },
+      "expected": {
+        "eligible": false
+      }
+    },
+    {
+      "name": "other-identity",
+      "input": {
+        "session": "B",
+        "mangaID": 10,
+        "title": "Otra biblioteca",
+        "readingVolume": 1,
+        "totalVolumes": 3,
+        "ownedVolumes": [
+          1
+        ],
+        "isComplete": false,
+        "isTombstone": false
+      },
+      "expected": {
+        "eligible": false
+      }
+    },
+    {
+      "name": "invalid-historical-reading",
+      "input": {
+        "session": "A",
+        "mangaID": 60,
+        "title": "Faro",
+        "readingVolume": 301,
+        "totalVolumes": null,
+        "ownedVolumes": [],
+        "isComplete": false,
+        "isTombstone": false
+      },
+      "expected": {
+        "projection": "reject-ordinary-publication",
+        "previousAllowedSnapshot": "preserve"
+      }
+    }
+  ],
+  "validBatch": {
+    "caseNames": [
+      "reading-does-not-require-ownership",
+      "last-volume-is-still-current",
+      "unknown-total-and-missing-title",
+      "no-current-reading",
+      "tombstone",
+      "other-identity"
+    ],
+    "expectedOrderedIDs": [
+      20,
+      10,
+      30
+    ],
+    "expectedTotalEligibleCount": 3,
+    "smallVisibleIDs": [
+      20
+    ],
+    "mediumVisibleIDs": [
+      20,
+      10,
+      30
+    ]
+  },
+  "orderingExamples": [
+    {
+      "titlesByID": {
+        "5": "Álbum",
+        "2": "album",
+        "9": "Ｂosque",
+        "1": null
+      },
+      "expectedOrderedIDs": [
+        2,
+        5,
+        9,
+        1
+      ]
+    },
+    {
+      "titlesByID": {
+        "8": "Luz",
+        "3": "Luz",
+        "4": "Mar"
+      },
+      "expectedOrderedIDs": [
+        3,
+        8,
+        4
+      ]
+    }
+  ]
+}
