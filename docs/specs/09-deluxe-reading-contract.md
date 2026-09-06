@@ -1,9 +1,9 @@
-# SDD 09: Contrato de lectura Deluxe — DX1 y DX2
+# SDD 09: Contrato de lectura Deluxe — DX1, DX2 y DX3.1
 
 **Estado:** Aprobada por el propietario el 2026-09-06
-**Versión:** 1.1
+**Versión:** 1.2
 **Fecha:** 2026-09-06
-**Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78) y [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
+**Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79) y [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
 ## Alcance y aprobación
 
@@ -80,6 +80,31 @@ intermedio. El contador localizado usa `totalEligibleCount - visibleItems.count`
 tanto por tamaño como por límite de transporte. El reloj usa el mismo cálculo
 con todos los elementos recibidos. No se introduce navegación o deep link nuevo
 en DX1.
+
+### Consulta persistida — DX3.1
+
+La autorización del propietario para DX3.1 materializa la consulta como
+`CollectionMutationActor.readingProjection(authorization:)`. Reutiliza el
+predicado de entradas activas del usuario y la capacidad
+`SessionCommitAuthorization`, que comprueba identidad, generación, credencial,
+suspensión y expiración. La autoridad se valida alrededor de la lectura y de
+nuevo después del orden; la futura publicación todavía debe revalidarla.
+
+La consulta no guarda ni revierte cambios: exige un contexto sin modificaciones
+pendientes y desactiva `includePendingChanges`. Primero excluye filas ajenas,
+tombstones y lectura ausente, y después valida únicamente lectura y total.
+Propiedad y completitud históricas incompatibles no invalidan una lectura válida.
+Un snapshot de presentación perteneciente a otro `mangaID` rechaza la preparación;
+no atribuye a una lectura el título o la portada de otro manga.
+
+`CollectionReadingProjection` es un valor exclusivo de la app con autoridad y
+todos los candidatos ordenados, título preparado, progreso y URL opcional de
+portada como insumo privado. No es `Codable`, no contiene modelos SwiftData,
+propiedad ni outbox, y no se comparte con consumidores. No asigna epoch/revisión,
+recorta por 32 KiB, prepara recursos ni publica. Cancelación, contexto pendiente,
+lectura incompatible o fallo de persistencia devuelven error sin resultado parcial
+ni vacío sintético. La conexión de ese error con la conservación del manifest
+pertenece al pipeline posterior de DX3.
 
 ## Formato compartido
 
@@ -340,7 +365,8 @@ provisioning, App Group efectivo, embedding y frameworks siguen sin verificar.
 independientes para selección, progreso, wire válido, wire rechazado y fallback
 de portada. No son snapshots de cuentas reales, tests ejecutados ni modelos
 funcionales por sí mismos. DX2 reutiliza esos oráculos en el decoder/publicador;
-DX3 los enlazará a persistencia aislada sin usar producción.
+DX3.1 enlaza selección y orden con SwiftData aislado sin usar producción;
+los eventos, recursos y recorte siguen en DX3.2–DX3.4.
 
 | Fase | Casos de cierre |
 | --- | --- |
@@ -398,6 +424,13 @@ Deluxe Release Gate. Cualquier cambio de ese criterio requerirá una decisión
 explícita en la SDD 06; la aprobación de este contrato no lo elimina.
 
 ## Fuentes y riesgos
+
+- Apple Foundation: [normalización canónica](https://developer.apple.com/documentation/swift/stringprotocol/precomposedstringwithcanonicalmapping)
+  y [folding con locale explícito](https://developer.apple.com/documentation/foundation/nsstring/folding(options:locale:))
+  sustentan la clave interna de orden; SwiftData documenta
+  [includePendingChanges](https://developer.apple.com/documentation/swiftdata/fetchdescriptor/includependingchanges)
+  para excluir cambios sin guardar de la consulta. DX3.1 caracteriza estas
+  operaciones en el SDK activo con oráculos independientes.
 
 - [SDD 03](03-local-collection-and-invariants.md), COL-020–023 y COL-030–035;
   `CollectionModelsV2.swift`, `CollectionQuery.swift` y orden actual de

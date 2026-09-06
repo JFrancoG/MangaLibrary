@@ -1,7 +1,55 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-06
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, Q2, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1, las correcciones #55, #58, #61, #63 y #65 y el Advanced Release Gate entregados; Deluxe aprobado; DX1 y DX2 completos (2/7 cortes técnicos), con entrega mediante PR #80 y #81; DX3 pendiente de implementación
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, Q2, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1, las correcciones #55, #58, #61, #63 y #65 y el Advanced Release Gate entregados; Deluxe aprobado; DX1 y DX2 completos (2/7 cortes técnicos), con entrega mediante PR #80 y #81; DX3.1 implementado y validado localmente en #82 (1/5 bloques de DX3); DX3.2–DX3.5 pendientes
+
+## DX3.1 — proyección persistida — issue #82
+
+- El propietario autorizó implementar únicamente DX3.1 el 6 de septiembre de
+  2026. Se reutilizan el [issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82)
+  y `codex/82-dx3-reading-projection`, desde `main@c55a88c` limpio. DX1/DX2
+  permanecen entregados y el padre #77 abierto; no se amplía este corte a
+  DX3.2–DX3.5 ni a entrega Git.
+- `CollectionMutationActor.readingProjection(authorization:)` consulta el estado
+  comprometido, conserva la autoridad exacta y devuelve todos los candidatos por
+  valor. No escribe Colección/outbox, recursos o bridge. Valida solo lectura y
+  total, rechaza identidad de presentación incompatible y contexto pendiente,
+  abrevia títulos por `Character` y ordena bytes de claves normalizadas con locale
+  fijo. SDD 09 v1.2 concreta esta frontera privada sin cambiar wire o esquema.
+- RED focal: 17 declaraciones/38 invocaciones fallan por el stub compilable de
+  preparación, después de un build sin warnings. `RunSomeTests` rechaza la
+  selección desde Integration por la proyección errónea de tags ya caracterizada;
+  el RED se ejecuta como selección explícita de esas mismas pruebas desde
+  ReleaseGate. No representa la ejecución del gate completo.
+- GREEN y regresión: `RunAllTests` en Integration acredita **317/317
+  declaraciones y 432 invocaciones**, incluidas las **17 declaraciones/38 casos
+  nuevos**. Se comprueba el árbol nativo para asegurar los 2 casos de orden, 6
+  transiciones de autorización, 9 estados incompatibles y 8 títulos, además de
+  los 13 tests sin parámetros. Fast acredita **239/239 y 318 invocaciones**.
+  Ambos `.xcresult` terminan sin fallos, skips, expected failures o runtime
+  warnings: **556 declaraciones/750 invocaciones** entre los dos planes.
+- El GREEN focal anterior solo contabilizó 18 invocaciones; no se considera
+  prueba completa de las variantes. La evidencia completa anterior procede de
+  `RunAllTests` y del árbol nativo, no de los agregados `No result` del MCP.
+- Xcode MCP: Xcode 27 `27A5252f`, Swift 6.4, iPhone 17 Simulator/iOS 27
+  `24A5423a`. Build-for-testing final aprobado y logs completos sin warnings ni
+  errores. El único cambio después de Integration fue disponer verticalmente
+  cuatro argumentos de un test; se reaudita y recompila antes de Fast/DocC.
+- `Scripts/validate-test-plans.sh`: 16 suites Fast y 25 Integration, filtros y
+  partición válidos. Fast restaurado como plan del IDE. El script aprobado
+  `Scripts/validate-docc.sh` verifica Xcode beta, construye DocC Release para
+  generic iOS y genera `.build/docc/MangaLibrary.doccarchive` con cero warnings
+  y errores. DocC se limita a la consulta y al contrato privado de la proyección.
+- Revisión iOS independiente de código, tests y concreción SDD 09: sin
+  hallazgos. Audit Swift Source Style sobre los dos Swift, pasada manual y
+  script, cerrado sin hallazgos después del ajuste léxico. `project.pbxproj`
+  conserva SHA-256 `ee6cd588ee1ba5666a71b8b42cbc19338af70025072d35a4efe1acb14732ab76`.
+- **DX3.1 completo localmente; DX3 queda en 1/5 bloques y Deluxe en 2/7
+  subfases entregadas.** El siguiente bloque es DX3.2, prefijo estable y no-op,
+  todavía sin iniciar. No hay commit/push, PR, merge o cierre nuevo. La suite usa
+  fixtures sintéticos y SwiftData en memoria; no cambia UI, esquema, wire,
+  composición live, recursos, App Group o targets. No valida publicación por
+  eventos, conservación física de manifests, WidgetKit/WCSession ni hardware.
 
 ## DX2 — bridge durable y seguridad de sesión — issue #79
 
