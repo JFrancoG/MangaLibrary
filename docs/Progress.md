@@ -1,7 +1,314 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-06
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, Q2, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1, las correcciones #55, #58, #61, #63 y #65 y el Advanced Release Gate entregados; Deluxe aprobado; DX1 y DX2 completos (2/7 cortes técnicos), con entrega mediante PR #80 y #81; DX3 pendiente de implementación
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, Q2, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1, las correcciones #55, #58, #61, #63 y #65 y el Advanced Release Gate entregados; Deluxe aprobado; DX1 y DX2 entregados mediante PR #80 y #81; DX3 completo técnicamente en #82 (5/5 bloques), publicado hasta DX3.5 en `14d6251` y agrupado en PR #83; siguiente corte DX4, sin iniciar
+
+## Entrega DX3 — issue #82 / PR #83
+
+- El propietario autoriza commit, push, PR, merge y cierre del issue y de su rama
+  el 6 de septiembre de 2026. DX3.5 se publica en
+  `14d6251d0a42ae5fe247f4963da241848a384569`, con commit/push verificados.
+- La [PR #83](https://github.com/JFrancoG/MangaLibrary/pull/83) agrupa DX3.1–DX3.5
+  desde la base DX2 `c55a88c` hacia `main` y enlaza el cierre de
+  [#82](https://github.com/JFrancoG/MangaLibrary/issues/82). El resultado definitivo
+  del merge y la retirada de la rama se registra en esos enlaces y en el plan #77.
+- Se reutilizan los gates inmediatamente anteriores de DX3.5: 662 declaraciones /
+  910 invocaciones, builds limpios Debug/Release y DocC, sin modificaciones
+  funcionales posteriores. La revisión independiente de entrega confirma el diff,
+  Audit Swift Source Style y ausencia de deriva; Xcode MCP conserva MangaLibrary,
+  Fast e iPhone 17 Simulator, con Navigator limpio y proyecto protegido intacto.
+- El siguiente corte es DX4. El plan #77 conserva DX4–DX7 y la matriz física
+  pendiente; esta entrega no inicia consumidores ni declara el Deluxe Release Gate.
+
+## DX3.5 — gate técnico conjunto de publicación — issue #82
+
+- El propietario autoriza «Commit y push. adelante con DX3.5». DX3.4 se publica
+  en `8ca565d54342361cde5c72075fc2bf3825d5fd81`, rama
+  `codex/82-dx3-reading-projection`; commit/push y HEAD remoto verificados, worktree
+  limpio antes de DX3.5. Se reutilizan sus gates recientes de 660 declaraciones /
+  908 invocaciones y DocC sin deriva funcional antes de publicar.
+- La auditoría conjunta contrasta la unidad completa desde la base DX2 `c55a88c`:
+  selección persistida, recorte/presupuesto, recursos y recuperación, eventos,
+  orden y sesión. No detecta defecto funcional nuevo. Identifica dos comprobaciones
+  integradas necesarias: commit real hasta JPEG/manifest/fence/reload, y conservación
+  física del estado publicado ante una lectura histórica inválida ya persistida.
+- La revisión del perfil mueve el inicializador validante de ReadingPublicationPlan
+  a una extensión con almacenamiento privado, preservando sus invariantes; tres
+  ajustes de disposición completan el Audit Swift Source Style conjunto.
+- Dos caracterizaciones integradas nuevas usan Colección SwiftData real en memoria,
+  composición aislada, imagen sintética y directorios temporales. La primera deriva
+  el evento de un commit real; dentro de la solicitud de reload comprueba lectura
+  persistida, manifest aceptado por doble fence y JPEG legible con SHA-256,
+  dimensiones y contenido esperado. La segunda persiste un tomo histórico 301,
+  recrea el escritor y exige error tipado, conservando byte a byte todo el bridge,
+  sin nueva descarga/reload ni corrección silenciosa del dato.
+- La segunda prueba suministra el evento autorizado de restauración; los hooks de
+  activación de SessionController se verifican en DeluxeSessionTests. El pipeline
+  se construye directamente para rechazar cualquier reconciliación inesperada;
+  no acredita arranque live ni una recarga efectiva de WidgetKit/WCSession.
+- Sensibilidad comprobada mediante dos mutaciones temporales compilables: omitir
+  la señal del commit hace fallar la primera prueba; devolver `nil` para lectura
+  inválida hace fallar la segunda al publicar vacío. Ambos archivos se restauran
+  exactamente antes del GREEN final. Son caracterizaciones de comportamiento ya
+  implementado, no un defecto funcional nuevo ni RED retrospectivo. Durante la
+  preparación se añade el import de CoreGraphics y se corrige un umbral de color
+  excesivo para JPEG; no se cambia producción para satisfacer ese oráculo.
+- Xcode MCP oficial, Xcode 27 `27A5252f`, Swift 6.4, scheme MangaLibrary,
+  iPhone 17 Simulator/iOS 27 `24A5423a`: **Fast 264/264 declaraciones y 370
+  invocaciones; Integration 398/398 y 540. Total 662/910**. Árboles y resúmenes
+  nativos `.xcresult` verifican todas las declaraciones y argumentos, incluidas
+  las dos pruebas nuevas; cero fallos, skips, expected failures o runtime warnings.
+  Ejecuciones finales `Test-MangaLibrary-2026.09.06_21-32-11-+0200.xcresult`
+  (Integration) y `Test-MangaLibrary-2026.09.06_21-32-27-+0200.xcresult` (Fast).
+  Los agregados MCP incluyen resultados ajenos al filtro y no sustituyen esa evidencia.
+- Scripts aprobados por SDD 06/ADR 0020: `validate-advanced-build.sh` termina con
+  exit 0, build-for-testing limpio Debug y Release, tres targets actuales, destino
+  generic iOS Simulator y DerivedData nuevo por configuración. `validate-docc.sh`
+  termina con exit 0, Release generic iOS, DerivedData nuevo y archive en
+  `.build/docc/MangaLibrary.doccarchive`. Ambos gates tienen cero warnings/errores.
+  El script de build no ejecuta UI ni acredita el Deluxe Release Gate.
+- Build-for-testing MCP final, log y Navigator limpios. Plan Fast restaurado;
+  `validate-test-plans.sh` confirma 18 suites Fast y 33 Integration. Revisión iOS
+  independiente del conjunto y Audit Swift Source Style de los cinco Swift
+  modificados/nuevos sin hallazgos pendientes. Hash protegido del proyecto intacto;
+  no cambian wire, esquema, targets, entitlements o composición live.
+- **Estado al completar DX3.5: DX3 completo técnicamente, 5/5 bloques. DX3.5 quedaba local, pendiente de
+  commit/push y entrega de #82.** #82 y #77 permanecen abiertos; Deluxe conserva
+  2/7 subfases entregadas mediante PR. Siguiente: entregar DX3 con autorización
+  de las acciones Git correspondientes, antes de avanzar a DX4.
+- Límites: datos sintéticos, disco temporal y simulador. No se ejecuta UI ni se
+  añade evidencia de accesibilidad, App Group, WidgetKit, WatchConnectivity o
+  hardware físico. El guard de 64 millones de píxeles y la cancelación durante
+  transferencia ya iniciada conservan revisión de código sin caracterización
+  runtime específica. La matriz física y el gate global siguen en DX6/DX7.
+
+| Criterio conjunto DX3 | Evidencia de comportamiento |
+| --- | --- |
+| Selección, orden y datos históricos | CollectionReadingProjectionTests; ReadingPublicationIntegrationTests añade conservación física ante tomo 301. |
+| Prefijo, presupuesto y no-op | ReadingPublicationPlanTests y ReadingProjectionPublicationTests: framing final, límite inclusivo, reserva y reload sin cambios. |
+| JPEG, cuota, retención y recuperación | Suites ReadingCover de preparación, fuente, batch, almacenamiento y publicación; oráculos de bytes, disco y fallos. |
+| Eventos y orden | CollectionReadingEventTests y ReadingPublicationPipelineTests: commits reales, rollback, ticket, supersesión y consumidor. |
+| Sesión y fence | DeluxeSessionTests y ReadingSnapshotPublisherTests: bootstrap, expiración, cancelación, logout y autoridad exacta. |
+| Cadena completa de contenido | ReadingPublicationIntegrationTests: commit → proyección → JPEG → manifest/fence aceptados en la solicitud controlada de reload. |
+
+## DX3.4 — eventos, orden y reconciliación de sesión — issue #82
+
+- El propietario autoriza «commit y push. Adelante con DX3.4» el 6 de septiembre.
+  DX3.3 se publica en `99203db1bc7903f5cbf50c036cb2ca2465902c31`, rama
+  `codex/82-dx3-reading-projection`, con HEAD remoto verificado y worktree limpio
+  antes de DX3.4. Se reutiliza su validación reciente sin deriva funcional.
+- El único actor de Colección señala después de commits reales y dentro de la
+  misma autorización: mutación local, importación, rechazo permanente, DELETE y
+  outcome bloqueado. Rollback/cancelación previa no señalan. Outbox-only conserva
+  el ticket. Descartar durante logout invalida sin publicar contenido intermedio.
+- Un emisor conserva el último evento y un ticket opaco de vigencia. El consumidor
+  estructurado relee SwiftData y prepara portadas; la preparación antigua se rechaza
+  aunque termine después. El publicador valida ticket dentro del cerrojo de sesión
+  al admitir recursos, sustituir manifest y abrir fence. Las reservas consumidas
+  siguen sin reutilizarse. Una publicación fallida no revierte Colección/outbox.
+- Buffer del último evento, suscripción exclusiva y reinicio sin perder la última
+  intención. Cancelar no libera el consumidor hasta terminar su preparación.
+  Restauración, login, refresh y reactivación tras logout fallido emiten capacidad
+  nueva. Se prueba restauración local aunque falle la consulta de identidad offline.
+- La revisión independiente detecta caducidad durante una portada: rechazar el
+  resultado sin avisar al propietario dejaba el fence anterior permitido. RED lo
+  confirma. El pipeline reconcilia con SessionController, que retira mediante DX2
+  o reintenta su retirada capturada por autoridad exacta. Fallar fence/Keychain
+  termina el consumidor con error visible. Cancelación coincidente tampoco omite
+  esa reconciliación; conserva su tipo salvo fallo de retirada, que tiene prioridad.
+- Factoría aislada en AppComposition: container, directorios, reloj, UUID, portada
+  y reload inyectados. La factoría de pipeline exige el propietario de sesión.
+  No arranca tareas ni conecta AppComposition.live. SDD 09 v1.5 concreta estas
+  garantías sin cambiar wire, esquema SwiftData o arquitectura de consumidores.
+- RED compilables por Xcode MCP: 24 fallos y 10 controles en señales/pipeline/sesión;
+  2 regresiones de publisher por ticket; 3 de caducidad/reconciliación; 2 de
+  cancelación coincidente con 2 controles. Un fixture de publisher reentraba al
+  obtener autorización dentro del gate; se corrige antes del RED conductual.
+  Otro oráculo esperaba revisión 2 tras logout fallido: DX2 consume esa reserva,
+  por lo que el resultado correcto es 3; se corrige el test, no producción.
+- GREEN/regresión final por RunAllTests: **Fast 264/264 declaraciones, 370
+  invocaciones; Integration 396/396, 538 invocaciones. Total 660/908**. Cero fallos,
+  skips, expected failures o runtime warnings en los resultados nativos xcresult.
+  Las **31 declaraciones/41 invocaciones nuevas** pasan completas: Colección 12/17,
+  pipeline 13/13, sesión 5/9 y publisher 1/2. Los agregados MCP y los focales parciales
+  no sustituyen los árboles nativos ni acreditan ReleaseGate completo.
+- Xcode MCP oficial: Xcode 27 `27A5252f`, Swift 6.4, scheme MangaLibrary,
+  iPhone 17 Simulator/iOS 27 `24A5423a`; build-for-testing y logs sin warnings o
+  errores, Navigator limpio. Fast queda activo. Script de planes: 18 suites Fast
+  y 32 Integration, filtros/partición válidos. Hash protegido del proyecto intacto.
+- Gate DocC final: Scripts/validate-docc.sh termina con exit 0, Release generic
+  iOS y DerivedData temporal nuevo; archive generado en
+  `.build/docc/MangaLibrary.doccarchive`, cero warnings/errores y sin allowlists.
+- Revisión iOS independiente y Audit Swift Source Style sobre los 13 Swift:
+  correcciones de inicializador/formato aplicadas y P1 resuelto con regresiones;
+  reauditoría de cancelación limpia. No se modifica UI; no hay nueva evidencia
+  de accesibilidad, App Group, WidgetKit, WatchConnectivity o hardware físico.
+- **Estado al completar DX3.4: completo localmente, 4/5 bloques; DX3.5 y commit/push de DX3.4 pendientes en ese corte.** #82 y #77 continúan
+  abiertos, sin PR/merge/cierre; Deluxe conserva 2/7 subfases entregadas por PR.
+
+## DX3.3 — portadas acotadas y recuperación — issue #82
+
+- El propietario autoriza «commit y push y DX3.3» el 6 de septiembre de 2026 y
+  pide continuar tras la interrupción. DX3.2 se publica en
+  `95213eda4f9cacde31929917c2d7d750f087691a`, rama
+  `codex/82-dx3-reading-projection`; HEAD remoto verificado. Se conserva la
+  validación reciente de ese bloque sin deriva funcional antes del commit.
+  DX3.3 queda local, sin ampliar la entrega a PR, merge, cierre o DX3.4.
+- Entrada HTTPS opcional mediante `URLSession.AsyncBytes`, acotada a 8 MiB;
+  preparación secuencial fuera del actor del llamador sobre el prefijo potencial,
+  con deduplicación de URL y bytes JPEG, sin cache de fuentes. Image I/O produce
+  el primer frame orientado, con aspecto preservado y sin copiar metadata,
+  hasta 384 px/65.536 bytes. Un valor validado calcula SHA-256 de los bytes exactos.
+- Un único publicador decide cuota/prefijo y no-op antes de escribir portadas.
+  Journal, staging protegido y receipts permanentes preceden al manifest;
+  promoción exclusiva, reutilización íntegra y cuota global de 8 MiB incluyendo
+  metadata. Fallo posterior a seleccionar una referencia conserva el manifest
+  anterior y consume la reserva, sin sustituirlo por éxito con placeholder.
+- Recuperación conservadora: inventario completo antes de borrar, manifiesto
+  reconciliado válido y ausencia de receipt para un huérfano propio. Se retienen
+  recursos ambiguos o ya referenciados, incluso al restaurar un JPEG cuya receipt
+  desapareció. Los receipts anteriores al manifest se conservan aunque falle
+  este último; esa retención deliberada puede agotar la cuota antes.
+- La revisión detecta y convierte en RED dos casos adicionales: pérdida conjunta
+  de JPEG/receipt con referencia vigente, y avance de manifest tras una limpieza
+  pendiente. El plan puede leer un journal ya comprometido sin modificarlo;
+  después del no-op final, el commit liquida ese intento contra el manifest aún
+  válido. El caso parcial por cuota también queda sin escrituras ni reload.
+  Un fallo de mantenimiento de portadas no impide cerrar el fence de sesión.
+- RED compilables por Xcode MCP: imagen/fuente (35 fallos de 39 invocaciones,
+  con 4 controles), almacenamiento/publicación (16 fallos y 10 controles),
+  batch (7 fallos), no-op con journal pendiente, las dos regresiones de retención
+  y las dos de avance/no-op parcial. El fixture de cuota inicial generaba JPEG
+  de 71.320 bytes a calidad 0,4 y era correctamente rechazado; se ajusta el
+  ruido sintético a 352×352, conservando los oráculos de ocupación de 8 MiB.
+- GREEN y regresión completos por `RunAllTests`: **Fast 264/264 declaraciones,
+  370 invocaciones; Integration 365/365, 497 invocaciones**. Total **629/867**,
+  cero fallos, skips, expected failures o runtime warnings. Los árboles nativos
+  `.xcresult` acreditan las **53 declaraciones/80 invocaciones nuevas**:
+  preparación 14/28, fuente 5/11, batch 7/7, almacenamiento 17/24 y publicación
+  10/10. Los agregados MCP incluyen resultados ajenos al filtro; no se usan para
+  declarar cardinalidad ni se confunden con ejecución de ReleaseGate completo.
+- Xcode MCP oficial: Xcode 27 `27A5252f`, Swift 6.4, scheme MangaLibrary,
+  iPhone 17 Simulator/iOS 27 `24A5423a`. Build-for-testing final y log completo
+  sin warnings/errores; Navigator sin diagnósticos. Fast queda activo. El script
+  de planes acredita 18 suites Fast y 30 Integration, partición y filtros válidos.
+- Gate DocC final: `Scripts/validate-docc.sh` termina con exit 0 en Release
+  generic iOS y DerivedData temporal nuevo. Archive generado en
+  `.build/docc/MangaLibrary.doccarchive`, con cero warnings/errores y sin allowlist.
+- Revisión iOS independiente y Audit Swift Source Style sobre los 12 Swift:
+  correcciones conductuales y léxicas aplicadas. Reauditoría final de código,
+  resultados nativos, DocC y documentación cerrada sin hallazgos.
+- **DX3.3 completo localmente, pendiente de commit/push; DX3 queda en 3/5 bloques.**
+  #82 y #77 siguen abiertos; Deluxe conserva 2/7 subfases entregadas por PR.
+  Siguiente: **DX3.4, eventos y orden entre proyecciones de la misma sesión**.
+  SDD 09 v1.4 concreta fuentes, recursos y recuperación; wire y esquema no cambian.
+- Validación determinista con URLProtocol, imágenes nativas sintéticas y disco
+  temporal aislado, sin red real o producción. La cancelación de la transferencia
+  ya iniciada y la cota de 64 millones de píxeles conservan revisión de código,
+  sin caracterización runtime específica. No cambia UI, composición live,
+  targets, App Group o entitlements. No acredita WidgetKit, WatchConnectivity,
+  accesibilidad ni hardware. `project.pbxproj` conserva SHA-256
+  `ee6cd588ee1ba5666a71b8b42cbc19338af70025072d35a4efe1acb14732ab76`.
+
+## DX3.2 — prefijo estable y no-op — issue #82
+
+- El propietario autoriza «commit y push y DX3.2» el 6 de septiembre de 2026.
+  DX3.1 se publica en `db5d2eb2fda8d29ae7a75be8a27d251af9fa042e`, rama
+  `codex/82-dx3-reading-projection`, con HEAD remoto verificado. Se conserva su
+  validación reciente sin deriva funcional. El nuevo bloque continúa en #82;
+  no amplía la autorización a PR, merge, cierre o DX3.3–DX3.5.
+- `ReadingPublicationPlan` prepara un prefijo puro desde todos los candidatos
+  DX3.1 y referencias opcionales ya decididas. Valida todos antes de truncar,
+  conserva total/autoridad y mide con el codec final, revisión máxima y fecha
+  wire fija. La búsqueda crece hasta el primer exceso y acota el intervalo;
+  no intenta codificar una colección completa potencialmente grande.
+- El publicador verifica autoridad exacta antes de preparar, reutiliza el commit
+  DX2 y mantiene el chequeo del contexto final. El no-op conserva la intención
+  de reload pendiente sin escribir ni recargar; la recuperación explícita la
+  entrega sin otra reserva. SDD 09 v1.3 concreta esta separación.
+- RED compilable: 9 declaraciones/13 invocaciones de publicación y 11/24 del
+  preparador. El no-op con reload pendiente demuestra antes de la corrección
+  una escritura, cambio de bytes y recarga indebidos; el resto falla por los
+  stubs de preparación. El oráculo de presupuesto usa wire textual independiente
+  y constantes de aceptación, incluyendo contexto de 32.768 y 32.769 bytes,
+  JSON que cabe pero contexto que excede, comillas/controles y portada opcional.
+- GREEN y regresión por Xcode MCP `RunAllTests`: **Integration 326/326
+  declaraciones, 445 invocaciones; Fast 250/250, 342 invocaciones**. Total
+  **576 declaraciones/787 invocaciones**, con las **20/37 nuevas** completas
+  según los árboles nativos `.xcresult`. Cero fallos, skips, expected failures
+  o runtime warnings. El GREEN focal previo contabilizó 21 invocaciones; la
+  prueba completa de parámetros procede de los planes y árboles nativos.
+- Xcode MCP oficial: Xcode 27 `27A5252f`, Swift 6.4, scheme MangaLibrary,
+  iPhone 17 Simulator/iOS 27 `24A5423a`. Build-for-testing final y logs completos
+  sin warnings/errores; Navigator sin diagnósticos. Se conserva Fast activo.
+  El script de planes acredita 17 suites Fast y 26 Integration, con filtros y
+  partición válidos. El script aprobado `Scripts/validate-docc.sh` usa un
+  DerivedData temporal nuevo, docbuild Release para generic iOS y termina con
+  archive `.build/docc/MangaLibrary.doccarchive`, cero warnings y errores.
+- Revisión iOS independiente final y Audit Swift Source Style de los cuatro
+  Swift: sin hallazgos. Se reemplaza el oráculo preliminar `JSONSerialization`
+  por wire textual con `JSONEncoder` solo para escapar strings, conservando
+  expectativas independientes, antes del RED puro. Los ajustes léxicos quedan
+  aplicados y recompilados antes de ambos planes completos y DocC.
+- **DX3.2 completo localmente; DX3 queda en 2/5 bloques.** Su commit/push
+  quedan pendientes, mientras DX3.1 está publicado; #82/#77 siguen abiertos.
+  Siguiente bloque: **DX3.3, portadas y recuperación**, todavía sin iniciar.
+  Deluxe mantiene 2/7 subfases entregadas mediante PR, sin declarar su gate.
+  Pruebas puras y disco temporal aislado, sin producción o red real.
+- Las referencias aún no acreditan JPEGs reales; cuota, integridad y admisión
+  pertenecen a DX3.3. Eventos, composición y orden entre proyecciones de la misma
+  sesión pertenecen a DX3.4. No cambia UI, esquema, wire, entitlements, App Group,
+  targets o `AppComposition.live`. `project.pbxproj` conserva SHA-256
+  `ee6cd588ee1ba5666a71b8b42cbc19338af70025072d35a4efe1acb14732ab76`.
+  No hay evidencia nueva de WidgetKit, WCSession, accesibilidad o hardware.
+
+## DX3.1 — proyección persistida — issue #82
+
+- El propietario autorizó implementar únicamente DX3.1 el 6 de septiembre de
+  2026. Se reutilizan el [issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82)
+  y `codex/82-dx3-reading-projection`, desde `main@c55a88c` limpio. DX1/DX2
+  permanecen entregados y el padre #77 abierto; no se amplía este corte a
+  DX3.2–DX3.5 ni a entrega Git.
+- `CollectionMutationActor.readingProjection(authorization:)` consulta el estado
+  comprometido, conserva la autoridad exacta y devuelve todos los candidatos por
+  valor. No escribe Colección/outbox, recursos o bridge. Valida solo lectura y
+  total, rechaza identidad de presentación incompatible y contexto pendiente,
+  abrevia títulos por `Character` y ordena bytes de claves normalizadas con locale
+  fijo. SDD 09 v1.2 concreta esta frontera privada sin cambiar wire o esquema.
+- RED focal: 17 declaraciones/38 invocaciones fallan por el stub compilable de
+  preparación, después de un build sin warnings. `RunSomeTests` rechaza la
+  selección desde Integration por la proyección errónea de tags ya caracterizada;
+  el RED se ejecuta como selección explícita de esas mismas pruebas desde
+  ReleaseGate. No representa la ejecución del gate completo.
+- GREEN y regresión: `RunAllTests` en Integration acredita **317/317
+  declaraciones y 432 invocaciones**, incluidas las **17 declaraciones/38 casos
+  nuevos**. Se comprueba el árbol nativo para asegurar los 2 casos de orden, 6
+  transiciones de autorización, 9 estados incompatibles y 8 títulos, además de
+  los 13 tests sin parámetros. Fast acredita **239/239 y 318 invocaciones**.
+  Ambos `.xcresult` terminan sin fallos, skips, expected failures o runtime
+  warnings: **556 declaraciones/750 invocaciones** entre los dos planes.
+- El GREEN focal anterior solo contabilizó 18 invocaciones; no se considera
+  prueba completa de las variantes. La evidencia completa anterior procede de
+  `RunAllTests` y del árbol nativo, no de los agregados `No result` del MCP.
+- Xcode MCP: Xcode 27 `27A5252f`, Swift 6.4, iPhone 17 Simulator/iOS 27
+  `24A5423a`. Build-for-testing final aprobado y logs completos sin warnings ni
+  errores. El único cambio después de Integration fue disponer verticalmente
+  cuatro argumentos de un test; se reaudita y recompila antes de Fast/DocC.
+- `Scripts/validate-test-plans.sh`: 16 suites Fast y 25 Integration, filtros y
+  partición válidos. Fast restaurado como plan del IDE. El script aprobado
+  `Scripts/validate-docc.sh` verifica Xcode beta, construye DocC Release para
+  generic iOS y genera `.build/docc/MangaLibrary.doccarchive` con cero warnings
+  y errores. DocC se limita a la consulta y al contrato privado de la proyección.
+- Revisión iOS independiente de código, tests y concreción SDD 09: sin
+  hallazgos. Audit Swift Source Style sobre los dos Swift, pasada manual y
+  script, cerrado sin hallazgos después del ajuste léxico. `project.pbxproj`
+  conserva SHA-256 `ee6cd588ee1ba5666a71b8b42cbc19338af70025072d35a4efe1acb14732ab76`.
+- **Estado al completar DX3.1: completo localmente; DX3 queda en 1/5 bloques y Deluxe en 2/7
+  subfases entregadas.** El siguiente bloque es DX3.2, prefijo estable y no-op,
+  todavía sin iniciar en ese corte. La publicación posterior de DX3.1 figura arriba. La suite usa
+  fixtures sintéticos y SwiftData en memoria; no cambia UI, esquema, wire,
+  composición live, recursos, App Group o targets. No valida publicación por
+  eventos, conservación física de manifests, WidgetKit/WCSession ni hardware.
 
 ## DX2 — bridge durable y seguridad de sesión — issue #79
 
@@ -1222,7 +1529,7 @@ La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden d
 8. **R2 — envío y reconciliación de outbox.** R2.1 y R2.2 están entregados mediante la PR #60. La decisión del propietario del 2 de septiembre fija `{id}` como `Manga.ID` `int64` serializado en decimal; el UUID de entrada no forma el path y la discrepancia `string` queda como deuda contractual. R2.1 reutiliza el GET completo R1 e implementa POST y procesamiento conservador de intenciones no tombstone; R2.2 añade GET/DELETE individual, tombstones y la confirmación destructiva de UI. Ambos cortes están validados localmente y R2.2 cuenta con aceptación live multidispositivo de la ruta decimal y la ausencia reconciliada; el status/body exacto del primer DELETE y el GET presente `200` siguen sin caracterización directa. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, `blockedAuth` recuperable y rechazo positivo con reversión atómica. R2.4 se entrega mediante la PR #70 con revisión fresca, adopción remota o nueva intención consciente y resolución atómica del `blockedOutcome`.
 9. **Cota transversal de números de tomo, entregada mediante la PR #64.** Fija 300 como máximo inclusivo compartido, preserva `nil` como total desconocido y protege editor, mutación, R1 y R2 frente a valores históricos o remotos fuera de rango sin truncado ni transporte accidental.
 10. **Advanced Release Gate — aceptado y entregado mediante el issue #75 / PR #76.** A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. La automatización global acredita build, planes, Swift Testing, UI en iPhone/iPad, ReleaseGate, DocC, contrato e integridad sin warnings ni allowlists. La matriz manual está completa con VoiceOver, Control por voz y Switch Control en iPhone físico y Acceso total con teclado en iPad simulado, sin extrapolar este último a hardware. La fusión `06170b7` del 6 de septiembre de 2026 habilita la entrada a Deluxe.
-11. **Deluxe — plan aprobado en el issue #77.** DX1 aprobado y publicado en #78; DX2 implementado y validado localmente en #79 (2/7 cortes técnicos), pendiente de entrega Git. DX3 todavía sin iniciar. La matriz conserva la evidencia física pendiente de Apple Watch; targets, App Group efectivo y consumidores live siguen en sus subfases.
+11. **Deluxe — plan aprobado en el issue #77.** DX1 y DX2 entregados mediante PR #80 y #81. DX3 completo técnicamente en #82 (5/5 bloques), publicado hasta DX3.5 en `14d6251` y agrupado en PR #83; siguiente corte DX4. La matriz conserva la evidencia física pendiente de Apple Watch; targets, App Group efectivo y consumidores live siguen en sus subfases.
 
 S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad autenticable, pero permanece antes del gate Advanced y en una unidad separada porque incorpora el `App-Token`. S2.1 y S2.2 cierran superficies de Cuenta sin iniciar persistencia de producto. La outbox sí pertenece a L1: el worker de R2 puede llegar después, pero ninguna mutación expuesta puede escribir Colección sin registrar o coalescer su intención en la misma operación lógica.
 
@@ -1241,7 +1548,7 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 - La entrega original de S2 no acreditó una escritura live; la observación manual posterior de `201` y su compatibilidad quedan registradas en S2.2 sin exponer datos de cuenta.
 - S2.2 entregó mediante la PR #40 la validación y presentación de credenciales y la autoridad Keychain V2 vigente en ese momento; #58 cambia solo la infraestructura de sesión a JWT único/V3 y no altera el workflow visual ni incorpora persistencia de producto.
 - L1 entrega mediante la PR #44 `ModelContainer`, esquema V1, modelos SwiftData, outbox y primera mutación atómica. L2 entrega mediante la PR #50 el esquema V2, `@Query`, presentación offline y UI de Colección. R1 entrega mediante la PR #54 la lectura e importación remota con reconciliación local-first. R2.1/R2.2 entregan mediante la PR #60 el POST, GET/DELETE individual, vaciado seguro de intenciones no tombstone y tombstones, con aceptación live multidispositivo y la deuda contractual descrita en su evidencia. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, recuperación de `blockedAuth` y rechazo/reversión atómicos. R2.4 se entrega mediante la PR #70 con resolución manual durable de `blockedOutcome`.
-- A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. El issue #75 / PR #76 entrega Advanced con los gates automáticos y la matriz manual aceptados. Deluxe conserva el plan aprobado #77; DX1 está publicado en #78 y DX2 implementado/validado localmente en #79, pendiente de entrega Git. DX3 y los consumidores live siguen pendientes.
+- A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. El issue #75 / PR #76 entrega Advanced con los gates automáticos y la matriz manual aceptados. Deluxe conserva el plan aprobado #77; DX1/DX2 están entregados mediante PR #80/#81. DX3 completo técnicamente en #82 (5/5), con DX3.5 publicado en `14d6251` y entrega agrupada en PR #83. Los consumidores live siguen en DX4/DX5; DX6/DX7 conservan integración, accesibilidad y gate global.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La evidencia histórica de icono, sesión y accesibilidad se complementa con la matriz vigente de #75: VoiceOver, Control por voz y Switch Control en iPhone 11 físico, y Acceso total con teclado en iPad simulado. Sus límites se conservan en el apartado Advanced; no acredita App Group o WatchConnectivity, capacidades que pertenecen a Deluxe.
 - No se ha autorizado publicación DocC ni GitHub Pages.

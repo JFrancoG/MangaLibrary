@@ -89,6 +89,7 @@ extension CollectionMutationActor {
                     try reconcile(remoteEntries, for: userID, afterMutation: afterMutation)
                     try Task.checkCancellation()
                 }
+                _ = readingEvents?.record(authorization: authorization)
             }
         } catch let error as CollectionRemoteImportError {
             modelContext.rollback()

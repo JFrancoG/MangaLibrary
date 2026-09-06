@@ -12,8 +12,19 @@ import SwiftData
 /// `Sendable` values. A successful call commits both models in one transaction.
 /// Validation, cancellation, sequence exhaustion and persistence failures roll
 /// the context back to its last committed state.
+/// Authorized visible commits invalidate earlier Deluxe preparations and signal
+/// the new persisted state before releasing the same session critical section.
 @ModelActor
 actor CollectionMutationActor {
+    private(set) var readingEvents: ReadingPublicationEvents? = nil
+
+    init(modelContainer: ModelContainer, readingEvents: ReadingPublicationEvents) {
+        let context = ModelContext(modelContainer)
+        self.modelContainer = modelContainer
+        modelExecutor = DefaultSerialModelExecutor(modelContext: context)
+        self.readingEvents = readingEvents
+    }
+
     /// Applies a local intent while its exact session generation remains valid.
     ///
     /// Authority validation and the complete SwiftData transaction share one
@@ -27,7 +38,9 @@ actor CollectionMutationActor {
 
         do {
             return try authorization.perform {
-                try apply(command, newOperationID: newOperationID)
+                let result = try apply(command, newOperationID: newOperationID)
+                _ = readingEvents?.record(authorization: authorization)
+                return result
             }
         } catch let error as CollectionMutationError {
             throw error

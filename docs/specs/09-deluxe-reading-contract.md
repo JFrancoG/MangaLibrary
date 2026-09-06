@@ -1,9 +1,9 @@
-# SDD 09: Contrato de lectura Deluxe — DX1 y DX2
+# SDD 09: Contrato de lectura Deluxe — DX1, DX2 y DX3.1–DX3.4
 
 **Estado:** Aprobada por el propietario el 2026-09-06
-**Versión:** 1.1
+**Versión:** 1.5
 **Fecha:** 2026-09-06
-**Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78) y [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
+**Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79) y [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
 ## Alcance y aprobación
 
@@ -17,7 +17,9 @@ nueva capa de persistencia de Colección ni otro ledger de sesión.
 La autorización posterior para avanzar a DX2 concreta el almacenamiento y la
 recuperación ya exigidos. Esta revisión materializa codec, publicador y conexión
 opcional al propietario de sesión con directorios aislados. La composición live,
-App Group, eventos de Colección y consumidores conservan sus subfases.
+App Group y consumidores conservan sus subfases. La autorización de DX3.4 añade
+eventos de commits reales y activación de sesión a una composición aislada, sin
+conectar todavía el bridge al lanzamiento de producto.
 
 | Decisión | Contrato aprobado | Motivo |
 | --- | --- | --- |
@@ -80,6 +82,31 @@ intermedio. El contador localizado usa `totalEligibleCount - visibleItems.count`
 tanto por tamaño como por límite de transporte. El reloj usa el mismo cálculo
 con todos los elementos recibidos. No se introduce navegación o deep link nuevo
 en DX1.
+
+### Consulta persistida — DX3.1
+
+La autorización del propietario para DX3.1 materializa la consulta como
+`CollectionMutationActor.readingProjection(authorization:)`. Reutiliza el
+predicado de entradas activas del usuario y la capacidad
+`SessionCommitAuthorization`, que comprueba identidad, generación, credencial,
+suspensión y expiración. La autoridad se valida alrededor de la lectura y de
+nuevo después del orden; la futura publicación todavía debe revalidarla.
+
+La consulta no guarda ni revierte cambios: exige un contexto sin modificaciones
+pendientes y desactiva `includePendingChanges`. Primero excluye filas ajenas,
+tombstones y lectura ausente, y después valida únicamente lectura y total.
+Propiedad y completitud históricas incompatibles no invalidan una lectura válida.
+Un snapshot de presentación perteneciente a otro `mangaID` rechaza la preparación;
+no atribuye a una lectura el título o la portada de otro manga.
+
+`CollectionReadingProjection` es un valor exclusivo de la app con autoridad y
+todos los candidatos ordenados, título preparado, progreso y URL opcional de
+portada como insumo privado. No es `Codable`, no contiene modelos SwiftData,
+propiedad ni outbox, y no se comparte con consumidores. No asigna epoch/revisión,
+recorta por 32 KiB, prepara recursos ni publica. Cancelación, contexto pendiente,
+lectura incompatible o fallo de persistencia devuelven error sin resultado parcial
+ni vacío sintético. La conexión de ese error con la conservación del manifest
+pertenece al pipeline posterior de DX3.
 
 ## Formato compartido
 
@@ -238,6 +265,36 @@ para deducir autorización: conserva el último contexto aceptado hasta que otro
 lo sustituya o redacte. Esa cache puede permanecer visible sin conectividad y
 no demuestra que la sesión siga vigente en iPhone.
 
+### Preparación y publicación acotadas — DX3.2
+
+`ReadingPublicationPlan` recibe la proyección privada completa y un mapa de
+referencias de portada ya resueltas por identidad de manga. Valida todos los
+candidatos, incluidos los que quedarán fuera del prefijo, y rechaza duplicados;
+así un error no reduce silenciosamente el total. Referencias incompatibles o
+no suministradas equivalen a placeholder mediante el contrato de `Item`. La URL
+privada nunca se convierte en una referencia wire ni participa en el no-op.
+
+El preparador usa el codec final y solo interpreta exceso de JSON o contexto
+como falta de capacidad. Los demás errores se propagan. Los prefijos de prueba
+crecen de forma acotada; no se codifica la colección completa para descubrir que
+no cabe. La autoridad y el total original acompañan al prefijo, sin fecha ni
+revisión asignadas y sin I/O o admisión de recursos. Con los límites actuales de
+cada item, incluso el primero con título de máximo escaping cabe en 32 KiB; se
+mantiene la defensa de fallo ordinario sin un límite artificial para testearla.
+
+La nueva entrada `ReadingSnapshotPublisher.publish(projection:coverResourceIDs:authorization:)`
+comprueba la coincidencia exacta de autoridad antes de preparar y delega al único
+commit DX2. Este revalida la capacidad y el tamaño exacto final. Una proyección
+idéntica deja intacta una intención de reload pendiente; `recover()` explícito,
+incluida restauración de sesión, la reintenta sin reservar otra publicación. La
+reconciliación inicial sin entregar reloads sigue detectando contadores corruptos
+antes del no-op.
+
+Este bloque no acredita que un digest suministrado tenga un JPEG íntegro en disco.
+Preparación, cuota, integridad y escritura de esos recursos pertenecen a DX3.3;
+el orden entre dos proyecciones de la misma sesión y los eventos reales pertenecen
+a DX3.4. Se conserva un único publicador y no se conecta composición live.
+
 ## Portadas, protección y retención
 
 La app prepara thumbnails con Image I/O, conservando aspecto/orientación,
@@ -281,6 +338,66 @@ limpieza posterior de huérfanos no borra recursos que un manifest pueda seguir
 referenciando. El cierre del fence sigue siendo la protección de las
 nuevas lecturas aunque los bytes de antiguas sesiones permanezcan presentes.
 
+### Materialización de portadas — DX3.3
+
+`ReadingCoverSource` recibe una `URLSession` sin credenciales desde composición;
+no usa el cliente autenticado de la API. Acepta HTTPS sin usuario/contraseña,
+respuesta HTTP 200 y hasta 8.388.608 bytes inclusivos de entrada. Comprueba el
+Content-Length si está disponible y limita también los bytes recibidos mediante
+`AsyncBytes`; cancela la tarea de transporte al terminar o abandonar la lectura.
+Un error opcional produce placeholder y la cancelación de la tarea se propaga.
+
+`ReadingCoverBatch` valida la proyección completa con el plan sin portadas como
+techo del prefijo posible. Fuera del actor del llamador, prepara secuencialmente
+solo esos candidatos, omite URLs ausentes y memoiza cada URL, incluidos fallos.
+No conserva los buffers de origen. Deduplica JPEG por digest y retiene hasta
+8.388.608 bytes únicos de JPEG en memoria; la fuente y la operación nativa en curso
+son transitorias. Este presupuesto no representa un límite del proceso Image I/O.
+
+Image I/O valida tamaño de entrada, dimensiones positivas y hasta 64 millones
+de píxeles antes de crear el thumbnail del primer frame completo. Aplica la
+orientación, conserva aspecto y evita ampliar imágenes pequeñas. Genera un JPEG
+nuevo sin copiar metadatos de origen, probando calidades 0,8, 0,6 y 0,4; si ninguna
+cumple 384 px/65.536 bytes usa placeholder. El valor `ReadingCoverResource` solo
+se construye con JPEG completo, acotado y decodificable, y calcula su digest sobre
+los bytes exactos. El lector abre directorios y archivo sin seguir symlinks,
+rechaza archivos no regulares sin bloquear y limita bytes antes de decodificar.
+
+El único actor `ReadingSnapshotPublisher` recibe los recursos preparados y
+resuelve cuota y prefijo final sin escribir. Compara tanto la propuesta íntegra
+como el resultado limitado antes de admitir recursos. Un journal de una
+publicación ya comprometida puede usarse para planificar solo si coincide con
+el manifest, es compatible, conserva receipts íntegros y no tiene staging;
+la cuota cuenta también ese journal. Así un no-op parcial por cuota tampoco
+limpia ni reescribe el intento anterior. Si cambia el resultado, recupera ese
+intento mientras el manifest aún lo acredita, antes de preparar el nuevo commit.
+La autoridad se comprueba antes del trabajo durable y alrededor de las escrituras.
+
+`ReadingCoverStorage` conserva los JPEG en `covers/` y su metadata privada en
+`cover-admission/`: un `journal.json` de hasta 16.384 bytes, `staging/` y
+`receipts/<digest>.json`. El journal versionado registra intento UUID, digest del
+manifest predecesor (o ausencia comprobada), digest esperado e IDs de archivos
+que no existían al iniciar el intento. Se guarda y verifica antes de escribir
+staging protegido; la promoción exclusiva nunca sobrescribe un JPEG existente.
+Cada receipt es JSON no vacío versionado y se guarda antes del manifest. JPEG,
+receipts, journal y staging cuentan juntos en la cuota durable de 8 MiB. Reutilizar
+un JPEG íntegro con receipt no crea otro journal ni consume bytes adicionales.
+
+El journal se reconcilia contra los bytes canónicos: si son los esperados, se
+retienen recursos; si son el predecesor válido o su ausencia comprobada, solo se
+retiran archivos del intento sin receipt y sin referencia en ese manifest.
+Antes de borrar se completa el inventario y se comprueban todas las pruebas de
+retención. Un manifest incompatible, metadata inaccesible o evidencia ambigua
+conservan los bytes. La pérdida conjunta de JPEG y receipt no permite borrar una
+imagen restaurada que el manifest siga referenciando. No se inventa reparación de
+metadata perdida ni se amplía el estado DX2 de 16 KiB para esta contabilidad.
+
+Los receipts son permanentes incluso si el manifest falla después: esa retención
+conservadora puede agotar antes la cuota, pero nunca autoriza borrar una portada
+publicada. La recuperación opcional de portadas no impide cerrar el fence ni
+revierte un manifest comprometido. Los eventos y el orden entre dos proyecciones
+de una misma sesión se concretan en DX3.4; DX3.3 no conecta composición live.
+
 Se establece protección de archivos `completeUntilFirstUserAuthentication` para
 envelope, fence, portadas y estado del publicador, aplicada a cada archivo nuevo
 antes de su reemplazo. Antes del primer desbloqueo, una lectura inaccesible
@@ -297,6 +414,67 @@ para la disponibilidad del widget de iPhone en Mac.
 El reloj no recibe JPEG ni rutas de App Group. En 1.0 usa placeholder aunque el
 envelope conserve la referencia opaca del iPhone; no intenta resolverla en su
 sandbox ni activar `transferFile`, `transferUserInfo` o `sendMessage`.
+
+## Eventos y orden de preparación — DX3.4
+
+`ReadingPublicationEvents` se comparte entre el único `CollectionMutationActor`,
+el propietario de sesión y `ReadingPublicationPipeline`. Conserva la última
+intención, con autorización de sesión y ticket opaco en memoria. No persiste otro
+contador ni copia datos de Colección en el evento. Cada commit posterior invalida
+el ticket anterior; el orden procede del commit, nunca de terminar una descarga.
+
+La señal se registra sin suspensión después de la transacción exitosa y antes de
+salir de `SessionCommitAuthorization.perform`, sin reentrar al cerrojo de sesión.
+Se cubren mutación local autorizada, importación remota, rechazo permanente,
+reconciliación de DELETE y resolución de outcome bloqueado. Un rollback, rechazo
+o cancelación anterior al commit no emite ni invalida. Claim, confirmación, retry
+y bloqueos que solo cambian outbox no emiten. Una importación sin cambios puede
+emitir y queda suprimida por el no-op final existente.
+
+El descarte de logout restablece la base confirmada bajo la capacidad suspendida
+e invalida el ticket anterior, sin autorizar contenido. Si después falla el cierre
+del fence y la sesión se reactiva, se registra una capacidad nueva para releer
+esa base ya comprometida. Restauración, login y refresh válidos usan el mismo
+punto de activación. Restaurar lectura local no depende de que `/me` o R1 completen
+con red disponible; una capacidad expirada o revocada no atraviesa el publicador.
+
+Un rechazo de autorización durante la lectura, preparación o commit se reconcilia
+con `SessionController.reconcileReadingAuthorization(for:)`. Si se detectó
+caducidad, el propietario cierra el fence y retira Keychain mediante la ruta DX2;
+no basta con rechazar el snapshot nuevo dejando el anterior permitido. Un fallo
+de fence/Keychain se propaga fuera del consumidor y conserva la retirada capturada
+para reintentarla con la misma autoridad completa. Un intento de A nunca retira B.
+Los fallos ordinarios de publicación sí permiten consumir el siguiente evento.
+La cancelación también comprueba si la capacidad ya fue rechazada y reconcilia
+esa retirada antes de propagarse; no exige que siga vigente el ticket del contenido.
+Un fallo de retirada mantiene prioridad sobre la cancelación para poder reintentarlo.
+
+El consumidor de `AsyncStream` tiene una suscripción exclusiva y buffer del último
+evento (`bufferingNewest(1)`). Conserva la última intención entre ejecuciones;
+cancelar no libera la suscripción hasta que finaliza la preparación en curso.
+Terminar el stream ocurre fuera del cerrojo del emisor. Un ciclo nuevo puede
+reintentar el último estado; una suscripción antigua no libera a su sucesora.
+El llamador ejecuta `run()` como tarea hija estructurada. No hay tareas autónomas,
+polling, sleeps, timers o red dentro de la transacción de Colección.
+
+Cada evento relee SwiftData comprometido y utiliza el recorte, preparación de
+portadas y publicador existentes. Comprueba sesión/ticket alrededor de las
+suspensiones. La validación final del ticket comparte la sección crítica de sesión
+con admisión de recursos, reemplazo de manifest y apertura del fence: un commit
+más reciente no se intercala entre la comprobación y ese efecto. Un intento
+superado puede consumir una reserva, que no se reutiliza, pero no atraviesa la
+siguiente frontera de publicación. Fallar no revierte Colección ni outbox; el
+consumidor continúa en el siguiente evento. Cancelación se propaga. No se promete
+latencia de entrega ni reintento periódico.
+
+`AppComposition.makeReadingPublication` recibe el container, las dos raíces,
+reloj, generador de identidades, carga de portada y reload. Devuelve el escritor,
+eventos y publicador que comparten esas dependencias. El llamador inyecta esos
+eventos/publicador en `SessionController` y después crea el consumidor mediante
+`makePipeline(sessionController:)`, que enlaza su reconciliación con ese propietario.
+Las factorías no arrancan trabajo. `AppComposition.live()` permanece sin bridge: resolver el App
+Group real y enlazar el consumidor al ciclo de vida de la app pertenece a DX4.
+No se usa un directorio privado como sustituto de una capacidad concedida.
 
 ## Preparación de targets y fuentes
 
@@ -340,7 +518,9 @@ provisioning, App Group efectivo, embedding y frameworks siguen sin verificar.
 independientes para selección, progreso, wire válido, wire rechazado y fallback
 de portada. No son snapshots de cuentas reales, tests ejecutados ni modelos
 funcionales por sí mismos. DX2 reutiliza esos oráculos en el decoder/publicador;
-DX3 los enlazará a persistencia aislada sin usar producción.
+DX3.1 enlaza selección y orden con SwiftData aislado sin usar producción;
+el recorte y los recursos se materializan en DX3.2–DX3.3; DX3.4 conecta los eventos
+reales en composición aislada y DX3.5 conserva el gate técnico conjunto.
 
 | Fase | Casos de cierre |
 | --- | --- |
@@ -398,6 +578,27 @@ Deluxe Release Gate. Cualquier cambio de ese criterio requerirá una decisión
 explícita en la SDD 06; la aprobación de este contrato no lo elimina.
 
 ## Fuentes y riesgos
+
+- DX3.4 contrasta el SDK activo con [ModelActor](https://developer.apple.com/documentation/swiftdata/modelactor),
+  [AsyncStream, SE-0314](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0314-async-stream.md)
+  y [Mutex, SE-0433](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0433-mutex.md).
+  Los cerrojos no reentrantes contienen solo trabajo síncrono; la suscripción tiene
+  un consumidor y conserva explícitamente la última intención.
+
+- DX3.3 contrasta el SDK activo con Apple:
+  [AsyncBytes](https://developer.apple.com/documentation/foundation/urlsession/asyncbytes),
+  [transformación de thumbnail](https://developer.apple.com/documentation/imageio/kcgimagesourcecreatethumbnailwithtransform),
+  [JPEG desde imagen decodificada](https://developer.apple.com/documentation/imageio/cgimagedestinationaddimage(_:_:_:)),
+  [calidad de compresión](https://developer.apple.com/documentation/imageio/kcgimagedestinationlossycompressionquality)
+  y [escritura sin sobrescritura](https://developer.apple.com/documentation/foundation/nsdata/writingoptions/withoutoverwriting).
+  Esta última no se combina con `.atomic`: se usa staging y promoción exclusiva.
+
+- Apple Foundation: [normalización canónica](https://developer.apple.com/documentation/swift/stringprotocol/precomposedstringwithcanonicalmapping)
+  y [folding con locale explícito](https://developer.apple.com/documentation/foundation/nsstring/folding(options:locale:))
+  sustentan la clave interna de orden; SwiftData documenta
+  [includePendingChanges](https://developer.apple.com/documentation/swiftdata/fetchdescriptor/includependingchanges)
+  para excluir cambios sin guardar de la consulta. DX3.1 caracteriza estas
+  operaciones en el SDK activo con oráculos independientes.
 
 - [SDD 03](03-local-collection-and-invariants.md), COL-020–023 y COL-030–035;
   `CollectionModelsV2.swift`, `CollectionQuery.swift` y orden actual de

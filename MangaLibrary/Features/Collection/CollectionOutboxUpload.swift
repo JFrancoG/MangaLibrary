@@ -296,6 +296,7 @@ extension CollectionMutationActor {
                     try removeOlderConfirmedUploads(than: operation)
                     try Task.checkCancellation()
                 }
+                _ = readingEvents?.record(authorization: authorization)
             }
         } catch let error as CollectionOutboxUploadError {
             modelContext.rollback()
@@ -383,6 +384,7 @@ extension CollectionMutationActor {
                     }
                     try Task.checkCancellation()
                 }
+                _ = readingEvents?.record(authorization: authorization)
             }
             guard let persistedResolution else { throw CollectionOutboxUploadError.persistenceConflict }
             return persistedResolution
@@ -866,6 +868,7 @@ extension CollectionMutationActor {
                     try afterMutation()
                     try Task.checkCancellation()
                 }
+                _ = readingEvents?.record(authorization: authorization)
             }
             guard let resolution else { throw CollectionBlockedOutcomeError.persistenceConflict }
             return resolution

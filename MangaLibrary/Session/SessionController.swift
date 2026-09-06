@@ -119,6 +119,7 @@ actor SessionController {
     private let apiClient: SessionAPIClient
     private let persistence: SessionPersistenceActor
     private let deluxePublisher: ReadingSnapshotPublisher?
+    private let readingEvents: ReadingPublicationEvents?
     private let now: Clock
     private let makeGeneration: GenerationFactory
     private let renewalWindow: TimeInterval
@@ -148,6 +149,7 @@ actor SessionController {
         now: @escaping Clock,
         makeGeneration: @escaping GenerationFactory,
         deluxePublisher: ReadingSnapshotPublisher? = nil,
+        readingEvents: ReadingPublicationEvents? = nil,
         renewalWindow: TimeInterval = 5 * 60,
         synchronizationObserver: @escaping SynchronizationObserver = { _ in },
         logoutPendingChangesObserver: @escaping LogoutPendingChangesObserver,
@@ -157,6 +159,7 @@ actor SessionController {
         self.apiClient = apiClient
         self.persistence = persistence
         self.deluxePublisher = deluxePublisher
+        self.readingEvents = readingEvents
         self.now = now
         self.makeGeneration = makeGeneration
         self.renewalWindow = renewalWindow
@@ -382,6 +385,16 @@ actor SessionController {
         }
         return rejectedRequest != request
             && commitGate.authorizes(authorization.commitAuthorization)
+    }
+
+    /// Reconciles a rejected reading attempt without allowing it to retire a replacement authority.
+    /// Failed fence or Keychain effects remain retryable through this owner's captured retirement.
+    func reconcileReadingAuthorization(for expectedAuthority: SessionAuthority) async throws {
+        if pendingDeluxeRetirement?.authority == expectedAuthority {
+            _ = try await completeDeluxeRetirement()
+            return
+        }
+        _ = try await commitAuthorization(for: expectedAuthority)
     }
 
     /// Returns a commit capability only for the currently active local scope.
@@ -1124,6 +1137,12 @@ actor SessionController {
 
     private func activateCommitGate(for session: SessionPersistedSession) {
         commitGate.activate(session.authority, expiresAt: session.access.expiresAt)
+        guard let readingEvents else { return }
+        let authorization = commitGate.authorization(for: session.authority)
+        // Expiry can deny the new capability. Publication never makes restoration depend on optional I/O.
+        _ = try? authorization.perform {
+            readingEvents.record(authorization: authorization)
+        }
     }
 
     private func clearRestore(_ identity: OperationIdentity) {

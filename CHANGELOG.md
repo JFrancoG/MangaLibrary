@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-09-06 | ✨ feat(deluxe): publish committed reading events
+- 2026-09-06 | ✨ feat(deluxe): prepare durable reading covers
+- 2026-09-06 | ✨ feat(deluxe): bound reading publications
+- 2026-09-06 | ✨ feat(deluxe): project persisted reading state
 - 2026-09-06 | ✨ feat(deluxe): add durable reading bridge
 - 2026-09-04 | ✨ feat(session): resolve pending logout work
 - 2026-09-04 | ✨ feat(collection): resolve uncertain outcomes
@@ -39,6 +43,8 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-06 | 📝 docs(deluxe): link the DX3 delivery
+
 - 2026-09-06 | 📝 docs(delivery): record Deluxe pull requests
 - 2026-09-06 | 📝 docs(deluxe): approve DX1 reading contract
 - 2026-09-06 | 📝 docs(deluxe): record approved implementation plan
@@ -71,6 +77,10 @@ All notable changes to this project are documented in this file.
 - 2026-08-30 | 📝 docs(session): record S1 delivery
 - 2026-08-30 | 📝 docs(session): define versioned Keychain and ledger authority
 - 2026-08-28 | 📝 docs(roadmap): sequence identity, local persistence and sync
+
+### Tests
+
+- 2026-09-06 | ✅ test(deluxe): verify the complete publication pipeline
 
 ### Maintenance
 

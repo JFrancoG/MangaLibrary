@@ -7,6 +7,8 @@ enum ReadingPublicationError: Error {
     case retirementInProgress
     case invalidGeneration
     case contextTooLarge
+    case projectionAuthorityMismatch
+    case staleProjection
 }
 
 /// Owns durable publication ordering. Only a session capability can publish content.
@@ -26,17 +28,20 @@ actor ReadingSnapshotPublisher {
     private let now: @Sendable () -> Date
     private let makeGeneration: @Sendable () -> UUID
     private let requestReload: @Sendable (Data) throws -> Void
+    private let coverStorage: ReadingCoverStorage?
 
     init(
         storage: ReadingSnapshotStorage,
         now: @escaping @Sendable () -> Date,
         makeGeneration: @escaping @Sendable () -> UUID,
-        requestReload: @escaping @Sendable (Data) throws -> Void
+        requestReload: @escaping @Sendable (Data) throws -> Void,
+        coverStorage: ReadingCoverStorage? = nil
     ) {
         self.storage = storage
         self.now = now
         self.makeGeneration = makeGeneration
         self.requestReload = requestReload
+        self.coverStorage = coverStorage
     }
 
     /// Reconciles write intentions with canonical files, without reopening any session.
@@ -44,7 +49,9 @@ actor ReadingSnapshotPublisher {
     /// A closed fence whose recovery metadata is lost cannot prove a harmless bootstrap.
     /// Its caller must retire any residual Keychain generation before accepting authentication.
     func recover() throws -> Recovery {
-        try recover(deliverReloads: true)
+        let recovery = try recover(deliverReloads: true)
+        recoverCovers()
+        return recovery
     }
 
     private func recover(deliverReloads: Bool) throws -> Recovery {
@@ -162,9 +169,89 @@ actor ReadingSnapshotPublisher {
         return nil
     }
 
+    /// Budgets persisted candidates and already resolved cover references before any durable effect.
+    ///
+    /// The capability must belong to the projection's exact authority. Cover identifiers are planning
+    /// inputs, not proof of file integrity; resource preparation and admission belong to the caller.
+    /// This entry point does not establish ordering between two projections of the same session.
+    func publish(
+        projection: CollectionReadingProjection,
+        coverResourceIDs: [Manga.ID: String] = [:],
+        authorization: SessionCommitAuthorization
+    ) throws -> ReadingSnapshot? {
+        try Task.checkCancellation()
+        guard projection.authority == authorization.authority else {
+            throw ReadingPublicationError.projectionAuthorityMismatch
+        }
+        try authorization.perform {}
+        let plan = try ReadingPublicationPlan(projection: projection, coverResourceIDs: coverResourceIDs)
+        return try publish(items: plan.items, totalEligibleCount: plan.totalEligibleCount, authorization: authorization)
+    }
+
+    /// Admits only resources referenced by the final changed prefix, before replacing its manifest.
+    ///
+    /// The event pipeline supplies a ticket invalidated by every newer committed intent. Validation
+    /// shares the session critical section with resource admission, manifest replacement and fence
+    /// opening, so preparation order cannot overwrite a later Collection commit. A stale attempt
+    /// may consume a reservation but cannot pass a subsequent publication boundary.
+    func publish(
+        projection: CollectionReadingProjection,
+        preparedCovers: [Manga.ID: ReadingCoverResource],
+        authorization: SessionCommitAuthorization,
+        ticket: ReadingPublicationTicket? = nil
+    ) throws -> ReadingSnapshot? {
+        try Task.checkCancellation()
+        guard projection.authority == authorization.authority else {
+            throw ReadingPublicationError.projectionAuthorityMismatch
+        }
+        try withPublicationAuthorization(authorization, ticket: ticket) {}
+        let upperBound = try ReadingPublicationPlan(projection: projection)
+        let proposed = try ReadingPublicationPlan(
+            projection: projection,
+            coverResourceIDs: preparedCovers.mapValues(\.identifier)
+        )
+        let previous = try publicationPredecessor(authorization: authorization, ticket: ticket)
+        if
+            previous?.sessionGeneration == authorization.authority.generation,
+            previous?.items == proposed.items,
+            previous?.totalEligibleCount == proposed.totalEligibleCount
+        {
+            try withPublicationAuthorization(authorization, ticket: ticket) {}
+            return nil
+        }
+        let candidates = upperBound.items.compactMap { preparedCovers[$0.mangaID] }
+        let admissible: [ReadingCoverResource]
+        do {
+            admissible = try coverStorage?.admissibleResources(
+                candidates,
+                currentManifest: storage.read(.snapshot)
+            ) ?? []
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // Optional images can fall back only while the candidate manifest is still uncommitted.
+            try Task.checkCancellation()
+            admissible = []
+        }
+        let identifiers = Set(admissible.map(\.identifier))
+        let references = preparedCovers.compactMapValues { resource in
+            identifiers.contains(resource.identifier) ? resource.identifier : nil
+        }
+        let plan = try ReadingPublicationPlan(projection: projection, coverResourceIDs: references)
+        let selected = Set(plan.items.compactMap(\.coverResourceID))
+        return try commit(
+            items: plan.items,
+            totalEligibleCount: plan.totalEligibleCount,
+            resources: admissible.filter { selected.contains($0.identifier) },
+            authorization: authorization,
+            ticket: ticket
+        )
+    }
+
     /// Commits a prepared projection only while its exact session capability remains valid.
     ///
-    /// An identical permitted projection returns `nil` without consuming a revision. Failed
+    /// An identical permitted projection returns `nil` without consuming a revision or requesting a reload.
+    /// A pending reload remains available to explicit recovery, including session restoration. Failed
     /// writes consume their reservation; a reload failure preserves a retryable intention.
     /// The caller supplies the already ordered and budgeted prefix, never live SwiftData models.
     func publish(
@@ -172,36 +259,29 @@ actor ReadingSnapshotPublisher {
         totalEligibleCount: Int64,
         authorization: SessionCommitAuthorization
     ) throws -> ReadingSnapshot? {
-        try Task.checkCancellation()
-        try authorization.perform {}
+        try commit(
+            items: items,
+            totalEligibleCount: totalEligibleCount,
+            resources: [],
+            authorization: authorization
+        )
+    }
+
+    private func commit(
+        items: [ReadingSnapshot.Item],
+        totalEligibleCount: Int64,
+        resources: [ReadingCoverResource],
+        authorization: SessionCommitAuthorization,
+        ticket: ReadingPublicationTicket? = nil
+    ) throws -> ReadingSnapshot? {
+        let previous = try publicationPredecessor(authorization: authorization, ticket: ticket)
         let generation = authorization.authority.generation
-        switch try recover(deliverReloads: false) {
-        case .ready:
-            break
-        case let .retirementPending(outgoing) where outgoing != generation:
-            // A newly authorized Keychain generation proves that the outgoing one is no longer authority.
-            var state = try requiredState()
-            state.intent = nil
-            state.requiresRetirement = false
-            try authorization.perform {
-                try save(state)
-            }
-        case .retirementPending, .retirementRequired:
-            throw ReadingPublicationError.retirementInProgress
-        }
-        let previous: ReadingSnapshot?
-        do {
-            previous = try ReadingSnapshotReader(storage: storage).read()
-        } catch ReadingSnapshotStorageError.incompatibleFile {
-            previous = nil
-        }
         if
             previous?.sessionGeneration == generation,
             previous?.items == items,
             previous?.totalEligibleCount == totalEligibleCount
         {
-            try authorization.perform {}
-            _ = try recover()
+            try withPublicationAuthorization(authorization, ticket: ticket) {}
             return nil
         }
 
@@ -220,6 +300,8 @@ actor ReadingSnapshotPublisher {
         guard try ReadingSnapshotCodec.contextByteCount(for: data) <= 32_768 else {
             throw ReadingPublicationError.contextTooLarge
         }
+        // A failed read is never evidence that the predecessor manifest was absent.
+        let previousManifest = resources.isEmpty ? nil : try storage.read(.snapshot)
 
         let oldFence = try currentFence()
         var openingFence: SessionFence?
@@ -234,7 +316,7 @@ actor ReadingSnapshotPublisher {
                 )
                 state.intent = .bootstrap(closed)
                 try save(state)
-                try authorization.perform {
+                try withPublicationAuthorization(authorization, ticket: ticket) {
                     try replaceAndVerifyFence(closed)
                 }
             }
@@ -255,15 +337,30 @@ actor ReadingSnapshotPublisher {
         ))
         try save(state)
         try Task.checkCancellation()
-        try authorization.perform {
+        if !resources.isEmpty {
+            try withPublicationAuthorization(authorization, ticket: ticket) {
+                try coverStorage?.recover(currentManifest: previousManifest)
+                try coverStorage?.prepare(
+                    resources,
+                    attemptID: makeGeneration(),
+                    previousManifest: previousManifest,
+                    expectedManifest: data
+                )
+            }
+        } else {
+            recoverCovers()
+        }
+        try Task.checkCancellation()
+        try withPublicationAuthorization(authorization, ticket: ticket) {
             try storage.replace(.snapshot, data)
         }
         if let openingFence {
             try Task.checkCancellation()
-            try authorization.perform {
+            try withPublicationAuthorization(authorization, ticket: ticket) {
                 try replaceAndVerifyFence(openingFence)
             }
         }
+        recoverCovers()
         do {
             try requestReload(data)
         } catch {
@@ -272,6 +369,55 @@ actor ReadingSnapshotPublisher {
         state.intent = nil
         try save(state)
         return snapshot
+    }
+
+    private func publicationPredecessor(
+        authorization: SessionCommitAuthorization,
+        ticket: ReadingPublicationTicket? = nil
+    ) throws -> ReadingSnapshot? {
+        try Task.checkCancellation()
+        try withPublicationAuthorization(authorization, ticket: ticket) {}
+        let generation = authorization.authority.generation
+        switch try recover(deliverReloads: false) {
+        case .ready:
+            break
+        case let .retirementPending(outgoing) where outgoing != generation:
+            // A newly authorized Keychain generation proves that the outgoing one is no longer authority.
+            var state = try requiredState()
+            state.intent = nil
+            state.requiresRetirement = false
+            try withPublicationAuthorization(authorization, ticket: ticket) {
+                try save(state)
+            }
+        case .retirementPending, .retirementRequired:
+            throw ReadingPublicationError.retirementInProgress
+        }
+        do {
+            return try ReadingSnapshotReader(storage: storage).read()
+        } catch ReadingSnapshotStorageError.incompatibleFile {
+            return nil
+        }
+    }
+
+    /// Linearizes supersession checks with the Collection commits using this session gate.
+    private func withPublicationAuthorization<Result>(
+        _ authorization: SessionCommitAuthorization,
+        ticket: ReadingPublicationTicket?,
+        operation: () throws -> Result
+    ) throws -> Result {
+        try authorization.perform {
+            try ticket?.validate(authority: authorization.authority)
+            return try operation()
+        }
+    }
+
+    private func recoverCovers() {
+        guard let coverStorage else { return }
+        do {
+            try coverStorage.recover(currentManifest: storage.read(.snapshot))
+        } catch {
+            // Optional cover maintenance cannot delay session denial or roll back a committed manifest.
+        }
     }
 
     /// Verifies durable denial before the session owner conditionally removes Keychain.
