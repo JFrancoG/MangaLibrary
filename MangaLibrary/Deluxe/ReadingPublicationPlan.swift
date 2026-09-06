@@ -7,10 +7,16 @@ import Foundation
 /// revision, canonical UUIDs and the wire's fixed date length, so later counters cannot shrink it.
 /// Cancellation or invalid candidates fail the whole preparation instead of producing empty content.
 struct ReadingPublicationPlan {
-    let authority: SessionAuthority
-    let items: [ReadingSnapshot.Item]
-    let totalEligibleCount: Int64
+    private let storedAuthority: SessionAuthority
+    private let storedItems: [ReadingSnapshot.Item]
+    private let storedTotalEligibleCount: Int64
 
+    var authority: SessionAuthority { storedAuthority }
+    var items: [ReadingSnapshot.Item] { storedItems }
+    var totalEligibleCount: Int64 { storedTotalEligibleCount }
+}
+
+extension ReadingPublicationPlan {
     init(projection: CollectionReadingProjection, coverResourceIDs: [Manga.ID: String] = [:]) throws {
         try Task.checkCancellation()
         var identities = Set<Manga.ID>()
@@ -25,10 +31,10 @@ struct ReadingPublicationPlan {
                 coverResourceID: coverResourceIDs[item.mangaID]
             )
         }
-        authority = projection.authority
-        totalEligibleCount = projection.totalEligibleCount
+        storedAuthority = projection.authority
+        storedTotalEligibleCount = projection.totalEligibleCount
         guard !candidates.isEmpty else {
-            items = []
+            storedItems = []
             return
         }
 
@@ -65,7 +71,7 @@ struct ReadingPublicationPlan {
             }
         }
         try Task.checkCancellation()
-        items = Array(candidates.prefix(lower))
+        storedItems = Array(candidates.prefix(lower))
     }
 
     private static func fits(

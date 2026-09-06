@@ -38,7 +38,10 @@ extension AppComposition {
     ) throws -> ReadingPublicationComposition {
         let events = ReadingPublicationEvents()
         let mutations = CollectionMutationActor(modelContainer: modelContainer, readingEvents: events)
-        let storage = try ReadingSnapshotStorage(sharedDirectory: sharedDirectory, publisherDirectory: publisherDirectory)
+        let storage = try ReadingSnapshotStorage(
+            sharedDirectory: sharedDirectory,
+            publisherDirectory: publisherDirectory
+        )
         let covers = try ReadingCoverStorage(sharedDirectory: sharedDirectory, publisherDirectory: publisherDirectory)
         let publisher = ReadingSnapshotPublisher(
             storage: storage,

@@ -225,9 +225,7 @@ struct ReadingCoverStorage {
             if try !hasReceipt(resource.identifier) {
                 try write(receiptURL(resource.identifier), data: Self.receipt)
             }
-            guard try hasReceipt(resource.identifier) else {
-                throw ReadingCoverStorageError.incompatibleStorage
-            }
+            guard try hasReceipt(resource.identifier) else { throw ReadingCoverStorageError.incompatibleStorage }
         }
     }
 

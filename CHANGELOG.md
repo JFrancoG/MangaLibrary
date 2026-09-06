@@ -76,6 +76,10 @@ All notable changes to this project are documented in this file.
 - 2026-08-30 | 📝 docs(session): define versioned Keychain and ledger authority
 - 2026-08-28 | 📝 docs(roadmap): sequence identity, local persistence and sync
 
+### Tests
+
+- 2026-09-06 | ✅ test(deluxe): verify the complete publication pipeline
+
 ### Maintenance
 
 - 2026-09-04 | 🔧 chore(release): enforce clean Advanced gate

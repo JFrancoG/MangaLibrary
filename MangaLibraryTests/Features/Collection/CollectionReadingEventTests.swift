@@ -357,9 +357,7 @@ private extension ReadingEventFixture {
         let work: CollectionOutboxUploadWorkItem?
         if claim || deletionWithLaterReading {
             let claimed = try #require(try await setup.claimNextUpload(authorization: authorization))
-            guard case let .send(item) = claimed else {
-                throw ReadingEventFailure.expectedQueuedUpload
-            }
+            guard case let .send(item) = claimed else { throw ReadingEventFailure.expectedQueuedUpload }
             work = item
         } else {
             work = nil
