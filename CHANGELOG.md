@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-09-06 | ✨ feat(deluxe): prepare durable reading covers
 - 2026-09-06 | ✨ feat(deluxe): bound reading publications
 - 2026-09-06 | ✨ feat(deluxe): project persisted reading state
 - 2026-09-06 | ✨ feat(deluxe): add durable reading bridge

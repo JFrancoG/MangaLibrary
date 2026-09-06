@@ -1,7 +1,7 @@
-# SDD 09: Contrato de lectura Deluxe — DX1, DX2 y DX3.1–DX3.2
+# SDD 09: Contrato de lectura Deluxe — DX1, DX2 y DX3.1–DX3.3
 
 **Estado:** Aprobada por el propietario el 2026-09-06
-**Versión:** 1.3
+**Versión:** 1.4
 **Fecha:** 2026-09-06
 **Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79) y [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
@@ -336,6 +336,66 @@ limpieza posterior de huérfanos no borra recursos que un manifest pueda seguir
 referenciando. El cierre del fence sigue siendo la protección de las
 nuevas lecturas aunque los bytes de antiguas sesiones permanezcan presentes.
 
+### Materialización de portadas — DX3.3
+
+`ReadingCoverSource` recibe una `URLSession` sin credenciales desde composición;
+no usa el cliente autenticado de la API. Acepta HTTPS sin usuario/contraseña,
+respuesta HTTP 200 y hasta 8.388.608 bytes inclusivos de entrada. Comprueba el
+Content-Length si está disponible y limita también los bytes recibidos mediante
+`AsyncBytes`; cancela la tarea de transporte al terminar o abandonar la lectura.
+Un error opcional produce placeholder y la cancelación de la tarea se propaga.
+
+`ReadingCoverBatch` valida la proyección completa con el plan sin portadas como
+techo del prefijo posible. Fuera del actor del llamador, prepara secuencialmente
+solo esos candidatos, omite URLs ausentes y memoiza cada URL, incluidos fallos.
+No conserva los buffers de origen. Deduplica JPEG por digest y retiene hasta
+8.388.608 bytes únicos de JPEG en memoria; la fuente y la operación nativa en curso
+son transitorias. Este presupuesto no representa un límite del proceso Image I/O.
+
+Image I/O valida tamaño de entrada, dimensiones positivas y hasta 64 millones
+de píxeles antes de crear el thumbnail del primer frame completo. Aplica la
+orientación, conserva aspecto y evita ampliar imágenes pequeñas. Genera un JPEG
+nuevo sin copiar metadatos de origen, probando calidades 0,8, 0,6 y 0,4; si ninguna
+cumple 384 px/65.536 bytes usa placeholder. El valor `ReadingCoverResource` solo
+se construye con JPEG completo, acotado y decodificable, y calcula su digest sobre
+los bytes exactos. El lector abre directorios y archivo sin seguir symlinks,
+rechaza archivos no regulares sin bloquear y limita bytes antes de decodificar.
+
+El único actor `ReadingSnapshotPublisher` recibe los recursos preparados y
+resuelve cuota y prefijo final sin escribir. Compara tanto la propuesta íntegra
+como el resultado limitado antes de admitir recursos. Un journal de una
+publicación ya comprometida puede usarse para planificar solo si coincide con
+el manifest, es compatible, conserva receipts íntegros y no tiene staging;
+la cuota cuenta también ese journal. Así un no-op parcial por cuota tampoco
+limpia ni reescribe el intento anterior. Si cambia el resultado, recupera ese
+intento mientras el manifest aún lo acredita, antes de preparar el nuevo commit.
+La autoridad se comprueba antes del trabajo durable y alrededor de las escrituras.
+
+`ReadingCoverStorage` conserva los JPEG en `covers/` y su metadata privada en
+`cover-admission/`: un `journal.json` de hasta 16.384 bytes, `staging/` y
+`receipts/<digest>.json`. El journal versionado registra intento UUID, digest del
+manifest predecesor (o ausencia comprobada), digest esperado e IDs de archivos
+que no existían al iniciar el intento. Se guarda y verifica antes de escribir
+staging protegido; la promoción exclusiva nunca sobrescribe un JPEG existente.
+Cada receipt es JSON no vacío versionado y se guarda antes del manifest. JPEG,
+receipts, journal y staging cuentan juntos en la cuota durable de 8 MiB. Reutilizar
+un JPEG íntegro con receipt no crea otro journal ni consume bytes adicionales.
+
+El journal se reconcilia contra los bytes canónicos: si son los esperados, se
+retienen recursos; si son el predecesor válido o su ausencia comprobada, solo se
+retiran archivos del intento sin receipt y sin referencia en ese manifest.
+Antes de borrar se completa el inventario y se comprueban todas las pruebas de
+retención. Un manifest incompatible, metadata inaccesible o evidencia ambigua
+conservan los bytes. La pérdida conjunta de JPEG y receipt no permite borrar una
+imagen restaurada que el manifest siga referenciando. No se inventa reparación de
+metadata perdida ni se amplía el estado DX2 de 16 KiB para esta contabilidad.
+
+Los receipts son permanentes incluso si el manifest falla después: esa retención
+conservadora puede agotar antes la cuota, pero nunca autoriza borrar una portada
+publicada. La recuperación opcional de portadas no impide cerrar el fence ni
+revierte un manifest comprometido. Los eventos y el orden entre dos proyecciones
+de una misma sesión siguen en DX3.4; este corte no conecta composición live.
+
 Se establece protección de archivos `completeUntilFirstUserAuthentication` para
 envelope, fence, portadas y estado del publicador, aplicada a cada archivo nuevo
 antes de su reemplazo. Antes del primer desbloqueo, una lectura inaccesible
@@ -396,7 +456,7 @@ independientes para selección, progreso, wire válido, wire rechazado y fallbac
 de portada. No son snapshots de cuentas reales, tests ejecutados ni modelos
 funcionales por sí mismos. DX2 reutiliza esos oráculos en el decoder/publicador;
 DX3.1 enlaza selección y orden con SwiftData aislado sin usar producción;
-los eventos, recursos y recorte siguen en DX3.2–DX3.4.
+el recorte y los recursos se materializan en DX3.2–DX3.3; los eventos siguen en DX3.4.
 
 | Fase | Casos de cierre |
 | --- | --- |
@@ -454,6 +514,14 @@ Deluxe Release Gate. Cualquier cambio de ese criterio requerirá una decisión
 explícita en la SDD 06; la aprobación de este contrato no lo elimina.
 
 ## Fuentes y riesgos
+
+- DX3.3 contrasta el SDK activo con Apple:
+  [AsyncBytes](https://developer.apple.com/documentation/foundation/urlsession/asyncbytes),
+  [transformación de thumbnail](https://developer.apple.com/documentation/imageio/kcgimagesourcecreatethumbnailwithtransform),
+  [JPEG desde imagen decodificada](https://developer.apple.com/documentation/imageio/cgimagedestinationaddimage(_:_:_:)),
+  [calidad de compresión](https://developer.apple.com/documentation/imageio/kcgimagedestinationlossycompressionquality)
+  y [escritura sin sobrescritura](https://developer.apple.com/documentation/foundation/nsdata/writingoptions/withoutoverwriting).
+  Esta última no se combina con `.atomic`: se usa staging y promoción exclusiva.
 
 - Apple Foundation: [normalización canónica](https://developer.apple.com/documentation/swift/stringprotocol/precomposedstringwithcanonicalmapping)
   y [folding con locale explícito](https://developer.apple.com/documentation/foundation/nsstring/folding(options:locale:))

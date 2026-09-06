@@ -1,7 +1,71 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-06
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, Q2, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1, las correcciones #55, #58, #61, #63 y #65 y el Advanced Release Gate entregados; Deluxe aprobado; DX1 y DX2 completos (2/7 cortes técnicos), con entrega mediante PR #80 y #81; DX3.1 publicado y DX3.2 implementado y validado localmente en #82 (2/5 bloques de DX3); DX3.3–DX3.5 pendientes
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, Q2, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1, las correcciones #55, #58, #61, #63 y #65 y el Advanced Release Gate entregados; Deluxe aprobado; DX1 y DX2 completos (2/7 cortes técnicos), con entrega mediante PR #80 y #81; DX3.1 y DX3.2 publicados; DX3.3 implementado y validado localmente en #82 (3/5 bloques de DX3); DX3.4–DX3.5 pendientes
+
+## DX3.3 — portadas acotadas y recuperación — issue #82
+
+- El propietario autoriza «commit y push y DX3.3» el 6 de septiembre de 2026 y
+  pide continuar tras la interrupción. DX3.2 se publica en
+  `95213eda4f9cacde31929917c2d7d750f087691a`, rama
+  `codex/82-dx3-reading-projection`; HEAD remoto verificado. Se conserva la
+  validación reciente de ese bloque sin deriva funcional antes del commit.
+  DX3.3 queda local, sin ampliar la entrega a PR, merge, cierre o DX3.4.
+- Entrada HTTPS opcional mediante `URLSession.AsyncBytes`, acotada a 8 MiB;
+  preparación secuencial fuera del actor del llamador sobre el prefijo potencial,
+  con deduplicación de URL y bytes JPEG, sin cache de fuentes. Image I/O produce
+  el primer frame orientado, con aspecto preservado y sin copiar metadata,
+  hasta 384 px/65.536 bytes. Un valor validado calcula SHA-256 de los bytes exactos.
+- Un único publicador decide cuota/prefijo y no-op antes de escribir portadas.
+  Journal, staging protegido y receipts permanentes preceden al manifest;
+  promoción exclusiva, reutilización íntegra y cuota global de 8 MiB incluyendo
+  metadata. Fallo posterior a seleccionar una referencia conserva el manifest
+  anterior y consume la reserva, sin sustituirlo por éxito con placeholder.
+- Recuperación conservadora: inventario completo antes de borrar, manifiesto
+  reconciliado válido y ausencia de receipt para un huérfano propio. Se retienen
+  recursos ambiguos o ya referenciados, incluso al restaurar un JPEG cuya receipt
+  desapareció. Los receipts anteriores al manifest se conservan aunque falle
+  este último; esa retención deliberada puede agotar la cuota antes.
+- La revisión detecta y convierte en RED dos casos adicionales: pérdida conjunta
+  de JPEG/receipt con referencia vigente, y avance de manifest tras una limpieza
+  pendiente. El plan puede leer un journal ya comprometido sin modificarlo;
+  después del no-op final, el commit liquida ese intento contra el manifest aún
+  válido. El caso parcial por cuota también queda sin escrituras ni reload.
+  Un fallo de mantenimiento de portadas no impide cerrar el fence de sesión.
+- RED compilables por Xcode MCP: imagen/fuente (35 fallos de 39 invocaciones,
+  con 4 controles), almacenamiento/publicación (16 fallos y 10 controles),
+  batch (7 fallos), no-op con journal pendiente, las dos regresiones de retención
+  y las dos de avance/no-op parcial. El fixture de cuota inicial generaba JPEG
+  de 71.320 bytes a calidad 0,4 y era correctamente rechazado; se ajusta el
+  ruido sintético a 352×352, conservando los oráculos de ocupación de 8 MiB.
+- GREEN y regresión completos por `RunAllTests`: **Fast 264/264 declaraciones,
+  370 invocaciones; Integration 365/365, 497 invocaciones**. Total **629/867**,
+  cero fallos, skips, expected failures o runtime warnings. Los árboles nativos
+  `.xcresult` acreditan las **53 declaraciones/80 invocaciones nuevas**:
+  preparación 14/28, fuente 5/11, batch 7/7, almacenamiento 17/24 y publicación
+  10/10. Los agregados MCP incluyen resultados ajenos al filtro; no se usan para
+  declarar cardinalidad ni se confunden con ejecución de ReleaseGate completo.
+- Xcode MCP oficial: Xcode 27 `27A5252f`, Swift 6.4, scheme MangaLibrary,
+  iPhone 17 Simulator/iOS 27 `24A5423a`. Build-for-testing final y log completo
+  sin warnings/errores; Navigator sin diagnósticos. Fast queda activo. El script
+  de planes acredita 18 suites Fast y 30 Integration, partición y filtros válidos.
+- Gate DocC final: `Scripts/validate-docc.sh` termina con exit 0 en Release
+  generic iOS y DerivedData temporal nuevo. Archive generado en
+  `.build/docc/MangaLibrary.doccarchive`, con cero warnings/errores y sin allowlist.
+- Revisión iOS independiente y Audit Swift Source Style sobre los 12 Swift:
+  correcciones conductuales y léxicas aplicadas. Reauditoría final de código,
+  resultados nativos, DocC y documentación cerrada sin hallazgos.
+- **DX3.3 completo localmente, pendiente de commit/push; DX3 queda en 3/5 bloques.**
+  #82 y #77 siguen abiertos; Deluxe conserva 2/7 subfases entregadas por PR.
+  Siguiente: **DX3.4, eventos y orden entre proyecciones de la misma sesión**.
+  SDD 09 v1.4 concreta fuentes, recursos y recuperación; wire y esquema no cambian.
+- Validación determinista con URLProtocol, imágenes nativas sintéticas y disco
+  temporal aislado, sin red real o producción. La cancelación de la transferencia
+  ya iniciada y la cota de 64 millones de píxeles conservan revisión de código,
+  sin caracterización runtime específica. No cambia UI, composición live,
+  targets, App Group o entitlements. No acredita WidgetKit, WatchConnectivity,
+  accesibilidad ni hardware. `project.pbxproj` conserva SHA-256
+  `ee6cd588ee1ba5666a71b8b42cbc19338af70025072d35a4efe1acb14732ab76`.
 
 ## DX3.2 — prefijo estable y no-op — issue #82
 
@@ -1322,7 +1386,7 @@ La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden d
 8. **R2 — envío y reconciliación de outbox.** R2.1 y R2.2 están entregados mediante la PR #60. La decisión del propietario del 2 de septiembre fija `{id}` como `Manga.ID` `int64` serializado en decimal; el UUID de entrada no forma el path y la discrepancia `string` queda como deuda contractual. R2.1 reutiliza el GET completo R1 e implementa POST y procesamiento conservador de intenciones no tombstone; R2.2 añade GET/DELETE individual, tombstones y la confirmación destructiva de UI. Ambos cortes están validados localmente y R2.2 cuenta con aceptación live multidispositivo de la ruta decimal y la ausencia reconciliada; el status/body exacto del primer DELETE y el GET presente `200` siguen sin caracterización directa. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, `blockedAuth` recuperable y rechazo positivo con reversión atómica. R2.4 se entrega mediante la PR #70 con revisión fresca, adopción remota o nueva intención consciente y resolución atómica del `blockedOutcome`.
 9. **Cota transversal de números de tomo, entregada mediante la PR #64.** Fija 300 como máximo inclusivo compartido, preserva `nil` como total desconocido y protege editor, mutación, R1 y R2 frente a valores históricos o remotos fuera de rango sin truncado ni transporte accidental.
 10. **Advanced Release Gate — aceptado y entregado mediante el issue #75 / PR #76.** A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. La automatización global acredita build, planes, Swift Testing, UI en iPhone/iPad, ReleaseGate, DocC, contrato e integridad sin warnings ni allowlists. La matriz manual está completa con VoiceOver, Control por voz y Switch Control en iPhone físico y Acceso total con teclado en iPad simulado, sin extrapolar este último a hardware. La fusión `06170b7` del 6 de septiembre de 2026 habilita la entrada a Deluxe.
-11. **Deluxe — plan aprobado en el issue #77.** DX1 aprobado y publicado en #78; DX2 implementado y validado localmente en #79 (2/7 cortes técnicos), pendiente de entrega Git. DX3 todavía sin iniciar. La matriz conserva la evidencia física pendiente de Apple Watch; targets, App Group efectivo y consumidores live siguen en sus subfases.
+11. **Deluxe — plan aprobado en el issue #77.** DX1 y DX2 entregados mediante PR #80 y #81 (2/7 cortes técnicos). DX3.1/DX3.2 publicados y DX3.3 validado localmente en #82; quedan DX3.4/DX3.5. La matriz conserva la evidencia física pendiente de Apple Watch; targets, App Group efectivo y consumidores live siguen en sus subfases.
 
 S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad autenticable, pero permanece antes del gate Advanced y en una unidad separada porque incorpora el `App-Token`. S2.1 y S2.2 cierran superficies de Cuenta sin iniciar persistencia de producto. La outbox sí pertenece a L1: el worker de R2 puede llegar después, pero ninguna mutación expuesta puede escribir Colección sin registrar o coalescer su intención en la misma operación lógica.
 
@@ -1341,7 +1405,7 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 - La entrega original de S2 no acreditó una escritura live; la observación manual posterior de `201` y su compatibilidad quedan registradas en S2.2 sin exponer datos de cuenta.
 - S2.2 entregó mediante la PR #40 la validación y presentación de credenciales y la autoridad Keychain V2 vigente en ese momento; #58 cambia solo la infraestructura de sesión a JWT único/V3 y no altera el workflow visual ni incorpora persistencia de producto.
 - L1 entrega mediante la PR #44 `ModelContainer`, esquema V1, modelos SwiftData, outbox y primera mutación atómica. L2 entrega mediante la PR #50 el esquema V2, `@Query`, presentación offline y UI de Colección. R1 entrega mediante la PR #54 la lectura e importación remota con reconciliación local-first. R2.1/R2.2 entregan mediante la PR #60 el POST, GET/DELETE individual, vaciado seguro de intenciones no tombstone y tombstones, con aceptación live multidispositivo y la deuda contractual descrita en su evidencia. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, recuperación de `blockedAuth` y rechazo/reversión atómicos. R2.4 se entrega mediante la PR #70 con resolución manual durable de `blockedOutcome`.
-- A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. El issue #75 / PR #76 entrega Advanced con los gates automáticos y la matriz manual aceptados. Deluxe conserva el plan aprobado #77; DX1 está publicado en #78 y DX2 implementado/validado localmente en #79, pendiente de entrega Git. DX3 y los consumidores live siguen pendientes.
+- A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. El issue #75 / PR #76 entrega Advanced con los gates automáticos y la matriz manual aceptados. Deluxe conserva el plan aprobado #77; DX1/DX2 están entregados mediante PR #80/#81. DX3.1/DX3.2 publicados y DX3.3 validado localmente en #82; DX3.4/DX3.5 y los consumidores live siguen pendientes.
 - No existen todavía targets, entitlements, App Group ni integración WidgetKit que materialicen ADR 0010.
 - La evidencia histórica de icono, sesión y accesibilidad se complementa con la matriz vigente de #75: VoiceOver, Control por voz y Switch Control en iPhone 11 físico, y Acceso total con teclado en iPad simulado. Sus límites se conservan en el apartado Advanced; no acredita App Group o WatchConnectivity, capacidades que pertenecen a Deluxe.
 - No se ha autorizado publicación DocC ni GitHub Pages.
