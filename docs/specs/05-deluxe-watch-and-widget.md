@@ -1,8 +1,8 @@
 # SDD 05: Deluxe, watchOS y widget
 
 **Estado:** Aprobada
-**Versión:** 1.6
-**Fecha:** 2026-09-02
+**Versión:** 1.7
+**Fecha:** 2026-09-06
 **Gate de entrada:** Advanced Release Gate superado
 
 ## Propósito
@@ -49,6 +49,12 @@ frontera completa se define en
 [ADR-0019](../adr/0019-single-jwt-session-and-keychain-v3.md).
 
 ## Snapshot de lectura
+
+El [contrato DX1 / SDD 09 v1.0](09-deluxe-reading-contract.md), aprobado por el
+propietario el 6 de septiembre de 2026, concreta selección, presentación, wire,
+límites y preparación de targets. Su matriz distingue las pruebas con Simulator
+de la evidencia física pendiente por falta de Apple Watch; conserva el gate de
+la SDD 06 y no activa capacidades.
 
 La aplicación principal publicará un valor inmutable `Codable & Sendable` y versionado con la información mínima necesaria para representar mangas en lectura:
 
