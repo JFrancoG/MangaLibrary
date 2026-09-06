@@ -4,6 +4,8 @@ Manga Library es una aplicación SwiftUI local-first para explorar un catálogo 
 
 ## Estado
 
+**Advanced está aceptado y entregado** mediante el [issue #75](https://github.com/JFrancoG/MangaLibrary/issues/75) y la [PR #76](https://github.com/JFrancoG/MangaLibrary/pull/76), fusionada el 6 de septiembre de 2026. **El plan Deluxe del [issue #77](https://github.com/JFrancoG/MangaLibrary/issues/77) está aprobado**, con siete subfases y criterios de cierre. El propietario autorizó comenzar DX1 — contrato de lectura y preparación técnica; las capacidades ejecutables Deluxe todavía no están implementadas.
+
 El catálogo público está entregado en cuatro cortes: [C1](https://github.com/JFrancoG/MangaLibrary/issues/13) materializa el shell, la primera página y el detalle por `Manga.ID`; [C2](https://github.com/JFrancoG/MangaLibrary/issues/21) añade paginación incremental y lista/cuadrícula; [C3](https://github.com/JFrancoG/MangaLibrary/issues/25) incorpora búsqueda avanzada, filtros y «Mejores»; y [C4](https://github.com/JFrancoG/MangaLibrary/issues/27) enriquece manga y detalle, adopta navegación compacta nativa y anticipa la siguiente página. El contrato cromático y la adopción ejecutable de [Library Red](https://github.com/JFrancoG/MangaLibrary/issues/29) también están entregados.
 
 **S1 — identidad y sesión JWT única** usa `POST /users/jwt/login`, valida la identidad estable mediante `/users/jwt/me` y renueva preventivamente el mismo tipo de JWT mediante `/users/jwt/refresh`. La autoridad vigente, el UUID, la generación opaca, el JWT y su expiración forman un único registro Keychain V3 `WhenUnlockedThisDeviceOnly`, no sincronizable y con un `kSecAttrAccount` fijo no identificador. Los envelopes V1/V2 no se reinterpretan y se retiran para exigir un login nuevo. Logout publica `signedOut` solo después de borrar condicionalmente la generación esperada; un fallo permite reintentar con la sesión activa únicamente mientras su JWT siga vigente, y si vence conserva `authenticationRequired` fail-closed. `authenticationRequired` conserva el UUID únicamente en memoria tras invalidar la credencial e intentar retirar el registro, y no sobrevive a un relanzamiento. Cuenta no expone tokens; la contraseña vive solo en el modelo efímero del formulario, se elimina al enviar o abandonar y no se retiene en `AccountModel`, logs ni persistencia.
@@ -74,7 +76,7 @@ configuración distribuida del producto:
 ./Scripts/validate-advanced-build.sh
 ```
 
-Si Xcode 27 no está en la ubicación predeterminada del script, se puede indicar su Developer directory mediante `MANGALIBRARY_DEVELOPER_DIR`. La automatización del Advanced Release Gate se reúne en el issue #75; su aceptación permanece pendiente mientras falte la matriz manual vigente de tecnologías de asistencia. Deluxe no ha comenzado.
+Si Xcode 27 no está en la ubicación predeterminada del script, se puede indicar su Developer directory mediante `MANGALIBRARY_DEVELOPER_DIR`. El Advanced Release Gate del issue #75 está aceptado y entregado con la matriz manual y sus límites registrados en [Progreso](docs/Progress.md#advanced-release-gate--issue-75). El [issue #77](https://github.com/JFrancoG/MangaLibrary/issues/77) conserva el plan operativo Deluxe y su siguiente subfase; sus targets y capacidades todavía no están implementados.
 
 El gate falla ante cualquier warning o error. También exige que los tres targets
 omitan la extracción de metadata de App Intents mientras el producto no declare
