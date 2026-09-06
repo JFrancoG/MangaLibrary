@@ -1,11 +1,12 @@
 # Ejemplos de contrato Deluxe
 
-Estos JSON son ejemplos sintéticos del [contrato aprobado DX1 / SDD 09 v1.0](../../docs/specs/09-deluxe-reading-contract.md).
-No contienen datos reales ni constituyen evidencia de un decoder, publicador o
-transporte implementado. Tampoco se han añadido a los targets o planes de tests.
+Estos JSON son ejemplos sintéticos del [contrato aprobado DX1 / SDD 09](../../docs/specs/09-deluxe-reading-contract.md).
+No contienen datos reales ni constituyen por sí solos evidencia ejecutable.
+Los tests DX2 de codec/publicación leen estos archivos desde el checkout; no se
+incluyen en el bundle de producto ni acreditan un transporte WatchConnectivity.
 
 Los resultados esperados de esta tabla y de `projection-scenarios.json` son el
-oráculo independiente para los futuros tests Swift Testing; no se calculan desde
+oráculo independiente para Swift Testing; no se calculan desde
 una implementación de Deluxe. La verificación DX1 comprueba que los ejemplos se
 pueden leer y que los defectos intencionados y conteos concuerdan con la tabla.
 
@@ -33,8 +34,8 @@ son fixtures independientes, no una secuencia real con callbacks, Keychain o
 reloj. No hay portada binaria: las referencias nulas prueban ausencia; los tests
 de recursos válidos, digest, tamaño, staging y cuota pertenecen a DX3.
 
-Al implementar se añadirán pruebas de límite exacto 32.768/32.769 bytes del
-diccionario `readingSnapshot: Data` serializado con Foundation y de títulos
-Unicode abreviados; las medidas Python sobre estos ejemplos no certifican la
+DX2 añade pruebas de límite exacto 32.768/32.769 bytes del diccionario
+`readingSnapshot: Data` serializado con Foundation. La abreviación de títulos
+Unicode pertenece a DX3; las medidas Python sobre estos ejemplos no certifican la
 serialización del SDK ni la aceptación por WatchConnectivity. El reloj recibe
 `Data` de estos envelopes, nunca `projection-scenarios.json` ni el README.

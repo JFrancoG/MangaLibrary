@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-09-06 | ✨ feat(deluxe): add durable reading bridge
 - 2026-09-04 | ✨ feat(session): resolve pending logout work
 - 2026-09-04 | ✨ feat(collection): resolve uncertain outcomes
 - 2026-09-03 | ✨ feat(collection): add safe outbox recovery states
@@ -38,6 +39,7 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-06 | 📝 docs(delivery): record Deluxe pull requests
 - 2026-09-06 | 📝 docs(deluxe): approve DX1 reading contract
 - 2026-09-06 | 📝 docs(deluxe): record approved implementation plan
 - 2026-09-04 | 📝 docs(delivery): record Q2 pull request

@@ -1,9 +1,9 @@
-# SDD 09: Contrato de lectura Deluxe — DX1
+# SDD 09: Contrato de lectura Deluxe — DX1 y DX2
 
 **Estado:** Aprobada por el propietario el 2026-09-06
-**Versión:** 1.0
+**Versión:** 1.1
 **Fecha:** 2026-09-06
-**Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), hijo del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
+**Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78) y [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
 ## Alcance y aprobación
 
@@ -13,6 +13,11 @@ decisiones que deberán cumplir las siguientes subfases. No activa targets,
 entitlements o dispositivos. Conserva la arquitectura de
 snapshots de ADR 0007/0010 y la autoridad Keychain V3 de ADR 0019; no necesita una
 nueva capa de persistencia de Colección ni otro ledger de sesión.
+
+La autorización posterior para avanzar a DX2 concreta el almacenamiento y la
+recuperación ya exigidos. Esta revisión materializa codec, publicador y conexión
+opcional al propietario de sesión con directorios aislados. La composición live,
+App Group, eventos de Colección y consumidores conservan sus subfases.
 
 | Decisión | Contrato aprobado | Motivo |
 | --- | --- | --- |
@@ -116,7 +121,7 @@ desconocidos. Rechaza documento truncado, UTF-8 inválido y números que no pued
 representarse exactamente en el tipo entero requerido o estén fuera de rango.
 El escritor no genera claves duplicadas. Se usarán los codecs nativos, sin
 introducir un parser JSON propio para imponer otra gramática léxica. Este
-contrato no implica que ya exista un decoder implementado.
+contrato se implementa en el codec compartido de DX2.
 
 No viajan UUID de usuario, credenciales, correo, URL remota, rutas absolutas,
 estado de outbox, propiedad, secuencias de sincronización ni modelos SwiftData.
@@ -133,9 +138,65 @@ de la de publicación. La lectura del envelope sin fence no autoriza contenido.
 
 Bootstrap, apertura B, reservas, rotación de epoch, crash y punto de no retorno
 siguen exactamente SDD 05. El estado durable del publicador existe para ordenar
-y recuperar publicaciones; no autoriza sesiones ni sustituye Keychain. DX2
-concretará sus bytes internos junto al algoritmo de recuperación; este wire no
-expone tal estado a los consumidores.
+y recuperar publicaciones; no autoriza sesiones ni sustituye Keychain. El wire
+no expone tal estado a los consumidores.
+
+### Almacenamiento y recuperación del publicador — DX2
+
+`ReadingSnapshotStorage` recibe dos raíces por composición. La raíz compartida
+contiene `session-fence.json` y `reading-snapshot.json`; la raíz privada de la app
+contiene `publisher-state.json`. En DX2 ambas son directorios temporales aislados
+en tests. No se simula un App Group efectivo mediante una ruta privada live.
+Cada sustitución usa escritura atómica y la protección de archivos aprobada;
+la atomicidad de un archivo no se presenta como transacción de los tres.
+
+El estado privado es JSON `Codable`, formato 1, limitado a 16 KiB. Persiste
+`publicationGeneration`, `lastReservedRevision`, `lastReservedFenceRevision`,
+`requiresRetirement` e intención opcional. No guarda JWT, usuario, correo,
+colección, títulos ni un estado autenticado. El fence se limita a 1 KiB y el
+envelope a 32 KiB antes de decodificar. Un archivo no regular o sobredimensionado
+es incompatible; un fallo temporal de lectura se propaga sin inicializar epoch.
+
+- Bootstrap: intención con el fence cerrado de destino. La recuperación puede
+  completar ese cierre, nunca una apertura de sesión.
+- Publicación: reserva, generación, SHA-256 de los bytes exactos del envelope,
+  fence de apertura esperado y marca de redacción. La reserva se guarda antes del
+  manifest. Si el archivo canónico y el fence permiten esos mismos bytes, un
+  reload pendiente se reintenta sin revisión nueva; si no, se abandona el intento
+  incompleto conservando el contador consumido. No se abre el fence al recuperar.
+- Retirada: generación cuyo Keychain debe eliminarse, generación a la que se
+  dirige la redacción, revisión reservada y fence cerrado de destino. Las dos
+  generaciones pueden diferir: si la redacción de A falla, B puede entrar y salir
+  antes de publicar; su cierre retira B y la redacción pendiente sigue dirigida a A.
+
+Una retirada conserva como máximo un estado/fence canónicos predecesores, sin
+su propio predecesor. La validación rechaza una cadena adicional. Si el proceso
+se interrumpe antes del nuevo fence, se recupera ese estado anterior; las reservas
+del mismo epoch permanecen consumidas. Si el fence de destino es canónico, la
+retirada está comprometida. No se elige un epoch por comparación numérica.
+El descriptor se escribe antes del fence también ante overflow; después de
+verificar el cierre no hay escritura de bookkeeping ni comprobación de
+cancelación que pueda impedir devolver el commit al propietario de sesión.
+
+Un primer bootstrap inocuo exige ausencia coherente de todos los artefactos.
+Historia previa con autorización irrecuperable, un fence cerrado sin metadata
+fiable o una contradicción entre estado y fence requieren retirar cualquier
+Keychain residual antes de aceptar autenticación. Un manifest del mismo epoch
+cuya revisión supera el contador reservado demuestra corrupción y fuerza una
+rotación, incluso si la proyección solicitada sería idéntica. Un manifest
+incompatible puede reemplazarse bajo capacidad vigente; no representa vacío.
+
+`SessionController` recibe el publicador opcional por inicializador; Advanced
+mantiene su composición vigente. La recuperación se completa antes de aplicar
+Keychain. Logout conserva la decisión A1, suspende la capacidad ordinaria y
+consume su capacidad de cierre; invalidación/expiración conservan una continuación
+de saneamiento de la generación capturada. Esa continuación pertenece solo al
+propietario de sesión y bloquea un login sustituto hasta terminar; no acepta
+eventos tardíos de consumidores ni autoriza contenido. El borrado sigue siendo
+condicional a la autoridad exacta de Keychain. Fallos después del fence verificado
+mantienen la cuenta retirada y reintentable; redacción/reload son eventuales y
+no bloquean una cuenta posterior. Sin Keychain también se cierra cualquier fence
+residual antes de exponer el estado desconectado.
 
 ## Presupuesto y WatchConnectivity
 
@@ -246,14 +307,15 @@ sandbox ni activar `transferFile`, `transferUserInfo` o `sendMessage`.
 | Companion | `MangaLibraryWatch`; bundle `com.plusprojects.MangaLibrary.watchkitapp`; watchOS 27 | Preparación aprobada; vincular con la app existente en DX5, no crear otra app iOS. |
 | App Group | `group.com.plusprojects.MangaLibrary.deluxe` para app iOS y widget | Identificador previsto aprobado; no registrado ni concedido. La activación conserva su alcance y autorización propios. No se añade al reloj. |
 | Widget kind | `com.plusprojects.MangaLibrary.reading` | Único kind de 1.0, compartido por provider y reload. |
-| Fuentes comunes | `Shared/Deluxe/ReadingSnapshot.swift` y `Shared/Deluxe/SessionFence.swift` | Valores/codec de plataforma mínima; sin importar el módulo app o SwiftData. |
+| Fuentes comunes | `MangaLibrary/Shared/Deluxe/` | Snapshot, fence, codec y lector; inclusión automática en la app actual, pertenencia explícita adicional al crear consumidores. Sin importar el módulo app o SwiftData. |
 | Publicación app | `MangaLibrary/Deluxe/` | Único escritor compuesto en `AppComposition`; efectos DX2–DX3. |
 | Consumidores | `MangaLibraryWidget/` y `MangaLibraryWatch/` | Views, adaptación de plataforma y recepción; DX4–DX5. |
 
 Xcode 27 build `27A5252f`, su compilador Swift 6.4 y los SDK watchOS/watchOS
 Simulator 27 se verificaron en esta sesión. El scheme activo sigue siendo
 `MangaLibrary`, plan `Fast`, iPhone 17 Simulator/iOS 27. No se ha cambiado la
-selección del IDE ni se ha compilado.
+selección del IDE ni se compiló durante DX1. DX2 ejecuta builds y los planes
+afectados; su evidencia actual vive en [Progress](../Progress.md).
 
 Templates consultados por Xcode MCP:
 
@@ -277,7 +339,7 @@ provisioning, App Group efectivo, embedding y frameworks siguen sin verificar.
 [Contracts/Deluxe](../../Contracts/Deluxe/README.md) conserva ejemplos sintéticos
 independientes para selección, progreso, wire válido, wire rechazado y fallback
 de portada. No son snapshots de cuentas reales, tests ejecutados ni modelos
-funcionales. DX2 reutilizará esos oráculos al implementar el decoder/publicador;
+funcionales por sí mismos. DX2 reutiliza esos oráculos en el decoder/publicador;
 DX3 los enlazará a persistencia aislada sin usar producción.
 
 | Fase | Casos de cierre |
