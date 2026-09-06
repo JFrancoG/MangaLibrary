@@ -1,7 +1,7 @@
-# SDD 09: Contrato de lectura Deluxe — DX1, DX2 y DX3.1–DX3.3
+# SDD 09: Contrato de lectura Deluxe — DX1, DX2 y DX3.1–DX3.4
 
 **Estado:** Aprobada por el propietario el 2026-09-06
-**Versión:** 1.4
+**Versión:** 1.5
 **Fecha:** 2026-09-06
 **Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79) y [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
@@ -17,7 +17,9 @@ nueva capa de persistencia de Colección ni otro ledger de sesión.
 La autorización posterior para avanzar a DX2 concreta el almacenamiento y la
 recuperación ya exigidos. Esta revisión materializa codec, publicador y conexión
 opcional al propietario de sesión con directorios aislados. La composición live,
-App Group, eventos de Colección y consumidores conservan sus subfases.
+App Group y consumidores conservan sus subfases. La autorización de DX3.4 añade
+eventos de commits reales y activación de sesión a una composición aislada, sin
+conectar todavía el bridge al lanzamiento de producto.
 
 | Decisión | Contrato aprobado | Motivo |
 | --- | --- | --- |
@@ -394,7 +396,7 @@ Los receipts son permanentes incluso si el manifest falla después: esa retenci�
 conservadora puede agotar antes la cuota, pero nunca autoriza borrar una portada
 publicada. La recuperación opcional de portadas no impide cerrar el fence ni
 revierte un manifest comprometido. Los eventos y el orden entre dos proyecciones
-de una misma sesión siguen en DX3.4; este corte no conecta composición live.
+de una misma sesión se concretan en DX3.4; DX3.3 no conecta composición live.
 
 Se establece protección de archivos `completeUntilFirstUserAuthentication` para
 envelope, fence, portadas y estado del publicador, aplicada a cada archivo nuevo
@@ -412,6 +414,67 @@ para la disponibilidad del widget de iPhone en Mac.
 El reloj no recibe JPEG ni rutas de App Group. En 1.0 usa placeholder aunque el
 envelope conserve la referencia opaca del iPhone; no intenta resolverla en su
 sandbox ni activar `transferFile`, `transferUserInfo` o `sendMessage`.
+
+## Eventos y orden de preparación — DX3.4
+
+`ReadingPublicationEvents` se comparte entre el único `CollectionMutationActor`,
+el propietario de sesión y `ReadingPublicationPipeline`. Conserva la última
+intención, con autorización de sesión y ticket opaco en memoria. No persiste otro
+contador ni copia datos de Colección en el evento. Cada commit posterior invalida
+el ticket anterior; el orden procede del commit, nunca de terminar una descarga.
+
+La señal se registra sin suspensión después de la transacción exitosa y antes de
+salir de `SessionCommitAuthorization.perform`, sin reentrar al cerrojo de sesión.
+Se cubren mutación local autorizada, importación remota, rechazo permanente,
+reconciliación de DELETE y resolución de outcome bloqueado. Un rollback, rechazo
+o cancelación anterior al commit no emite ni invalida. Claim, confirmación, retry
+y bloqueos que solo cambian outbox no emiten. Una importación sin cambios puede
+emitir y queda suprimida por el no-op final existente.
+
+El descarte de logout restablece la base confirmada bajo la capacidad suspendida
+e invalida el ticket anterior, sin autorizar contenido. Si después falla el cierre
+del fence y la sesión se reactiva, se registra una capacidad nueva para releer
+esa base ya comprometida. Restauración, login y refresh válidos usan el mismo
+punto de activación. Restaurar lectura local no depende de que `/me` o R1 completen
+con red disponible; una capacidad expirada o revocada no atraviesa el publicador.
+
+Un rechazo de autorización durante la lectura, preparación o commit se reconcilia
+con `SessionController.reconcileReadingAuthorization(for:)`. Si se detectó
+caducidad, el propietario cierra el fence y retira Keychain mediante la ruta DX2;
+no basta con rechazar el snapshot nuevo dejando el anterior permitido. Un fallo
+de fence/Keychain se propaga fuera del consumidor y conserva la retirada capturada
+para reintentarla con la misma autoridad completa. Un intento de A nunca retira B.
+Los fallos ordinarios de publicación sí permiten consumir el siguiente evento.
+La cancelación también comprueba si la capacidad ya fue rechazada y reconcilia
+esa retirada antes de propagarse; no exige que siga vigente el ticket del contenido.
+Un fallo de retirada mantiene prioridad sobre la cancelación para poder reintentarlo.
+
+El consumidor de `AsyncStream` tiene una suscripción exclusiva y buffer del último
+evento (`bufferingNewest(1)`). Conserva la última intención entre ejecuciones;
+cancelar no libera la suscripción hasta que finaliza la preparación en curso.
+Terminar el stream ocurre fuera del cerrojo del emisor. Un ciclo nuevo puede
+reintentar el último estado; una suscripción antigua no libera a su sucesora.
+El llamador ejecuta `run()` como tarea hija estructurada. No hay tareas autónomas,
+polling, sleeps, timers o red dentro de la transacción de Colección.
+
+Cada evento relee SwiftData comprometido y utiliza el recorte, preparación de
+portadas y publicador existentes. Comprueba sesión/ticket alrededor de las
+suspensiones. La validación final del ticket comparte la sección crítica de sesión
+con admisión de recursos, reemplazo de manifest y apertura del fence: un commit
+más reciente no se intercala entre la comprobación y ese efecto. Un intento
+superado puede consumir una reserva, que no se reutiliza, pero no atraviesa la
+siguiente frontera de publicación. Fallar no revierte Colección ni outbox; el
+consumidor continúa en el siguiente evento. Cancelación se propaga. No se promete
+latencia de entrega ni reintento periódico.
+
+`AppComposition.makeReadingPublication` recibe el container, las dos raíces,
+reloj, generador de identidades, carga de portada y reload. Devuelve el escritor,
+eventos y publicador que comparten esas dependencias. El llamador inyecta esos
+eventos/publicador en `SessionController` y después crea el consumidor mediante
+`makePipeline(sessionController:)`, que enlaza su reconciliación con ese propietario.
+Las factorías no arrancan trabajo. `AppComposition.live()` permanece sin bridge: resolver el App
+Group real y enlazar el consumidor al ciclo de vida de la app pertenece a DX4.
+No se usa un directorio privado como sustituto de una capacidad concedida.
 
 ## Preparación de targets y fuentes
 
@@ -456,7 +519,8 @@ independientes para selección, progreso, wire válido, wire rechazado y fallbac
 de portada. No son snapshots de cuentas reales, tests ejecutados ni modelos
 funcionales por sí mismos. DX2 reutiliza esos oráculos en el decoder/publicador;
 DX3.1 enlaza selección y orden con SwiftData aislado sin usar producción;
-el recorte y los recursos se materializan en DX3.2–DX3.3; los eventos siguen en DX3.4.
+el recorte y los recursos se materializan en DX3.2–DX3.3; DX3.4 conecta los eventos
+reales en composición aislada y DX3.5 conserva el gate técnico conjunto.
 
 | Fase | Casos de cierre |
 | --- | --- |
@@ -514,6 +578,12 @@ Deluxe Release Gate. Cualquier cambio de ese criterio requerirá una decisión
 explícita en la SDD 06; la aprobación de este contrato no lo elimina.
 
 ## Fuentes y riesgos
+
+- DX3.4 contrasta el SDK activo con [ModelActor](https://developer.apple.com/documentation/swiftdata/modelactor),
+  [AsyncStream, SE-0314](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0314-async-stream.md)
+  y [Mutex, SE-0433](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0433-mutex.md).
+  Los cerrojos no reentrantes contienen solo trabajo síncrono; la suscripción tiene
+  un consumidor y conserva explícitamente la última intención.
 
 - DX3.3 contrasta el SDK activo con Apple:
   [AsyncBytes](https://developer.apple.com/documentation/foundation/urlsession/asyncbytes),

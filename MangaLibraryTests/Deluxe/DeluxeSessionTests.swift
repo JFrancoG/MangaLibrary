@@ -4,12 +4,223 @@
 //
 
 import Foundation
+import SwiftData
 import Synchronization
 import Testing
 @testable import MangaLibrary
 
 @Suite("Deluxe session retirement", .tags(.integration))
 struct DeluxeSessionTests {
+    @Test(arguments: [false, true], [false, true])
+    func `expiry during cover loading retires the old manifest and a failed close remains retryable`(
+        failClose: Bool,
+        cancel: Bool
+    ) async throws {
+        let fixture = try DeluxeSessionFixture()
+        defer { fixture.removeDirectory() }
+        let composition = try fixture.makeReadingComposition(withCover: true)
+        let controller = try fixture.makeController(readingEvents: composition.events)
+        _ = try await controller.restore()
+        let initial = try #require(composition.events.currentEvent())
+        let projection = try await composition.mutations.readingProjection(authorization: initial.authorization)
+        _ = try await fixture.publisher.publish(
+            projection: projection,
+            preparedCovers: [:],
+            authorization: initial.authorization,
+            ticket: initial.ticket
+        )
+        let pipeline = ReadingPublicationPipeline(
+            events: composition.events,
+            mutations: composition.mutations,
+            publisher: fixture.publisher,
+            loadCover: { _ in
+                fixture.clock.advance(by: 3_601)
+                if failClose {
+                    fixture.faults.failNextFenceReplacement()
+                }
+                if cancel {
+                    // A loader can finish with cancellation after the credential has expired.
+                    throw CancellationError()
+                }
+                return nil
+            },
+            reconcileSession: { authority in
+                try await controller.reconcileReadingAuthorization(for: authority)
+            }
+        )
+
+        if failClose {
+            await #expect(throws: ReadingPublicationSessionReconciliationError.self) {
+                try await pipeline.process(initial)
+            }
+            #expect(fixture.keychain.snapshot().record == fixture.session)
+            #expect(await controller.currentSnapshot() == .authenticationRequired(fixture.session.userID))
+            // Retry the rejected intent before loading again: it must complete the captured retirement.
+            await #expect(throws: SessionCommitAuthorizationError.self) {
+                try await pipeline.process(initial)
+            }
+        } else if cancel {
+            await #expect(throws: CancellationError.self) {
+                try await pipeline.process(initial)
+            }
+        } else {
+            await #expect(throws: SessionCommitAuthorizationError.self) {
+                try await pipeline.process(initial)
+            }
+        }
+
+        #expect(fixture.keychain.snapshot().record == nil)
+        #expect(await controller.currentSnapshot() == .authenticationRequired(fixture.session.userID))
+        #expect(try ReadingSnapshotReader(storage: fixture.storage).read() == nil)
+        let bytes = try #require(try fixture.storage.read(.snapshot))
+        #expect(try ReadingSnapshotCodec.decode(bytes).state == .redacted)
+    }
+
+    @Test(arguments: [false, true])
+    func `restoration publishes persisted reading even when identity is offline`(offline: Bool) async throws {
+        let fixture = try DeluxeSessionFixture()
+        defer { fixture.removeDirectory() }
+        let composition = try fixture.makeReadingComposition()
+        let controller = try fixture.makeController(
+            publisher: composition.publisher,
+            readingEvents: composition.events,
+            identityUnavailable: offline
+        )
+
+        let pipeline = composition.makePipeline(sessionController: controller)
+        _ = try await controller.restore()
+        let event = try #require(composition.events.currentEvent())
+        let result = try #require(try await pipeline.process(event))
+
+        #expect(result.sessionGeneration == fixture.session.generation)
+        #expect(result.items.map(\.readingVolume) == [1])
+        #expect(result.items.map(\.mangaID) == [42])
+        #expect(try ReadingSnapshotReader(storage: fixture.storage).read() == result)
+        #expect(fixture.keychain.snapshot().record == fixture.session)
+    }
+
+    @Test
+    func `refresh creates a fresh reading capability and preserves an identical manifest`() async throws {
+        let fixture = try DeluxeSessionFixture()
+        defer { fixture.removeDirectory() }
+        let events = ReadingPublicationEvents()
+        let controller = try fixture.makeController(readingEvents: events)
+        _ = try await controller.restore()
+        let original = try #require(events.currentEvent())
+        let projection = CollectionReadingProjection(authority: fixture.session.authority, items: [])
+        _ = try await fixture.publisher.publish(
+            projection: projection,
+            preparedCovers: [:],
+            authorization: original.authorization,
+            ticket: original.ticket
+        )
+        let previous = try fixture.storage.read(.snapshot)
+        fixture.clock.advance(by: 3_301)
+
+        _ = try await controller.accessCredential()
+
+        let renewed = try #require(events.currentEvent())
+        #expect(throws: SessionCommitAuthorizationError.self) {
+            try original.authorization.perform {}
+        }
+        #expect(throws: ReadingPublicationError.self) {
+            try original.ticket.validate(authority: fixture.session.authority)
+        }
+        let result = try await fixture.publisher.publish(
+            projection: projection,
+            preparedCovers: [:],
+            authorization: renewed.authorization,
+            ticket: renewed.ticket
+        )
+        #expect(result == nil)
+        #expect(try fixture.storage.read(.snapshot) == previous)
+        #expect(fixture.keychain.snapshot().record?.access.value == "fixture-deluxe-renewed")
+    }
+
+    @Test
+    func `replacement login can publish its collection and cannot reuse the outgoing intent`() async throws {
+        let fixture = try DeluxeSessionFixture()
+        defer { fixture.removeDirectory() }
+        let composition = try fixture.makeReadingComposition()
+        let userB = UUID()
+        let controller = try fixture.makeController(
+            publisher: composition.publisher,
+            loginUserID: userB,
+            readingEvents: composition.events
+        )
+        let pipeline = composition.makePipeline(sessionController: controller)
+        _ = try await controller.restore()
+        let outgoing = try #require(composition.events.currentEvent())
+        _ = try await pipeline.process(outgoing)
+        _ = try await controller.logout()
+
+        _ = try await controller.login(email: "b@example.invalid", password: "fixture-password-b")
+
+        let replacement = try #require(composition.events.currentEvent())
+        await #expect(throws: (any Error).self) {
+            try await pipeline.process(outgoing)
+        }
+        let result = try #require(try await pipeline.process(replacement))
+        #expect(replacement.authorization.authority.userID == userB)
+        #expect(result.state == .empty)
+        #expect(result.items.isEmpty)
+        #expect(result.sessionGeneration != fixture.session.generation)
+    }
+
+    @Test
+    func `failed logout after discarding local reading republishes the committed remote baseline`() async throws {
+        let fixture = try DeluxeSessionFixture()
+        defer { fixture.removeDirectory() }
+        let composition = try fixture.makeReadingComposition()
+        let controller = try fixture.makeController(
+            hasPendingChanges: true,
+            readingEvents: composition.events,
+            discardPendingChanges: { authorization in
+                try await composition.mutations.discardPendingChangesForLogout(authorization: authorization)
+            }
+        )
+        let pipeline = ReadingPublicationPipeline(
+            events: composition.events,
+            mutations: composition.mutations,
+            publisher: fixture.publisher,
+            loadCover: { _ in nil },
+            reconcileSession: { authority in
+                try await controller.reconcileReadingAuthorization(for: authority)
+            }
+        )
+        _ = try await controller.restore()
+        let restored = try #require(composition.events.currentEvent())
+        _ = try await composition.mutations.apply(
+            CollectionMutationCommand(
+                authority: fixture.session.authority,
+                mangaID: 42,
+                knownTotalVolumes: 3,
+                change: .setReadingVolume(2)
+            ),
+            authorization: restored.authorization
+        )
+        let local = try #require(composition.events.currentEvent())
+        #expect(try await pipeline.process(local)?.items.first?.readingVolume == 2)
+        fixture.faults.failNextFenceReplacement()
+
+        await #expect(throws: SessionControllerError.persistenceUnavailable) {
+            try await controller.logout(discardPendingChanges: true)
+        }
+
+        let resumed = try #require(composition.events.currentEvent())
+        let result = try #require(try await pipeline.process(resumed))
+        #expect(result.items.first?.readingVolume == 1)
+        // The failed retirement consumed revision 2 before its fence replacement failed.
+        #expect(result.revision == 3)
+        #expect(throws: SessionCommitAuthorizationError.self) {
+            try local.authorization.perform {}
+        }
+        #expect(throws: ReadingPublicationError.self) {
+            try local.ticket.validate(authority: fixture.session.authority)
+        }
+        #expect(await controller.currentSnapshot() == .active(fixture.account))
+    }
+
     @Test("A new closed bridge does not retire the existing Advanced session")
     func bootstrapRequiresExplicitPublicationAuthorization() async throws {
         let fixture = try DeluxeSessionFixture()
@@ -377,13 +588,17 @@ private struct DeluxeSessionFixture {
         requireClosedFenceForDeletion: Bool = false,
         hasPendingChanges: Bool = false,
         loginUserID: UUID? = nil,
-        restoredUserID: UUID? = nil
+        restoredUserID: UUID? = nil,
+        readingEvents: ReadingPublicationEvents? = nil,
+        identityUnavailable: Bool = false,
+        discardPendingChanges: @escaping SessionController.LogoutPendingChangesDiscarder = { _ in }
     ) throws -> SessionController {
         let baseURL = try #require(URL(string: "https://deluxe-session.example.test"))
         let remote = DeluxeSessionRemote(
             originalUserID: restoredUserID ?? session.userID,
             loginUserID: loginUserID ?? session.userID,
-            requestCount: networkRequestCount
+            requestCount: networkRequestCount,
+            identityUnavailable: identityUnavailable
         )
         let client = SessionAPIClient(
             configuration: try APIConfiguration(baseURL: baseURL),
@@ -416,8 +631,9 @@ private struct DeluxeSessionFixture {
             now: { clock.value },
             makeGeneration: { UUID() },
             deluxePublisher: publisher ?? self.publisher,
+            readingEvents: readingEvents,
             logoutPendingChangesObserver: { _ in hasPendingChanges },
-            logoutPendingChangesDiscarder: { _ in },
+            logoutPendingChangesDiscarder: discardPendingChanges,
             authenticationInvalidationObserver: { _ in }
         )
     }
@@ -430,6 +646,52 @@ private struct DeluxeSessionFixture {
 
     func removeDirectory() {
         try? FileManager.default.removeItem(at: directory)
+    }
+
+    func makeReadingComposition(withCover: Bool = false) throws -> ReadingPublicationComposition {
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let context = ModelContext(container)
+        let baseline = CollectionSnapshot(
+            ownedVolumes: [1],
+            readingVolume: 1,
+            isComplete: false,
+            knownTotalVolumes: 3,
+            isTombstone: false
+        )
+        context.insert(CollectionEntry(
+            userID: session.userID,
+            mangaID: 42,
+            state: baseline,
+            confirmedState: baseline,
+            mangaSnapshot: withCover ? readingPresentation() : nil
+        ))
+        try context.save()
+        return try AppComposition.makeReadingPublication(
+            modelContainer: container,
+            sharedDirectory: directory.appending(path: "shared"),
+            publisherDirectory: directory.appending(path: "publisher"),
+            now: { clock.value },
+            makeGeneration: { UUID() },
+            loadCover: { _ in throw DeluxeSessionFixtureError.unexpectedCoverRequest },
+            requestReload: { _ in }
+        )
+    }
+
+    private func readingPresentation() -> CollectionMangaSnapshot {
+        CollectionMangaSnapshot(
+            mangaID: 42,
+            title: "Persisted reading",
+            titleEnglish: nil,
+            titleJapanese: nil,
+            synopsis: nil,
+            score: 0,
+            status: .unspecified,
+            authors: [],
+            demographics: [],
+            genres: [],
+            themes: [],
+            coverURL: URL(string: "https://covers.example.invalid/42.jpg")
+        )
     }
 }
 
@@ -485,6 +747,7 @@ private extension DeluxeSessionFixture {
 private enum DeluxeSessionFixtureError: Error {
     case fileUnavailable
     case unsafeKeychainDeletion
+    case unexpectedCoverRequest
 }
 
 private final class DeluxeSessionFileFaults: Sendable {
@@ -587,12 +850,19 @@ private actor DeluxeSessionRemote {
     private let originalUserID: UUID
     private let loginUserID: UUID
     private let requestCount: DeluxeSessionCounter
+    private let identityUnavailable: Bool
     private var didLogin = false
 
-    init(originalUserID: UUID, loginUserID: UUID, requestCount: DeluxeSessionCounter) {
+    init(
+        originalUserID: UUID,
+        loginUserID: UUID,
+        requestCount: DeluxeSessionCounter,
+        identityUnavailable: Bool
+    ) {
         self.originalUserID = originalUserID
         self.loginUserID = loginUserID
         self.requestCount = requestCount
+        self.identityUnavailable = identityUnavailable
     }
 
     func load(_ request: URLRequest) throws -> Data {
@@ -602,10 +872,15 @@ private actor DeluxeSessionRemote {
             didLogin = true
             return Data(#"{"token":"fixture-deluxe-replacement","tokenType":"Bearer","expiresIn":3600}"#.utf8)
         case "/users/jwt/me":
+            if identityUnavailable {
+                throw SessionAPIClientError.unavailable
+            }
             let userID = didLogin ? loginUserID : originalUserID
             return Data(
                 #"{"id":"\#(userID.uuidString)","email":"reader@example.invalid","isActive":true,"isAdmin":false,"role":"user"}"#.utf8
             )
+        case "/users/jwt/refresh":
+            return Data(#"{"token":"fixture-deluxe-renewed","tokenType":"Bearer","expiresIn":3600}"#.utf8)
         default:
             throw SessionAPIClientError.contractDrift
         }

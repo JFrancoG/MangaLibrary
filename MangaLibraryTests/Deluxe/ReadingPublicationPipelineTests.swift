@@ -1,0 +1,591 @@
+import Foundation
+import SwiftData
+import Synchronization
+import Testing
+@testable import MangaLibrary
+
+@Suite("Committed reading publication events", .tags(.integration))
+struct ReadingPublicationPipelineTests {
+    @Test
+    func `later committed intent invalidates the earlier ticket in the same session`() throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let first = harness.record()
+        let second = harness.record()
+
+        #expect(throws: ReadingPublicationError.self) {
+            try first.ticket.validate(authority: harness.authority)
+        }
+        try second.ticket.validate(authority: harness.authority)
+        #expect(harness.events.currentEvent()?.ticket === second.ticket)
+        #expect(throws: ReadingPublicationError.self) {
+            try second.ticket.validate(authority: Self.otherAuthority)
+        }
+    }
+
+    @Test
+    func `late invalidation of the previous account preserves the current intent`() throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let first = harness.record()
+        harness.gate.activate(Self.otherAuthority)
+        let second = harness.events.record(authorization: harness.gate.authorization(for: Self.otherAuthority))
+
+        harness.events.invalidate(authority: harness.authority)
+
+        #expect(harness.events.currentEvent()?.ticket === second.ticket)
+        try second.ticket.validate(authority: Self.otherAuthority)
+        #expect(throws: ReadingPublicationError.self) {
+            try first.ticket.validate(authority: harness.authority)
+        }
+        harness.events.invalidate(authority: Self.otherAuthority)
+        #expect(harness.events.currentEvent() == nil)
+        #expect(throws: ReadingPublicationError.self) {
+            try second.ticket.validate(authority: Self.otherAuthority)
+        }
+    }
+
+    @Test
+    func `subscription coalesces pending intents and an obsolete lease cannot release its successor`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        _ = harness.record()
+        let latest = harness.record()
+        let first = try harness.events.subscribe()
+        var iterator = first.stream.makeAsyncIterator()
+
+        #expect(await iterator.next()?.ticket === latest.ticket)
+        #expect(throws: ReadingPublicationPipelineError.consumerAlreadyRunning) {
+            try harness.events.subscribe()
+        }
+        _ = harness.record()
+        let newest = harness.record()
+        #expect(await iterator.next()?.ticket === newest.ticket)
+        harness.events.release(first)
+        #expect(await iterator.next() == nil)
+
+        let replacement = try harness.events.subscribe()
+        defer { harness.events.release(replacement) }
+        harness.events.release(first)
+        #expect(throws: ReadingPublicationPipelineError.consumerAlreadyRunning) {
+            try harness.events.subscribe()
+        }
+        var replacementIterator = replacement.stream.makeAsyncIterator()
+        #expect(await replacementIterator.next()?.ticket === newest.ticket)
+    }
+
+    @Test
+    func `pipeline reads persisted selection and publishes its prepared cover`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let source = try ReadingCoverTestImages.jpeg(pattern: .red)
+        let fetched = Mutex<[URL]>([])
+        let pipeline = try harness.pipeline { url in
+            fetched.withLock { $0.append(url) }
+            return source
+        }
+
+        let result = try #require(try await pipeline.process(harness.record()))
+
+        #expect(result.items.map(\.mangaID) == [10])
+        #expect(result.items.map(\.readingVolume) == [2])
+        #expect(result.items.map(\.title) == ["Persisted reading"])
+        #expect(fetched.withLock { $0.map(\.lastPathComponent) } == ["10.jpg"])
+        let identifier = try #require(result.items.first?.coverResourceID)
+        #expect(harness.coverReader.read(identifier) != nil)
+        #expect(try harness.snapshot()?.items == result.items)
+        #expect(harness.reloads.withLock { $0 } == 1)
+    }
+
+    @Test
+    func `superseded intent is rejected before reading covers or writing publisher state`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let fetched = Mutex(0)
+        let pipeline = try harness.pipeline { _ in
+            fetched.withLock { $0 += 1 }
+            return nil
+        }
+        let old = harness.record()
+        let current = harness.record()
+
+        await #expect(throws: ReadingPublicationError.self) {
+            try await pipeline.process(old)
+        }
+
+        #expect(fetched.withLock { $0 } == 0)
+        #expect(try harness.storage.read(.publisherState) == nil)
+        let published = try #require(try await pipeline.process(current))
+        #expect(published.revision == 1)
+        #expect(published.items.first?.readingVolume == 2)
+    }
+
+    @Test
+    func `a mutation during cover preparation prevents the earlier reading from being published`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let calls = Mutex(0)
+        let pipeline = try harness.pipeline { _ in
+            let first = calls.withLock {
+                $0 += 1
+                return $0 == 1
+            }
+            if first {
+                try await harness.setReading(3)
+                _ = harness.record()
+            }
+            return nil
+        }
+        let old = harness.record()
+
+        await #expect(throws: ReadingPublicationError.self) {
+            try await pipeline.process(old)
+        }
+
+        #expect(try harness.storage.read(.publisherState) == nil)
+        #expect(try harness.snapshot() == nil)
+        let current = try #require(harness.events.currentEvent())
+        let result = try #require(try await pipeline.process(current))
+        #expect(result.revision == 1)
+        #expect(result.items.first?.readingVolume == 3)
+        #expect(harness.reloads.withLock { $0 } == 1)
+    }
+
+    @Test
+    func `account replacement during preparation cannot publish the former account`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let calls = Mutex(0)
+        let pipeline = try harness.pipeline { _ in
+            let first = calls.withLock {
+                $0 += 1
+                return $0 == 1
+            }
+            if first {
+                harness.gate.activate(Self.otherAuthority)
+                harness.events.record(authorization: harness.gate.authorization(for: Self.otherAuthority))
+            }
+            return nil
+        }
+
+        await #expect(throws: (any Error).self) {
+            try await pipeline.process(harness.record())
+        }
+
+        #expect(try harness.snapshot() == nil)
+        #expect(try harness.storage.read(.publisherState) == nil)
+        let current = try #require(harness.events.currentEvent())
+        let result = try #require(try await pipeline.process(current))
+        #expect(result.sessionGeneration == Self.otherAuthority.generation)
+        #expect(result.items.map(\.mangaID) == [30])
+        #expect(result.items.map(\.readingVolume) == [5])
+        #expect(result.revision == 1)
+    }
+
+    @Test
+    func `cancelled cover preparation preserves persisted reading without publishing`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let pipeline = try harness.pipeline { _ in throw CancellationError() }
+
+        await #expect(throws: CancellationError.self) {
+            try await pipeline.process(harness.record())
+        }
+
+        #expect(try harness.storage.read(.publisherState) == nil)
+        let persisted = try await harness.mutations.readingProjection(authorization: harness.authorization)
+        #expect(persisted.items.first?.readingVolume == 2)
+    }
+
+    @Test
+    func `publication failure preserves the committed mutation and permits its next retry`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        try await harness.setReading(3)
+        harness.failManifest.withLock { $0 = true }
+        let pipeline = try harness.pipeline { _ in nil }
+        let event = harness.record()
+
+        await #expect(throws: ReadingSnapshotStorageError.self) {
+            try await pipeline.process(event)
+        }
+
+        let persisted = try await harness.mutations.readingProjection(authorization: harness.authorization)
+        #expect(persisted.items.first?.readingVolume == 3)
+        #expect(try ModelContext(harness.container).fetchCount(FetchDescriptor<CollectionOutboxOperation>()) == 1)
+        #expect(try harness.snapshot() == nil)
+        harness.failManifest.withLock { $0 = false }
+        let retried = try #require(try await pipeline.process(event))
+        #expect(retried.items.first?.readingVolume == 3)
+        #expect(retried.revision == 2)
+    }
+
+    @Test
+    func `run coalesces mutations received while preparing and publishes only the newest reading`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let signals = AsyncStream<Signal>.makeStream()
+        defer { signals.continuation.finish() }
+        let suspension = Suspension()
+        let calls = Mutex(0)
+        let pipeline = try harness.pipeline(onReload: { signals.continuation.yield(.published) }) { _ in
+            let first = calls.withLock {
+                $0 += 1
+                return $0 == 1
+            }
+            if first {
+                signals.continuation.yield(.started)
+                await suspension.wait()
+            }
+            return nil
+        }
+        _ = harness.record()
+
+        try await withThrowingTaskGroup(of: Bool.self) { group in
+            defer {
+                suspension.release()
+                group.cancelAll()
+            }
+            group.addTask {
+                defer { signals.continuation.yield(.finished) }
+                do {
+                    try await pipeline.run()
+                    return false
+                } catch is CancellationError {
+                    return true
+                } catch {
+                    return false
+                }
+            }
+            var iterator = signals.stream.makeAsyncIterator()
+            let first = await iterator.next()
+            #expect(first == .started)
+            guard first == .started else { return }
+            try await harness.setReading(3)
+            _ = harness.record()
+            try await harness.setReading(4)
+            let newest = harness.record()
+            suspension.release()
+            #expect(await iterator.next() == .published)
+            group.cancelAll()
+            #expect(try await group.next() == true)
+            #expect(harness.events.currentEvent()?.ticket === newest.ticket)
+        }
+
+        #expect(try harness.snapshot()?.items.first?.readingVolume == 4)
+        #expect(try harness.snapshot()?.revision == 1)
+        #expect(harness.reloads.withLock { $0 } == 1)
+        #expect(calls.withLock { $0 } == 2)
+    }
+
+    @Test
+    func `run keeps consuming after a publication failure without reverting the committed reading`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let signals = AsyncStream<Signal>.makeStream()
+        defer { signals.continuation.finish() }
+        let pipeline = try harness.pipeline(
+            onReload: { signals.continuation.yield(.published) },
+            onManifestFailure: { signals.continuation.yield(.failed) },
+            loadCover: { _ in nil }
+        )
+        harness.failManifest.withLock { $0 = true }
+        _ = harness.record()
+
+        try await withThrowingTaskGroup(of: Bool.self) { group in
+            defer { group.cancelAll() }
+            group.addTask {
+                defer { signals.continuation.yield(.finished) }
+                do {
+                    try await pipeline.run()
+                    return false
+                } catch is CancellationError {
+                    return true
+                } catch {
+                    return false
+                }
+            }
+            var iterator = signals.stream.makeAsyncIterator()
+            let first = await iterator.next()
+            #expect(first == .failed)
+            guard first == .failed else { return }
+            let unchanged = try await harness.mutations.readingProjection(authorization: harness.authorization)
+            #expect(unchanged.items.first?.readingVolume == 2)
+            try await harness.setReading(3)
+            harness.failManifest.withLock { $0 = false }
+            _ = harness.record()
+            #expect(await iterator.next() == .published)
+            group.cancelAll()
+            #expect(try await group.next() == true)
+        }
+
+        #expect(try harness.snapshot()?.items.first?.readingVolume == 3)
+        #expect(try harness.snapshot()?.revision == 2)
+        #expect(harness.reloads.withLock { $0 } == 1)
+    }
+
+    @Test
+    func `cancelled run retains its lease until preparation ends and then allows restart`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let signals = AsyncStream<Signal>.makeStream()
+        defer { signals.continuation.finish() }
+        let suspension = Suspension()
+        let pipeline = try harness.pipeline { _ in
+            signals.continuation.yield(.started)
+            await suspension.wait()
+            return nil
+        }
+        let event = harness.record()
+
+        await withTaskGroup(of: Bool.self) { group in
+            defer {
+                suspension.release()
+                group.cancelAll()
+            }
+            group.addTask {
+                defer { signals.continuation.yield(.finished) }
+                do {
+                    try await pipeline.run()
+                    return false
+                } catch is CancellationError {
+                    return true
+                } catch {
+                    return false
+                }
+            }
+            var iterator = signals.stream.makeAsyncIterator()
+            let first = await iterator.next()
+            #expect(first == .started)
+            guard first == .started else { return }
+            group.cancelAll()
+            await #expect(throws: ReadingPublicationPipelineError.consumerAlreadyRunning) {
+                try await pipeline.run()
+            }
+            suspension.release()
+            #expect(await group.next() == true)
+        }
+
+        #expect(try harness.snapshot() == nil)
+        #expect(harness.events.currentEvent()?.ticket === event.ticket)
+        let restarted = try harness.pipeline { _ in throw CancellationError() }
+        await #expect(throws: CancellationError.self) {
+            try await restarted.run()
+        }
+        let subscription = try harness.events.subscribe()
+        harness.events.release(subscription)
+    }
+
+    @Test
+    func `run propagates failed session reconciliation instead of consuming the following account`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let calls = Mutex(0)
+        let reconciled = Mutex<[SessionAuthority]>([])
+        let pipeline = try harness.pipeline(
+            reconcileSession: { authority in
+                reconciled.withLock { $0.append(authority) }
+                throw ReconciliationFailure.unavailable
+            },
+            loadCover: { _ in
+                let first = calls.withLock {
+                    $0 += 1
+                    return $0 == 1
+                }
+                guard first else { throw CancellationError() }
+                harness.gate.activate(Self.otherAuthority)
+                harness.events.record(authorization: harness.gate.authorization(for: Self.otherAuthority))
+                return nil
+            }
+        )
+        _ = harness.record()
+
+        await #expect(throws: ReadingPublicationSessionReconciliationError.self) {
+            try await pipeline.run()
+        }
+
+        #expect(reconciled.withLock { $0 } == [harness.authority])
+        #expect(calls.withLock { $0 } == 1)
+        #expect(try harness.storage.read(.publisherState) == nil)
+        let subscription = try harness.events.subscribe()
+        harness.events.release(subscription)
+    }
+}
+
+private extension ReadingPublicationPipelineTests {
+    static let authority = SessionAuthority(
+        userID: UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)),
+        generation: UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2))
+    )
+    static let otherAuthority = SessionAuthority(
+        userID: UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3)),
+        generation: UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4))
+    )
+
+    enum Signal {
+        case started
+        case published
+        case failed
+        case finished
+    }
+
+    enum ReconciliationFailure: Error {
+        case unavailable
+    }
+
+    final class Harness: Sendable {
+        let directory: URL
+        let container: ModelContainer
+        let mutations: CollectionMutationActor
+        let events = ReadingPublicationEvents()
+        let authority = ReadingPublicationPipelineTests.authority
+        let gate = SessionCommitGate(activeAuthority: ReadingPublicationPipelineTests.authority)
+        let storage: ReadingSnapshotStorage
+        let coverReader: ReadingCoverReader
+        let reloads = Mutex(0)
+        let failManifest = Mutex(false)
+
+        var authorization: SessionCommitAuthorization { gate.authorization(for: authority) }
+
+        init() throws {
+            directory = FileManager.default.temporaryDirectory
+                .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+            storage = try ReadingSnapshotStorage(directory: directory)
+            coverReader = ReadingCoverReader(sharedDirectory: directory.appending(path: "shared"))
+            container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+            mutations = CollectionMutationActor(modelContainer: container)
+            let context = ModelContext(container)
+            context.insert(Self.entry(userID: authority.userID, mangaID: 10, reading: 2))
+            context.insert(Self.entry(userID: authority.userID, mangaID: 20, reading: nil))
+            context.insert(Self.entry(
+                userID: ReadingPublicationPipelineTests.otherAuthority.userID,
+                mangaID: 30,
+                reading: 5
+            ))
+            try context.save()
+        }
+
+        func pipeline(
+            onReload: @escaping @Sendable () -> Void = {},
+            onManifestFailure: @escaping @Sendable () -> Void = {},
+            reconcileSession: @escaping @Sendable (SessionAuthority) async throws -> Void = { _ in },
+            loadCover: @escaping @Sendable (URL) async throws -> Data?
+        ) throws -> ReadingPublicationPipeline {
+            let observed = ReadingSnapshotStorage(
+                read: storage.read,
+                replace: { file, data in
+                    if file == .snapshot, self.failManifest.withLock({ $0 }) {
+                        onManifestFailure()
+                        throw ReadingSnapshotStorageError.unavailable
+                    }
+                    try self.storage.replace(file, data)
+                }
+            )
+            let publisher = ReadingSnapshotPublisher(
+                storage: observed,
+                now: { Date(timeIntervalSince1970: 1_800_000_000) },
+                makeGeneration: { UUID() },
+                requestReload: { _ in
+                    self.reloads.withLock { $0 += 1 }
+                    onReload()
+                },
+                coverStorage: try ReadingCoverStorage(
+                    sharedDirectory: directory.appending(path: "shared"),
+                    publisherDirectory: directory.appending(path: "publisher")
+                )
+            )
+            return ReadingPublicationPipeline(
+                events: events,
+                mutations: mutations,
+                publisher: publisher,
+                loadCover: loadCover,
+                reconcileSession: reconcileSession
+            )
+        }
+
+        func record() -> ReadingPublicationEvent { events.record(authorization: authorization) }
+
+        func setReading(_ volume: Int64) async throws {
+            _ = try await mutations.apply(
+                CollectionMutationCommand(
+                    authority: authority,
+                    mangaID: 10,
+                    knownTotalVolumes: nil,
+                    change: .setReadingVolume(volume)
+                ),
+                authorization: authorization
+            )
+        }
+
+        func snapshot() throws -> ReadingSnapshot? {
+            try ReadingSnapshotReader(storage: storage).read()
+        }
+
+        func removeFiles() {
+            try? FileManager.default.removeItem(at: directory)
+        }
+
+        static func entry(userID: UUID, mangaID: Manga.ID, reading: Int64?) -> CollectionEntry {
+            CollectionEntry(
+                userID: userID,
+                mangaID: mangaID,
+                state: CollectionSnapshot(
+                    ownedVolumes: [],
+                    readingVolume: reading,
+                    isComplete: false,
+                    knownTotalVolumes: 10,
+                    isTombstone: false
+                ),
+                confirmedState: nil,
+                mangaSnapshot: CollectionMangaSnapshot(
+                    mangaID: mangaID,
+                    title: "Persisted reading",
+                    titleEnglish: nil,
+                    titleJapanese: nil,
+                    synopsis: nil,
+                    score: 0,
+                    status: .unspecified,
+                    authors: [],
+                    demographics: [],
+                    genres: [],
+                    themes: [],
+                    coverURL: URL(string: "https://covers.invalid/\(mangaID).jpg")
+                )
+            )
+        }
+    }
+
+    final class Suspension: Sendable {
+        private struct State {
+            var continuation: CheckedContinuation<Void, Never>?
+            var released = false
+        }
+
+        private let state = Mutex(State())
+
+        func wait() async {
+            await withCheckedContinuation { continuation in
+                let released = state.withLock { state in
+                    if state.released {
+                        return true
+                    }
+                    state.continuation = continuation
+                    return false
+                }
+                if released {
+                    continuation.resume()
+                }
+            }
+        }
+
+        func release() {
+            let continuation = state.withLock { state in
+                state.released = true
+                let continuation = state.continuation
+                state.continuation = nil
+                return continuation
+            }
+            continuation?.resume()
+        }
+    }
+}

@@ -8,6 +8,7 @@ enum ReadingPublicationError: Error {
     case invalidGeneration
     case contextTooLarge
     case projectionAuthorityMismatch
+    case staleProjection
 }
 
 /// Owns durable publication ordering. Only a session capability can publish content.
@@ -188,28 +189,34 @@ actor ReadingSnapshotPublisher {
     }
 
     /// Admits only resources referenced by the final changed prefix, before replacing its manifest.
+    ///
+    /// The event pipeline supplies a ticket invalidated by every newer committed intent. Validation
+    /// shares the session critical section with resource admission, manifest replacement and fence
+    /// opening, so preparation order cannot overwrite a later Collection commit. A stale attempt
+    /// may consume a reservation but cannot pass a subsequent publication boundary.
     func publish(
         projection: CollectionReadingProjection,
         preparedCovers: [Manga.ID: ReadingCoverResource],
-        authorization: SessionCommitAuthorization
+        authorization: SessionCommitAuthorization,
+        ticket: ReadingPublicationTicket? = nil
     ) throws -> ReadingSnapshot? {
         try Task.checkCancellation()
         guard projection.authority == authorization.authority else {
             throw ReadingPublicationError.projectionAuthorityMismatch
         }
-        try authorization.perform {}
+        try withPublicationAuthorization(authorization, ticket: ticket) {}
         let upperBound = try ReadingPublicationPlan(projection: projection)
         let proposed = try ReadingPublicationPlan(
             projection: projection,
             coverResourceIDs: preparedCovers.mapValues(\.identifier)
         )
-        let previous = try publicationPredecessor(authorization: authorization)
+        let previous = try publicationPredecessor(authorization: authorization, ticket: ticket)
         if
             previous?.sessionGeneration == authorization.authority.generation,
             previous?.items == proposed.items,
             previous?.totalEligibleCount == proposed.totalEligibleCount
         {
-            try authorization.perform {}
+            try withPublicationAuthorization(authorization, ticket: ticket) {}
             return nil
         }
         let candidates = upperBound.items.compactMap { preparedCovers[$0.mangaID] }
@@ -236,7 +243,8 @@ actor ReadingSnapshotPublisher {
             items: plan.items,
             totalEligibleCount: plan.totalEligibleCount,
             resources: admissible.filter { selected.contains($0.identifier) },
-            authorization: authorization
+            authorization: authorization,
+            ticket: ticket
         )
     }
 
@@ -263,16 +271,17 @@ actor ReadingSnapshotPublisher {
         items: [ReadingSnapshot.Item],
         totalEligibleCount: Int64,
         resources: [ReadingCoverResource],
-        authorization: SessionCommitAuthorization
+        authorization: SessionCommitAuthorization,
+        ticket: ReadingPublicationTicket? = nil
     ) throws -> ReadingSnapshot? {
-        let previous = try publicationPredecessor(authorization: authorization)
+        let previous = try publicationPredecessor(authorization: authorization, ticket: ticket)
         let generation = authorization.authority.generation
         if
             previous?.sessionGeneration == generation,
             previous?.items == items,
             previous?.totalEligibleCount == totalEligibleCount
         {
-            try authorization.perform {}
+            try withPublicationAuthorization(authorization, ticket: ticket) {}
             return nil
         }
 
@@ -307,7 +316,7 @@ actor ReadingSnapshotPublisher {
                 )
                 state.intent = .bootstrap(closed)
                 try save(state)
-                try authorization.perform {
+                try withPublicationAuthorization(authorization, ticket: ticket) {
                     try replaceAndVerifyFence(closed)
                 }
             }
@@ -329,7 +338,7 @@ actor ReadingSnapshotPublisher {
         try save(state)
         try Task.checkCancellation()
         if !resources.isEmpty {
-            try authorization.perform {
+            try withPublicationAuthorization(authorization, ticket: ticket) {
                 try coverStorage?.recover(currentManifest: previousManifest)
                 try coverStorage?.prepare(
                     resources,
@@ -342,12 +351,12 @@ actor ReadingSnapshotPublisher {
             recoverCovers()
         }
         try Task.checkCancellation()
-        try authorization.perform {
+        try withPublicationAuthorization(authorization, ticket: ticket) {
             try storage.replace(.snapshot, data)
         }
         if let openingFence {
             try Task.checkCancellation()
-            try authorization.perform {
+            try withPublicationAuthorization(authorization, ticket: ticket) {
                 try replaceAndVerifyFence(openingFence)
             }
         }
@@ -362,9 +371,12 @@ actor ReadingSnapshotPublisher {
         return snapshot
     }
 
-    private func publicationPredecessor(authorization: SessionCommitAuthorization) throws -> ReadingSnapshot? {
+    private func publicationPredecessor(
+        authorization: SessionCommitAuthorization,
+        ticket: ReadingPublicationTicket? = nil
+    ) throws -> ReadingSnapshot? {
         try Task.checkCancellation()
-        try authorization.perform {}
+        try withPublicationAuthorization(authorization, ticket: ticket) {}
         let generation = authorization.authority.generation
         switch try recover(deliverReloads: false) {
         case .ready:
@@ -374,7 +386,7 @@ actor ReadingSnapshotPublisher {
             var state = try requiredState()
             state.intent = nil
             state.requiresRetirement = false
-            try authorization.perform {
+            try withPublicationAuthorization(authorization, ticket: ticket) {
                 try save(state)
             }
         case .retirementPending, .retirementRequired:
@@ -384,6 +396,18 @@ actor ReadingSnapshotPublisher {
             return try ReadingSnapshotReader(storage: storage).read()
         } catch ReadingSnapshotStorageError.incompatibleFile {
             return nil
+        }
+    }
+
+    /// Linearizes supersession checks with the Collection commits using this session gate.
+    private func withPublicationAuthorization<Result>(
+        _ authorization: SessionCommitAuthorization,
+        ticket: ReadingPublicationTicket?,
+        operation: () throws -> Result
+    ) throws -> Result {
+        try authorization.perform {
+            try ticket?.validate(authority: authorization.authority)
+            return try operation()
         }
     }
 

@@ -83,6 +83,7 @@ extension CollectionMutationActor {
                         try Task.checkCancellation()
                     }
                 }
+                readingEvents?.invalidate(authority: authorization.authority)
             }
         } catch let error as CollectionLogoutError {
             modelContext.rollback()

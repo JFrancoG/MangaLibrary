@@ -1,7 +1,62 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-06
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, Q2, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1, las correcciones #55, #58, #61, #63 y #65 y el Advanced Release Gate entregados; Deluxe aprobado; DX1 y DX2 completos (2/7 cortes técnicos), con entrega mediante PR #80 y #81; DX3.1 y DX3.2 publicados; DX3.3 implementado y validado localmente en #82 (3/5 bloques de DX3); DX3.4–DX3.5 pendientes
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, Q2, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1, las correcciones #55, #58, #61, #63 y #65 y el Advanced Release Gate entregados; Deluxe aprobado; DX1 y DX2 completos (2/7 cortes técnicos), con entrega mediante PR #80 y #81; DX3.1–DX3.3 publicados; DX3.4 implementado y validado localmente en #82 (4/5 bloques de DX3); DX3.5 pendiente
+
+## DX3.4 — eventos, orden y reconciliación de sesión — issue #82
+
+- El propietario autoriza «commit y push. Adelante con DX3.4» el 6 de septiembre.
+  DX3.3 se publica en `99203db1bc7903f5cbf50c036cb2ca2465902c31`, rama
+  `codex/82-dx3-reading-projection`, con HEAD remoto verificado y worktree limpio
+  antes de DX3.4. Se reutiliza su validación reciente sin deriva funcional.
+- El único actor de Colección señala después de commits reales y dentro de la
+  misma autorización: mutación local, importación, rechazo permanente, DELETE y
+  outcome bloqueado. Rollback/cancelación previa no señalan. Outbox-only conserva
+  el ticket. Descartar durante logout invalida sin publicar contenido intermedio.
+- Un emisor conserva el último evento y un ticket opaco de vigencia. El consumidor
+  estructurado relee SwiftData y prepara portadas; la preparación antigua se rechaza
+  aunque termine después. El publicador valida ticket dentro del cerrojo de sesión
+  al admitir recursos, sustituir manifest y abrir fence. Las reservas consumidas
+  siguen sin reutilizarse. Una publicación fallida no revierte Colección/outbox.
+- Buffer del último evento, suscripción exclusiva y reinicio sin perder la última
+  intención. Cancelar no libera el consumidor hasta terminar su preparación.
+  Restauración, login, refresh y reactivación tras logout fallido emiten capacidad
+  nueva. Se prueba restauración local aunque falle la consulta de identidad offline.
+- La revisión independiente detecta caducidad durante una portada: rechazar el
+  resultado sin avisar al propietario dejaba el fence anterior permitido. RED lo
+  confirma. El pipeline reconcilia con SessionController, que retira mediante DX2
+  o reintenta su retirada capturada por autoridad exacta. Fallar fence/Keychain
+  termina el consumidor con error visible. Cancelación coincidente tampoco omite
+  esa reconciliación; conserva su tipo salvo fallo de retirada, que tiene prioridad.
+- Factoría aislada en AppComposition: container, directorios, reloj, UUID, portada
+  y reload inyectados. La factoría de pipeline exige el propietario de sesión.
+  No arranca tareas ni conecta AppComposition.live. SDD 09 v1.5 concreta estas
+  garantías sin cambiar wire, esquema SwiftData o arquitectura de consumidores.
+- RED compilables por Xcode MCP: 24 fallos y 10 controles en señales/pipeline/sesión;
+  2 regresiones de publisher por ticket; 3 de caducidad/reconciliación; 2 de
+  cancelación coincidente con 2 controles. Un fixture de publisher reentraba al
+  obtener autorización dentro del gate; se corrige antes del RED conductual.
+  Otro oráculo esperaba revisión 2 tras logout fallido: DX2 consume esa reserva,
+  por lo que el resultado correcto es 3; se corrige el test, no producción.
+- GREEN/regresión final por RunAllTests: **Fast 264/264 declaraciones, 370
+  invocaciones; Integration 396/396, 538 invocaciones. Total 660/908**. Cero fallos,
+  skips, expected failures o runtime warnings en los resultados nativos xcresult.
+  Las **31 declaraciones/41 invocaciones nuevas** pasan completas: Colección 12/17,
+  pipeline 13/13, sesión 5/9 y publisher 1/2. Los agregados MCP y los focales parciales
+  no sustituyen los árboles nativos ni acreditan ReleaseGate completo.
+- Xcode MCP oficial: Xcode 27 `27A5252f`, Swift 6.4, scheme MangaLibrary,
+  iPhone 17 Simulator/iOS 27 `24A5423a`; build-for-testing y logs sin warnings o
+  errores, Navigator limpio. Fast queda activo. Script de planes: 18 suites Fast
+  y 32 Integration, filtros/partición válidos. Hash protegido del proyecto intacto.
+- Gate DocC final: Scripts/validate-docc.sh termina con exit 0, Release generic
+  iOS y DerivedData temporal nuevo; archive generado en
+  `.build/docc/MangaLibrary.doccarchive`, cero warnings/errores y sin allowlists.
+- Revisión iOS independiente y Audit Swift Source Style sobre los 13 Swift:
+  correcciones de inicializador/formato aplicadas y P1 resuelto con regresiones;
+  reauditoría de cancelación limpia. No se modifica UI; no hay nueva evidencia
+  de accesibilidad, App Group, WidgetKit, WatchConnectivity o hardware físico.
+- **DX3.4 completo localmente, 4/5 bloques; DX3.5 y commit/push de DX3.4 pendientes.** #82 y #77 continúan
+  abiertos, sin PR/merge/cierre; Deluxe conserva 2/7 subfases entregadas por PR.
 
 ## DX3.3 — portadas acotadas y recuperación — issue #82
 

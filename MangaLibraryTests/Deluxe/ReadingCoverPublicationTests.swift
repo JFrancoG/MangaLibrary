@@ -5,6 +5,55 @@ import Testing
 
 @Suite("Cover publication ordering", .tags(.integration))
 struct ReadingCoverPublicationTests {
+    @Test(arguments: [false, true])
+    func `a newer commit prevents stale cover admission and manifest replacement`(afterReservation: Bool) async throws {
+        let harness = try Harness()
+        defer { try? FileManager.default.removeItem(at: harness.directory) }
+        let events = ReadingPublicationEvents()
+        let authorization = harness.authorization
+        let old = try authorization.perform { events.record(authorization: authorization) }
+        let armed = Mutex(afterReservation)
+        let publisher = try harness.publisher(onStateWrite: { data in
+            let state = try JSONDecoder().decode(ReadingPublisherState.self, from: data)
+            guard case .publication = state.intent else { return }
+            let supersede = armed.withLock { armed in
+                let result = armed
+                armed = false
+                return result
+            }
+            if supersede {
+                _ = try authorization.perform { events.record(authorization: authorization) }
+            }
+        })
+        if !afterReservation {
+            _ = try authorization.perform { events.record(authorization: authorization) }
+        }
+        let cover = try resource()
+
+        await #expect(throws: ReadingPublicationError.self) {
+            try await publisher.publish(
+                projection: harness.projection(),
+                preparedCovers: [1: cover],
+                authorization: old.authorization,
+                ticket: old.ticket
+            )
+        }
+
+        #expect(harness.coverWrites.withLock { $0.isEmpty })
+        #expect(try harness.snapshotStorage.read(.snapshot) == nil)
+        #expect(harness.reader.read(cover.identifier) == nil)
+        #expect(harness.reloads.withLock { $0 == 0 })
+        let current = try #require(events.currentEvent())
+        let result = try #require(try await publisher.publish(
+            projection: harness.projection(reading: 2),
+            preparedCovers: [1: cover],
+            authorization: current.authorization,
+            ticket: current.ticket
+        ))
+        #expect(result.revision == (afterReservation ? 2 : 1))
+        #expect(result.items.first?.readingVolume == 2)
+    }
+
     @Test
     func `a changed projection settles committed admission before replacing its manifest`() async throws {
         let harness = try Harness()
@@ -334,7 +383,9 @@ struct ReadingCoverPublicationTests {
             })
         }
 
-        func publisher() throws -> ReadingSnapshotPublisher {
+        func publisher(
+            onStateWrite: @escaping @Sendable (Data) throws -> Void = { _ in }
+        ) throws -> ReadingSnapshotPublisher {
             let base = ReadingCoverStorage.Effects.live
             let effects = ReadingCoverStorage.Effects(
                 read: { url, limit in
@@ -386,6 +437,9 @@ struct ReadingCoverPublicationTests {
                         self.manifestChecks.withLock { $0.append(valid) }
                     }
                     try self.snapshotStorage.replace(file, data)
+                    if file == .publisherState {
+                        try onStateWrite(data)
+                    }
                 }
             )
             return ReadingSnapshotPublisher(
