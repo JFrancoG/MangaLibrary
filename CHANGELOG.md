@@ -39,6 +39,7 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-06 | 📝 docs(delivery): record Deluxe pull requests
 - 2026-09-06 | 📝 docs(deluxe): approve DX1 reading contract
 - 2026-09-06 | 📝 docs(deluxe): record approved implementation plan
 - 2026-09-04 | 📝 docs(delivery): record Q2 pull request
