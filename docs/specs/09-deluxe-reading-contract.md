@@ -1,7 +1,7 @@
-# SDD 09: Contrato de lectura Deluxe — DX1, DX2 y DX3.1
+# SDD 09: Contrato de lectura Deluxe — DX1, DX2 y DX3.1–DX3.2
 
 **Estado:** Aprobada por el propietario el 2026-09-06
-**Versión:** 1.2
+**Versión:** 1.3
 **Fecha:** 2026-09-06
 **Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79) y [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
@@ -262,6 +262,36 @@ y una redacción tardía de A no retira B. La cache local del reloj no usa un TT
 para deducir autorización: conserva el último contexto aceptado hasta que otro
 lo sustituya o redacte. Esa cache puede permanecer visible sin conectividad y
 no demuestra que la sesión siga vigente en iPhone.
+
+### Preparación y publicación acotadas — DX3.2
+
+`ReadingPublicationPlan` recibe la proyección privada completa y un mapa de
+referencias de portada ya resueltas por identidad de manga. Valida todos los
+candidatos, incluidos los que quedarán fuera del prefijo, y rechaza duplicados;
+así un error no reduce silenciosamente el total. Referencias incompatibles o
+no suministradas equivalen a placeholder mediante el contrato de `Item`. La URL
+privada nunca se convierte en una referencia wire ni participa en el no-op.
+
+El preparador usa el codec final y solo interpreta exceso de JSON o contexto
+como falta de capacidad. Los demás errores se propagan. Los prefijos de prueba
+crecen de forma acotada; no se codifica la colección completa para descubrir que
+no cabe. La autoridad y el total original acompañan al prefijo, sin fecha ni
+revisión asignadas y sin I/O o admisión de recursos. Con los límites actuales de
+cada item, incluso el primero con título de máximo escaping cabe en 32 KiB; se
+mantiene la defensa de fallo ordinario sin un límite artificial para testearla.
+
+La nueva entrada `ReadingSnapshotPublisher.publish(projection:coverResourceIDs:authorization:)`
+comprueba la coincidencia exacta de autoridad antes de preparar y delega al único
+commit DX2. Este revalida la capacidad y el tamaño exacto final. Una proyección
+idéntica deja intacta una intención de reload pendiente; `recover()` explícito,
+incluida restauración de sesión, la reintenta sin reservar otra publicación. La
+reconciliación inicial sin entregar reloads sigue detectando contadores corruptos
+antes del no-op.
+
+Este bloque no acredita que un digest suministrado tenga un JPEG íntegro en disco.
+Preparación, cuota, integridad y escritura de esos recursos pertenecen a DX3.3;
+el orden entre dos proyecciones de la misma sesión y los eventos reales pertenecen
+a DX3.4. Se conserva un único publicador y no se conecta composición live.
 
 ## Portadas, protección y retención
 

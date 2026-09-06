@@ -1,7 +1,59 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-06
-**Estado general:** G0, Catálogo C1–C4, D1, Q1, Q2, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1, las correcciones #55, #58, #61, #63 y #65 y el Advanced Release Gate entregados; Deluxe aprobado; DX1 y DX2 completos (2/7 cortes técnicos), con entrega mediante PR #80 y #81; DX3.1 implementado y validado localmente en #82 (1/5 bloques de DX3); DX3.2–DX3.5 pendientes
+**Estado general:** G0, Catálogo C1–C4, D1, Q1, Q2, P1, Library Red, S1, S2, S2.1, S2.2, L1, L2, R1, R2.1, R2.2, R2.3, R2.4, A1, las correcciones #55, #58, #61, #63 y #65 y el Advanced Release Gate entregados; Deluxe aprobado; DX1 y DX2 completos (2/7 cortes técnicos), con entrega mediante PR #80 y #81; DX3.1 publicado y DX3.2 implementado y validado localmente en #82 (2/5 bloques de DX3); DX3.3–DX3.5 pendientes
+
+## DX3.2 — prefijo estable y no-op — issue #82
+
+- El propietario autoriza «commit y push y DX3.2» el 6 de septiembre de 2026.
+  DX3.1 se publica en `db5d2eb2fda8d29ae7a75be8a27d251af9fa042e`, rama
+  `codex/82-dx3-reading-projection`, con HEAD remoto verificado. Se conserva su
+  validación reciente sin deriva funcional. El nuevo bloque continúa en #82;
+  no amplía la autorización a PR, merge, cierre o DX3.3–DX3.5.
+- `ReadingPublicationPlan` prepara un prefijo puro desde todos los candidatos
+  DX3.1 y referencias opcionales ya decididas. Valida todos antes de truncar,
+  conserva total/autoridad y mide con el codec final, revisión máxima y fecha
+  wire fija. La búsqueda crece hasta el primer exceso y acota el intervalo;
+  no intenta codificar una colección completa potencialmente grande.
+- El publicador verifica autoridad exacta antes de preparar, reutiliza el commit
+  DX2 y mantiene el chequeo del contexto final. El no-op conserva la intención
+  de reload pendiente sin escribir ni recargar; la recuperación explícita la
+  entrega sin otra reserva. SDD 09 v1.3 concreta esta separación.
+- RED compilable: 9 declaraciones/13 invocaciones de publicación y 11/24 del
+  preparador. El no-op con reload pendiente demuestra antes de la corrección
+  una escritura, cambio de bytes y recarga indebidos; el resto falla por los
+  stubs de preparación. El oráculo de presupuesto usa wire textual independiente
+  y constantes de aceptación, incluyendo contexto de 32.768 y 32.769 bytes,
+  JSON que cabe pero contexto que excede, comillas/controles y portada opcional.
+- GREEN y regresión por Xcode MCP `RunAllTests`: **Integration 326/326
+  declaraciones, 445 invocaciones; Fast 250/250, 342 invocaciones**. Total
+  **576 declaraciones/787 invocaciones**, con las **20/37 nuevas** completas
+  según los árboles nativos `.xcresult`. Cero fallos, skips, expected failures
+  o runtime warnings. El GREEN focal previo contabilizó 21 invocaciones; la
+  prueba completa de parámetros procede de los planes y árboles nativos.
+- Xcode MCP oficial: Xcode 27 `27A5252f`, Swift 6.4, scheme MangaLibrary,
+  iPhone 17 Simulator/iOS 27 `24A5423a`. Build-for-testing final y logs completos
+  sin warnings/errores; Navigator sin diagnósticos. Se conserva Fast activo.
+  El script de planes acredita 17 suites Fast y 26 Integration, con filtros y
+  partición válidos. El script aprobado `Scripts/validate-docc.sh` usa un
+  DerivedData temporal nuevo, docbuild Release para generic iOS y termina con
+  archive `.build/docc/MangaLibrary.doccarchive`, cero warnings y errores.
+- Revisión iOS independiente final y Audit Swift Source Style de los cuatro
+  Swift: sin hallazgos. Se reemplaza el oráculo preliminar `JSONSerialization`
+  por wire textual con `JSONEncoder` solo para escapar strings, conservando
+  expectativas independientes, antes del RED puro. Los ajustes léxicos quedan
+  aplicados y recompilados antes de ambos planes completos y DocC.
+- **DX3.2 completo localmente; DX3 queda en 2/5 bloques.** Su commit/push
+  quedan pendientes, mientras DX3.1 está publicado; #82/#77 siguen abiertos.
+  Siguiente bloque: **DX3.3, portadas y recuperación**, todavía sin iniciar.
+  Deluxe mantiene 2/7 subfases entregadas mediante PR, sin declarar su gate.
+  Pruebas puras y disco temporal aislado, sin producción o red real.
+- Las referencias aún no acreditan JPEGs reales; cuota, integridad y admisión
+  pertenecen a DX3.3. Eventos, composición y orden entre proyecciones de la misma
+  sesión pertenecen a DX3.4. No cambia UI, esquema, wire, entitlements, App Group,
+  targets o `AppComposition.live`. `project.pbxproj` conserva SHA-256
+  `ee6cd588ee1ba5666a71b8b42cbc19338af70025072d35a4efe1acb14732ab76`.
+  No hay evidencia nueva de WidgetKit, WCSession, accesibilidad o hardware.
 
 ## DX3.1 — proyección persistida — issue #82
 
@@ -44,9 +96,9 @@
   hallazgos. Audit Swift Source Style sobre los dos Swift, pasada manual y
   script, cerrado sin hallazgos después del ajuste léxico. `project.pbxproj`
   conserva SHA-256 `ee6cd588ee1ba5666a71b8b42cbc19338af70025072d35a4efe1acb14732ab76`.
-- **DX3.1 completo localmente; DX3 queda en 1/5 bloques y Deluxe en 2/7
+- **Estado al completar DX3.1: completo localmente; DX3 queda en 1/5 bloques y Deluxe en 2/7
   subfases entregadas.** El siguiente bloque es DX3.2, prefijo estable y no-op,
-  todavía sin iniciar. No hay commit/push, PR, merge o cierre nuevo. La suite usa
+  todavía sin iniciar en ese corte. La publicación posterior de DX3.1 figura arriba. La suite usa
   fixtures sintéticos y SwiftData en memoria; no cambia UI, esquema, wire,
   composición live, recursos, App Group o targets. No valida publicación por
   eventos, conservación física de manifests, WidgetKit/WCSession ni hardware.

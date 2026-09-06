@@ -7,6 +7,7 @@ enum ReadingPublicationError: Error {
     case retirementInProgress
     case invalidGeneration
     case contextTooLarge
+    case projectionAuthorityMismatch
 }
 
 /// Owns durable publication ordering. Only a session capability can publish content.
@@ -162,9 +163,29 @@ actor ReadingSnapshotPublisher {
         return nil
     }
 
+    /// Budgets persisted candidates and already resolved cover references before any durable effect.
+    ///
+    /// The capability must belong to the projection's exact authority. Cover identifiers are planning
+    /// inputs, not proof of file integrity; resource preparation and admission belong to the caller.
+    /// This entry point does not establish ordering between two projections of the same session.
+    func publish(
+        projection: CollectionReadingProjection,
+        coverResourceIDs: [Manga.ID: String] = [:],
+        authorization: SessionCommitAuthorization
+    ) throws -> ReadingSnapshot? {
+        try Task.checkCancellation()
+        guard projection.authority == authorization.authority else {
+            throw ReadingPublicationError.projectionAuthorityMismatch
+        }
+        try authorization.perform {}
+        let plan = try ReadingPublicationPlan(projection: projection, coverResourceIDs: coverResourceIDs)
+        return try publish(items: plan.items, totalEligibleCount: plan.totalEligibleCount, authorization: authorization)
+    }
+
     /// Commits a prepared projection only while its exact session capability remains valid.
     ///
-    /// An identical permitted projection returns `nil` without consuming a revision. Failed
+    /// An identical permitted projection returns `nil` without consuming a revision or requesting a reload.
+    /// A pending reload remains available to explicit recovery, including session restoration. Failed
     /// writes consume their reservation; a reload failure preserves a retryable intention.
     /// The caller supplies the already ordered and budgeted prefix, never live SwiftData models.
     func publish(
@@ -201,7 +222,6 @@ actor ReadingSnapshotPublisher {
             previous?.totalEligibleCount == totalEligibleCount
         {
             try authorization.perform {}
-            _ = try recover()
             return nil
         }
 
