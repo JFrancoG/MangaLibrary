@@ -50,7 +50,7 @@ frontera completa se define en
 
 ## Snapshot de lectura
 
-El [contrato DX1 / SDD 09 v1.0](09-deluxe-reading-contract.md), aprobado por el
+El [contrato DX1 / SDD 09](09-deluxe-reading-contract.md), aprobado por el
 propietario el 6 de septiembre de 2026, concreta selección, presentación, wire,
 límites y preparación de targets. Su matriz distingue las pruebas con Simulator
 de la evidencia física pendiente por falta de Apple Watch; conserva el gate de

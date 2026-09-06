@@ -105,8 +105,20 @@ actor SessionController {
         case authenticationInvalidation(SessionAuthority)
     }
 
+    private enum DeluxeRetirementOutcome {
+        case signedOut
+        case authenticationRequired
+    }
+
+    private struct PendingDeluxeRetirement {
+        let authority: SessionAuthority
+        let outcome: DeluxeRetirementOutcome
+        let commit: ReadingSnapshotPublisher.RetirementCommit?
+    }
+
     private let apiClient: SessionAPIClient
     private let persistence: SessionPersistenceActor
+    private let deluxePublisher: ReadingSnapshotPublisher?
     private let now: Clock
     private let makeGeneration: GenerationFactory
     private let renewalWindow: TimeInterval
@@ -127,12 +139,15 @@ actor SessionController {
     private var pendingTransition: PendingTransition?
     private var rejectedRequest: RejectedRequest?
     private var rejectedRequestDuringTransition: RejectedRequest?
+    private var pendingDeluxeRetirement: PendingDeluxeRetirement?
+    private var isCompletingDeluxeRetirement = false
 
     init(
         apiClient: SessionAPIClient,
         persistence: SessionPersistenceActor,
         now: @escaping Clock,
         makeGeneration: @escaping GenerationFactory,
+        deluxePublisher: ReadingSnapshotPublisher? = nil,
         renewalWindow: TimeInterval = 5 * 60,
         synchronizationObserver: @escaping SynchronizationObserver = { _ in },
         logoutPendingChangesObserver: @escaping LogoutPendingChangesObserver,
@@ -141,6 +156,7 @@ actor SessionController {
     ) {
         self.apiClient = apiClient
         self.persistence = persistence
+        self.deluxePublisher = deluxePublisher
         self.now = now
         self.makeGeneration = makeGeneration
         self.renewalWindow = renewalWindow
@@ -167,6 +183,9 @@ actor SessionController {
         if let restoreFlight {
             return try await awaitRestore(flight: restoreFlight)
         }
+        if pendingDeluxeRetirement != nil {
+            return try await completeDeluxeRetirement()
+        }
         guard case .notRestored = state else { return snapshot(for: state) }
 
         let identity = OperationIdentity()
@@ -178,6 +197,11 @@ actor SessionController {
 
     /// Completes JWT login → `/me` before writing one complete Keychain record.
     func login(email: String, password: String) async throws(any Error) -> SessionSnapshot {
+        if pendingDeluxeRetirement != nil {
+            _ = try await completeDeluxeRetirement()
+            try Task.checkCancellation()
+        }
+        guard isCompletingDeluxeRetirement == false else { throw SessionControllerError.transitionInProgress }
         guard committingLoginIdentity == nil else { throw SessionControllerError.transitionInProgress }
         let replacedAuthority: SessionAuthority?
         switch state {
@@ -361,6 +385,9 @@ actor SessionController {
     }
 
     /// Returns a commit capability only for the currently active local scope.
+    ///
+    /// Collection transactions and Deluxe publication consume the same capability at
+    /// their synchronous commit boundary; neither may infer authority from stored content.
     func commitAuthorization(
         for expectedAuthority: SessionAuthority
     ) async throws(any Error) -> SessionCommitAuthorization? {
@@ -458,7 +485,12 @@ actor SessionController {
     /// The first attempt inspects the outbox while normal commits are suspended. If work remains,
     /// the session is reactivated and presentation must obtain an explicit discard decision. A
     /// confirmed discard uses a fresh logout capability before deleting the exact Keychain generation.
+    /// With a Deluxe publisher, a verified closed fence precedes Keychain deletion and
+    /// cannot be cancelled or reopened when the remaining credential cleanup fails.
     func logout(discardPendingChanges: Bool = false) async throws(any Error) -> SessionSnapshot {
+        if pendingDeluxeRetirement != nil {
+            return try await completeDeluxeRetirement()
+        }
         guard pendingTransition == nil else { throw SessionControllerError.transitionInProgress }
         guard committingRefreshIdentity == nil else { throw SessionControllerError.transitionInProgress }
         guard case let .active(authenticated) = state else { throw SessionControllerError.notAuthenticated }
@@ -476,6 +508,19 @@ actor SessionController {
                 let hasPendingChanges = try await logoutPendingChangesObserver(logoutAuthorization)
                 try Task.checkCancellation()
                 if hasPendingChanges { throw SessionControllerError.pendingCollectionChanges }
+            }
+
+            if let deluxePublisher {
+                let commit: ReadingSnapshotPublisher.RetirementCommit
+                do {
+                    commit = try await deluxePublisher.close(authorization: logoutAuthorization)
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    throw SessionControllerError.persistenceUnavailable
+                }
+                beginDeluxeRetirement(authority: authenticated.session.authority, outcome: .signedOut, commit: commit)
+                return try await completeDeluxeRetirement()
             }
 
             guard try await persistence.remove(expected: authenticated.session.authority) else {
@@ -509,7 +554,49 @@ actor SessionController {
     }
 
     private func performRestore() async throws(any Error) -> SessionSnapshot {
+        let recovery: ReadingSnapshotPublisher.Recovery?
+        do {
+            recovery = try await deluxePublisher?.recover()
+        } catch {
+            throw SessionControllerError.persistenceUnavailable
+        }
         let restoration = try await persistence.restore()
+        if case .signedOut = restoration {
+            if let deluxePublisher {
+                do {
+                    if let commit = try await deluxePublisher.confirmNoSessionAfterRecovery() {
+                        await finishDeluxeRedaction(commit)
+                    }
+                } catch {
+                    throw SessionControllerError.persistenceUnavailable
+                }
+            }
+            apply(restoration)
+            return .signedOut
+        }
+        if recovery == .retirementRequired, case let .active(session) = restoration {
+            beginDeluxeRetirement(authority: session.authority, outcome: .signedOut, commit: nil)
+            return try await completeDeluxeRetirement()
+        }
+        if let recovery, case let .retirementPending(generation) = recovery, let deluxePublisher {
+            let commit: ReadingSnapshotPublisher.RetirementCommit
+            do {
+                guard
+                    let pending = try await deluxePublisher.pendingRetirement(),
+                    pending.sessionGeneration == generation
+                else {
+                    throw SessionControllerError.persistenceUnavailable
+                }
+                commit = pending
+            } catch {
+                throw SessionControllerError.persistenceUnavailable
+            }
+            if case let .active(session) = restoration, session.generation == generation {
+                beginDeluxeRetirement(authority: session.authority, outcome: .signedOut, commit: commit)
+                return try await completeDeluxeRetirement()
+            }
+            await finishDeluxeRedaction(commit)
+        }
         apply(restoration)
 
         guard case let .active(authenticated) = state else { return snapshot(for: state) }
@@ -757,6 +844,11 @@ actor SessionController {
             } catch {
                 Self.logger.error("Session invalidation observer failed; authentication cleanup continues")
             }
+            if deluxePublisher != nil {
+                beginDeluxeRetirement(authority: authority, outcome: .authenticationRequired, commit: nil)
+                _ = try await completeDeluxeRetirement()
+                return
+            }
             guard try await persistence.remove(expected: authority) else {
                 throw SessionControllerError.sessionChanged
             }
@@ -791,6 +883,82 @@ actor SessionController {
             }
             try Task.checkCancellation()
             throw mappedError
+        }
+    }
+
+    /// Records an in-process continuation; durable recovery reads the shared fence and publication intent.
+    private func beginDeluxeRetirement(
+        authority: SessionAuthority,
+        outcome: DeluxeRetirementOutcome,
+        commit: ReadingSnapshotPublisher.RetirementCommit?
+    ) {
+        pendingDeluxeRetirement = PendingDeluxeRetirement(authority: authority, outcome: outcome, commit: commit)
+        pendingTransition = nil
+        publishAuthenticationRequired(for: authority)
+    }
+
+    /// Completes a committed retirement without accepting caller cancellation after the safe fence.
+    ///
+    /// A failed precommit invalidation also enters here, retaining only its captured generation.
+    /// That retry can sanitize A but cannot authorize content or interfere with a later fence for B.
+    private func completeDeluxeRetirement() async throws(any Error) -> SessionSnapshot {
+        guard isCompletingDeluxeRetirement == false else { throw SessionControllerError.transitionInProgress }
+        guard let pending = pendingDeluxeRetirement, let deluxePublisher else {
+            throw SessionControllerError.sessionChanged
+        }
+        isCompletingDeluxeRetirement = true
+        defer { isCompletingDeluxeRetirement = false }
+
+        let commit: ReadingSnapshotPublisher.RetirementCommit
+        if let existing = pending.commit {
+            commit = existing
+        } else {
+            do {
+                commit = try await deluxePublisher.close(sessionGeneration: pending.authority.generation)
+            } catch {
+                throw SessionControllerError.persistenceUnavailable
+            }
+            pendingDeluxeRetirement = PendingDeluxeRetirement(
+                authority: pending.authority,
+                outcome: pending.outcome,
+                commit: commit
+            )
+        }
+
+        do {
+            if try await persistence.remove(expected: pending.authority) == false {
+                let restoration = try await persistence.restore()
+                if case let .active(current) = restoration {
+                    if current.authority != pending.authority {
+                        pendingDeluxeRetirement = nil
+                        state = .notRestored
+                    }
+                    throw SessionControllerError.sessionChanged
+                }
+            }
+        } catch {
+            throw map(error)
+        }
+
+        pendingDeluxeRetirement = nil
+        let result: SessionSnapshot
+        switch pending.outcome {
+        case .signedOut:
+            state = .signedOut
+            result = .signedOut
+        case .authenticationRequired:
+            state = .authenticationRequired(pending.authority)
+            result = .authenticationRequired(pending.authority.userID)
+        }
+        await finishDeluxeRedaction(commit)
+        return result
+    }
+
+    private func finishDeluxeRedaction(_ commit: ReadingSnapshotPublisher.RetirementCommit) async {
+        do {
+            try await deluxePublisher?.finishRetirement(commit)
+        } catch {
+            Self.logger.error("Deluxe redaction remains pending after session retirement")
         }
     }
 

@@ -19,7 +19,7 @@ Para resolver discrepancias, consulta [AGENTS.md](../AGENTS.md). En resumen: pet
 - [06 — Testing, calidad y accesibilidad](specs/06-testing-quality-and-accessibility.md)
 - [07 — Documentación y DocC](specs/07-documentation-and-docc.md)
 - [08 — Entrega, presentación y vídeo](specs/08-delivery-presentation-and-video.md)
-- [09 — Contrato de lectura Deluxe](specs/09-deluxe-reading-contract.md) — DX1 aprobado; incluye matriz de pruebas sin Apple Watch físico y evidencia pendiente.
+- [09 — Contrato de lectura Deluxe](specs/09-deluxe-reading-contract.md) — DX1 aprobado y recuperación DX2; incluye matriz de pruebas sin Apple Watch físico y evidencia pendiente.
 
 ### Contrato API
 
