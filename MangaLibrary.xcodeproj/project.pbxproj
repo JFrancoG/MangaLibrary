@@ -6,7 +6,20 @@
 	objectVersion = 110;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E08BAC7F304DFC9D00FCE7C9 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E08BAC7E304DFC9D00FCE7C9 /* WidgetKit.framework */; };
+		E08BAC81304DFC9D00FCE7C9 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E08BAC80304DFC9D00FCE7C9 /* SwiftUI.framework */; };
+		E08BAC8C304DFC9E00FCE7C9 /* MangaLibraryWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E08BAC7C304DFC9D00FCE7C9 /* MangaLibraryWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		E08BAC8A304DFC9E00FCE7C9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E092EB8D3030809D0053FBC5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E08BAC7B304DFC9D00FCE7C9;
+			remoteInfo = MangaLibraryWidgetExtension;
+		};
 		E092EBA33030809E0053FBC5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = E092EB8D3030809D0053FBC5 /* Project object */;
@@ -23,14 +36,53 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		E08BAC91304DFC9E00FCE7C9 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				E08BAC8C304DFC9E00FCE7C9 /* MangaLibraryWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		D0CC00010000000000000001 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
+		E08BAC7C304DFC9D00FCE7C9 /* MangaLibraryWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MangaLibraryWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E08BAC7E304DFC9D00FCE7C9 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = /System/Library/Frameworks/WidgetKit.framework; sourceTree = "<absolute>"; };
+		E08BAC80304DFC9D00FCE7C9 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = /System/Library/Frameworks/SwiftUI.framework; sourceTree = "<absolute>"; };
+		E08BAC92304DFCEE00FCE7C9 /* MangaLibraryWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MangaLibraryWidgetExtension.entitlements; sourceTree = "<group>"; };
 		E092EB953030809D0053FBC5 /* MangaLibrary.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MangaLibrary.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E092EBA23030809E0053FBC5 /* MangaLibraryTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MangaLibraryTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E092EBAC3030809E0053FBC5 /* MangaLibraryUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MangaLibraryUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E08BAC90304DFC9E00FCE7C9 /* Exceptions for "MangaLibraryWidget" folder in "MangaLibraryWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E08BAC7B304DFC9D00FCE7C9 /* MangaLibraryWidgetExtension */;
+		};
+		E08BACC2304E086800FCE7C9 /* Exceptions for "MangaLibrary" folder in "MangaLibraryWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Resources/Assets.xcassets,
+				Shared/Deluxe/ReadingCoverReader.swift,
+				Shared/Deluxe/ReadingCoverResource.swift,
+				Shared/Deluxe/ReadingSnapshot.swift,
+				Shared/Deluxe/ReadingSnapshotCodec.swift,
+				Shared/Deluxe/ReadingSnapshotFileReader.swift,
+				Shared/Deluxe/ReadingSnapshotReader.swift,
+				Shared/Deluxe/ReadingWidgetBridge.swift,
+				Shared/Deluxe/ReadingWidgetRotation.swift,
+				Shared/Deluxe/SessionFence.swift,
+			);
+			target = E08BAC7B304DFC9D00FCE7C9 /* MangaLibraryWidgetExtension */;
+		};
 		E0E672FB3044C13400F20AEF /* Exceptions for "MangaLibrary" folder in "MangaLibrary" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -41,10 +93,19 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		E08BAC82304DFC9D00FCE7C9 /* MangaLibraryWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E08BAC90304DFC9E00FCE7C9 /* Exceptions for "MangaLibraryWidget" folder in "MangaLibraryWidgetExtension" target */,
+			);
+			path = MangaLibraryWidget;
+			sourceTree = "<group>";
+		};
 		E092EB973030809D0053FBC5 /* MangaLibrary */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				E0E672FB3044C13400F20AEF /* Exceptions for "MangaLibrary" folder in "MangaLibrary" target */,
+				E08BACC2304E086800FCE7C9 /* Exceptions for "MangaLibrary" folder in "MangaLibraryWidgetExtension" target */,
 			);
 			path = MangaLibrary;
 			sourceTree = "<group>";
@@ -62,6 +123,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		E08BAC79304DFC9D00FCE7C9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				E08BAC81304DFC9D00FCE7C9 /* SwiftUI.framework in Frameworks */,
+				E08BAC7F304DFC9D00FCE7C9 /* WidgetKit.framework in Frameworks */,
+			);
+		};
 		E092EB923030809D0053FBC5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
@@ -88,13 +156,25 @@
 			path = Configuration;
 			sourceTree = "<group>";
 		};
+		E08BAC7D304DFC9D00FCE7C9 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				E08BAC7E304DFC9D00FCE7C9 /* WidgetKit.framework */,
+				E08BAC80304DFC9D00FCE7C9 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		E092EB8C3030809D0053FBC5 = {
 			isa = PBXGroup;
 			children = (
+				E08BAC92304DFCEE00FCE7C9 /* MangaLibraryWidgetExtension.entitlements */,
 				D0CC00020000000000000001 /* Configuration */,
 				E092EB973030809D0053FBC5 /* MangaLibrary */,
 				E092EBA53030809E0053FBC5 /* MangaLibraryTests */,
 				E092EBAF3030809E0053FBC5 /* MangaLibraryUITests */,
+				E08BAC82304DFC9D00FCE7C9 /* MangaLibraryWidget */,
+				E08BAC7D304DFC9D00FCE7C9 /* Frameworks */,
 				E092EB963030809D0053FBC5 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -105,6 +185,7 @@
 				E092EB953030809D0053FBC5 /* MangaLibrary.app */,
 				E092EBA23030809E0053FBC5 /* MangaLibraryTests.xctest */,
 				E092EBAC3030809E0053FBC5 /* MangaLibraryUITests.xctest */,
+				E08BAC7C304DFC9D00FCE7C9 /* MangaLibraryWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -112,6 +193,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		E08BAC7B304DFC9D00FCE7C9 /* MangaLibraryWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E08BAC8D304DFC9E00FCE7C9 /* Build configuration list for PBXNativeTarget "MangaLibraryWidgetExtension" */;
+			buildPhases = (
+				E08BAC78304DFC9D00FCE7C9 /* Sources */,
+				E08BAC79304DFC9D00FCE7C9 /* Frameworks */,
+				E08BAC7A304DFC9D00FCE7C9 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				E08BAC82304DFC9D00FCE7C9 /* MangaLibraryWidget */,
+			);
+			name = MangaLibraryWidgetExtension;
+			productName = MangaLibraryWidgetExtension;
+			productReference = E08BAC7C304DFC9D00FCE7C9 /* MangaLibraryWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		E092EB943030809D0053FBC5 /* MangaLibrary */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E092EBB43030809E0053FBC5 /* Build configuration list for PBXNativeTarget "MangaLibrary" */;
@@ -119,8 +218,12 @@
 				E092EB913030809D0053FBC5 /* Sources */,
 				E092EB923030809D0053FBC5 /* Frameworks */,
 				E092EB933030809D0053FBC5 /* Resources */,
+				E08BAC91304DFC9E00FCE7C9 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
+			);
+			dependencies = (
+				E08BAC8B304DFC9E00FCE7C9 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				E092EB973030809D0053FBC5 /* MangaLibrary */,
@@ -182,6 +285,9 @@
 				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
+					E08BAC7B304DFC9D00FCE7C9 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 					E092EB943030809D0053FBC5 = {
 						CreatedOnToolsVersion = 27.0;
 					};
@@ -213,11 +319,17 @@
 				E092EB943030809D0053FBC5 /* MangaLibrary */,
 				E092EBA13030809E0053FBC5 /* MangaLibraryTests */,
 				E092EBAB3030809E0053FBC5 /* MangaLibraryUITests */,
+				E08BAC7B304DFC9D00FCE7C9 /* MangaLibraryWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		E08BAC7A304DFC9D00FCE7C9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
 		E092EB933030809D0053FBC5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
@@ -236,6 +348,11 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		E08BAC78304DFC9D00FCE7C9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 		E092EB913030809D0053FBC5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
@@ -254,6 +371,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		E08BAC8B304DFC9E00FCE7C9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E08BAC7B304DFC9D00FCE7C9 /* MangaLibraryWidgetExtension */;
+			targetProxy = E08BAC8A304DFC9E00FCE7C9 /* PBXContainerItemProxy */;
+		};
 		E092EBA43030809E0053FBC5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = E092EB943030809D0053FBC5 /* MangaLibrary */;
@@ -267,6 +389,92 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		E08BAC8E304DFC9E00FCE7C9 /* Debug configuration for PBXNativeTarget "MangaLibraryWidgetExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = MangaLibraryWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NWN8JUE438;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MangaLibraryWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MangaLibraryWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.7;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.plusprojects.MangaLibrary.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		E08BAC8F304DFC9E00FCE7C9 /* Release configuration for PBXNativeTarget "MangaLibraryWidgetExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = MangaLibraryWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NWN8JUE438;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MangaLibraryWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MangaLibraryWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.7;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.plusprojects.MangaLibrary.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
 		E092EBB23030809E0053FBC5 /* Debug configuration for PBXProject "MangaLibrary" */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = D0CC00010000000000000001 /* Shared.xcconfig */;
@@ -390,6 +598,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = MangaLibrary;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = BrandPrimary;
+				CODE_SIGN_ENTITLEMENTS = MangaLibrary/MangaLibrary.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = NWN8JUE438;
@@ -438,6 +647,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = MangaLibrary;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = BrandPrimary;
+				CODE_SIGN_ENTITLEMENTS = MangaLibrary/MangaLibrary.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = NWN8JUE438;
@@ -590,6 +800,14 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		E08BAC8D304DFC9E00FCE7C9 /* Build configuration list for PBXNativeTarget "MangaLibraryWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E08BAC8E304DFC9E00FCE7C9 /* Debug configuration for PBXNativeTarget "MangaLibraryWidgetExtension" */,
+				E08BAC8F304DFC9E00FCE7C9 /* Release configuration for PBXNativeTarget "MangaLibraryWidgetExtension" */,
+			);
+			defaultConfigurationName = Release;
+		};
 		E092EB903030809D0053FBC5 /* Build configuration list for PBXProject "MangaLibrary" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

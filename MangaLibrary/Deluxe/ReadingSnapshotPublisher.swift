@@ -9,6 +9,7 @@ enum ReadingPublicationError: Error {
     case contextTooLarge
     case projectionAuthorityMismatch
     case staleProjection
+    case collectionVerificationFailed
 }
 
 /// Owns durable publication ordering. Only a session capability can publish content.
@@ -184,11 +185,109 @@ actor ReadingSnapshotPublisher {
             throw ReadingPublicationError.projectionAuthorityMismatch
         }
         try authorization.perform {}
-        let plan = try ReadingPublicationPlan(projection: projection, coverResourceIDs: coverResourceIDs)
-        return try publish(items: plan.items, totalEligibleCount: plan.totalEligibleCount, authorization: authorization)
+        let preferred = try preferredStartMangaID(for: projection, requested: nil, authorization: authorization)
+        let plan = try ReadingPublicationPlan(
+            projection: projection,
+            coverResourceIDs: coverResourceIDs,
+            preferredStartMangaID: preferred
+        )
+        return try commit(
+            items: plan.items,
+            totalEligibleCount: plan.totalEligibleCount,
+            resources: [],
+            authorization: authorization,
+            preferredStartMangaID: preferred,
+            collectionData: plan.collectionData
+        )
     }
 
-    /// Admits only resources referenced by the final changed prefix, before replacing its manifest.
+    /// Resolves cover-selection priority from the same authorized persisted envelope as publication.
+    ///
+    /// This read performs no recovery or durable effect. A coalesced edit whose reading returned
+    /// to the published value inherits the existing focus. Missing selected identities and other
+    /// session generations cannot supply a preference; I/O failures remain failures, never absence.
+    func preferredStartMangaID(
+        for projection: CollectionReadingProjection,
+        requested mangaID: Manga.ID?,
+        authorization: SessionCommitAuthorization,
+        ticket: ReadingPublicationTicket? = nil
+    ) throws -> Manga.ID? {
+        guard projection.authority == authorization.authority else {
+            throw ReadingPublicationError.projectionAuthorityMismatch
+        }
+        try Task.checkCancellation()
+        try withPublicationAuthorization(authorization, ticket: ticket) {}
+        let readable: ReadingSnapshot?
+        do {
+            readable = try ReadingSnapshotReader(storage: storage).read()
+        } catch ReadingSnapshotStorageError.incompatibleFile {
+            readable = nil
+        }
+        try withPublicationAuthorization(authorization, ticket: ticket) {}
+        let previous = readable?.sessionGeneration == authorization.authority.generation ? readable : nil
+        if
+            let mangaID,
+            let item = projection.items.first(where: { $0.mangaID == mangaID }),
+            previous?.items.first(where: { $0.mangaID == mangaID })?.readingVolume != item.readingVolume
+        {
+            return mangaID
+        }
+        guard
+            let inherited = previous?.preferredStartMangaID,
+            projection.items.contains(where: { $0.mangaID == inherited })
+        else { return nil }
+        return inherited
+    }
+
+    /// Accepts a committed local addition or inherits a still-present focus from this exact authorized session.
+    ///
+    /// Imports do not propose a focus. A removed or already published candidate cannot reset the
+    /// collection by itself, and an unreadable predecessor never authorizes inherited presentation metadata.
+    func preferredCollectionStartMangaID(
+        for projection: CollectionReadingProjection,
+        requested mangaID: Manga.ID?,
+        authorization: SessionCommitAuthorization,
+        ticket: ReadingPublicationTicket? = nil
+    ) throws -> Manga.ID? {
+        guard projection.authority == authorization.authority else {
+            throw ReadingPublicationError.projectionAuthorityMismatch
+        }
+        try Task.checkCancellation()
+        try withPublicationAuthorization(authorization, ticket: ticket) {}
+        let storage = storage
+        let previous: CollectionWidgetSnapshot?
+        do {
+            let result = try CollectionWidgetReader(
+                readFence: { try storage.read(.fence) },
+                readSnapshot: { try storage.read(.snapshot) },
+                readCollection: { try storage.read($0 == 0 ? .collection0 : .collection1) }
+            ).readResult()
+            if case let .snapshot(manifest, collection) = result,
+               manifest.sessionGeneration == authorization.authority.generation {
+                previous = collection
+            } else {
+                previous = nil
+            }
+        } catch ReadingSnapshotStorageError.incompatibleFile {
+            previous = nil
+        }
+        try withPublicationAuthorization(authorization, ticket: ticket) {}
+        let items = projection.collectionItems ?? []
+        if
+            let mangaID,
+            items.contains(where: { $0.mangaID == mangaID }),
+            previous?.items.contains(where: { $0.mangaID == mangaID }) != true
+        {
+            return mangaID
+        }
+        guard
+            let inherited = previous?.preferredStartMangaID,
+            items.contains(where: { $0.mangaID == inherited })
+        else { return nil }
+        return inherited
+    }
+
+    /// Admits only resources referenced by the final changed selection, before replacing its manifest.
     ///
     /// The event pipeline supplies a ticket invalidated by every newer committed intent. Validation
     /// shares the session critical section with resource admission, manifest replacement and fence
@@ -198,28 +297,58 @@ actor ReadingSnapshotPublisher {
         projection: CollectionReadingProjection,
         preparedCovers: [Manga.ID: ReadingCoverResource],
         authorization: SessionCommitAuthorization,
-        ticket: ReadingPublicationTicket? = nil
+        ticket: ReadingPublicationTicket? = nil,
+        preferredStartMangaID: Manga.ID? = nil,
+        preferredCollectionStartMangaID: Manga.ID? = nil
     ) throws -> ReadingSnapshot? {
         try Task.checkCancellation()
         guard projection.authority == authorization.authority else {
             throw ReadingPublicationError.projectionAuthorityMismatch
         }
         try withPublicationAuthorization(authorization, ticket: ticket) {}
-        let upperBound = try ReadingPublicationPlan(projection: projection)
+        let preferred = try self.preferredStartMangaID(
+            for: projection,
+            requested: preferredStartMangaID,
+            authorization: authorization,
+            ticket: ticket
+        )
+        let collectionPreferred = try self.preferredCollectionStartMangaID(
+            for: projection,
+            requested: preferredCollectionStartMangaID,
+            authorization: authorization,
+            ticket: ticket
+        )
+        let upperBound = try ReadingPublicationPlan(
+            projection: projection,
+            preferredStartMangaID: preferred,
+            preferredCollectionStartMangaID: collectionPreferred
+        )
         let proposed = try ReadingPublicationPlan(
             projection: projection,
-            coverResourceIDs: preparedCovers.mapValues(\.identifier)
+            coverResourceIDs: preparedCovers.mapValues(\.identifier),
+            preferredStartMangaID: preferred,
+            preferredCollectionStartMangaID: collectionPreferred
         )
         let previous = try publicationPredecessor(authorization: authorization, ticket: ticket)
-        if
-            previous?.sessionGeneration == authorization.authority.generation,
-            previous?.items == proposed.items,
-            previous?.totalEligibleCount == proposed.totalEligibleCount
-        {
+        if try unchanged(
+            previous,
+            items: proposed.items,
+            totalEligibleCount: proposed.totalEligibleCount,
+            collectionData: proposed.collectionData,
+            generation: authorization.authority.generation
+        ) {
             try withPublicationAuthorization(authorization, ticket: ticket) {}
             return nil
         }
-        let candidates = upperBound.items.compactMap { preparedCovers[$0.mangaID] }
+        var candidateIDs = upperBound.items.map(\.mangaID)
+        var included = Set(candidateIDs)
+        if let collectionPreferred, included.insert(collectionPreferred).inserted {
+            candidateIDs.append(collectionPreferred)
+        }
+        for item in upperBound.collection?.items ?? [] where included.insert(item.mangaID).inserted {
+            candidateIDs.append(item.mangaID)
+        }
+        let candidates = candidateIDs.compactMap { preparedCovers[$0] }
         let admissible: [ReadingCoverResource]
         do {
             admissible = try coverStorage?.admissibleResources(
@@ -237,14 +366,23 @@ actor ReadingSnapshotPublisher {
         let references = preparedCovers.compactMapValues { resource in
             identifiers.contains(resource.identifier) ? resource.identifier : nil
         }
-        let plan = try ReadingPublicationPlan(projection: projection, coverResourceIDs: references)
-        let selected = Set(plan.items.compactMap(\.coverResourceID))
+        let plan = try ReadingPublicationPlan(
+            projection: projection,
+            coverResourceIDs: references,
+            preferredStartMangaID: preferred,
+            preferredCollectionStartMangaID: collectionPreferred
+        )
+        let selected = Set(
+            plan.items.compactMap(\.coverResourceID) + (plan.collection?.items.compactMap(\.coverResourceID) ?? [])
+        )
         return try commit(
             items: plan.items,
             totalEligibleCount: plan.totalEligibleCount,
             resources: admissible.filter { selected.contains($0.identifier) },
             authorization: authorization,
-            ticket: ticket
+            ticket: ticket,
+            preferredStartMangaID: preferred,
+            collectionData: plan.collectionData
         )
     }
 
@@ -253,7 +391,7 @@ actor ReadingSnapshotPublisher {
     /// An identical permitted projection returns `nil` without consuming a revision or requesting a reload.
     /// A pending reload remains available to explicit recovery, including session restoration. Failed
     /// writes consume their reservation; a reload failure preserves a retryable intention.
-    /// The caller supplies the already ordered and budgeted prefix, never live SwiftData models.
+    /// The caller supplies the already ordered and budgeted selection, never live SwiftData models.
     func publish(
         items: [ReadingSnapshot.Item],
         totalEligibleCount: Int64,
@@ -272,21 +410,30 @@ actor ReadingSnapshotPublisher {
         totalEligibleCount: Int64,
         resources: [ReadingCoverResource],
         authorization: SessionCommitAuthorization,
-        ticket: ReadingPublicationTicket? = nil
+        ticket: ReadingPublicationTicket? = nil,
+        preferredStartMangaID: Manga.ID? = nil,
+        collectionData: Data? = nil
     ) throws -> ReadingSnapshot? {
         let previous = try publicationPredecessor(authorization: authorization, ticket: ticket)
         let generation = authorization.authority.generation
-        if
-            previous?.sessionGeneration == generation,
-            previous?.items == items,
-            previous?.totalEligibleCount == totalEligibleCount
-        {
+        if try unchanged(
+            previous,
+            items: items,
+            totalEligibleCount: totalEligibleCount,
+            collectionData: collectionData,
+            generation: generation
+        ) {
             try withPublicationAuthorization(authorization, ticket: ticket) {}
             return nil
         }
 
+        let currentCollection = decodedSnapshot(try readCompatibleFile(.snapshot))?.collectionReference
+        let collectionReference = try collectionReference(for: collectionData, current: currentCollection)
         var state = try stateWithCapacity()
         let revision = state.lastReservedRevision + 1
+        let inherited = previous?.sessionGeneration == generation ? previous?.preferredStartMangaID : nil
+        let proposedPreference = preferredStartMangaID ?? inherited
+        let preferred = items.contains(where: { $0.mangaID == proposedPreference }) ? proposedPreference : nil
         let snapshot = try ReadingSnapshot(
             publicationGeneration: state.publicationGeneration,
             revision: revision,
@@ -294,7 +441,9 @@ actor ReadingSnapshotPublisher {
             state: items.isEmpty ? .empty : .content,
             generatedAt: now(),
             totalEligibleCount: totalEligibleCount,
-            items: items
+            items: items,
+            preferredStartMangaID: preferred,
+            collectionReference: collectionReference
         )
         let data = try ReadingSnapshotCodec.encode(snapshot)
         guard try ReadingSnapshotCodec.contextByteCount(for: data) <= 32_768 else {
@@ -350,6 +499,16 @@ actor ReadingSnapshotPublisher {
         } else {
             recoverCovers()
         }
+        if let collectionData, let collectionReference, collectionReference != currentCollection {
+            try Task.checkCancellation()
+            try withPublicationAuthorization(authorization, ticket: ticket) {
+                let file = collectionFile(slot: collectionReference.slot)
+                try storage.replace(file, collectionData)
+                guard try storage.read(file) == collectionData else {
+                    throw ReadingPublicationError.collectionVerificationFailed
+                }
+            }
+        }
         try Task.checkCancellation()
         try withPublicationAuthorization(authorization, ticket: ticket) {
             try storage.replace(.snapshot, data)
@@ -369,6 +528,52 @@ actor ReadingSnapshotPublisher {
         state.intent = nil
         try save(state)
         return snapshot
+    }
+
+    private func unchanged(
+        _ previous: ReadingSnapshot?,
+        items: [ReadingSnapshot.Item],
+        totalEligibleCount: Int64,
+        collectionData: Data?,
+        generation: UUID
+    ) throws -> Bool {
+        guard
+            let previous,
+            previous.sessionGeneration == generation,
+            previous.items == items,
+            previous.totalEligibleCount == totalEligibleCount
+        else { return false }
+        guard let collectionData else { return previous.collectionReference == nil }
+        guard let reference = previous.collectionReference else { return false }
+        return try collectionMatches(collectionData, reference: reference)
+    }
+
+    private func collectionReference(
+        for data: Data?,
+        current: CollectionWidgetSnapshot.Reference?
+    ) throws -> CollectionWidgetSnapshot.Reference? {
+        guard let data else { return nil }
+        if let current, try collectionMatches(data, reference: current) {
+            return current
+        }
+        return try CollectionWidgetSnapshot.Reference(
+            slot: current?.slot == 0 ? 1 : 0,
+            digest: CollectionWidgetSnapshotCodec.digest(data),
+            byteCount: data.count
+        )
+    }
+
+    private func collectionMatches(_ data: Data, reference: CollectionWidgetSnapshot.Reference) throws -> Bool {
+        guard CollectionWidgetSnapshotCodec.matches(data, reference: reference) else { return false }
+        do {
+            return try storage.read(collectionFile(slot: reference.slot)) == data
+        } catch ReadingSnapshotStorageError.incompatibleFile {
+            return false
+        }
+    }
+
+    private func collectionFile(slot: Int) -> ReadingSnapshotStorage.File {
+        slot == 0 ? .collection0 : .collection1
     }
 
     private func publicationPredecessor(

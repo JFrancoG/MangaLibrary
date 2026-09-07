@@ -3,6 +3,7 @@
 //  MangaLibrary
 //
 
+import CryptoKit
 import Foundation
 
 /// Bounds UTF-8 input before decoding and writes the compact, deterministic Deluxe wire representation.
@@ -49,5 +50,34 @@ enum ReadingSnapshotCodec {
         guard data.count <= maximumByteCount else { throw ReadingSnapshotError.payloadTooLarge }
         guard String(data: data, encoding: .utf8) != nil else { throw ReadingSnapshotError.invalidUTF8 }
         return try JSONDecoder().decode(type, from: data)
+    }
+}
+
+/// Keeps the complete local resource bounded and deterministic; it never selects a partial collection.
+enum CollectionWidgetSnapshotCodec {
+    static let maximumByteCount = 1_048_576
+    static let maximumItemCount = 4_096
+
+    static func encode(_ snapshot: CollectionWidgetSnapshot) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        let data = try encoder.encode(snapshot)
+        guard data.count <= maximumByteCount else { throw CollectionWidgetSnapshotError.payloadTooLarge }
+        return data
+    }
+
+    static func decode(_ data: Data) throws -> CollectionWidgetSnapshot {
+        guard data.count <= maximumByteCount else { throw CollectionWidgetSnapshotError.payloadTooLarge }
+        guard String(data: data, encoding: .utf8) != nil else { throw CollectionWidgetSnapshotError.invalidUTF8 }
+        return try JSONDecoder().decode(CollectionWidgetSnapshot.self, from: data)
+    }
+
+    static func digest(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func matches(_ data: Data, reference: CollectionWidgetSnapshot.Reference) -> Bool {
+        guard data.count == reference.byteCount, data.count <= maximumByteCount else { return false }
+        return digest(data) == reference.digest
     }
 }

@@ -2,6 +2,7 @@ import Foundation
 
 /// A failed session reconciliation must reach the owner of the structured consumer.
 struct ReadingPublicationSessionReconciliationError: Error {
+    let authority: SessionAuthority
     let underlyingError: any Error
 }
 
@@ -88,8 +89,24 @@ actor ReadingPublicationPipeline {
         }
         try Task.checkCancellation()
         try Self.validate(event)
+        let preferred = try await publisher.preferredStartMangaID(
+            for: projection,
+            requested: event.preferredStartMangaID,
+            authorization: event.authorization,
+            ticket: event.ticket
+        )
         let loadCover = loadCover
-        let covers = try await ReadingCoverBatch.prepare(projection: projection) { url in
+        let collectionPreferred = try await publisher.preferredCollectionStartMangaID(
+            for: projection,
+            requested: event.preferredCollectionStartMangaID,
+            authorization: event.authorization,
+            ticket: event.ticket
+        )
+        let covers = try await ReadingCoverBatch.prepare(
+            projection: projection,
+            preferredStartMangaID: preferred,
+            preferredCollectionStartMangaID: collectionPreferred
+        ) { url in
             try Task.checkCancellation()
             try Self.validate(event)
             let source = try await loadCover(url)
@@ -99,12 +116,16 @@ actor ReadingPublicationPipeline {
         }
         try Task.checkCancellation()
         try Self.validate(event)
-        return try await publisher.publish(
+        let result = try await publisher.publish(
             projection: projection,
             preparedCovers: covers,
             authorization: event.authorization,
-            ticket: event.ticket
+            ticket: event.ticket,
+            preferredStartMangaID: preferred,
+            preferredCollectionStartMangaID: collectionPreferred
         )
+        events.consumePreference(for: event)
+        return result
     }
 
     private func reconcile(authority: SessionAuthority) async throws {
@@ -113,7 +134,7 @@ actor ReadingPublicationPipeline {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            throw ReadingPublicationSessionReconciliationError(underlyingError: error)
+            throw ReadingPublicationSessionReconciliationError(authority: authority, underlyingError: error)
         }
     }
 

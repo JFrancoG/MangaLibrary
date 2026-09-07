@@ -11,6 +11,28 @@ import Testing
 @Suite("Persisted Deluxe reading projection", .tags(.integration))
 struct CollectionReadingProjectionTests {
     @Test
+    func `collection includes every active manga even without owned volumes or a reading`() async throws {
+        let container = try Self.container()
+        let context = ModelContext(container)
+        context.insert(Self.entry(mangaID: 30, title: "Cedar", reading: nil, total: 4, owned: [1, 3]))
+        context.insert(Self.entry(mangaID: 10, title: "Alba", reading: 2, total: 3, owned: [1, 2, 3], complete: true))
+        context.insert(Self.entry(mangaID: 20, title: "Birch", reading: nil))
+        context.insert(Self.entry(mangaID: 40, title: "Deleted", tombstone: true))
+        context.insert(Self.entry(userID: Self.otherUser, mangaID: 50, title: "Private"))
+        try context.save()
+
+        let projection = try await CollectionMutationActor(modelContainer: container)
+            .readingProjection(authorization: Self.authorization())
+
+        #expect(projection.items.map(\.mangaID) == [10])
+        let collection = try #require(projection.collectionItems)
+        #expect(collection.map(\.mangaID) == [10, 20, 30])
+        #expect(collection.map(\.ownedVolumeCount) == [3, 0, 2])
+        #expect(collection.map(\.totalVolumes) == [3, nil, 4])
+        #expect(collection.map(\.isComplete) == [true, false, false])
+    }
+
+    @Test
     func `projects the approved persisted batch without requiring ownership`() async throws {
         let fixture = try ProjectionFixture.load()
         let container = try fixture.container(caseNames: fixture.validBatch.caseNames)
@@ -78,6 +100,7 @@ struct CollectionReadingProjectionTests {
             .readingProjection(authorization: Self.authorization())
 
         #expect(projection.items.map(\.readingVolume) == [2])
+        #expect(projection.collectionItems == nil)
         let persisted = try #require(ModelContext(container).fetch(FetchDescriptor<CollectionEntry>()).first)
         #expect(persisted.ownedVolumes == [301, -1, 301])
         #expect(persisted.isComplete)

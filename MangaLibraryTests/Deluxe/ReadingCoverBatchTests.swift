@@ -7,6 +7,77 @@ import UniformTypeIdentifiers
 
 @Suite(.tags(.integration))
 struct ReadingCoverBatchTests {
+    @Test(arguments: [false, true])
+    func `collection contributes at most 128 extra distinct URLs without displacing reading covers`(
+        focusNewAddition: Bool
+    ) async throws {
+        let readingURL = try #require(URL(string: "https://covers.invalid/reading"))
+        let reading = CollectionReadingProjection.Item(
+            mangaID: 1_000,
+            title: nil,
+            readingVolume: 1,
+            totalVolumes: nil,
+            coverURL: readingURL
+        )
+        var collection = (1...260).map { identifier in
+            CollectionReadingProjection.CollectionItem(
+                mangaID: Int64(identifier),
+                title: nil,
+                ownedVolumeCount: 0,
+                totalVolumes: nil,
+                isComplete: false,
+                coverURL: URL(string: "https://covers.invalid/extra\((identifier + 1) / 2)")
+            )
+        }
+        collection.append(CollectionReadingProjection.CollectionItem(
+            mangaID: 1_000,
+            title: nil,
+            ownedVolumeCount: 0,
+            totalVolumes: nil,
+            isComplete: false,
+            coverURL: readingURL
+        ))
+        let projection = CollectionReadingProjection(
+            authority: SessionAuthority(userID: UUID(), generation: UUID()),
+            items: [reading],
+            collectionItems: collection
+        )
+        let fetched = Mutex<[String]>([])
+        let source = try ReadingCoverTestImages.jpeg(pattern: .red)
+
+        let covers = try await ReadingCoverBatch.prepare(
+            projection: projection,
+            preferredCollectionStartMangaID: focusNewAddition ? 260 : nil
+        ) { url in
+            fetched.withLock { $0.append(url.lastPathComponent) }
+            return source
+        }
+
+        let expectedURLs = focusNewAddition
+            ? ["reading", "extra130"] + (1...127).map { "extra\($0)" }
+            : ["reading"] + (1...128).map { "extra\($0)" }
+        let expectedIDs = focusNewAddition
+            ? Array(Int64(1)...254) + [259, 260, 1_000]
+            : Array(Int64(1)...256) + [1_000]
+        #expect(fetched.withLock { $0 } == expectedURLs)
+        #expect(covers.keys.sorted() == expectedIDs)
+    }
+
+    @Test
+    func `prepares the preferred trailing cover instead of the displaced prefix tail`() async throws {
+        let projection = projection(count: 100, title: String(repeating: "a", count: 512))
+        let source = try ReadingCoverTestImages.jpeg(pattern: .red)
+        let fetched = Mutex<[Int]>([])
+
+        let covers = try await ReadingCoverBatch.prepare(projection: projection, preferredStartMangaID: 100) { url in
+            fetched.withLock { $0.append(Int(url.lastPathComponent) ?? 0) }
+            return source
+        }
+
+        #expect(fetched.withLock { $0 } == Array(1...53) + [100])
+        #expect(covers.keys.sorted() == Array(Int64(1)...53) + [100])
+    }
+
     @Test
     func `fetches only the first fifty four potentially transportable covers`() async throws {
         let projection = projection(count: 100, title: String(repeating: "a", count: 512))

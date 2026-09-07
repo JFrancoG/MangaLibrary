@@ -6,10 +6,13 @@ struct ReadingPublicationComposition {
     let mutations: CollectionMutationActor
     let publisher: ReadingSnapshotPublisher
     let events: ReadingPublicationEvents
-    fileprivate let loadCover: @Sendable (URL) async throws -> Data?
+    let loadCover: @Sendable (URL) async throws -> Data?
 
     /// Binds authorization rejection to the same owner that closes the shared session fence.
-    func makePipeline(sessionController: SessionController) -> ReadingPublicationPipeline {
+    func makePipeline(
+        sessionController: SessionController,
+        onSessionReconciled: @escaping @Sendable (SessionAuthority) async -> Void = { _ in }
+    ) -> ReadingPublicationPipeline {
         ReadingPublicationPipeline(
             events: events,
             mutations: mutations,
@@ -17,6 +20,7 @@ struct ReadingPublicationComposition {
             loadCover: loadCover,
             reconcileSession: { authority in
                 try await sessionController.reconcileReadingAuthorization(for: authority)
+                await onSessionReconciled(authority)
             }
         )
     }
@@ -26,7 +30,7 @@ extension AppComposition {
     /// Composes an isolated bridge with caller-owned storage, time, cover loading and reload delivery.
     ///
     /// The caller must inject these same events and publisher into its session owner. Construction
-    /// starts no task or transport. Live App Group resolution and app lifecycle belong to DX4.
+    /// starts no task or transport. The live root resolves the App Group separately.
     static func makeReadingPublication(
         modelContainer: ModelContainer,
         sharedDirectory: URL,

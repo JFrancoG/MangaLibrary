@@ -38,8 +38,18 @@ actor CollectionMutationActor {
 
         do {
             return try authorization.perform {
+                let entry = try fetchEntry(userID: command.userID, mangaID: command.mangaID)
+                let previousReading = entry?.readingVolume
+                let wasActive = entry != nil && entry?.isTombstone == false
                 let result = try apply(command, newOperationID: newOperationID)
-                _ = readingEvents?.record(authorization: authorization)
+                let reading = result.state.isTombstone ? nil : result.state.readingVolume
+                let preferred = reading != nil && reading != previousReading ? command.mangaID : nil
+                let added = !wasActive && !result.state.isTombstone ? command.mangaID : nil
+                _ = readingEvents?.record(
+                    authorization: authorization,
+                    preferredStartMangaID: preferred,
+                    preferredCollectionStartMangaID: added
+                )
                 return result
             }
         } catch let error as CollectionMutationError {

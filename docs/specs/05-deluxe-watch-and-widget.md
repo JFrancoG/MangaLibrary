@@ -1,8 +1,8 @@
 # SDD 05: Deluxe, watchOS y widget
 
 **Estado:** Aprobada
-**Versión:** 1.7
-**Fecha:** 2026-09-06
+**Versión:** 1.9
+**Fecha:** 2026-09-07
 **Gate de entrada:** Advanced Release Gate superado
 
 ## Propósito
@@ -13,12 +13,12 @@ Definir el incremento Deluxe sin convertirlo en una segunda aplicación completa
 
 Deluxe añade dos superficies de solo lectura:
 
-- un widget estático —no interactivo— de WidgetKit para iPhone y iPad, en familias pequeña y mediana;
+- un widget estático —no interactivo— de WidgetKit para iPhone y iPad, en familias pequeña, mediana y grande;
 - una aplicación companion para watchOS que muestra mangas en lectura y su progreso.
 
 La aplicación principal continúa siendo la única superficie con autenticación, catálogo, edición de colección y sincronización.
 
-El widget 1.0 usará `StaticConfiguration` con un `TimelineProvider`. Todas sus instancias consumirán la misma proyección del mismo `kind`; no habrá `AppIntentConfiguration`, `AppIntentTimelineProvider`, selección por manga ni personalización por instancia.
+El widget 1.0 usará `StaticConfiguration` con un `TimelineProvider`. Sus instancias comparten el mismo `kind`; pequeño y grande representan lecturas y mediano representa «Mi colección». La rotación de presentación y la prioridad de la última edición siguen ADR-0022, que conserva la política de ADR-0021; no habrá `AppIntentConfiguration`, `AppIntentTimelineProvider`, selección por manga ni personalización por instancia.
 
 ## Entrada desde Advanced
 
@@ -74,6 +74,24 @@ El snapshot no contendrá tokens, credenciales, correo, identificadores de cuent
 
 La app tendrá un único publicador serializado, propietario del envelope y del fence, para asignar orden, preparar recursos y efectuar sus reemplazos. `publicationGeneration` se persiste como epoch del publicador y `revision` se incrementa de forma estrictamente monotónica entre sesiones dentro de ese epoch. Cada revisión se reserva y persiste antes del reemplazo; no hace wrap, no se reutiliza y puede contener huecos si una publicación reservada falla.
 
+### Colección local para la familia mediana
+
+[ADR-0022](../adr/0022-widget-collection-projection-and-adaptive-reading.md)
+concreta la ampliación DX4 solicitada el 7 de septiembre. La misma consulta
+persistida prepara todas las entradas activas, incluso sin lectura o propiedad.
+El mediano muestra una ficha con portada o placeholder, título, tomos poseídos,
+completitud persistida, total de mangas distintos y fecha. No deduce adquisición.
+
+Un descriptor opcional compatible en el envelope enlaza por slot, tamaño y
+SHA-256 un JSON local completo. El único publicador escribe y verifica el slot
+opuesto al manifest vigente antes de reemplazar este; no añade un ledger.
+El lector valida el recurso dentro de la doble lectura del fence. Una colección
+vacía se distingue de un descriptor ausente, corrupción o exceso de capacidad.
+La cota propia es 1 MiB y 4.096 mangas: completo o no disponible, nunca truncado.
+El no-op incluye esta proyección y permite reparar un recurso perdido mediante
+el slot alterno y una revisión nueva. La publicación visible conserva un ancla
+común; la prioridad de lectura no convierte propiedad en actividad de lectura.
+
 ### SessionFence compartido
 
 El App Group contendrá, separado del envelope, un `SessionFence` mínimo, versionado y reemplazado atómicamente con:
@@ -83,7 +101,7 @@ El App Group contendrá, separado del envelope, un `SessionFence` mínimo, versi
 - `fenceRevision: UInt64`, monotónica dentro del epoch y distinta en cada sustitución del fence para detectar una lectura concurrente;
 - `allowedSessionGeneration`, opcional: `nil` cierra el bridge y otro valor permite únicamente esa sesión.
 
-El provider leerá `fence inicial → envelope → fence final`. Solo aceptará contenido o vacío si ambos fences son íntegros e idénticos y el envelope pertenece a la `publicationGeneration` y `sessionGeneration` permitidas. Un fence ausente, corrupto, cambiado durante la lectura o cerrado produce redacción o no disponible; nunca reutiliza el envelope como fallback.
+El provider leerá `fence inicial → envelope → fence final`; en el mediano incluye la lectura y validación del recurso de colección antes del fence final. Solo aceptará contenido o vacío si ambos fences son íntegros e idénticos y el envelope pertenece a la `publicationGeneration` y `sessionGeneration` permitidas. Un fence ausente, corrupto, cambiado durante la lectura o cerrado produce redacción o no disponible; nunca reutiliza el envelope como fallback.
 
 Los consumidores aplicarán estas reglas:
 
@@ -114,7 +132,7 @@ En este producto, «tiempo real» significa que la app publica por evento el úl
 
 La publicación se activa cuando cualquiera de estos eventos cambia la proyección visible:
 
-- una mutación local de lectura completa su commit;
+- una mutación local de lectura, propiedad, completitud o pertenencia a Colección completa su commit;
 - una reconciliación remota persiste un estado local distinto;
 - un rechazo o resolución persiste una reversión local;
 - el arranque, la restauración o una importación persiste una proyección mostrable;
@@ -124,7 +142,7 @@ Para cada evento ordinario de contenido, la app debe respetar este orden:
 
 1. completar el commit local visible;
 2. serializar la publicación, reservar y persistir epoch/revisión y derivar el envelope;
-3. preparar atómicamente cualquier portada inmutable necesaria;
+3. preparar y verificar el recurso local de colección y cualquier portada inmutable necesaria;
 4. revalidar la `sessionGeneration` esperada inmediatamente antes de publicar;
 5. reemplazar atómicamente el envelope del App Group;
 6. solo tras una escritura satisfactoria y segura, llamar a `reloadTimelines(ofKind:)` con el `kind` concreto afectado.
@@ -148,10 +166,10 @@ Esta garantía protege las lecturas nuevas del bridge canónico, no invalida una
 
 ## WidgetKit
 
-- La app y la extensión compartirán mediante App Group solo el envelope, su `SessionFence` y las portadas locales inmutables que aquel referencie.
+- La app y la extensión compartirán mediante App Group el envelope, su `SessionFence`, las portadas inmutables y los dos slots locales de colección referenciados conforme a ADR-0022.
 - El widget no abrirá el store SwiftData, no accederá a Keychain y no ejecutará red, sincronización ni polling.
-- `TimelineProvider` aplicará la doble lectura `SessionFence → envelope → SessionFence`, construirá la timeline solo desde un snapshot permitido y usará la política `.never`; la app solicitará la recarga con `reloadTimelines(ofKind:)` para el `kind` concreto afectado y no usará `reloadAllTimelines()` para este flujo.
-- Todas las instancias representan la misma proyección; no se consultan App Intents ni preferencias por instancia.
+- `TimelineProvider` aplicará la doble lectura `SessionFence → envelope → SessionFence`, construirá la timeline solo desde un snapshot permitido y preparará una rotación circular cada 300 segundos, con la entrada actual y doce futuras, separadas por 300 segundos, y `.atEnd`; cero o un elemento de la proyección elegida y estados sin contenido usan `.never`. Un reloj anterior al ancla sitúa la primera entrada en `now` y conserva los siguientes slots del ancla. La fase se conserva desde `generatedAt` y la nueva publicación puede priorizar el manga editado, conforme a ADR-0022. La familia mediana aplica la misma cadencia a una ficha de la colección por entrada, sin depender de que existan lecturas. La app solicitará la recarga con `reloadTimelines(ofKind:)` para el `kind` concreto afectado y no usará `reloadAllTimelines()` para este flujo.
+- La familia elige lectura o colección dentro del mismo kind; no se consultan App Intents ni preferencias por instancia.
 - La timeline representará datos disponibles, estado vacío y sesión no disponible. La solicitud de recarga no es una garantía de latencia: WidgetKit decide cuándo pide y presenta la timeline nueva.
 - La extensión no usará ActivityKit, WidgetKit push ni `BGTask` para intentar forzar frescura en la versión 1.0.
 - Al invalidar una sesión, un fence cerrado obliga al provider a degradar a redacción o no disponible aunque el envelope anterior siga legible; una timeline cacheada puede seguir visible hasta que WidgetKit procese el reload.
@@ -172,7 +190,7 @@ Widget y reloj distinguirán al menos:
 
 1. sin snapshot, fence no permitido o formato no disponible;
 2. sesión redactada;
-3. colección sin mangas en lectura;
+3. sin lecturas actuales en pequeño/grande, o colección vacía en mediano;
 4. contenido disponible;
 5. datos temporalmente no actualizables, conservando únicamente un snapshot de la misma sesión todavía válida.
 
@@ -181,8 +199,8 @@ La fecha informativa puede comunicar la antigüedad del snapshot, pero no se usa
 ## Criterios de aceptación
 
 - Advanced ha superado su Release Gate antes de incorporar targets Deluxe.
-- Las familias pequeña y mediana muestran manga, tomo actual y progreso comprensible sin ofrecer edición desde el widget.
-- El widget usa `StaticConfiguration + TimelineProvider`; todas sus instancias muestran la misma proyección y 1.0 no contiene `AppIntentConfiguration` ni configuración por instancia.
+- Pequeño y grande muestran manga, tomo actual y progreso; el mediano muestra una ficha de la colección completa, tomos en propiedad, completitud y total de mangas. Ninguna familia ofrece edición desde el widget.
+- El widget usa `StaticConfiguration + TimelineProvider`; la familia elige lectura o colección sobre la misma publicación y 1.0 no contiene `AppIntentConfiguration` ni configuración por instancia.
 - El snapshot es `Codable & Sendable` y separa `sessionGeneration`, `publicationGeneration` y `revision`.
 - El `SessionFence` versionado separa `publicationGeneration`, `fenceRevision: UInt64` y `allowedSessionGeneration`; el provider solo acepta contenido o vacío tras dos lecturas idénticas que permitan el epoch y sesión del envelope.
 - Una mutación, reconciliación, reversión, restauración, importación o redacción relevante publica únicamente después de su commit local completado o fence seguro verificado.
@@ -193,7 +211,7 @@ La fecha informativa puede comunicar la antigüedad del snapshot, pero no se usa
 - Cancelar solo es válido antes del fence cerrado y verificado; después de ese punto de no retorno la recuperación completa el borrado Keychain y la redacción compartida.
 - Una sesión B publica su envelope con el fence cerrado y solo lo abre al final; una sanitización tardía de A es no-op si B ya posee el fence.
 - La primera incorporación del bridge empieza cerrada; una sesión Advanced activa solo lo abre tras autorización y revalidación explícitas de su generación por el propietario de sesión.
-- El provider usa `.never` y la app invoca `reloadTimelines(ofKind:)` con el `kind` concreto afectado, sin `reloadAllTimelines()`.
+- El provider rota los elementos publicados de la proyección elegida mediante una timeline local acotada: lecturas en pequeño/grande y colección en mediano; `.never` se reserva para cero/un elemento o ausencia de contenido. La app invoca `reloadTimelines(ofKind:)` con el `kind` concreto afectado, sin `reloadAllTimelines()`.
 - El widget funciona sin abrir SwiftData o Keychain y sin ejecutar red, polling, ActivityKit, WidgetKit push ni `BGTask`.
 - Las portadas son inmutables, content-addressed o ligadas a revisión, se escriben atómicamente antes del envelope y se retienen mientras un manifest válido pueda referenciarlas; una ausencia produce placeholder sin red.
 - El reloj recibe un contexto autocontenido solo mediante `WCSession.updateApplicationContext(_:)`, cuyo reemplazo de contexto pendiente y cache local permiten seguir siendo útil sin conexión.
@@ -221,7 +239,7 @@ App Group y WatchConnectivity requieren entitlements y pruebas de integración e
 ## Decisiones relacionadas
 
 - [ADR 0007: watchOS, WidgetKit y puentes de datos](../adr/0007-watchos-widgetkit-and-data-bridges.md)
-- [ADR 0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
+- [ADR 0021: rotación de lecturas y prioridad](../adr/0021-widget-reading-rotation-and-priority.md), que incorpora y supersede ADR-0010
 - [ADR 0018: bundle único de sesión en Keychain y logout atómico](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)
 - [ADR 0019: JWT único de sesión y envelope Keychain V3](../adr/0019-single-jwt-session-and-keychain-v3.md)
 - [Colección local e invariantes](03-local-collection-and-invariants.md)

@@ -1,0 +1,229 @@
+#if DEBUG
+import Foundation
+import SwiftData
+import WidgetKit
+
+/// Owns synthetic account data for an explicitly launched App Group integration scenario.
+///
+/// The root supplies an in-memory container and enables this owner only for both UI-testing flags.
+/// This fixture takes over the canonical bridge and its existing private ledger in a test installation;
+/// it never creates a second publisher ledger, accesses Keychain or performs network requests.
+actor UITestingReadingWidget {
+    nonisolated let mutations: CollectionMutationActor
+
+    private let composition: ReadingPublicationComposition
+    private let gate: SessionCommitGate
+    private var snapshot = SessionSnapshot.active(AccountPreviewSupport.account)
+    private var prepared = false
+    private var seededCount = 0
+    private var loggingOut = false
+    private var closeAttempted = false
+
+    nonisolated var sessionAuthorization: CollectionSessionAuthorization {
+        CollectionSessionAuthorization { [self] authority in
+            await authorization(for: authority)
+        }
+    }
+
+    init(modelContainer: ModelContainer, publicationClock: @escaping @Sendable () -> Date = Date.init) throws {
+        guard let sharedDirectory = ReadingWidgetBridge.sharedDirectory() else {
+            throw SessionControllerError.persistenceUnavailable
+        }
+        let reading = try AppComposition.makeReadingPublication(
+            modelContainer: modelContainer,
+            sharedDirectory: sharedDirectory,
+            publisherDirectory: URL.applicationSupportDirectory
+                .appending(path: "ReadingPublisher", directoryHint: .isDirectory),
+            now: publicationClock,
+            makeGeneration: { UUID() },
+            loadCover: { _ in nil },
+            requestReload: { _ in
+                WidgetCenter.shared.reloadTimelines(ofKind: ReadingWidgetBridge.kind)
+            }
+        )
+        composition = reading
+        mutations = reading.mutations
+        gate = SessionCommitGate(
+            activeAuthority: AccountPreviewSupport.account.authority,
+            now: { Date(timeIntervalSince1970: 1_800_000_000) }
+        )
+    }
+
+    nonisolated func operations() -> AccountModel.Operations {
+        AccountModel.Operations(
+            currentSnapshot: { [self] in await currentSnapshot() },
+            restore: { [self] in await currentSnapshot() },
+            login: { _, _ in throw SessionControllerError.unavailable },
+            register: { _, _ in .notSubmitted(.unavailable) },
+            logout: { [self] discardPendingChanges in
+                try await logout(discardPendingChanges: discardPendingChanges)
+            }
+        )
+    }
+
+    /// Seeds through the authorized writer once, then consumes changes within the caller's lifetime.
+    /// A completed logout permanently prevents this fixture from publishing again during this launch.
+    func run() async throws {
+        try Task.checkCancellation()
+        guard allowsPublication else { return }
+        if !prepared {
+            _ = try await composition.publisher.recover()
+            guard allowsPublication else { return }
+            if let retirement = try await composition.publisher.confirmNoSessionAfterRecovery() {
+                try await composition.publisher.finishRetirement(retirement)
+            }
+            prepared = true
+        }
+        while seededCount < Self.readings.count {
+            try Task.checkCancellation()
+            guard allowsPublication else { return }
+            let reading = Self.readings[seededCount]
+            let command = Self.command(for: reading)
+            do {
+                _ = try await mutations.apply(
+                    command,
+                    authorization: gate.authorization(for: command.authority),
+                    newOperationID: Self.operationID(for: UInt8(seededCount))
+                )
+            } catch CollectionMutationError.cancelled {
+                throw CancellationError()
+            } catch {
+                guard allowsPublication else { return }
+                throw error
+            }
+            seededCount += 1
+        }
+        guard allowsPublication else { return }
+        let pipeline = ReadingPublicationPipeline(
+            events: composition.events,
+            mutations: mutations,
+            publisher: composition.publisher,
+            loadCover: composition.loadCover,
+            reconcileSession: { [self] authority in
+                try await reconcile(authority)
+            }
+        )
+        try await pipeline.run()
+    }
+
+    private var allowsPublication: Bool {
+        snapshot == .active(AccountPreviewSupport.account)
+            && !loggingOut
+            && gate.authorizes(AccountPreviewSupport.account.authority)
+    }
+
+    private func currentSnapshot() -> SessionSnapshot { snapshot }
+
+    private func authorization(for authority: SessionAuthority) -> SessionCommitAuthorization? {
+        guard allowsPublication, authority == AccountPreviewSupport.account.authority else { return nil }
+        return gate.authorization(for: authority)
+    }
+
+    private func reconcile(_ authority: SessionAuthority) throws {
+        guard authority == AccountPreviewSupport.account.authority, !loggingOut else { return }
+        if case .active = snapshot {
+            try gate.authorization(for: authority).perform {}
+        }
+    }
+
+    private func logout(discardPendingChanges: Bool) async throws -> SessionSnapshot {
+        guard case .active = snapshot else { throw SessionControllerError.notAuthenticated }
+        guard !loggingOut else { throw SessionControllerError.transitionInProgress }
+        let authority = AccountPreviewSupport.account.authority
+        guard let authorization = gate.suspendForLogout(authority) else {
+            throw SessionControllerError.sessionChanged
+        }
+        loggingOut = true
+        defer { loggingOut = false }
+        do {
+            if !discardPendingChanges, try await mutations.hasPendingChangesForLogout(authorization: authorization) {
+                throw SessionControllerError.pendingCollectionChanges
+            }
+            if discardPendingChanges {
+                try await mutations.discardPendingChangesForLogout(authorization: authorization)
+            }
+            try authorization.perform { composition.events.invalidate(authority: authority) }
+            closeAttempted = true
+            let retirement = try await composition.publisher.close(authorization: authorization)
+            gate.invalidate(authority)
+            snapshot = .signedOut
+            try await composition.publisher.finishRetirement(retirement)
+            return snapshot
+        } catch {
+            if !closeAttempted {
+                try reactivate(authority)
+            }
+            if let logoutError = error as? CollectionLogoutError, logoutError == .cancelled {
+                throw CancellationError()
+            }
+            throw error
+        }
+    }
+
+    private func reactivate(_ authority: SessionAuthority) throws {
+        guard
+            snapshot == .active(AccountPreviewSupport.account),
+            authority == AccountPreviewSupport.account.authority
+        else { return }
+        gate.activate(authority)
+        let resumed = gate.authorization(for: authority)
+        _ = try resumed.perform { composition.events.record(authorization: resumed) }
+    }
+}
+
+private extension UITestingReadingWidget {
+    struct Reading {
+        let mangaID: Int64
+        let title: String
+        let volume: Int64?
+        let total: Int64?
+        var ownedVolumes: [Int64] = []
+        var isComplete = false
+    }
+
+    static let readings = [
+        Reading(mangaID: 9_009, title: "Acuarela sin empezar", volume: nil, total: 12, ownedVolumes: [1, 3, 5]),
+        Reading(mangaID: 9_010, title: "Archivo reservado", volume: nil, total: nil),
+        Reading(mangaID: 9_001, title: "Alba de papel", volume: 3, total: 3, isComplete: true),
+        Reading(mangaID: 9_002, title: "Bosque de tinta", volume: 2, total: 12, ownedVolumes: [1, 2, 4]),
+        Reading(mangaID: 9_003, title: "Cuaderno de viajes", volume: 8, total: nil, ownedVolumes: [1, 8]),
+        Reading(mangaID: 9_004, title: "Diario de una biblioteca", volume: 1, total: 5),
+        Reading(mangaID: 9_005, title: "El jardín de las nubes", volume: 5, total: 9),
+        Reading(mangaID: 9_006, title: "Faro de invierno", volume: 7, total: 10),
+        Reading(mangaID: 9_007, title: "Gotas de tinta", volume: 4, total: 6),
+        Reading(mangaID: 9_008, title: "Historias del viento", volume: 2, total: 8)
+    ]
+
+    static func command(for reading: Reading) -> CollectionMutationCommand {
+        let manga = CollectionMangaSnapshot(
+            mangaID: reading.mangaID,
+            title: reading.title,
+            titleEnglish: nil,
+            titleJapanese: nil,
+            synopsis: nil,
+            score: 0,
+            status: .publishing,
+            authors: [],
+            demographics: [],
+            genres: [],
+            themes: [],
+            coverURL: nil
+        )
+        return CollectionMutationCommand(
+            authority: AccountPreviewSupport.account.authority,
+            mangaID: reading.mangaID,
+            mangaSnapshot: manga,
+            knownTotalVolumes: reading.total,
+            change: .replaceState(
+                ownedVolumes: reading.ownedVolumes,
+                readingVolume: reading.volume,
+                isComplete: reading.isComplete
+            )
+        )
+    }
+
+    static func operationID(for index: UInt8) -> UUID {
+        UUID(uuid: (0, 0, 0, 0, 0, 0, 64, 0, 128, 0, 0, 0, 0, 0, 84, index))
+    }
+}
+#endif
