@@ -45,6 +45,8 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-08 | 📝 docs(deluxe): record DX4 delivery
+
 - 2026-09-06 | 📝 docs(deluxe): link the DX3 delivery
 
 - 2026-09-06 | 📝 docs(delivery): record Deluxe pull requests

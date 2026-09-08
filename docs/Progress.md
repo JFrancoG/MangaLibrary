@@ -1,9 +1,29 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-08
-**Estado general:** Advanced entregado; Deluxe aprobado y DX1–DX3 entregadas mediante PR #80, #81 y #83 (3/7). DX4 implementado en la rama de #84; UI aceptada. Instalación de desarrollo, extensión y App Group efectivos acreditados en iPhone 11. Colección acreditada con tests y observaciones físicas, incluida propiedad. No disponible final confirmado en las tres familias ES/EN. Versión normal reinstalada y recuperación de los tres widgets confirmada; primer desbloqueo físico limitado/no observable, trasladado a DX6 por aprobación del propietario. Validación DX4 completada en su alcance; entrega DX4 y Deluxe Release Gate pendientes.
+**Estado general:** Advanced entregado; Deluxe aprobado y DX1–DX4 entregadas mediante PR #80, #81, #83 y #85 (4/7). El issue #84 está cerrado y su rama retirada local y remotamente. Widgets de lectura y colección validados en el alcance registrado, incluida la UI y VoiceOver ES/EN en iPhone 11. Primer desbloqueo físico limitado/no observable, transferido a DX6 y pendiente para el Deluxe Release Gate. DX5 es el siguiente corte y todavía no se ha iniciado.
 
-## DX4 — widget de iPhone/iPad — issue #84 (implementado y validado en su alcance; entrega pendiente)
+## DX4 — widgets de iPhone/iPad — issue #84 (entregado mediante PR #85)
+
+### Entrega completada — 8 de septiembre
+
+La [PR #85](https://github.com/JFrancoG/MangaLibrary/pull/85) integra DX4 en `main` mediante
+el merge [`1868244`](https://github.com/JFrancoG/MangaLibrary/commit/18682445a6b1de36fffeaf26775880fdc629ce66),
+con los commits de implementación `cebf2cf` y corrección final `dd7e1f6`.
+El issue #84 está cerrado. Se comprueba la incorporación completa del head y la
+ausencia de commits exclusivos antes de retirar la rama
+`codex/84-dx4-reading-widget`, local y remota.
+
+La revisión independiente del head publicado confirma los 79 archivos del diff
+y los 57 Swift idénticos a las fuentes validadas, sin hallazgos pendientes.
+GitHub informó `CLEAN`/`MERGEABLE` y no ofreció checks de CI; la validación descrita
+abajo procede de las herramientas y revisiones registradas.
+
+El plan #77 queda abierto con **DX1–DX4 entregadas (4/7)**. El siguiente corte es
+DX5, companion watchOS, todavía sin iniciar. La prueba física anterior al primer
+desbloqueo sigue **limitada/no observable y pendiente en DX6** para el Deluxe
+Release Gate. La entrega no cambia ese límite ni acredita hardware Apple Watch.
+Los registros siguientes conservan el estado y la evidencia de cada momento.
 
 ### Gate de entrega — 8 de septiembre
 
@@ -2467,7 +2487,7 @@ La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden d
 8. **R2 — envío y reconciliación de outbox.** R2.1 y R2.2 están entregados mediante la PR #60. La decisión del propietario del 2 de septiembre fija `{id}` como `Manga.ID` `int64` serializado en decimal; el UUID de entrada no forma el path y la discrepancia `string` queda como deuda contractual. R2.1 reutiliza el GET completo R1 e implementa POST y procesamiento conservador de intenciones no tombstone; R2.2 añade GET/DELETE individual, tombstones y la confirmación destructiva de UI. Ambos cortes están validados localmente y R2.2 cuenta con aceptación live multidispositivo de la ruta decimal y la ausencia reconciliada; el status/body exacto del primer DELETE y el GET presente `200` siguen sin caracterización directa. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, `blockedAuth` recuperable y rechazo positivo con reversión atómica. R2.4 se entrega mediante la PR #70 con revisión fresca, adopción remota o nueva intención consciente y resolución atómica del `blockedOutcome`.
 9. **Cota transversal de números de tomo, entregada mediante la PR #64.** Fija 300 como máximo inclusivo compartido, preserva `nil` como total desconocido y protege editor, mutación, R1 y R2 frente a valores históricos o remotos fuera de rango sin truncado ni transporte accidental.
 10. **Advanced Release Gate — aceptado y entregado mediante el issue #75 / PR #76.** A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. La automatización global acredita build, planes, Swift Testing, UI en iPhone/iPad, ReleaseGate, DocC, contrato e integridad sin warnings ni allowlists. La matriz manual está completa con VoiceOver, Control por voz y Switch Control en iPhone físico y Acceso total con teclado en iPad simulado, sin extrapolar este último a hardware. La fusión `06170b7` del 6 de septiembre de 2026 habilita la entrada a Deluxe.
-11. **Deluxe — plan aprobado en el issue #77.** DX1–DX3 entregadas mediante PR #80, #81 y #83 (3/7). DX4 está implementado localmente en #84: target WidgetKit, App Group, UI y composición live, con tests completos, builds limpios y DocC, lectura entre procesos observada en iPhone Simulator y adaptación y continuidad entre ventanas iPad verificadas. La validación automatizada, Simulator y física DX4 están completadas en su alcance; la comprobación física anterior al primer desbloqueo se traslada a DX6 por aprobación del propietario del 2026-09-08, como limitada/no observable y pendiente para el gate Deluxe, junto a la ampliación combinatoria. DX5 no se inicia; la matriz conserva la evidencia física pendiente de Apple Watch para las fases posteriores.
+11. **Deluxe — plan aprobado en el issue #77.** DX1–DX4 entregadas mediante PR #80, #81, #83 y #85 (4/7). DX4 se integra en `1868244`, con #84 cerrado y rama retirada: target WidgetKit, App Group, UI y composición live, con tests completos, builds limpios y DocC, lectura entre procesos observada en iPhone Simulator y adaptación y continuidad entre ventanas iPad verificadas. La validación automatizada, Simulator y física DX4 están completadas en su alcance; la comprobación física anterior al primer desbloqueo se traslada a DX6 por aprobación del propietario del 2026-09-08, como limitada/no observable y pendiente para el gate Deluxe, junto a la ampliación combinatoria. DX5 no se inicia; la matriz conserva la evidencia física pendiente de Apple Watch para las fases posteriores.
 
 S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad autenticable, pero permanece antes del gate Advanced y en una unidad separada porque incorpora el `App-Token`. S2.1 y S2.2 cierran superficies de Cuenta sin iniciar persistencia de producto. La outbox sí pertenece a L1: el worker de R2 puede llegar después, pero ninguna mutación expuesta puede escribir Colección sin registrar o coalescer su intención en la misma operación lógica.
 
@@ -2486,7 +2506,7 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 - La entrega original de S2 no acreditó una escritura live; la observación manual posterior de `201` y su compatibilidad quedan registradas en S2.2 sin exponer datos de cuenta.
 - S2.2 entregó mediante la PR #40 la validación y presentación de credenciales y la autoridad Keychain V2 vigente en ese momento; #58 cambia solo la infraestructura de sesión a JWT único/V3 y no altera el workflow visual ni incorpora persistencia de producto.
 - L1 entrega mediante la PR #44 `ModelContainer`, esquema V1, modelos SwiftData, outbox y primera mutación atómica. L2 entrega mediante la PR #50 el esquema V2, `@Query`, presentación offline y UI de Colección. R1 entrega mediante la PR #54 la lectura e importación remota con reconciliación local-first. R2.1/R2.2 entregan mediante la PR #60 el POST, GET/DELETE individual, vaciado seguro de intenciones no tombstone y tombstones, con aceptación live multidispositivo y la deuda contractual descrita en su evidencia. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, recuperación de `blockedAuth` y rechazo/reversión atómicos. R2.4 se entrega mediante la PR #70 con resolución manual durable de `blockedOutcome`.
-- A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. El issue #75 / PR #76 entrega Advanced con los gates automáticos y la matriz manual aceptados. Deluxe conserva el plan aprobado #77; DX1–DX3 están entregadas mediante PR #80/#81/#83. DX4 está implementado localmente en #84 con validación automatizada, Simulator y física completadas en el alcance DX4 aprobado; primer desbloqueo físico limitado/no observable transferido a DX6 y pendiente para el gate Deluxe; DX5 no se inicia, y DX6/DX7 conservan integración, accesibilidad y gate global.
+- A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. El issue #75 / PR #76 entrega Advanced con los gates automáticos y la matriz manual aceptados. Deluxe conserva el plan aprobado #77; DX1–DX4 están entregadas mediante PR #80/#81/#83/#85 (4/7). DX4 está integrado en `1868244`, con #84 cerrado y rama retirada, y con validación automatizada, Simulator y física completadas en el alcance DX4 aprobado; primer desbloqueo físico limitado/no observable transferido a DX6 y pendiente para el gate Deluxe; DX5 no se inicia, y DX6/DX7 conservan integración, accesibilidad y gate global.
 - DX4 materializa target, entitlements App Group, consumidor WidgetKit y composición live de ADR 0010. Los gates técnicos y los recorridos iPhone/iPad Simulator están completados en su alcance. DX4.5 completa su evidencia física en el alcance aprobado. DX6 conserva la prueba física anterior al primer desbloqueo, limitada/no observable y pendiente para el gate Deluxe, además de la ampliación combinatoria. watchOS y WatchConnectivity pertenecen a DX5.
 - La evidencia histórica de icono, sesión y accesibilidad se complementa con la matriz vigente de #75: VoiceOver, Control por voz y Switch Control en iPhone 11 físico, y Acceso total con teclado en iPad simulado. Sus límites se conservan en el apartado Advanced; no acredita App Group o WatchConnectivity, capacidades que pertenecen a Deluxe.
 - No se ha autorizado publicación DocC ni GitHub Pages.

@@ -1,15 +1,35 @@
 # DX4 — validación de los widgets de lectura y colección
 
 **Última actualización:** 2026-09-08
-**Estado:** implementación en la rama de #84, UI aceptada; contenido, vacíos y sesión cerrada comprobados con VoiceOver en las tres familias ES/EN en los casos registrados. Corrección del pie confirmada, aún local. Recuperación tras reinicio confirmada; tramo anterior al primer desbloqueo limitado/no observable y trasladado a DX6 por aprobación del propietario. Colección acreditada con tests y observaciones físicas, incluido cambio de propiedad. No disponible final confirmado con ilustración y VoiceOver en las tres familias ES/EN. Versión normal reinstalada y recuperación de los tres widgets confirmada por el propietario. Validación física DX4 completada en su alcance aprobado; entrega DX4 y Deluxe Release Gate pendientes.
-**Tracker:** [issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84),
-rama `codex/84-dx4-reading-widget`.
+**Estado:** DX4 entregado mediante PR #85; validación automatizada, Simulator y física completada en su alcance aprobado. UI y VoiceOver ES/EN, estados finales, colección, rotación, logout y recuperación de los tres widgets confirmados en los casos registrados. Binario normal reinstalado. Primer desbloqueo físico limitado/no observable, transferido a DX6 y pendiente para el Deluxe Release Gate; DX5 aún sin iniciar.
+**Tracker:** [issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84) cerrado, [PR #85](https://github.com/JFrancoG/MangaLibrary/pull/85) mergeada;
+rama `codex/84-dx4-reading-widget` retirada local y remotamente.
 
 La autoridad de comportamiento permanece en [SDD 05](specs/05-deluxe-watch-and-widget.md),
 [SDD 09 v1.14](specs/09-deluxe-reading-contract.md) y ADR 0007/0022. Este documento
 registra cómo comprobar ese contrato y distingue cada entorno. La
 [evidencia técnica de Progress](Progress.md#rotación-y-tamaño-grande--7-de-septiembre)
 conserva los bundles y conteos canónicos.
+
+## Entrega completada — 8 de septiembre
+
+La [PR #85](https://github.com/JFrancoG/MangaLibrary/pull/85) integra DX4 en `main` mediante
+el merge [`1868244`](https://github.com/JFrancoG/MangaLibrary/commit/18682445a6b1de36fffeaf26775880fdc629ce66),
+con los commits de implementación `cebf2cf` y corrección final `dd7e1f6`.
+El issue #84 está cerrado. Se comprueba la incorporación completa del head y la
+ausencia de commits exclusivos antes de retirar la rama
+`codex/84-dx4-reading-widget`, local y remota.
+
+La revisión independiente del head publicado confirma los 79 archivos del diff
+y los 57 Swift idénticos a las fuentes validadas, sin hallazgos pendientes.
+GitHub informó `CLEAN`/`MERGEABLE` y no ofreció checks de CI; la validación descrita
+abajo procede de las herramientas y revisiones registradas.
+
+El plan #77 queda abierto con **DX1–DX4 entregadas (4/7)**. El siguiente corte es
+DX5, companion watchOS, todavía sin iniciar. La prueba física anterior al primer
+desbloqueo sigue **limitada/no observable y pendiente en DX6** para el Deluxe
+Release Gate. La entrega no cambia ese límite ni acredita hardware Apple Watch.
+Los registros siguientes conservan el estado y la evidencia de cada momento.
 
 ## Gate de entrega — 8 de septiembre
 
@@ -682,7 +702,7 @@ El reloj y la evidencia física de WatchConnectivity/VoiceOver watchOS se conser
 en DX5–DX7. La falta de Watch no sustituye ni impide registrar estas pruebas iOS.
 Las filas de DX4 están completas en el alcance registrado. El caso limitado del
 primer desbloqueo se conserva separado en DX6 por aprobación del 8 de septiembre.
-El issue #84 sigue abierto: esta evidencia no constituye la entrega de DX4.
+El issue #84 está cerrado tras el merge de la PR #85; las filas siguientes conservan el alcance real de cada prueba.
 
 - [x] Instalación de desarrollo firmada, extensión y App Group efectivos en
   iPhone 11/iOS 27, Debug: RunProject final del 7 de septiembre a las 19:03:32,
