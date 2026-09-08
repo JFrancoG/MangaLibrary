@@ -18,7 +18,7 @@ sus compromisos.
 | [0007](0007-watchos-widgetkit-and-data-bridges.md) | Puentes de datos para watchOS y WidgetKit | Accepted | 2026-08-17 |
 | [0008](0008-selective-docc-and-publishing-boundaries.md) | DocC selectivo y límites de publicación | Superseded | 2026-08-17 |
 | [0009](0009-native-source-owned-features-and-local-navigation.md) | Flujos nativos por fuente y navegación local | Superseded | 2026-08-17 |
-| [0010](0010-widgetkit-event-driven-freshness.md) | Frescura dirigida por eventos para WidgetKit | Accepted | 2026-08-18 |
+| [0010](0010-widgetkit-event-driven-freshness.md) | Frescura dirigida por eventos para WidgetKit | Superseded | 2026-08-18 |
 | [0011](0011-bounded-xcode-app-intents-warning-exception.md) | Excepción acotada para el warning de App Intents de Xcode | Superseded | 2026-08-25 |
 | [0012](0012-private-repository-and-sanitized-practice-source.md) | Repositorio privado y fuente docente saneada | Accepted | 2026-08-25 |
 | [0013](0013-advanced-logout-and-deluxe-bridge-boundary.md) | Frontera de logout Advanced y bridge Deluxe | Superseded | 2026-08-25 |
@@ -29,6 +29,8 @@ sus compromisos.
 | [0018](0018-single-keychain-session-bundle-and-atomic-logout.md) | Bundle único de sesión en Keychain y logout atómico | Superseded | 2026-09-01 |
 | [0019](0019-single-jwt-session-and-keychain-v3.md) | JWT único de sesión y envelope Keychain V3 | Accepted | 2026-09-02 |
 | [0020](0020-skip-unused-app-intents-metadata-extraction.md) | Omitir la extracción de App Intents no utilizada | Accepted | 2026-09-04 |
+| [0021](0021-widget-reading-rotation-and-priority.md) | Rotación de lecturas y prioridad de la última edición | Superseded | 2026-09-07 |
+| [0022](0022-widget-collection-projection-and-adaptive-reading.md) | Colección en mediano y lectura adaptable | Accepted | 2026-09-07 |
 
 ## Inmutabilidad y supersesión
 

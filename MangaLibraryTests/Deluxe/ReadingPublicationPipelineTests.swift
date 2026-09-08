@@ -90,10 +90,167 @@ struct ReadingPublicationPipelineTests {
         #expect(result.items.map(\.mangaID) == [10])
         #expect(result.items.map(\.readingVolume) == [2])
         #expect(result.items.map(\.title) == ["Persisted reading"])
-        #expect(fetched.withLock { $0.map(\.lastPathComponent) } == ["10.jpg"])
+        #expect(fetched.withLock { $0.map(\.lastPathComponent) } == ["10.jpg", "20.jpg"])
         let identifier = try #require(result.items.first?.coverResourceID)
         #expect(harness.coverReader.read(identifier) != nil)
         #expect(try harness.snapshot()?.items == result.items)
+        #expect(harness.reloads.withLock { $0 } == 1)
+    }
+
+    @Test
+    func `ownership changes for a manga without reading publish a new widget revision`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let pipeline = try harness.pipeline { _ in nil }
+        let baseline = try #require(try await pipeline.process(harness.record()))
+        #expect(baseline.revision == 1)
+        #expect(baseline.items.map(\.mangaID) == [10])
+        #expect(harness.reloads.withLock { $0 } == 1)
+
+        let mutation = try await harness.mutations.apply(
+            CollectionMutationCommand(
+                authority: harness.authority,
+                mangaID: 20,
+                knownTotalVolumes: nil,
+                change: .replaceOwnedVolumes([1, 3])
+            ),
+            authorization: harness.authorization
+        )
+        #expect(mutation.state.ownedVolumes == [1, 3])
+        #expect(mutation.state.readingVolume == nil)
+        // This harness supplies the existing post-commit event seam explicitly.
+        let updated = try #require(try await pipeline.process(harness.record()))
+
+        #expect(updated.revision == 2)
+        #expect(updated.items.map(\.mangaID) == [10])
+        #expect(updated.items.map(\.readingVolume) == [2])
+        #expect(try harness.snapshot()?.revision == 2)
+        #expect(harness.reloads.withLock { $0 } == 2)
+    }
+
+    @Test
+    func `collection publication is complete when the reading projection is empty`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        _ = try await harness.mutations.apply(
+            CollectionMutationCommand(
+                authority: harness.authority,
+                mangaID: 10,
+                knownTotalVolumes: nil,
+                change: .setReadingVolume(nil)
+            ),
+            authorization: harness.authorization
+        )
+        let pipeline = try harness.pipeline { _ in nil }
+
+        let published = try #require(try await pipeline.process(harness.record()))
+
+        #expect(published.state == .empty)
+        #expect(published.items.isEmpty)
+        let reference = try #require(published.collectionReference)
+        let bytes = try #require(try harness.storage.read(reference.slot == 0 ? .collection0 : .collection1))
+        let collection = try CollectionWidgetSnapshotCodec.decode(bytes)
+        #expect(collection.items.map(\.mangaID) == [10, 20])
+        #expect(collection.items.map(\.ownedVolumeCount) == [0, 0])
+        #expect(collection.items.map(\.isComplete) == [false, false])
+        #expect(harness.reloads.withLock { $0 } == 1)
+    }
+
+    @Test
+    func `unchanged collection retains its slot while damaged bytes are repaired in the other slot`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let pipeline = try harness.pipeline { _ in nil }
+        let baseline = try #require(try await pipeline.process(harness.record()))
+        let reference = try #require(baseline.collectionReference)
+        let original = try #require(try harness.storage.read(.collection0))
+        let manifest = try harness.storage.read(.snapshot)
+        #expect(reference.slot == 0)
+        #expect(try await pipeline.process(harness.record()) == nil)
+        #expect(try harness.storage.read(.snapshot) == manifest)
+        #expect(try harness.storage.read(.collection0) == original)
+        #expect(try harness.storage.read(.collection1) == nil)
+
+        let damaged = Data("damaged collection".utf8)
+        try harness.storage.replace(.collection0, damaged)
+        let repaired = try #require(try await pipeline.process(harness.record()))
+
+        #expect(repaired.revision == 2)
+        #expect(repaired.collectionReference?.slot == 1)
+        #expect(try harness.storage.read(.collection0) == damaged)
+        #expect(try harness.storage.read(.collection1) == original)
+        #expect(harness.reloads.withLock { $0 } == 2)
+    }
+
+    @Test
+    func `a failed manifest keeps its complete collection slot until the retry commits`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let pipeline = try harness.pipeline { _ in nil }
+        let baseline = try #require(try await pipeline.process(harness.record()))
+        #expect(baseline.collectionReference?.slot == 0)
+        let original = try harness.storage.read(.collection0)
+        let manifest = try harness.storage.read(.snapshot)
+        _ = try await harness.mutations.apply(
+            CollectionMutationCommand(
+                authority: harness.authority,
+                mangaID: 20,
+                knownTotalVolumes: nil,
+                change: .replaceOwnedVolumes([1, 3])
+            ),
+            authorization: harness.authorization
+        )
+        harness.failManifest.withLock { $0 = true }
+
+        await #expect(throws: ReadingSnapshotStorageError.self) {
+            try await pipeline.process(harness.record())
+        }
+
+        #expect(try harness.storage.read(.snapshot) == manifest)
+        #expect(try harness.storage.read(.collection0) == original)
+        #expect(harness.reloads.withLock { $0 } == 1)
+        harness.failManifest.withLock { $0 = false }
+        let retried = try #require(try await pipeline.process(harness.record()))
+        #expect(retried.revision == 3)
+        #expect(retried.collectionReference?.slot == 1)
+        let bytes = try #require(try harness.storage.read(.collection1))
+        let collection = try CollectionWidgetSnapshotCodec.decode(bytes)
+        #expect(collection.items.map(\.mangaID) == [10, 20])
+        #expect(collection.items.map(\.ownedVolumeCount) == [0, 2])
+        #expect(try harness.storage.read(.collection0) == original)
+        #expect(harness.reloads.withLock { $0 } == 2)
+    }
+
+    @Test
+    func `a linked inactive slot cannot redirect collection publication outside shared storage`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let pipeline = try harness.pipeline { _ in nil }
+        _ = try #require(try await pipeline.process(harness.record()))
+        let manifest = try harness.storage.read(.snapshot)
+        let protectedURL = harness.directory.appending(path: "protected.json")
+        let protectedBytes = Data("unrelated fixture bytes".utf8)
+        try protectedBytes.write(to: protectedURL)
+        try FileManager.default.createSymbolicLink(
+            at: harness.directory.appending(path: "shared/collection-1.json"),
+            withDestinationURL: protectedURL
+        )
+        _ = try await harness.mutations.apply(
+            CollectionMutationCommand(
+                authority: harness.authority,
+                mangaID: 20,
+                knownTotalVolumes: nil,
+                change: .replaceOwnedVolumes([1])
+            ),
+            authorization: harness.authorization
+        )
+
+        await #expect(throws: ReadingSnapshotStorageError.self) {
+            try await pipeline.process(harness.record())
+        }
+
+        #expect(try Data(contentsOf: protectedURL) == protectedBytes)
+        #expect(try harness.storage.read(.snapshot) == manifest)
         #expect(harness.reloads.withLock { $0 } == 1)
     }
 
@@ -227,11 +384,11 @@ struct ReadingPublicationPipelineTests {
         let signals = AsyncStream<Signal>.makeStream()
         defer { signals.continuation.finish() }
         let suspension = Suspension()
-        let calls = Mutex(0)
-        let pipeline = try harness.pipeline(onReload: { signals.continuation.yield(.published) }) { _ in
+        let calls = Mutex<[String]>([])
+        let pipeline = try harness.pipeline(onReload: { signals.continuation.yield(.published) }) { url in
             let first = calls.withLock {
-                $0 += 1
-                return $0 == 1
+                $0.append(url.lastPathComponent)
+                return $0.count == 1
             }
             if first {
                 signals.continuation.yield(.started)
@@ -275,7 +432,7 @@ struct ReadingPublicationPipelineTests {
         #expect(try harness.snapshot()?.items.first?.readingVolume == 4)
         #expect(try harness.snapshot()?.revision == 1)
         #expect(harness.reloads.withLock { $0 } == 1)
-        #expect(calls.withLock { $0 } == 2)
+        #expect(calls.withLock { $0 } == ["10.jpg", "10.jpg", "20.jpg"])
     }
 
     @Test

@@ -1,6 +1,40 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Try again" : {
+      "comment" : "Retries an unsuccessful operation.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a intentar"
+          }
+        }
+      }
+    },
+    "The widget could not update your readings." : {
+      "comment" : "Widget publication failure notice.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The widget could not update your readings."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se han podido actualizar tus lecturas en el widget."
+          }
+        }
+      }
+    },
     "A network connection error occurred." : {
       "comment" : "Safe description for a transport failure without a more specific recovery category.",
       "localizations" : {

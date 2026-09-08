@@ -19,7 +19,9 @@ struct MainShellView: View {
     let collectionMutation: CollectionMutation
     let collectionSynchronization: CollectionSynchronization
     let collectionBlockedOutcomeResolution: CollectionBlockedOutcomeResolution
+    var readingPublication: ReadingPublicationLifecycle? = nil
 
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var collectionOperations: [CollectionOutboxOperation]
     @State private var selectedTab: AppTab = .catalog
     @State private var transientCollectionNotice: AccountCollectionNotice? = nil
@@ -63,8 +65,26 @@ struct MainShellView: View {
             .accessibilityIdentifier("tab.account")
         }
         .tint(Color.brandPrimary)
+        .safeAreaInset(edge: .bottom) {
+            if let readingPublication, readingPublication.failure != nil {
+                ReadingPublicationNoticeView {
+                    readingPublication.retry()
+                }
+            }
+        }
         .task {
             await accountModel.restore()
+        }
+        .task(id: ReadingPublicationTaskIdentity(isActive: scenePhase == .active, wakeID: readingPublication?.wakeID)) {
+            guard scenePhase == .active else { return }
+            if let authority = accountModel.state.authenticatedAuthority {
+                await accountModel.reconcileSession(expectedAuthority: authority)
+            }
+            await readingPublication?.run()
+        }
+        .task(id: readingPublication?.failure?.identity) {
+            guard let failure = readingPublication?.failure, let authority = failure.authority else { return }
+            await accountModel.reconcileSession(expectedAuthority: authority, cause: failure.underlyingError)
         }
         .task(id: synchronizationID) {
             transientCollectionNotice = nil
@@ -106,6 +126,11 @@ struct MainShellView: View {
             AccountCollectionNotice(userID: userID, reason: .unsupportedVolumeData)
         }
     }
+}
+
+private struct ReadingPublicationTaskIdentity: Equatable {
+    let isActive: Bool
+    let wakeID: UUID?
 }
 
 extension AccountCollectionNotice {

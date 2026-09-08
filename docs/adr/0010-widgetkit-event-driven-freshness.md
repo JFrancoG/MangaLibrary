@@ -1,9 +1,9 @@
 # ADR-0010: Frescura dirigida por eventos para WidgetKit
 
-**Estado:** Accepted
+**Estado:** Superseded
 **Fecha:** 2026-08-18
 **Supersede:** —
-**Superseded by:** —
+**Superseded by:** [ADR-0021](0021-widget-reading-rotation-and-priority.md), que conserva las fronteras de publicación y sustituye la política de presentación.
 **Complementa:** [ADR-0007: Puentes de datos para watchOS y WidgetKit](0007-watchos-widgetkit-and-data-bridges.md)
 **Complementado por:** [ADR-0013: Frontera de logout Advanced y bridge Deluxe](0013-advanced-logout-and-deluxe-bridge-boundary.md)
 

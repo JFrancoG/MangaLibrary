@@ -104,7 +104,7 @@ readonly PROJECT_LIST="$("${XCODEBUILD}" -list -json -project "${PROJECT_PATH}")
 readonly SCHEMES="$(printf '%s\n' "${PROJECT_LIST}" | /usr/bin/plutil -extract project.schemes json -o - -)"
 require_text "${SCHEMES}" "\"${SCHEME}\"" "Schemes de ${PROJECT_RELATIVE_PATH}"
 
-readonly TARGETS=(MangaLibrary MangaLibraryTests MangaLibraryUITests)
+readonly TARGETS=(MangaLibrary MangaLibraryTests MangaLibraryUITests MangaLibraryWidgetExtension)
 readonly CONFIGURATIONS=(Debug Release)
 
 for target in "${TARGETS[@]}"; do

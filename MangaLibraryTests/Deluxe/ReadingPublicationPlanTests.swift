@@ -10,6 +10,113 @@ import Testing
 @Suite("Deluxe publication byte budget", .tags(.fast))
 struct ReadingPublicationPlanTests {
     @Test
+    func `collection descriptor reserves transport space without truncating its local items`() throws {
+        let readings = Self.candidates(count: 56, title: String(repeating: "a", count: 492))
+        let collection = Self.collectionCandidates(count: 100)
+        let projection = CollectionReadingProjection(
+            authority: Self.authority,
+            items: readings,
+            collectionItems: collection
+        )
+        try #require(Self.oracleContext(readings, total: 56) <= 32_768)
+        try #require(Self.oracleContext(readings, total: 56, collectionReference: true) > 32_768)
+        try #require(Self.oracleContext(Array(readings.prefix(55)), total: 56, collectionReference: true) <= 32_768)
+
+        let plan = try ReadingPublicationPlan(projection: projection)
+
+        #expect(plan.items.map(\.mangaID) == Array(Int64(1)...55))
+        let data = try #require(plan.collectionData)
+        let decoded = try CollectionWidgetSnapshotCodec.decode(data)
+        #expect(decoded.items.map(\.mangaID) == Array(Int64(1)...100))
+        #expect(decoded.items.map(\.ownedVolumeCount) == Array(repeating: 0, count: 100))
+    }
+
+    @Test(arguments: [(4_096, 0, true), (4_097, 0, false), (2_000, 512, false)])
+    func `collection limits allow the whole dataset or make only collection unavailable`(
+        count: Int,
+        titleLength: Int,
+        expectedAvailable: Bool
+    ) throws {
+        let reading = Self.candidate(mangaID: 1, readingVolume: 2)
+        let collection = Self.collectionCandidates(count: count, titleLength: titleLength)
+        let projection = CollectionReadingProjection(
+            authority: Self.authority,
+            items: [reading],
+            collectionItems: collection
+        )
+
+        let plan = try ReadingPublicationPlan(projection: projection)
+
+        #expect(plan.items.map(\.readingVolume) == [2])
+        #expect((plan.collectionData != nil) == expectedAvailable)
+        if expectedAvailable {
+            let data = try #require(plan.collectionData)
+            let snapshot = try CollectionWidgetSnapshotCodec.decode(data)
+            #expect(snapshot.items.count == count)
+            #expect(snapshot.items.last?.mangaID == Int64(count))
+        } else {
+            #expect(plan.collection == nil)
+        }
+    }
+
+    @Test
+    func `optional cover references cannot make a complete fitting collection unavailable`() throws {
+        let collection = Self.collectionCandidates(count: 1_600, titleLength: 484)
+        let projection = CollectionReadingProjection(authority: Self.authority, items: [], collectionItems: collection)
+        let references = Dictionary(uniqueKeysWithValues: collection.map { ($0.mangaID, Self.digest) })
+        let base = try ReadingPublicationPlan(projection: projection)
+        try #require(base.collectionData != nil)
+
+        let plan = try ReadingPublicationPlan(projection: projection, coverResourceIDs: references)
+
+        let data = try #require(plan.collectionData)
+        let snapshot = try CollectionWidgetSnapshotCodec.decode(data)
+        #expect(snapshot.items.count == 1_600)
+        #expect(snapshot.items.last?.mangaID == 1_600)
+        #expect(data.count <= 1_048_576)
+        #expect(snapshot.items.contains(where: { $0.coverResourceID == nil }))
+        #expect(snapshot.items.contains(where: { $0.coverResourceID != nil }))
+    }
+
+    @Test
+    func `a preferred reading outside the prefix replaces its tail without reordering`() throws {
+        let candidates = Self.candidates(count: 100, title: String(repeating: "a", count: 512))
+        let expected = Array(candidates.prefix(53)) + [candidates[99]]
+        try #require(Self.oracleContext(expected, total: 100, preferred: 100) <= 32_768)
+        try #require(Self.oracleContext(Array(candidates.prefix(54)) + [candidates[99]], total: 100, preferred: 100) > 32_768)
+
+        let plan = try ReadingPublicationPlan(projection: Self.projection(candidates), preferredStartMangaID: 100)
+
+        #expect(plan.items.map(\.mangaID) == Array(Int64(1)...53) + [100])
+        #expect(plan.totalEligibleCount == 100)
+    }
+
+    @Test
+    func `an expensive preferred reading can displace several tail items`() throws {
+        let candidates = Self.candidates(count: 55, title: String(repeating: "a", count: 492))
+            + [Self.candidate(mangaID: 56, title: "a" + String(repeating: "\u{0001}", count: 511))]
+        let expected = Array(candidates.prefix(50)) + [candidates[55]]
+        try #require(Self.oracleContext(expected, total: 56, preferred: 56) <= 32_768)
+        try #require(Self.oracleContext(Array(candidates.prefix(51)) + [candidates[55]], total: 56, preferred: 56) > 32_768)
+
+        let plan = try ReadingPublicationPlan(projection: Self.projection(candidates), preferredStartMangaID: 56)
+
+        #expect(plan.items.map(\.mangaID) == Array(Int64(1)...50) + [56])
+    }
+
+    @Test
+    func `the preference key consumes transport budget even inside the canonical prefix`() throws {
+        let candidates = Self.candidates(count: 55, title: String(repeating: "a", count: 492))
+            + [Self.candidate(mangaID: 56, title: String(repeating: "a", count: 508))]
+        try #require(Self.oracleContext(candidates, total: 56) <= 32_768)
+        try #require(Self.oracleContext(candidates, total: 56, preferred: 1) > 32_768)
+
+        let plan = try ReadingPublicationPlan(projection: Self.projection(candidates), preferredStartMangaID: 1)
+
+        #expect(plan.items.map(\.mangaID) == Array(Int64(1)...55))
+    }
+
+    @Test
     func `keeps the largest ordered prefix without skipping an expensive reading`() throws {
         let candidates = Self.candidates(count: 55, title: String(repeating: "a", count: 512))
             + [Self.candidate(mangaID: 56)]
@@ -201,6 +308,19 @@ private extension ReadingPublicationPlanTests {
     )
     static let digest = String(repeating: "a", count: 64)
 
+    static func collectionCandidates(count: Int, titleLength: Int = 0) -> [CollectionReadingProjection.CollectionItem] {
+        (1...count).map { identifier in
+            CollectionReadingProjection.CollectionItem(
+                mangaID: Int64(identifier),
+                title: titleLength == 0 ? nil : String(repeating: "a", count: titleLength),
+                ownedVolumeCount: 0,
+                totalVolumes: nil,
+                isComplete: false,
+                coverURL: nil
+            )
+        }
+    }
+
     static func projection(_ items: [CollectionReadingProjection.Item]) -> CollectionReadingProjection {
         CollectionReadingProjection(authority: authority, items: items)
     }
@@ -234,7 +354,9 @@ private extension ReadingPublicationPlanTests {
         _ items: [CollectionReadingProjection.Item],
         total: Int64,
         cover: String? = nil,
-        revision: UInt64 = .max
+        revision: UInt64 = .max,
+        preferred: Int64? = nil,
+        collectionReference: Bool = false
     ) throws -> Data {
         let coverValue = try cover.map { try oracleString($0) } ?? "null"
         let wireItems = try items.map { item in
@@ -243,7 +365,13 @@ private extension ReadingPublicationPlanTests {
             return #"{"coverResourceID":\#(coverValue),"mangaID":\#(item.mangaID),"#
                 + #""readingVolume":\#(item.readingVolume),"title":\#(titleValue),"totalVolumes":\#(totalValue)}"#
         }.joined(separator: ",")
+        let preference = preferred.map { #""preferredStartMangaID":\#($0),"# } ?? ""
+        let collection = collectionReference
+            ? #""collectionReference":{"byteCount":1048576,"digest":"\#(String(repeating: "0", count: 64))","slot":1},"#
+            : ""
         let envelope = #"{"formatVersion":1,"generatedAt":"2026-09-06T00:00:00.000Z","items":[\#(wireItems)],"#
+            + preference
+            + collection
             + #""publicationGeneration":"11111111-1111-4111-8111-111111111111","revision":\#(revision),"#
             + #""sessionGeneration":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","state":"content","#
             + #""totalEligibleCount":\#(total)}"#
@@ -260,13 +388,17 @@ private extension ReadingPublicationPlanTests {
         _ items: [CollectionReadingProjection.Item],
         total: Int64,
         cover: String? = nil,
-        revision: UInt64 = .max
+        revision: UInt64 = .max,
+        preferred: Int64? = nil,
+        collectionReference: Bool = false
     ) throws -> Int {
         let data = try oracleJSON(
             items,
             total: total,
             cover: cover,
-            revision: revision
+            revision: revision,
+            preferred: preferred,
+            collectionReference: collectionReference
         )
         return try PropertyListSerialization.data(
             fromPropertyList: ["readingSnapshot": data],

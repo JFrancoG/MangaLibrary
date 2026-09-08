@@ -31,6 +31,8 @@ final class ReadingPublicationTicket: Sendable {
 struct ReadingPublicationEvent {
     let authorization: SessionCommitAuthorization
     let ticket: ReadingPublicationTicket
+    let preferredStartMangaID: Manga.ID?
+    let preferredCollectionStartMangaID: Manga.ID?
 }
 
 /// Retains only the latest intent, independently of any particular consumer lifetime.
@@ -53,16 +55,40 @@ final class ReadingPublicationEvents: Sendable {
     private let state = Mutex(State())
 
     @discardableResult
-    func record(authorization: SessionCommitAuthorization) -> ReadingPublicationEvent {
+    func record(
+        authorization: SessionCommitAuthorization,
+        preferredStartMangaID: Manga.ID? = nil,
+        preferredCollectionStartMangaID: Manga.ID? = nil
+    ) -> ReadingPublicationEvent {
         state.withLock { state in
+            let previousPreference = state.latest?.authorization.authority == authorization.authority
+                ? state.latest?.preferredStartMangaID : nil
+            let previousCollectionPreference = state.latest?.authorization.authority == authorization.authority
+                ? state.latest?.preferredCollectionStartMangaID : nil
             state.latest?.ticket.invalidate()
             let event = ReadingPublicationEvent(
                 authorization: authorization,
-                ticket: ReadingPublicationTicket(authority: authorization.authority)
+                ticket: ReadingPublicationTicket(authority: authorization.authority),
+                preferredStartMangaID: preferredStartMangaID ?? previousPreference,
+                preferredCollectionStartMangaID: preferredCollectionStartMangaID ?? previousCollectionPreference
             )
             state.latest = event
             state.continuation?.yield(event)
             return event
+        }
+    }
+
+    /// A completed publication or no-op consumes only its own pending preference.
+    /// Later batches then inherit the durable focus; a newer committed edit keeps its ticket and preference.
+    func consumePreference(for event: ReadingPublicationEvent) {
+        state.withLock { state in
+            guard state.latest?.ticket === event.ticket else { return }
+            state.latest = ReadingPublicationEvent(
+                authorization: event.authorization,
+                ticket: event.ticket,
+                preferredStartMangaID: nil,
+                preferredCollectionStartMangaID: nil
+            )
         }
     }
 

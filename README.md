@@ -4,7 +4,58 @@ Manga Library es una aplicación SwiftUI local-first para explorar un catálogo 
 
 ## Estado
 
-**Advanced está aceptado y entregado** mediante el [issue #75](https://github.com/JFrancoG/MangaLibrary/issues/75) y la [PR #76](https://github.com/JFrancoG/MangaLibrary/pull/76). **Deluxe tiene siete subfases en el [plan #77](https://github.com/JFrancoG/MangaLibrary/issues/77).** DX1 y DX2 se entregan mediante las PR [#80](https://github.com/JFrancoG/MangaLibrary/pull/80) y [#81](https://github.com/JFrancoG/MangaLibrary/pull/81). DX3 — proyección persistida, prefijo estable, portadas y eventos ordenados — completa sus **5/5 bloques técnicos**, agrupados en la [PR #83](https://github.com/JFrancoG/MangaLibrary/pull/83), con DX3.5 publicado en `14d6251`. Su gate acredita 662 tests/910 invocaciones y builds Debug/Release y DocC sin warnings. El [contrato de lectura y recuperación](docs/specs/09-deluxe-reading-contract.md), [Progress](docs/Progress.md) y el [issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82) conservan alcance, evidencia y resultado de la entrega. **Siguiente corte: DX4, widget de iPhone/iPad**, todavía sin iniciar. Los targets widget/watch y el App Group efectivo pertenecen a sus siguientes subfases; la evidencia física de Apple Watch sigue pendiente.
+**Advanced está aceptado y entregado** mediante el [issue #75](https://github.com/JFrancoG/MangaLibrary/issues/75) y la [PR #76](https://github.com/JFrancoG/MangaLibrary/pull/76). **Deluxe tiene siete subfases en el [plan #77](https://github.com/JFrancoG/MangaLibrary/issues/77), con DX1–DX3 entregadas** mediante las PR [#80](https://github.com/JFrancoG/MangaLibrary/pull/80), [#81](https://github.com/JFrancoG/MangaLibrary/pull/81) y [#83](https://github.com/JFrancoG/MangaLibrary/pull/83). DX3 completa sus cinco bloques de proyección persistida, prefijo estable, portadas y eventos ordenados; se integra en `fa60f15` y cierra [#82](https://github.com/JFrancoG/MangaLibrary/issues/82).
+
+**DX4 está implementado en el [issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84), rama `codex/84-dx4-reading-widget`, con validación automatizada, Simulator y física completadas en su alcance aprobado; entrega en preparación.** Incluye widget pequeño, mediano y grande EN/ES para iPhone/iPad, App Group, doble fence y publicación ligada al ciclo de vida. La evidencia registra lectura entre procesos, mutación y logout, adaptación iPhone/iPad y continuidad entre ventanas.
+
+La ampliación aprobada el 7 de septiembre añade rotación programada cada cinco minutos, prioridad del manga cuyo tomo cambia y grupos adaptables de hasta seis lecturas. Pasan **716 declaraciones / 1.014 invocaciones** de Swift Testing, incluida la corrección de precisión de fechas detectada al comprobar el reloj real, y builds limpios Debug/Release y DocC sin warnings. Revisión independiente y previews de los tres tamaños completas; Simulator acredita rotación natural y prioridad en iPhone y tamaño grande en portrait/landscape de iPad. [ADR-0021](docs/adr/0021-widget-reading-rotation-and-priority.md) registra el contrato y sus límites: WidgetKit decide el momento efectivo del cambio.
+
+La petición posterior del mismo día está implementada: pequeño con `Tomo N/T`
+o `Tomo N`, grande ampliado con 1–4 lecturas reales y mediano «Mi colección»
+con una ficha rotatoria, tomos en propiedad, completitud y total de mangas,
+incluidos los que no se están leyendo. [ADR-0022](docs/adr/0022-widget-collection-projection-and-adaptive-reading.md)
+concreta el recurso local completo y acotado, enlazado al publicador y fence
+existentes. Pasan **754 declaraciones / 1.093 invocaciones**, builds limpios y
+DocC sin warnings; 29 previews revisadas y revisión independiente de fuente.
+La comprobación interactiva de esta ampliación quedó pendiente por Mac bloqueado;
+los recorridos anteriores de Simulator conservan su alcance histórico.
+
+El propietario confirma posteriormente que los widgets funcionan como espera.
+El ajuste visual siguiente incorpora «¿Qué estás leyendo?» y «Tus mangas, aquí»,
+con la ilustración del manga abierto del icono en los estados sin contenido;
+se adapta a cada familia y cede espacio al texto con Dynamic Type. Esta
+confirmación no identifica hardware ni sustituye pruebas físicas concretas.
+
+La prueba posterior en iPhone11 detectó que WidgetKit rechazaba archivar la
+ilustración de1024×1024 y seguía mostrando el estado anterior. Se ha corregido
+preparando miniaturas acotadas antes del render. La extensión actual ya no
+registra ese rechazo y el propietario confirma que ahora se muestra correctamente
+en el iPhone 11.
+
+El ajuste posterior amplía la portada del grande con 1, 5 y 6 lecturas y hace
+que un alta local o una reincorporación aparezca primero en «Mi colección».
+Después continúa la rotación; los cinco minutos siguen siendo orientativos.
+SDD09 v1.10 y ADR-0022 concretan la prioridad local independiente de lectura,
+sin guardar un historial de adquisiciones ni cambiar el orden de la colección.
+Pasan **763 declaraciones / 1.104 invocaciones**, builds Debug/Release y DocC
+sin warnings. La versión está instalada en iPhone11; quedan por confirmar allí
+la prioridad al añadir bajo condiciones controladas. Los tamaños se aceptan
+posteriormente como parte del cierre visual.
+
+Una segunda petición amplía de nuevo las cinco/seis lecturas: portadas y
+texto mayores, menos separación y una alternativa intermedia cuando no caben.
+SDD09 v1.11 mantiene el resto de tamaños y la prioridad de nuevas altas.
+Quince previews revisadas y builds Debug/Release sin warnings; instalada en
+iPhone11 y aceptada visualmente por el propietario.
+
+El propietario confirma el último ajuste del grande y aprueba destacar el
+total de «Mi colección» en una pastilla junto al título; abajo queda solo la
+fecha. SDD09 v1.12 conserva el conteo y adapta la cabecera al espacio disponible.
+Veintiuna previews revisadas y builds Debug/Release sin warnings; instalada en
+el iPhone11. El propietario da por terminados todos los ajustes visuales y de
+UI y autoriza guardar el avance con commit/push e iniciar VoiceOver.
+
+El [contrato](docs/specs/09-deluxe-reading-contract.md), [Progress](docs/Progress.md) y la [checklist DX4](docs/dx4-widget-validation.md) conservan el alcance de cada ejecución anterior y la validación final. VoiceOver ES/EN, estados, títulos largos, propiedad, rotación, logout y recuperación de los tres widgets están confirmados en iPhone 11 en los casos registrados. SDD09 v1.14 y SDD06 v1.36 recogen el traslado aprobado de la prueba física anterior al primer desbloqueo a DX6: limitada/no observable y pendiente para el gate Deluxe. El binario normal está reinstalado y su contenido confirmado. La entrega de DX4 está autorizada y en preparación; no requiere Apple Watch. **El Deluxe Release Gate no está superado.**
 
 El catálogo público está entregado en cuatro cortes: [C1](https://github.com/JFrancoG/MangaLibrary/issues/13) materializa el shell, la primera página y el detalle por `Manga.ID`; [C2](https://github.com/JFrancoG/MangaLibrary/issues/21) añade paginación incremental y lista/cuadrícula; [C3](https://github.com/JFrancoG/MangaLibrary/issues/25) incorpora búsqueda avanzada, filtros y «Mejores»; y [C4](https://github.com/JFrancoG/MangaLibrary/issues/27) enriquece manga y detalle, adopta navegación compacta nativa y anticipa la siguiente página. El contrato cromático y la adopción ejecutable de [Library Red](https://github.com/JFrancoG/MangaLibrary/issues/29) también están entregados.
 
@@ -40,7 +91,7 @@ El [enunciado completo saneado](docs/sources/Practica_Mis_Mangas_SDP_2026.md) se
 - Warnings de Swift, Clang y DocC tratados como errores.
 - Sin dependencias externas.
 - DocC avanzado y selectivo, sin documentación por cuota.
-- El widget recibirá snapshots tras commits locales completados y solicitará recargas dirigidas; todas sus instancias mostrarán la misma proyección y WidgetKit decidirá el momento efectivo sin SLA de tiempo real.
+- El widget recibe snapshots tras commits locales completados y solicita recargas dirigidas; sus tres tamaños muestran ventanas de la misma proyección, con rotación pausada y prioridad de edición, y WidgetKit decidirá el momento efectivo sin SLA de tiempo real.
 - Advanced mantiene el logout local sin red mediante el borrado Keychain condicionado a la generación vigente. Si existen cambios de Colección sin resolver, permite mantener la sesión mientras R2 continúa o confirmar su descarte atómico contra la última base remota confirmada localmente; una eliminación Keychain fallida conserva la sesión activa y permite reintentar solo si el JWT sigue vigente, sin resucitar cambios ya descartados. Si vence, mantiene `authenticationRequired`, y únicamente una eliminación confirmada publica `signedOut`. Cuando exista el bridge, el `SessionFence` se cerrará y verificará antes de ese borrado condicional; las caches de WidgetKit y watchOS pueden cambiar después de forma eventual.
 - Las peticiones de sesión ignoran la caché HTTP local; la frescura de credenciales e identidad no depende de headers opcionales del servidor.
 - watchOS recibirá únicamente contextos autocontenidos reemplazables mediante `WCSession.updateApplicationContext(_:)`, sin promesa de entrega inmediata.
@@ -60,7 +111,7 @@ El [enunciado completo saneado](docs/sources/Practica_Mis_Mangas_SDP_2026.md) se
 
 El proyecto se abre con `MangaLibrary.xcodeproj` usando Xcode 27. Antes de modificarlo, lee [AGENTS.md](AGENTS.md), el issue activo y las SDD/ADR aplicables.
 
-El gate DocC selecciona su propio Xcode sin cambiar `xcode-select`, comprueba la configuración efectiva de los tres targets en Debug y Release y genera un archive ignorado por Git:
+El gate DocC selecciona su propio Xcode sin cambiar `xcode-select`, comprueba la configuración efectiva de los cuatro targets en Debug y Release y genera un archive ignorado por Git:
 
 ```sh
 ./Scripts/validate-docc.sh

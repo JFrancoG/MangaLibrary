@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.34
-**Fecha:** 2026-09-04
+**Versión:** 1.36
+**Fecha:** 2026-09-08
 
 ## Propósito
 
@@ -111,7 +111,10 @@ pero no bloquean una candidata Advanced anterior a su gate de entrada.
 - selección de eventos, serialización del publicador, distinción entre contenido y sanitización y revalidación de la sesión esperada antes del reemplazo;
 - diferencia entre fallo ordinario y cierre fail-closed, incluido el aborto de logout si no puede persistirse o verificarse el fence;
 - orden write-before-reload, supresión de reload tras fallo inseguro y selección del `kind` de widget afectado;
-- `StaticConfiguration`, `TimelineProvider`, timeline `.never`, proyección común y ausencia de configuración por App Intent;
+- `StaticConfiguration`, `TimelineProvider`, selección por familia y ausencia de configuración por App Intent;
+- rotación por slots de 300 segundos con fase estable, horizonte acotado y `.atEnd`; cero/uno o estados sin contenido con `.never`;
+- colección mediana completa, incluso sin lecturas, enlazada por tamaño/digest y doble fence; dos slots acotados, publicación atómica, no-op y reparación sin mezclar revisiones;
+- progreso pequeño compacto y grande adaptable por cardinalidad real, conservando Dynamic Type, estados y contador restante;
 - manifest, portada inmutable local o placeholder, retención y limpieza;
 - estados y cancelación de modelos de feature `@Observable @MainActor` cuando sean propietarios reales de ese workflow.
 - modelo R2.4 con estados de carga, presencia, ausencia, incompatibilidad, fallo,
@@ -502,12 +505,21 @@ La prueba de assets no acredita por sí sola la interfaz. Que una pareja opaca s
 - el `SessionFence` se cierra y verifica antes de borrar condicionalmente el envelope Keychain conforme a [ADR 0019](../adr/0019-single-jwt-session-and-keychain-v3.md), sin reutilizar la ausencia previa del bridge como evidencia;
 - un fence cerrado y verificado hace no cancelable la transición Deluxe y obliga a completar el borrado Keychain y la redacción compartida;
 - la primera incorporación del bridge permanece cerrada hasta que el propietario de sesión autoriza y el publicador revalida una generación Advanced activa;
-- snapshot, configuración estática, generaciones, `SessionFence`, redacción fail-closed, `updateApplicationContext(_:)`, portadas, `.never` y reload dirigido tienen evidencia proporcional;
+- snapshot, configuración estática, generaciones, `SessionFence`, redacción fail-closed, `updateApplicationContext(_:)`, portadas, timelines acotadas y reload dirigido tienen evidencia proporcional;
 - la evidencia valida causalidad y contenido sin sleeps ni afirmaciones de latencia en tiempo real;
 - la integración autorizada prueba App Group, manifest/portadas, crash/reintento y cambio de sesión sin introducir red u otra autoridad en la extensión;
 - el gate DocC produce el archive esperado sin warnings.
 
 Un simulador no sustituye evidencia física cuando la capacidad dependa de hardware, llavero, App Group, WatchConnectivity o una tecnología de asistencia real.
+
+El ajuste aprobado por el propietario el 2026-09-08 traslada de DX4 a DX6 la
+comprobación física de protección anterior al primer desbloqueo del iPhone,
+conforme a [SDD 09](09-deluxe-reading-contract.md). El resultado actual conserva
+**limitado/no observable**; deja de bloquear el cierre de DX4, sin convertirse en
+una prueba superada. DX6 mantiene esa evidencia pendiente y el Deluxe Release
+Gate no se declara superado mientras falte. La recuperación tras desbloquear,
+un estado no disponible inyectado y los tests deterministas no sustituyen esa
+comprobación física ni cambian el contrato de protección.
 
 ## Fuera de alcance para 1.0
 
@@ -520,7 +532,8 @@ Un simulador no sustituye evidencia física cuando la capacidad dependa de hardw
 
 - [ADR 0001: toolchain, plataforma y warnings](../adr/0001-toolchain-platform-and-warning-policy.md)
 - [ADR 0005: estrategia híbrida de testing](../adr/0005-hybrid-testing-strategy.md)
-- [ADR 0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
+- [ADR 0010: frescura dirigida por eventos para WidgetKit, superseded](../adr/0010-widgetkit-event-driven-freshness.md)
+- [ADR 0022: colección mediana y lectura adaptable](../adr/0022-widget-collection-projection-and-adaptive-reading.md)
 - [ADR 0020: omitir la extracción de App Intents no utilizada](../adr/0020-skip-unused-app-intents-metadata-extraction.md)
 - [ADR 0011: excepción acotada para el warning de App Intents, superseded](../adr/0011-bounded-xcode-app-intents-warning-exception.md)
 - [Documentación y DocC](07-documentation-and-docc.md)

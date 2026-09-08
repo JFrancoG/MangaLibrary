@@ -1,0 +1,870 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "**%lld** manga titles": {
+      "comment": "Total distinct manga titles in the collection badge. Preserve Markdown emphasis around the number so it can use a larger font; not the number of owned volumes.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "**%lld** manga"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "**%lld** manga"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "**%lld** manga"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "**%lld** mangas"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld manga titles in your collection": {
+      "comment": "Full accessibility label for the total number of manga titles in the complete collection snapshot.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld manga title in your collection"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld manga titles in your collection"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld manga en tu colección"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld mangas en tu colección"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld more": {
+      "comment": "Compact remaining reading count at accessibility text sizes.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld more"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld más"
+          }
+        }
+      }
+    },
+    "%lld more on iPhone": {
+      "comment": "Number of eligible readings not shown in the current visible prefix, available in the iPhone app.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld more on iPhone"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld more on iPhone"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld más en el iPhone"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld más en el iPhone"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld more on iPhone. Updated %@": {
+      "comment": "VoiceOver description of the reading widget footer. Includes the number of remaining readings and the already formatted update date/time; preserve both values and their order.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld more on iPhone. Updated %@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld more on iPhone. Updated %@"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld más en el iPhone. Actualizado %@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld más en el iPhone. Actualizado %@"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld of %lld volumes owned": {
+      "comment": "Full accessibility label for the ownership count and known series total; neither number is reading progress.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volumes owned: %1$lld of %2$lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tomos en propiedad: %1$lld de %2$lld"
+          }
+        }
+      }
+    },
+    "%lld volumes": {
+      "comment": "Compact visible ownership count in the medium widget at large text sizes. Accessibility says volumes owned.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld volume"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld volumes"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tomo"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tomos"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld volumes owned": {
+      "comment": "Ownership count when the series total is unknown. No denominator is invented.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld volume owned"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld volumes owned"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tomo en propiedad"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tomos en propiedad"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld/%lld volumes owned": {
+      "comment": "Visible ownership count and known series total. The first number counts volumes owned, not reading progress.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld/%2$lld volumes owned"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld/%2$lld tomos"
+          }
+        }
+      }
+    },
+    "Add manga to your collection in Manga Library.": {
+      "comment": "Guidance for the empty medium collection widget.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add manga to your collection in Manga Library."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añade mangas a tu colección en Manga Library."
+          }
+        }
+      }
+    },
+    "Choose your current volume in Manga Library.": {
+      "comment": "Explanation for an empty reading snapshot.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose your current volume in Manga Library."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elige tu tomo actual en Manga Library."
+          }
+        }
+      }
+    },
+    "Collection complete": {
+      "comment": "Full accessibility label when the user marked the displayed manga collection as complete.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collection complete"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Colección completa"
+          }
+        }
+      }
+    },
+    "Collection incomplete": {
+      "comment": "Full accessibility label when the user has not marked the displayed manga collection as complete.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collection incomplete"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Colección incompleta"
+          }
+        }
+      }
+    },
+    "Complete": {
+      "comment": "Explicit collection-completion flag for the currently displayed manga; this is not reading completion.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Complete"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completa"
+          }
+        }
+      }
+    },
+    "Incomplete": {
+      "comment": "Explicit collection-incompletion flag for the currently displayed manga; this is not reading progress.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incomplete"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incompleta"
+          }
+        }
+      }
+    },
+    "Let's refresh": {
+      "comment": "Friendly title asking the user to refresh unavailable widget data, not to install an app update.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let's refresh"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Actualizamos?"
+          }
+        }
+      }
+    },
+    "Manga #%lld": {
+      "comment": "Fallback title when no useful title is stored. The variable is the stable manga identifier.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manga #%lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manga #%lld"
+          }
+        }
+      }
+    },
+    "Manga Library": {
+      "comment": "Shared widget gallery name for the reading and collection families; keep the app brand unchanged.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manga Library"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manga Library"
+          }
+        }
+      }
+    },
+    "My collection": {
+      "comment": "Leading heading beside the total badge in the medium collection widget.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My collection"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mi colección"
+          }
+        }
+      }
+    },
+    "No current reading": {
+      "comment": "An authorized collection has no current volume selected.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No current reading"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin lecturas actuales"
+          }
+        }
+      }
+    },
+    "No manga in your collection": {
+      "comment": "Empty state of an authorized complete collection snapshot.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No manga in your collection"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin mangas en tu colección"
+          }
+        }
+      }
+    },
+    "Open Manga Library and we'll refresh your manga.": {
+      "comment": "Open the app to refresh unavailable reading or collection data; no immediate timing guarantee.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Manga Library and we'll refresh your manga."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre Manga Library y actualizamos tus mangas."
+          }
+        }
+      }
+    },
+    "Open Manga Library on iPhone to update this widget.": {
+      "comment": "Safe fallback when a valid reading snapshot cannot be obtained.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Manga Library on iPhone to update this widget."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre Manga Library en el iPhone para actualizar el widget."
+          }
+        }
+      }
+    },
+    "Open Manga Library.": {
+      "comment": "Compact guidance for widget states at accessibility text sizes.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Manga Library."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre Manga Library."
+          }
+        }
+      }
+    },
+    "Reading": {
+      "comment": "Widget gallery name and centered heading for current volume selections.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leyendo"
+          }
+        }
+      }
+    },
+    "Set your current volume in Manga Library.": {
+      "comment": "Supporting instruction when no manga has a current reading volume.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set your current volume in Manga Library."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marca tu tomo actual en Manga Library."
+          }
+        }
+      }
+    },
+    "Sign in on iPhone": {
+      "comment": "Title when the shared reading session is redacted.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in on iPhone"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicia sesión en el iPhone"
+          }
+        }
+      }
+    },
+    "Sign in to Manga Library.": {
+      "comment": "Signed-out widget instruction valid on both iPhone and iPad.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to Manga Library."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicia sesión en Manga Library."
+          }
+        }
+      }
+    },
+    "Sign in.": {
+      "comment": "Shortest visible signed-out instruction when the full app name does not fit at accessibility sizes. Accessibility retains the complete message.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicia sesión."
+          }
+        }
+      }
+    },
+    "Small and large show your reading. Medium shows your collection.": {
+      "comment": "Widget gallery description explaining the different content selected by family.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Small and large show your reading. Medium shows your collection."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pequeño y grande muestran tus lecturas. Mediano muestra tu colección."
+          }
+        }
+      }
+    },
+    "Updated %@": {
+      "comment": "Informative snapshot creation date and time, formatted for the current locale.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualizado %@"
+          }
+        }
+      }
+    },
+    "Volume %lld": {
+      "comment": "Compact visible current volume in the small reading widget when the total is unknown. Accessibility retains the full unknown-total explanation.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tomo %lld"
+          }
+        }
+      }
+    },
+    "Volume %lld of %lld": {
+      "comment": "Current volume and known total. Reaching the last volume does not mean reading is completed.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume %lld of %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tomo %1$lld de %2$lld"
+          }
+        }
+      }
+    },
+    "Volume %lld · Total unknown": {
+      "comment": "Current volume when the total number of volumes is unknown.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume %lld · Total unknown"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tomo %lld · Total desconocido"
+          }
+        }
+      }
+    },
+    "Volume %lld/%lld": {
+      "comment": "Compact visible current volume and known total in the small reading widget. The first number is the current volume, not completed volumes; the second is the series total.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume %1$lld/%2$lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tomo %1$lld/%2$lld"
+          }
+        }
+      }
+    },
+    "What are you reading?": {
+      "comment": "Informal empty reading title. There is no current reading; the supporting text directs the person to set a volume in the app.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What are you reading?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Qué estás leyendo?"
+          }
+        }
+      }
+    },
+    "Your collection will appear after you sign in.": {
+      "comment": "Explanation for the redacted medium collection widget.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your collection will appear after you sign in."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu colección aparecerá cuando inicies sesión."
+          }
+        }
+      }
+    },
+    "Your current volumes, shared from Manga Library on iPhone.": {
+      "comment": "Widget gallery description. This widget only reads data shared by the app.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your current volumes, shared from Manga Library on iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus tomos actuales, compartidos desde Manga Library en el iPhone."
+          }
+        }
+      }
+    },
+    "Your manga, right here": {
+      "comment": "Welcoming title for a signed-out widget; the supporting text explicitly requests sign-in.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your manga, right here"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus mangas, aquí"
+          }
+        }
+      }
+    },
+    "Your readings will appear after you sign in.": {
+      "comment": "Explanation when no reading session is allowed.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your readings will appear after you sign in."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus lecturas aparecerán cuando inicies sesión."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.1"
+}

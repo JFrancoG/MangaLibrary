@@ -9,6 +9,111 @@ import Testing
 
 @Suite("Deluxe reading contract", .tags(.fast))
 struct ReadingSnapshotCodecTests {
+    @Test(arguments: [
+        ("2026-09-06T00:00:00.001Z", 1_788_652_800.001),
+        ("2026-09-06T00:00:00.123Z", 1_788_652_800.123),
+        ("2026-09-06T00:00:00.999Z", 1_788_652_800.999),
+        ("1969-12-31T23:59:59.001Z", -0.999),
+        ("1969-12-31T23:59:59.123Z", -0.877),
+        ("1969-12-31T23:59:59.999Z", -0.001)
+    ])
+    func `canonical millisecond wire dates retain their exact fraction and instant`(
+        timestamp: String,
+        expectedSeconds: TimeInterval
+    ) throws {
+        let data = try DeluxeContractFixtures.replacing("2026-09-06T00:00:00.000Z", with: timestamp, in: "content")
+
+        let snapshot = try ReadingSnapshotCodec.decode(data)
+        let encoded = try ReadingSnapshotCodec.encode(snapshot)
+        let wire = try JSONDecoder().decode(EncodedTimestamp.self, from: encoded)
+
+        #expect(abs(snapshot.generatedAt.timeIntervalSince1970 - expectedSeconds) < 0.000_001)
+        #expect(wire.generatedAt == timestamp)
+        #expect(snapshot.items.map(\.mangaID) == [20, 10, 30])
+    }
+
+    @Test(arguments: [
+        (1_788_652_800.1234, "2026-09-06T00:00:00.123Z", 1_788_652_800.123),
+        (-0.8766, "1969-12-31T23:59:59.123Z", -0.877),
+        (-0.0001, "1969-12-31T23:59:59.999Z", -0.001),
+        (1_767_225_599.9999, "2025-12-31T23:59:59.999Z", 1_767_225_599.999)
+    ])
+    func `submillisecond publication clocks produce stable canonical millisecond dates`(
+        clockSeconds: TimeInterval,
+        expectedTimestamp: String,
+        expectedSeconds: TimeInterval
+    ) throws {
+        let content = try ReadingSnapshotCodec.decode(DeluxeContractFixtures.data("content"))
+        let snapshot = try ReadingSnapshot(
+            publicationGeneration: content.publicationGeneration,
+            revision: 8,
+            sessionGeneration: content.sessionGeneration,
+            state: .content,
+            generatedAt: Date(timeIntervalSince1970: clockSeconds),
+            totalEligibleCount: 3,
+            items: content.items
+        )
+
+        let encoded = try ReadingSnapshotCodec.encode(snapshot)
+        let wire = try JSONDecoder().decode(EncodedTimestamp.self, from: encoded)
+
+        #expect(wire.generatedAt == expectedTimestamp)
+        #expect(abs(snapshot.generatedAt.timeIntervalSince1970 - expectedSeconds) < 0.000_001)
+        let decoded = try ReadingSnapshotCodec.decode(encoded)
+        #expect(abs(decoded.generatedAt.timeIntervalSince1970 - expectedSeconds) < 0.000_001)
+    }
+
+    @Test
+    func `legacy format one omits optional rotation metadata on reencoding`() throws {
+        let snapshot = try ReadingSnapshotCodec.decode(DeluxeContractFixtures.data("content"))
+        let json = String(decoding: try ReadingSnapshotCodec.encode(snapshot), as: UTF8.self)
+
+        #expect(snapshot.preferredStartMangaID == nil)
+        #expect(json.contains("preferredStartMangaID") == false)
+    }
+
+    @Test
+    func `format one preserves a valid preferred reading without changing canonical item order`() throws {
+        let data = try DeluxeContractFixtures.replacing(
+            "\"revision\": 7,",
+            with: "\"revision\": 7, \"preferredStartMangaID\": 10,",
+            in: "content"
+        )
+
+        let snapshot = try ReadingSnapshotCodec.decode(data)
+        let emitted = String(decoding: try ReadingSnapshotCodec.encode(snapshot), as: UTF8.self)
+
+        #expect(snapshot.preferredStartMangaID == 10)
+        #expect(snapshot.items.map(\.mangaID) == [20, 10, 30])
+        #expect(emitted.contains(#""preferredStartMangaID":10"#))
+    }
+
+    @Test(arguments: ["0", "99", "\"10\"", "1.5"])
+    func `a malformed or absent preferred identity cannot expose a snapshot`(_ value: String) throws {
+        let data = try DeluxeContractFixtures.replacing(
+            "\"revision\": 7,",
+            with: "\"revision\": 7, \"preferredStartMangaID\": \(value),",
+            in: "content"
+        )
+
+        #expect(throws: (any Error).self) {
+            try ReadingSnapshotCodec.decode(data)
+        }
+    }
+
+    @Test(arguments: ["empty", "redacted", "unavailable"])
+    func `states without content cannot carry a preferred reading`(_ fixture: String) throws {
+        let data = try DeluxeContractFixtures.replacing(
+            "\"formatVersion\": 1,",
+            with: "\"formatVersion\": 1, \"preferredStartMangaID\": 10,",
+            in: fixture
+        )
+
+        #expect(throws: (any Error).self) {
+            try ReadingSnapshotCodec.decode(data)
+        }
+    }
+
     @Test(arguments: ["content", "empty", "redacted", "unavailable", "uint64-max"])
     func `accepts approved contract examples`(_ fixture: String) throws {
         let data = try DeluxeContractFixtures.data(fixture)
@@ -178,6 +283,10 @@ struct ReadingSnapshotCodecTests {
         #expect(snapshot.state == .content)
         #expect(try ReadingSnapshotCodec.contextByteCount(for: data) == expectedBytes)
     }
+}
+
+private struct EncodedTimestamp: Decodable {
+    let generatedAt: String
 }
 
 private enum DeluxeContractFixtures {

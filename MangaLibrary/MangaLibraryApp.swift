@@ -17,6 +17,7 @@ struct MangaLibraryApp: App {
     private let loadCatalogPage: CatalogModel.PageLoader
     private let loadCatalogFilterOptions: CatalogModel.FilterOptionsLoader
     @State private var accountModel: AccountModel
+    @State private var readingPublication: ReadingPublicationLifecycle?
 #if DEBUG
     private let presentsUITestingCollectionDetailProjection: Bool
     private let presentsUITestingMountedCollectionDetail: Bool
@@ -31,7 +32,8 @@ struct MangaLibraryApp: App {
                 accountModel: accountModel,
                 collectionMutation: collectionMutation,
                 collectionSynchronization: collectionSynchronization,
-                collectionBlockedOutcomeResolution: collectionBlockedOutcomeResolution
+                collectionBlockedOutcomeResolution: collectionBlockedOutcomeResolution,
+                readingPublication: readingPublication
             )
 #if DEBUG
             if presentsUITestingCollectionDetailProjection {
@@ -66,11 +68,13 @@ extension MangaLibraryApp {
                 let testsMountedCollectionDetail = processArguments.contains("-ui-testing-mounted-collection-detail")
                 let testsBlockedOutcomeResolution = processArguments.contains("-ui-testing-blocked-outcome-resolution")
                 let testsPendingLogout = processArguments.contains("-ui-testing-pending-logout")
+                let testsReadingWidget = processArguments.contains("-ui-testing-reading-widget")
                 let disablesCollectionSynchronization =
                     testsCollectionDetailProjection
                     || testsMountedCollectionDetail
                     || testsBlockedOutcomeResolution
                     || testsPendingLogout
+                    || testsReadingWidget
                 let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
                 if testsMountedCollectionDetail {
                     try Self.seedUITestingMountedCollectionDetail(in: container)
@@ -81,9 +85,15 @@ extension MangaLibraryApp {
                 if testsPendingLogout {
                     try Self.seedUITestingPendingLogout(in: container)
                 }
-                let mutationActor = CollectionMutationActor(modelContainer: container)
+                let readingFixture = testsReadingWidget ? try UITestingReadingWidget(modelContainer: container) : nil
+                let mutationActor = readingFixture?.mutations ?? CollectionMutationActor(modelContainer: container)
                 let account: AccountModel
-                if testsPendingLogout {
+                if let readingFixture {
+                    account = AccountModel(
+                        initialState: .authenticated(AccountPreviewSupport.account, notice: nil),
+                        operations: readingFixture.operations()
+                    )
+                } else if testsPendingLogout {
                     let session = UITestingPendingLogoutSession(mutationActor: mutationActor)
                     account = AccountModel(
                         initialState: .authenticated(AccountPreviewSupport.account, notice: nil),
@@ -99,7 +109,7 @@ extension MangaLibraryApp {
                 collectionMutation = CollectionMutation(
                     actor: mutationActor,
                     accountModel: account,
-                    sessionAuthorization: .deterministic
+                    sessionAuthorization: readingFixture?.sessionAuthorization ?? .deterministic
                 )
                 let synchronization: CollectionSynchronization
                 if processArguments.contains("-ui-testing-collection-authorization-denied") {
@@ -121,6 +131,11 @@ extension MangaLibraryApp {
                 loadCatalogPage = CatalogPreviewSupport.pageLoader
                 loadCatalogFilterOptions = CatalogPreviewSupport.filterOptionsLoader
                 _accountModel = State(initialValue: account)
+                _readingPublication = State(initialValue: readingFixture.map { fixture in
+                    ReadingPublicationLifecycle(runPipeline: {
+                        try await fixture.run()
+                    })
+                })
                 return
             } catch {
                 preconditionFailure("Manga Library could not create its UI testing data store.")
@@ -136,6 +151,15 @@ extension MangaLibraryApp {
             let account = AccountModel(
                 operations: .live(controller: composition.sessionController, register: composition.registerUser)
             )
+            let publication = composition.readingPublication.makePipeline(
+                sessionController: composition.sessionController,
+                onSessionReconciled: { authority in
+                    await account.reconcileSession(expectedAuthority: authority)
+                }
+            )
+            _readingPublication = State(initialValue: ReadingPublicationLifecycle(runPipeline: {
+                try await publication.run()
+            }))
             modelContainer = composition.modelContainer
             collectionMutation = CollectionMutation(
                 actor: composition.collectionMutations,

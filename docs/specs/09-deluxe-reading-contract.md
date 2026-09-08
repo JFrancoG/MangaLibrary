@@ -1,17 +1,18 @@
-# SDD 09: Contrato de lectura Deluxe — DX1, DX2 y DX3.1–DX3.4
+# SDD 09: Contrato de lectura Deluxe — DX1–DX4
 
-**Estado:** Aprobada por el propietario el 2026-09-06
-**Versión:** 1.5
-**Fecha:** 2026-09-06
-**Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79) y [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
+**Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07; texto e ilustración de no disponible y traslado de la prueba física anterior al primer desbloqueo a DX6 aprobados el 2026-09-08
+**Versión:** 1.14
+**Fecha:** 2026-09-08
+**Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82) y [DX4 — issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
 ## Alcance y aprobación
 
 El propietario aprobó el plan DX1–DX7 y después el contrato concreto DX1 el
-6 de septiembre de 2026. Este documento complementa la SDD 05 v1.7 con las
-decisiones que deberán cumplir las siguientes subfases. No activa targets,
-entitlements o dispositivos. Conserva la arquitectura de
-snapshots de ADR 0007/0010 y la autoridad Keychain V3 de ADR 0019; no necesita una
+6 de septiembre de 2026. Este documento complementa la SDD 05 v1.9 con las
+decisiones que deberán cumplir las siguientes subfases. La autorización posterior
+del propietario para implementar DX4 materializa el target WidgetKit, su App Group
+y la conexión al ciclo de vida; watchOS conserva su aprobación separada. Conserva la arquitectura de
+snapshots de ADR 0007/0022 (este último incorpora y supersede ADR-0021, sucesor de ADR-0010) y la autoridad Keychain V3 de ADR 0019; no necesita una
 nueva capa de persistencia de Colección ni otro ledger de sesión.
 
 La autorización posterior para avanzar a DX2 concreta el almacenamiento y la
@@ -24,10 +25,10 @@ conectar todavía el bridge al lanzamiento de producto.
 | Decisión | Contrato aprobado | Motivo |
 | --- | --- | --- |
 | En lectura | Entrada activa del usuario autorizado con tomo actual informado, incluido el último | Deriva de COL-020–023; propiedad y lectura son distintas. |
-| Orden | Título de presentación normalizado, desempate por `mangaID`; títulos ausentes al final | Reconocible sin inventar fecha de última lectura; los consumidores conservan el orden publicado. |
-| Capacidad visible | Pequeño: 1; mediano: hasta 3; reloj: lista desplazable del snapshot recibido | Ambas familias consumen prefijos del mismo contenido. |
+| Orden | Título de presentación normalizado, desempate por `mangaID`; títulos ausentes al final | Reconocible sin inventar fecha de última lectura; la selección conserva ese orden; WidgetKit puede empezar la ventana por la prioridad de presentación. |
+| Capacidad visible | Pequeño: 1 lectura; mediano: 1 manga de Colección; grande: hasta 6 lecturas; reloj: lista desplazable del snapshot de lectura recibido | La familia elige la proyección dentro del mismo kind. |
 | Contexto | JSON UTF-8 dentro de un único `Data`; máximo 32 KiB del diccionario completo codificado como binary plist | Presupuesto propio de trabajo/memoria, no límite oficial de Apple. |
-| Más lecturas | Prefijo que quepa y cantidad total elegible; indicar cuántas quedan en iPhone | Evitar una colección aparentemente completa cuando hay recorte. |
+| Más lecturas | Selección que quepa y cantidad total elegible; prefijo canónico con prioridad de inclusión para la lectura editada; indicar cuántas quedan en iPhone | Evitar una colección aparentemente completa cuando hay recorte. |
 | Portadas | JPEG de hasta 384 px de lado mayor y 64 KiB; admisión total de 8 MiB | Recurso opcional; el progreso sigue legible sin imagen. |
 | Retención inicial | No eliminar automáticamente portadas publicadas; limpiar solo huérfanos demostrados; agotada la cuota, las nuevas usan placeholder | Conserva cualquier referencia aún legible sin inventar TTL o acuses de WidgetKit. |
 | Reloj | Texto/progreso y placeholder; sin transferir binarios de portada en 1.0 | App Group no cruza dispositivos y no se añade otro canal. |
@@ -44,7 +45,7 @@ actual de la pantalla Colección.
 La consulta se ejecuta dentro del propietario de persistencia para la identidad
 autorizada. Primero excluye otras identidades y tombstones; después selecciona
 `readingVolume != nil`. `ownedVolumes` e `isComplete` no seleccionan ni ordenan
-la proyección. Vaciar el tomo de lectura retira el manga de Deluxe.
+la proyección. Vaciar el tomo de lectura lo retira de la proyección de lecturas; permanece en «Mi colección» mientras la entrada siga activa.
 
 La proyección valida `readingVolume` y `knownTotalVolumes` contra `1...300` y
 COL-022. No recorta un dato histórico inválido ni lo elimina silenciosamente:
@@ -52,9 +53,9 @@ falla la preparación ordinaria y conserva únicamente el último manifest váli
 de la misma sesión todavía autorizada. Sin manifest permitido se muestra no
 disponible. Una entrada inválida no se transforma en colección vacía.
 
-- Total conocido: texto «Tomo N de T» / «Volume N of T».
+- Total conocido: texto «Tomo N de T» / «Volume N of T»; el pequeño usa «Tomo N/T» / «Volume N/T».
 - Total desconocido: «Tomo N · Total desconocido» / «Volume N · Total unknown»;
-  no denominador, porcentaje o barra determinada inventados.
+  el pequeño usa «Tomo N» / «Volume N». Conserva una etiqueta accesible completa, sin denominador, porcentaje o barra determinada inventados.
 - `N == T` permanece visible. El dato indica tomo actual, no tomos terminados;
   no se presenta «Completado» ni «100 % leído». El texto satisface el progreso
   de 1.0; cualquier gráfico posterior deberá expresar posición, no finalización.
@@ -74,14 +75,212 @@ normalización canónica y `folding` de mayúsculas, diacríticos y anchura con 
 fijo `en_US_POSIX`; compara lexicográficamente sus bytes UTF-8 y desempata por
 `mangaID` ascendente. Las claves ausentes van después de las presentes. No se
 transporta la clave ni se vuelve a ordenar en el reloj; cambiar idioma no altera
-el prefijo. El contrato se caracteriza con ejemplos al implementar el proyector.
+la selección publicada. El contrato se caracteriza con ejemplos al implementar el proyector.
 
-El widget mediano puede reducir de 3 a 2 o 1 elementos si Dynamic Type impide
-representar el siguiente completo. Se conserva el prefijo, nunca se omite uno
-intermedio. El contador localizado usa `totalEligibleCount - visibleItems.count`,
+El widget grande puede reducir de 6 hasta 1 elementos si el espacio disponible o Dynamic Type impiden representar el siguiente completo. El mediano representa una ficha de la proyección de colección definida abajo. Se conserva la ventana circular contigua de cada slot; nunca se omite un elemento intermedio. El contador localizado usa `totalEligibleCount - visibleItems.count`,
 tanto por tamaño como por límite de transporte. El reloj usa el mismo cálculo
 con todos los elementos recibidos. No se introduce navegación o deep link nuevo
 en DX1.
+
+DX4 mantiene el texto de lectura como contenido esencial. En tamaños Dynamic Type
+de accesibilidad oculta las portadas decorativas, sin limitar el tamaño del texto.
+El contador y la fecha pueden usar una forma visual breve conservando etiquetas
+accesibles completas. La extensión prepara únicamente la unión de portadas necesarias para las trece entradas del horizonte, con hasta seis posiciones visibles por entrada (máximo 18 posiciones distintas). Las decodifica como miniaturas de hasta 160 píxeles; cuando el grande recibe exactamente 1–4 lecturas completas usa hasta 384 píxeles para sus portadas mayores. Una portada ausente no altera la selección.
+
+El ajuste visual solicitado el 7 de septiembre por la mañana centra el encabezado
+«Reading»/«Leyendo» y da prioridad al título y progreso. La variante destacada usa
+tipografía semántica headline/footnote y portadas escalables con base de 60 puntos;
+la compacta conserva 40. El título admite dos líneas y escala mínima de 0,85 solo
+en tamaños ordinarios; en accesibilidad conserva una línea y no reduce su escala.
+El encabezado usa caption en accesibilidad y las portadas permanecen ocultas.
+El pie se ancla abajo: contador y fecha comparten fila cuando caben y se apilan
+cuando falta ancho; la fecha usa caption2 y conserva menor jerarquía visual.
+Ese ajuste visual inicial conservó selección, orden, wire, eventos y publicación. La ampliación aprobada posteriormente se detalla a continuación.
+
+## Estados sin contenido: presentación aprobada el 7 y 8 de septiembre
+
+El propietario aprueba un tono informal y directo para vacío de lectura y sesión
+redactada. Lectura vacía usa «¿Qué estás leyendo?» y «Marca tu tomo actual en
+Manga Library.»; sesión redactada usa «Tus mangas, aquí» e «Inicia sesión en
+Manga Library.». Los equivalentes ingleses conservan el significado. Colección
+vacía y recurso no disponible mantienen mensajes distintos. El 8 de septiembre
+el propietario extiende el tono informal y directo a no disponible: «¿Actualizamos?»
+y «Abre Manga Library y actualizamos tus mangas.», con los equivalentes
+«Let's refresh» y «Open Manga Library and we'll refresh your manga.». El mensaje
+remite a Manga Library sin identificar un dispositivo que pueda ser incorrecto
+en iPad.
+
+La ilustración del manga abierto ya incluida en el icono de la app se reutiliza
+como recurso decorativo local de la extensión para vacío, redacción y no
+disponible. El grande centra el conjunto ilustración/título/explicación;
+el mediano ofrece composición
+horizontal y el pequeño una imagen discreta solo si cabe. La imagen cede antes
+que los mensajes al adaptar espacio, y se omite en tamaños de accesibilidad.
+Las fuentes siguen siendo semánticas, los mensajes accesibles se conservan
+completos y no se añaden botones o gestos de autenticación en el widget. La
+ilustración común no comunica el estado: los mensajes distintos conservan la
+diferencia semántica entre no disponible, sesión cerrada y ausencia real de datos.
+
+El recurso visual no altera snapshot, autoría, sesión, timeline ni publicación.
+El PNG original se conserva como recurso bundled fuera del imageset. Antes de
+entregar la entrada desde el provider, ImageIO prepara y conserva un thumbnail
+por familia, con lado mayor máximo de 128 px en pequeño, 288 px en mediano y 512 px
+en grande. Son cotas propias del recurso, independientes del tamaño de layout
+y de Dynamic Type, no límites universales de WidgetKit. El archivo original no
+se entrega al archivador del widget: reducir solo su `frame` no limita los píxeles
+de la imagen. Si la carga o reducción falla, se omite la ilustración y se
+conservan los mensajes, sin volver a utilizar la imagen original. Las Views
+reciben la imagen preparada, sin lectura ni decodificación durante body.
+Esta modificación de composición/copy se valida con builds, previews EN/ES,
+Dynamic Type y revisión independiente, sin tests que reproduzcan el layout.
+
+## Rotación de presentación aprobada el 7 de septiembre
+
+El contrato de [ADR-0021](../adr/0021-widget-reading-rotation-and-priority.md) añade
+rotación pausada a la misma superficie no interactiva. La ventana avanza una
+posición circular cada 300 segundos desde `generatedAt`. Las ventanas del grande
+se solapan para que una reducción de filas no provoque saltos. Una
+petición prepara el slot actual y doce futuros; `.atEnd` permite renovar la hora
+siguiente manteniendo fase. Cero/una lectura y estados vacío, redactado o no
+disponible producen una entrada `.never`.
+Si el reloj retrocede antes del ancla, la primera fecha es `now` y conserva el
+foco; las siguientes son `generatedAt + 300`, `+600` hasta `+3600`. Esa excepción
+puede ampliar el primer intervalo y el horizonte de reloj, pero no la cantidad
+de entradas ni portadas retenidas. El orden causal continúa basado en revisiones.
+
+El manga cuya lectura cambia en una edición individual puede iniciar el ciclo
+siguiente. La preferencia opcional `preferredStartMangaID` viaja con el evento y
+el snapshot, conservando compatibilidad con formato 1. Ausencia significa inicio
+por el orden canónico.
+El orden de los items sigue siendo por título: rotar no reordena el wire. El
+ancla temporal solo gobierna presentación; revisiones y generaciones conservan
+la autoridad causal. Un no-op no consume revisión ni reinicia el ciclo.
+La igualdad se decide sobre el contenido publicable, incluso si una ida y vuelta
+coalescida de progreso deja los mismos valores. Título, total o portada nuevos
+reinician el ancla al publicar y conservan el foco válido; solo cambiar
+`readingVolume` en una edición individual a un valor no nulo propone otro foco.
+Editar propiedad o completitud, o guardar la misma lectura, no propone un foco
+nuevo. Esto incluye reactivar un tombstone sin cambiar su tomo conservado.
+Quitar la lectura no puede dar prioridad a un manga que ya no es elegible.
+
+Si esa lectura quedaría fuera del prefijo admitido por los 32 KiB, se incluye
+retirando los elementos finales necesarios, sin perder el orden canónico de los
+retenidos. La reserva incluye los bytes de la preferencia. El contador no confunde
+las lecturas omitidas por transporte con una colección completamente recibida.
+Si el manga editado estaba excluido, incluirlo cambia el manifest publicable
+aunque su progreso vuelva al valor original; no se conserva un historial privado
+de toda la colección para decidir el no-op.
+El transporte de lectura no promete recorrer todas las lecturas de una colección arbitrariamente grande. Una retirada
+elimina la preferencia inválida; logout elimina tanto contenido como preferencia.
+
+Las importaciones y reconciliaciones por lotes no deducen una última edición del
+orden de la respuesta. Conservan la preferencia anterior si sigue siendo válida
+y usan el orden canónico en caso contrario. Las recargas del sistema sin nueva
+publicación no reinician la fase. La petición de reload después de una publicación
+es best effort y no garantiza la visualización inmediata del manga prioritario.
+
+## Colección mediana y adaptación por cantidad — ampliación DX4
+
+La petición posterior del propietario sustituye el contenido mediano por
+«My collection» / «Mi colección». [ADR-0022](../adr/0022-widget-collection-projection-and-adaptive-reading.md)
+registra el transporte local, sus límites y la continuidad de las garantías de
+ADR-0021. Una sola lectura confirmada y autorizada de SwiftData prepara ambas
+proyecciones. Colección incluye **todas** las entradas activas de esa identidad,
+con o sin lectura o tomos poseídos, en orden de título e ID. No existe fecha de
+adquisición y no se inventa a partir de outbox, ID, mayor tomo o `generatedAt`.
+
+Cada ficha de colección contiene `mangaID`, `title`, `ownedVolumeCount`,
+`totalVolumes`, `isComplete` y `coverResourceID` opcional. Cuenta títulos activos,
+no suma tomos. Propiedad y completitud se validan contra el estado persistido;
+`isComplete == false` no se sustituye por una inferencia del contador.
+Los textos muestran propiedad, completitud, total de mangas y fecha en EN/ES.
+La nueva composición autorizada el 7 de septiembre sitúa, cuando hay contenido,
+«My collection» / «Mi colección» a la izquierda de la cabecera y el total a la
+derecha, dentro de una pastilla de fondo rojo tenue. El número usa un tamaño
+mayor y peso semibold; la palabra localizada «mangas» usa un tamaño menor. Si
+la cabecera y la pastilla completa no caben juntas, la variante compacta conserva
+solo el número en la pastilla. Ambas variantes mantienen una etiqueta accesible
+completa con el total y su unidad. El pie contiene únicamente la fecha, sin
+repetir el contador. El total sigue contando los títulos activos de la misma
+proyección; la composición no cambia datos, selección ni estados sin contenido.
+Estos estados conservan su presentación sin esta cabecera de colección.
+
+El mediano puede mostrar colección cuando `ReadingSnapshot.state == empty`.
+Sin entradas muestra «Sin mangas en tu colección»; un descriptor ausente o inválido es no
+disponible, nunca vacío. El pequeño/grande usa «¿Qué estás leyendo?» como estado vacío, conforme al ajuste de presentación siguiente.
+
+`collectionReference` es opcional y compatible con formato 1: `{slot, digest,
+byteCount}`. `slot` es 0 o 1, `digest` tiene 64 dígitos hex minúsculos y el tamaño
+es de 1 a 1.048.576 bytes. Enlaza `collection-0.json` o `collection-1.json`, JSON
+formato 1 con `items` completos, hasta 4.096 entradas. No contiene identidad de
+cuenta, credenciales, URL remota ni datos de outbox. La protección usa el
+manifest/fence que lo referencia. La app publica el conjunto completo o deja
+referencia nula/no disponible si excede la cota; nunca un prefijo. Quita referencias
+opcionales de portada antes de rechazar texto que por sí solo cabe.
+
+Tras confirmar el 7 de septiembre que la rotación sí avanza, el propietario
+solicita que una alta local muestre primero el manga recién añadido. El recurso
+`CollectionWidgetSnapshot` incorpora `preferredStartMangaID` opcional, separado
+de la preferencia de lectura del envelope. Es un `Int64` que debe identificar
+un elemento de sus `items`; un valor incompatible invalida el recurso. Se omite
+si es nulo; ausencia o `null` conservan compatibilidad con formato 1 y el inicio
+canónico. Colección vacía no admite preferencia. Sus bytes participan en el
+límite de 1 MiB; no se recortan mangas para incluirla.
+
+La preferencia expresa una intención local confirmada, no una fecha de
+adquisición ni un historial. No se infiere del orden de importación, de la
+diferencia entre dos colecciones ni de una confirmación remota. La última alta
+local confirmada de la misma autoridad propone el inicio; los eventos posteriores
+sin otra alta conservan esa intención hasta resolver la publicación. Una alta
+eliminada antes de publicar no puede mantener el foco. El publicador solo hereda
+una preferencia anterior desde una lectura autorizada de la misma sesión y si
+el manga sigue presente en la proyección actual. Logout o cambio de autoridad
+no heredan el foco retirado.
+
+El único publicador escribe y verifica el slot opuesto al manifest actual antes
+de publicar este. Las reservas, tickets, cierre de sesión y ledger siguen siendo
+los actuales. El mediano lee `fence → manifest → recurso validado → fence`, sin
+fallback. Una carrera que reutilice el slot dos publicaciones después falla por
+digest. Un fallo ordinario conserva el slot referido; dos slots retienen hasta
+2 MiB y el temporal atómico puede elevar el pico a 3 MiB. No se añade GC.
+
+La igualdad incluye ambas proyecciones y la integridad del recurso, conserva el
+slot ante no-op y repara corrupción mediante el alterno y una revisión nueva.
+Propiedad, completitud, altas y bajas ahora son cambios visibles aunque las
+lecturas no varíen. Una publicación reinicia el ancla común; el mediano parte del
+índice de su manga preferido, o del primero canónico si no lo hay, y continúa
+circularmente por el mismo orden de `items`, sin modificar el wire. Solo una
+edición real de lectura puede proponer la prioridad de lectura del envelope.
+Un no-op conserva ambos focos, revisión y ancla: una preferencia por sí sola no
+fuerza otra publicación del mismo contenido. La política de 300 segundos y
+trece entradas continúa bajo control efectivo de WidgetKit; la entrega es
+asíncrona y esos intervalos no garantizan un cambio visible puntual. La colección
+se comparte por valor sin materializar trece arrays rotados, y cada entry
+selecciona una ficha.
+
+El lote de imágenes conserva candidatos de lectura y admite hasta 128 URLs
+nuevas de colección. Prioriza la portada de la alta preferida dentro de esa
+misma cota, sustituyendo una candidata final si es necesario; las demás siguen
+el orden canónico. Una URL ya seleccionada no ocupa otra plaza. Se mantienen
+deduplicación y cuota de 8 MiB. El resto usa placeholder y sigue entrando en la rotación textual.
+El mediano solo decodifica las hasta trece portadas de su horizonte a 256 px.
+No se leen imágenes de ambas familias en cada petición.
+
+El grande ajusta portada y tipografía a la cantidad si el snapshot es completo
+y tiene 1–6 lecturas reales. Las variantes de 1–4 mantienen alturas base de
+184/104/76/56 puntos. La nueva petición del 7 de septiembre amplía la primera
+variante de 5/6 a 56/47 puntos, con título `footnote` semibold, progreso `caption`
+y 2 puntos entre filas. Los espaciadores entre encabezado, contenido y pie pueden
+ceder todo su espacio, con mínimo de 0 puntos.
+
+Para 5/6, si esa variante no cabe, se prueba la anterior de 48/44 puntos con
+título `caption` y progreso `caption2`; después, las mismas filas compactas con
+portada de 40 puntos y, finalmente, menos filas. La ampliación solo se aplica
+a snapshots completos de 5/6 lecturas fuera de los tamaños de accesibilidad;
+conserva las variantes de 1–4, snapshots parciales y accesibilidad. No se fija
+la altura del texto ni se recortan cifras para forzar una variante. Las portadas
+continúan omitidas en tamaños de accesibilidad. Datos, selección y timeline
+mantienen su contrato.
 
 ### Consulta persistida — DX3.1
 
@@ -93,16 +292,18 @@ suspensión y expiración. La autoridad se valida alrededor de la lectura y de
 nuevo después del orden; la futura publicación todavía debe revalidarla.
 
 La consulta no guarda ni revierte cambios: exige un contexto sin modificaciones
-pendientes y desactiva `includePendingChanges`. Primero excluye filas ajenas,
-tombstones y lectura ausente, y después valida únicamente lectura y total.
+pendientes y desactiva `includePendingChanges`. Excluye filas ajenas y tombstones.
+De ese mismo fetch prepara la colección completa y, para lectura, selecciona
+`readingVolume != nil` y valida lectura/total.
 Propiedad y completitud históricas incompatibles no invalidan una lectura válida.
 Un snapshot de presentación perteneciente a otro `mangaID` rechaza la preparación;
 no atribuye a una lectura el título o la portada de otro manga.
 
 `CollectionReadingProjection` es un valor exclusivo de la app con autoridad y
 todos los candidatos ordenados, título preparado, progreso y URL opcional de
-portada como insumo privado. No es `Codable`, no contiene modelos SwiftData,
-propiedad ni outbox, y no se comparte con consumidores. No asigna epoch/revisión,
+portada como insumo privado. Desde la ampliación de colección incluye también
+su lista opcional de candidatos con contador de propiedad y completitud. No es
+`Codable`, no contiene modelos SwiftData ni outbox y no se comparte con consumidores. No asigna epoch/revisión,
 recorta por 32 KiB, prepara recursos ni publica. Cancelación, contexto pendiente,
 lectura incompatible o fallo de persistencia devuelven error sin resultado parcial
 ni vacío sintético. La conexión de ese error con la conservación del manifest
@@ -125,9 +326,18 @@ eludir la validación de esta frontera.
 | `revision` | entero JSON | `UInt64`, `1...UInt64.max`; nunca pasar por `Double`, incrementar con wrap o reutilizar una reserva. |
 | `sessionGeneration` | UUID string o `null` | Obligatorio para contenido, vacío y redacción dirigida; opcional en no disponible. |
 | `state` | string | `content`, `empty`, `redacted`, `unavailable`. |
-| `generatedAt` | string | UTC RFC 3339 con milisegundos; informativo, no autoridad de orden. |
+| `generatedAt` | string | UTC RFC 3339 con milisegundos; fecha informativa y ancla de rotación de presentación, nunca autoridad causal de orden. |
 | `totalEligibleCount` | entero o `null` | `Int64` no negativo en contenido/vacío; `null` en redacción/no disponible. |
-| `items` | array | Prefijo ordenado sin IDs duplicados; reglas por estado debajo. |
+| `items` | array | Selección en orden canónico sin IDs duplicados, con prioridad de inclusión dentro del presupuesto; reglas por estado debajo. |
+| `preferredStartMangaID` | entero opcional | `Int64` que identifica un item de `content`; se omite al no existir preferencia. Ausencia o `null` se leen como inicio canónico. |
+| `collectionReference` | objeto opcional | Slot, digest y byteCount del recurso completo local; solo en `content`/`empty`; ausencia o `null` indica colección no disponible. |
+
+`generatedAt` conserva 24 caracteres UTC y tres dígitos de milisegundos. La
+fracción del reloj se aproxima al milisegundo más cercano dentro del segundo,
+con techo 999; no adelanta al segundo siguiente. Esa normalización evita que la
+representación binaria de `Date` rechace milisegundos válidos al releerlos, también
+antes de 1970. La validación mantiene igualdad canónica y rechaza fechas
+imposibles, fracciones ausentes y offsets distintos de `Z`.
 
 Cada `Item` contiene `mangaID` (`Int64`), `title` (string de presentación o
 `null`), `readingVolume` (entero `1...300`), `totalVolumes` (`null` o entero
@@ -141,7 +351,14 @@ posición o imponer una nueva identidad.
   `null`; no vacía por accidente una sesión B posterior.
 - `unavailable`: sin items y cantidad `null`; no interpreta corrupción como vacío.
 
-El escritor emite todas las claves descritas y `null` explícito para ausencia.
+Una preferencia no nula debe pertenecer a `items`; de lo contrario se rechaza
+el snapshot completo. Por ello `empty`, `redacted` y `unavailable` no admiten
+una preferencia no nula. No se sustituye silenciosamente un ID incompatible.
+
+El escritor emite todas las claves obligatorias y `null` explícito para ausencia;
+la nueva clave opcional `preferredStartMangaID` se omite cuando es nula. El lector
+acepta su ausencia o `null`, conservando compatibilidad con envelopes de formato 1
+anteriores a DX4; si está informada, exige un entero exacto y pertenencia a `items`.
 El lector exige campos obligatorios, tipos y estados coherentes. Puede ignorar
 claves adicionales de un formato conocido, pero nunca una versión o estado
 desconocidos. Rechaza documento truncado, UTF-8 inválido y números que no puedan
@@ -151,7 +368,7 @@ introducir un parser JSON propio para imponer otra gramática léxica. Este
 contrato se implementa en el codec compartido de DX2.
 
 No viajan UUID de usuario, credenciales, correo, URL remota, rutas absolutas,
-estado de outbox, propiedad, secuencias de sincronización ni modelos SwiftData.
+estado de outbox, secuencias de sincronización ni modelos SwiftData. El envelope de lectura no lleva propiedad; esa información mínima solo vive en el recurso local de colección.
 Las generaciones de los fixtures son constantes sintéticas; producción genera
 valores opacos aleatorios conforme a SDD 05.
 
@@ -171,7 +388,7 @@ no expone tal estado a los consumidores.
 ### Almacenamiento y recuperación del publicador — DX2
 
 `ReadingSnapshotStorage` recibe dos raíces por composición. La raíz compartida
-contiene `session-fence.json` y `reading-snapshot.json`; la raíz privada de la app
+contiene `session-fence.json`, `reading-snapshot.json` y, desde la ampliación de colección DX4, sus dos slots de JSON; la raíz privada de la app
 contiene `publisher-state.json`. En DX2 ambas son directorios temporales aislados
 en tests. No se simula un App Group efectivo mediante una ruta privada live.
 Cada sustitución usa escritura atómica y la protección de archivos aprobada;
@@ -236,22 +453,30 @@ decodificar. Es una política propia; la documentación Apple consultada no publ
 un máximo numérico que permita prometer aceptación.
 
 No se fija otro máximo arbitrario de mangas. La app calcula el total de
-elegibles válidos y toma el mayor prefijo que quepa bajo un presupuesto estable:
-la medición usa el encoder final con `revision == UInt64.max`, UUID canónicos
-de 36 caracteres y una fecha de la longitud fija del wire. Así pasar de la
-revisión 99 a 100 no cambia el prefijo por sí mismo. El JSON se escribe compacto,
-con claves ordenadas y sin escapar barras; todos los tamaños se calculan con el
+elegibles válidos y toma el mayor prefijo que quepa. Si el manga preferido queda
+fuera, retira los elementos finales necesarios para incluirlo y conserva el
+orden canónico de la selección resultante. El presupuesto es estable e incluye
+`preferredStartMangaID`: la medición usa el encoder final con
+`revision == UInt64.max`, UUID canónicos de 36 caracteres y una fecha de la
+longitud fija del wire. Así pasar de la revisión 99 a 100 no cambia la selección
+por sí mismo. El JSON se escribe compacto, con claves ordenadas y sin escapar
+barras; todos los tamaños se calculan con el
 codec que se utilizará para publicarlo, no con estimaciones de caracteres.
 
-La comparación de proyección visible incluye la lista resultante y
-`totalEligibleCount`, pero excluye fecha y revisiones. Se decide **antes** de
-reservar revisión o escribir portadas: un no-op no consume ninguna reserva,
+La comparación de proyección visible incluye la lista de lectura resultante,
+`totalEligibleCount`, el contenido de colección y la integridad del recurso referido;
+excluye fecha, revisiones y las preferencias de lectura o colección por sí solas.
+Una propuesta de foco sin cambio de contenido publicable conserva el foco y el
+ancla del manifest anterior, incluso tras una ida y vuelta coalescida de lectura.
+Se decide **antes** de reservar revisión o escribir portadas: un no-op no consume ninguna reserva,
 admisión durable ni reload. Solo si cambia la proyección se reserva revisión,
 prepara el commit y se verifica también el tamaño exacto del contexto final.
-Si ni el primer item con portada omitida cabe, la publicación falla de forma
-ordinaria; nunca publica `empty` por agotar el presupuesto.
+Si ni el primer item, o el preferido que debe incluirse, con portada omitida
+cabe, la publicación falla de forma ordinaria; nunca publica `empty` por agotar
+el presupuesto ni descarta silenciosamente esa prioridad.
 
-La misma proyección y envelope sirven a widget y reloj. Apple exige una
+La proyección y envelope de lectura sirven a pequeño/grande y reloj. El recurso
+local de colección solo sirve al mediano y no se transfiere al reloj. Apple exige una
 `WCSession` activada para enviar; la falta de reachability no impide solicitar
 `updateApplicationContext(_:)`. Una llamada posterior reemplaza el contexto
 pendiente anterior. DX5 guardará/reintentará el último contexto deseado tras
@@ -267,17 +492,18 @@ no demuestra que la sesión siga vigente en iPhone.
 
 ### Preparación y publicación acotadas — DX3.2
 
-`ReadingPublicationPlan` recibe la proyección privada completa y un mapa de
-referencias de portada ya resueltas por identidad de manga. Valida todos los
-candidatos, incluidos los que quedarán fuera del prefijo, y rechaza duplicados;
-así un error no reduce silenciosamente el total. Referencias incompatibles o
+`ReadingPublicationPlan` recibe la proyección privada completa, un mapa de
+referencias de portada ya resueltas por identidad de manga y la preferencia
+opcional de inicio. Valida todos los candidatos, incluidos los que quedarán
+fuera de la selección, y rechaza duplicados; así un error no reduce silenciosamente
+el total. Referencias incompatibles o
 no suministradas equivalen a placeholder mediante el contrato de `Item`. La URL
 privada nunca se convierte en una referencia wire ni participa en el no-op.
 
 El preparador usa el codec final y solo interpreta exceso de JSON o contexto
-como falta de capacidad. Los demás errores se propagan. Los prefijos de prueba
-crecen de forma acotada; no se codifica la colección completa para descubrir que
-no cabe. La autoridad y el total original acompañan al prefijo, sin fecha ni
+como falta de capacidad. Los demás errores se propagan. Las selecciones de prueba
+crecen de forma acotada e incluyen los bytes de la preferencia admitida y del descriptor de colección; no se codifica toda la proyección de lectura para descubrir que no cabe. El recurso local de colección tiene su propia cota independiente. La autoridad, el total
+original y la preferencia válida acompañan a la selección, sin fecha ni
 revisión asignadas y sin I/O o admisión de recursos. Con los límites actuales de
 cada item, incluso el primero con título de máximo escaping cabe en 32 KiB; se
 mantiene la defensa de fallo ordinario sin un límite artificial para testearla.
@@ -317,11 +543,11 @@ fallo de escritura después de comprometer una referencia no se transforma a
 posteriori en éxito: conserva el manifest anterior como exige SDD 05.
 
 Los candidatos se preparan de forma acotada en memoria y la planificación de
-cuota/prefijo se resuelve antes de escribir. Solo las portadas seleccionadas del
-prefijo publicable pueden consumir admisión durable; no se llena la cuota con
-imágenes de mangas excluidos por el presupuesto. Antes de cada escritura se
+cuota y selección se resuelve antes de escribir. Solo las portadas de los IDs
+seleccionados para el manifest publicable pueden consumir admisión durable;
+no se llena la cuota con imágenes de mangas excluidos por el presupuesto. Antes de cada escritura se
 verifica la cuota, incluido staging. Fallar esa escritura conserva el manifest
-anterior y no vuelve a calcular otro prefijo para aparentar éxito.
+anterior y no vuelve a calcular otra selección para aparentar éxito.
 
 En 1.0 no se recolectan automáticamente portadas ya publicadas, tampoco por edad,
 número de revisiones, cambio de sesión o llamada a reload. Así ningún manifest
@@ -347,9 +573,13 @@ Content-Length si está disponible y limita también los bytes recibidos mediant
 `AsyncBytes`; cancela la tarea de transporte al terminar o abandonar la lectura.
 Un error opcional produce placeholder y la cancelación de la tarea se propaga.
 
-`ReadingCoverBatch` valida la proyección completa con el plan sin portadas como
-techo del prefijo posible. Fuera del actor del llamador, prepara secuencialmente
-solo esos candidatos, omite URLs ausentes y memoiza cada URL, incluidos fallos.
+`ReadingCoverBatch` valida la proyección completa con el plan sin portadas y la
+misma preferencia de inicio como techo de la selección posible. Fuera del actor
+del llamador, prepara secuencialmente los candidatos de lectura cuyos IDs
+selecciona ese plan y hasta 128 URLs distintas adicionales de colección, dando
+prioridad a la alta preferida dentro de ese límite. Usar
+únicamente la cantidad del prefijo perdería un preferido incluido fuera de su
+cola original y los mangas de colección que no se leen. Omite URLs ausentes y memoiza cada URL, incluidos fallos.
 No conserva los buffers de origen. Deduplica JPEG por digest y retiene hasta
 8.388.608 bytes únicos de JPEG en memoria; la fuente y la operación nativa en curso
 son transitorias. Este presupuesto no representa un límite del proceso Image I/O.
@@ -364,8 +594,10 @@ los bytes exactos. El lector abre directorios y archivo sin seguir symlinks,
 rechaza archivos no regulares sin bloquear y limita bytes antes de decodificar.
 
 El único actor `ReadingSnapshotPublisher` recibe los recursos preparados y
-resuelve cuota y prefijo final sin escribir. Compara tanto la propuesta íntegra
-como el resultado limitado antes de admitir recursos. Un journal de una
+resuelve cuota y selección final sin escribir, conservando la prioridad válida.
+Admite recursos por los IDs de esa selección, no por posiciones del prefijo original.
+Compara tanto la propuesta íntegra como el resultado limitado antes de admitir
+recursos. Un journal de una
 publicación ya comprometida puede usarse para planificar solo si coincide con
 el manifest, es compatible, conserva receipts íntegros y no tiene staging;
 la cuota cuenta también ese journal. Así un no-op parcial por cuota tampoco
@@ -405,7 +637,7 @@ degrada a no disponible y no inicializa por error un epoch nuevo. Corrupción y
 archivo temporalmente inaccesible son causas distintas. Bloqueo de la **sesión**
 dispara redacción; bloquear la pantalla no equivale a invalidar la sesión.
 
-La protección de archivos no elimina timelines cacheadas. DX4 señalará el
+La protección de archivos no elimina timelines cacheadas. DX4 señala el
 contenido sensible en SwiftUI; no se añade en DX1 el entitlement de Data
 Protection de la extensión. Ocultar todo el widget al bloquear el dispositivo
 mediante ese entitlement es una decisión separada, con consecuencias también
@@ -419,8 +651,10 @@ sandbox ni activar `transferFile`, `transferUserInfo` o `sendMessage`.
 
 `ReadingPublicationEvents` se comparte entre el único `CollectionMutationActor`,
 el propietario de sesión y `ReadingPublicationPipeline`. Conserva la última
-intención, con autorización de sesión y ticket opaco en memoria. No persiste otro
-contador ni copia datos de Colección en el evento. Cada commit posterior invalida
+intención, con autorización de sesión, ticket opaco y dos preferencias opcionales
+independientes en memoria: `preferredStartMangaID` para lectura y
+`preferredCollectionStartMangaID` para colección. Son identidades de presentación,
+sin título, progreso ni copia de la colección; no persiste otro contador. Cada commit posterior invalida
 el ticket anterior; el orden procede del commit, nunca de terminar una descarga.
 
 La señal se registra sin suspensión después de la transacción exitosa y antes de
@@ -430,6 +664,26 @@ reconciliación de DELETE y resolución de outcome bloqueado. Un rollback, recha
 o cancelación anterior al commit no emite ni invalida. Claim, confirmación, retry
 y bloqueos que solo cambian outbox no emiten. Una importación sin cambios puede
 emitir y queda suprimida por el no-op final existente.
+
+Una mutación individual solo propone `preferredStartMangaID` cuando cambia
+realmente la lectura comprometida a un valor no nulo. Los eventos posteriores
+sin ID preferido, incluidos propiedad, completitud, activación o lotes, conservan
+la última preferencia de la misma autoridad; no deducen foco del orden de una
+respuesta remota. El publicador puede conservar la preferencia del manifest
+anterior de esa misma sesión cuando el evento no aporta otra. La descarta si
+ya no identifica una lectura elegible; una autoridad distinta y la redacción
+no heredan la preferencia de la sesión retirada.
+
+Para colección, la mutación local captura antes de aplicar el comando si la
+entrada ya estaba activa. Solo una transición confirmada de ausente o tombstone
+a activa propone `preferredCollectionStartMangaID`; editar propiedad,
+completitud o lectura de una entrada ya activa no propone una alta. La señal se
+registra dentro de la misma frontera autorizada del commit. Importaciones,
+restauración y confirmaciones remotas no eligen un manga reciente, pero conservan
+la preferencia pendiente de la misma autoridad. La coalescencia retiene la última
+alta local; el publicador descarta su ID si fue eliminado de la proyección final.
+La publicación correcta o el no-op consumen las preferencias pendientes solo
+si el ticket sigue siendo el actual, sin borrar las de un commit posterior.
 
 El descarte de logout restablece la base confirmada bajo la capacidad suspendida
 e invalida el ticket anterior, sin autorizar contenido. Si después falla el cierre
@@ -465,41 +719,76 @@ más reciente no se intercala entre la comprobación y ese efecto. Un intento
 superado puede consumir una reserva, que no se reutiliza, pero no atraviesa la
 siguiente frontera de publicación. Fallar no revierte Colección ni outbox; el
 consumidor continúa en el siguiente evento. Cancelación se propaga. No se promete
-latencia de entrega ni reintento periódico.
+latencia de entrega ni reintento periódico de publicación. La renovación temporal
+de WidgetKit solo relee el bridge autorizado y no vuelve a publicar Colección.
 
 `AppComposition.makeReadingPublication` recibe el container, las dos raíces,
 reloj, generador de identidades, carga de portada y reload. Devuelve el escritor,
 eventos y publicador que comparten esas dependencias. El llamador inyecta esos
 eventos/publicador en `SessionController` y después crea el consumidor mediante
 `makePipeline(sessionController:)`, que enlaza su reconciliación con ese propietario.
-Las factorías no arrancan trabajo. `AppComposition.live()` permanece sin bridge: resolver el App
-Group real y enlazar el consumidor al ciclo de vida de la app pertenece a DX4.
-No se usa un directorio privado como sustituto de una capacidad concedida.
+Las factorías no arrancan trabajo. DX4 conecta el mismo escritor, publicador y emisor
+con `SessionController` y un consumidor estructurado de ámbito app. La app y el widget
+resuelven `group.com.plusprojects.MangaLibrary.deluxe/Reading`; el estado de recuperación
+permanece en `Application Support/ReadingPublisher`, privado de la app. Los efectos
+resuelven el grupo de nuevo en cada acceso: ausencia o inaccesibilidad producen error,
+nunca un directorio privado sustituto ni lectura `nil` que simule una sesión nueva.
+El fallo mantiene el retiro obligatorio y permite reintentar desde Cuenta.
+
+Las tareas de escenas activas comparten un propietario `@Observable @MainActor`.
+Solo una consume; al cancelarse, libera la propiedad después de drenar el pipeline
+antes de despertar a las otras escenas. Un fallo de reconciliación conserva la autoridad
+exacta, se comunica a Cuenta y muestra reintento; no crea un bucle automático.
+Una retirada concluida también reconcilia la presentación de Cuenta. El reload usa
+únicamente el kind aprobado y no promete una actualización inmediata de WidgetKit.
+Las portadas son opcionales: una preparación de storage fallida al lanzar puede dejar
+placeholders hasta el siguiente lanzamiento sin deshabilitar el fence ni el publicador.
+
+El lector distingue snapshot autorizado (contenido o vacío), redacción por fence cerrado
+estable y no disponible por ausencia, corrupción o frontera cambiante. Sus lecturas
+siguen `fence → snapshot → fence`; los errores de I/O se propagan y el consumidor los
+presenta como no disponible. Cada petición genera una observación nueva, sin fallback
+a una entrada anterior. Para contenido con más de una lectura publicada, el
+provider entrega el slot actual y doce futuros separados 300 segundos, con
+renovación `.atEnd` y fase derivada de `generatedAt`. Cero/una lectura y estados
+vacío, redactado o no disponible usan una sola entrada y `.never`. Galería y
+previews usan datos sintéticos sin resolver App Group ni ejecutar transporte.
+
+La validación entre procesos dispone de un escenario exclusivo de DEBUG que
+requiere `-ui-testing -ui-testing-reading-widget`. Usa Colección en memoria,
+autorización sintética y la ruta real de mutación/publicación; toma el App Group
+canónico y el mismo bookkeeping privado del publicador, sin un segundo ledger.
+Solo se ejecuta en una instalación de pruebas. No accede a Keychain ni a red;
+no representa autenticación live ni garantiza cuándo WidgetKit procesa un reload.
+La [checklist DX4](../dx4-widget-validation.md) separa ese escenario de galería,
+previews, tests con directorios aislados y pruebas físicas.
 
 ## Preparación de targets y fuentes
 
 | Elemento | Valor previsto | Estado |
 | --- | --- | --- |
 | App existente | `MangaLibrary`, `com.plusprojects.MangaLibrary`, iOS 27 | Verificado por Xcode MCP. |
-| Widget | Product name `MangaLibraryWidget`; target esperado `MangaLibraryWidgetExtension`; bundle `com.plusprojects.MangaLibrary.widget` | Nombre previsto aprobado; comprobar nombre devuelto por Xcode al crearlo en DX4. |
+| Widget | Product name `MangaLibraryWidget`; target `MangaLibraryWidgetExtension`; bundle `com.plusprojects.MangaLibrary.widget` | Creado mediante Xcode MCP en DX4; Swift 6, iOS 27 y plataformas iPhone/iPad verificados. Fuentes comunes y Assets asignados mediante Xcode UI; builds MCP y gates limpios Debug/Release y DocC sin warnings. Validación automatizada y Simulator completadas en el alcance DX4: lectura entre procesos iPhone, adaptación y continuidad entre ventanas iPad. Hardware sigue pendiente. |
 | Companion | `MangaLibraryWatch`; bundle `com.plusprojects.MangaLibrary.watchkitapp`; watchOS 27 | Preparación aprobada; vincular con la app existente en DX5, no crear otra app iOS. |
-| App Group | `group.com.plusprojects.MangaLibrary.deluxe` para app iOS y widget | Identificador previsto aprobado; no registrado ni concedido. La activación conserva su alcance y autorización propios. No se añade al reloj. |
+| App Group | `group.com.plusprojects.MangaLibrary.deluxe` para app iOS y widget | Entitlements añadidos mediante Xcode MCP a app y widget por autorización DX4. El escenario DEBUG acredita acceso efectivo entre procesos en iPhone Simulator. Provisioning y acceso en hardware siguen pendientes. No se añade al reloj. |
 | Widget kind | `com.plusprojects.MangaLibrary.reading` | Único kind de 1.0, compartido por provider y reload. |
-| Fuentes comunes | `MangaLibrary/Shared/Deluxe/` | Snapshot, fence, codec y lector; inclusión automática en la app actual, pertenencia explícita adicional al crear consumidores. Sin importar el módulo app o SwiftData. |
-| Publicación app | `MangaLibrary/Deluxe/` | Único escritor compuesto en `AppComposition`; efectos DX2–DX3. |
-| Consumidores | `MangaLibraryWidget/` y `MangaLibraryWatch/` | Views, adaptación de plataforma y recepción; DX4–DX5. |
+| Fuentes comunes | `MangaLibrary/Shared/Deluxe/` | Snapshot, fence, codec, lectores y configuración mínima compartida, incluidos en app y widget. Sin importar el módulo app o SwiftData. |
+| Publicación app | `MangaLibrary/Deluxe/` | Único escritor compuesto en `AppComposition`; efectos DX2–DX3 conectados a sesión y escenas en DX4. |
+| Consumidores | `MangaLibraryWidget/` y futuro `MangaLibraryWatch/` | Widget implementado localmente en DX4; companion y recepción WCSession continúan en DX5, sin iniciar. |
 
 Xcode 27 build `27A5252f`, su compilador Swift 6.4 y los SDK watchOS/watchOS
-Simulator 27 se verificaron en esta sesión. El scheme activo sigue siendo
-`MangaLibrary`, plan `Fast`, iPhone 17 Simulator/iOS 27. No se ha cambiado la
-selección del IDE ni se compiló durante DX1. DX2 ejecuta builds y los planes
-afectados; su evidencia actual vive en [Progress](../Progress.md).
+Simulator 27 se verificaron en esta sesión. Históricamente DX1 no compiló ni
+modificó el destino del IDE. DX4 ejecuta sus tests mediante MCP con el scheme
+`MangaLibrary`, iPhone 17 Simulator/iOS 27 `24A5423a`: Fast 278 declaraciones /
+399 invocaciones e Integration 408/563, todas aprobadas. La evidencia actual y
+los gates aún pendientes viven en [Progress](../Progress.md) y la
+[checklist DX4](../dx4-widget-validation.md).
 
 Templates consultados por Xcode MCP:
 
-- Widget: `com.apple.dt.unit.multiPlatform.widget`. Su opción
-  `includeConfigurationIntent` está activada por defecto; DX4 debe pasar `false`
-  y comprobar que no aparecen App Intents/configuración por instancia.
+- Widget: `com.apple.dt.unit.multiPlatform.widget`. DX4 se crea con
+  `includeConfigurationIntent: false`; usa `StaticConfiguration` y no incorpora
+  App Intents ni configuración por instancia.
 - Watch: `com.apple.dt.unit.application.watchOS`, lifecycle SwiftUI. El default
   `companionAppStyle` es `Watch-only App`; DX5 deberá resolver la vinculación a
   MangaLibrary existente con el contrato que acepte Xcode, sin inventar el valor
@@ -508,9 +797,31 @@ Templates consultados por Xcode MCP:
 La pertenencia de fuentes comunes no incluye `AppComposition`, secretos,
 SwiftData ni configuración local en los consumidores. Nuevas configuraciones
 mantienen warnings como errores y concurrencia estricta; no heredan ciegamente
-ajustes exclusivos de iOS al target watchOS. Los scripts/planes que hoy enumeran
-tres targets se amplían explícitamente cuando se añadan los nuevos. Signing,
-provisioning, App Group efectivo, embedding y frameworks siguen sin verificar.
+ajustes exclusivos de iOS al target watchOS. El gate DocC valida los cuatro targets
+actuales y genera el archive fuera de Git. Los builds limpios Debug/Release y DocC
+pasan con cero warnings y errores. El escenario DEBUG en iPhone Simulator acredita
+contenido, actualización y redacción observados por la extensión; no promete una
+latencia de WidgetKit. El contenido instalado también se observa en iPad Simulator;
+la continuidad entre dos ventanas está observada. El ajuste visual posterior de
+la mañana del 7 de septiembre mantiene el prefijo y contador: en el recorrido
+iPhone el mediano muestra dos lecturas; en iPad muestra una con portada y texto
+mayores, sin recortes al rotar. La checklist separa esta evidencia de la versión
+anterior y registra los límites de cada entorno.
+La instalación de desarrollo firmada y el App Group efectivo se acreditan
+posteriormente en iPhone 11/iOS 27, junto con la aceptación visual del propietario.
+El propietario confirma después los recorridos físicos de DX4 registrados en la
+[checklist](../dx4-widget-validation.md), incluido VoiceOver de los tres tamaños
+ES/EN y la recuperación tras reinstalar la versión normal. No se acredita
+provisioning de distribución.
+
+El 2026-09-08 el propietario aprueba trasladar a DX6 la comprobación física de
+protección anterior al primer desbloqueo. El recorrido en iPhone 11 queda
+**limitado/no observable**: no permitió acceder al widget antes de desbloquear.
+Esta comprobación deja de bloquear el cierre de DX4, pero no se da por superada
+ni se elimina: permanece pendiente en DX6 y para el Deluxe Release Gate.
+Se conserva el contrato de lectura inaccesible como no disponible, sin inicializar
+otro epoch, y no se atribuye esa evidencia a la recuperación posterior, un estado
+inyectado, Simulator o tests deterministas.
 
 ## Ejemplos y matriz de validación
 
@@ -527,9 +838,9 @@ reales en composición aislada y DX3.5 conserva el gate técnico conjunto.
 | DX1 | JSON legible, conteos/estados coherentes, selección esperada independiente, límites y referencias documentados, ausencia de datos sensibles, revisión iOS. |
 | DX2 | Decoder real, exactitud Int64/UInt64, incompatibilidad, fence estable/cambiante/cerrado, reserva y crash, archivo inaccesible frente a corrupto, apertura A/B y logout/invalidación. |
 | DX3 | Todos los commits que cambian proyección, recorte por bytes y contador, abreviación Unicode, orden, cuota sin borrar recursos retenidos, JPEG completo seguido de fallo/crash antes del manifest y limpieza del huérfano demostrado, no-op antes de reservar y revisión 99→100 sin cambiar el prefijo. |
-| DX4 | Familias pequeña/mediana en iPhone/iPad, EN/ES, Light/Dark, contraste, Dynamic Type/VoiceOver, sin red, antes de desbloqueo, lectura de App Group real. |
+| DX4 | Familias pequeña/mediana/grande en iPhone/iPad, EN/ES, Light/Dark, contraste, Dynamic Type/VoiceOver, sin red y lectura de App Group real. Rotación, fronteras de 300 s, renovación de fase, prioridad fuera del prefijo, no-op/coalescencia y retirada con fechas y colecciones sintéticas. La comprobación física anterior al primer desbloqueo pertenece a DX6 por el ajuste aprobado el 2026-09-08. |
 | DX5 | Reloj enlazado, activación/reactivación, contextos reemplazados, duplicados/desorden/A→B, offline, cache y placeholder. |
-| DX6–DX7 | Matriz física y de tecnologías de asistencia por superficie; Advanced permanece verde; nuevos targets/planes/DocC sin warnings. |
+| DX6–DX7 | Matriz física y de tecnologías de asistencia por superficie. DX6 conserva pendiente la comprobación física de protección anterior al primer desbloqueo, limitada/no observable en DX4; debe acreditarse para el Deluxe Release Gate. Advanced permanece verde; nuevos targets/planes/DocC sin warnings. |
 
 ### Pruebas sin Apple Watch físico
 
@@ -553,7 +864,7 @@ cambiado destinos ni ejecutado pruebas watchOS en DX1.
 | Estados, ES/EN, títulos largos, scroll y Digital Crown | Watch Simulator de 40, 46 y 49 mm; DX5–DX6 | Cubre los extremos y un tamaño intermedio; la interacción es simulada, no ergonomía física. |
 | Dynamic Type, contraste, etiquetas y orden semántico | Simulator y Accessibility Inspector según capacidades disponibles; DX5–DX6 | Evidencia visual y semántica parcial. No equivale a VoiceOver watchOS real. |
 | Activación y `updateApplicationContext` | Caracterización de pareja iPhone/Watch Simulator compatible; DX5 | Registrar runtime/build, pareja, activación, envío, recepción y aplicación observados. Una llamada aceptada no demuestra recepción. |
-| App Group/widget y protección de archivos en iPhone | iPhone 11 físico/iOS 27 y simuladores iPhone/iPad; DX4–DX6 | El iPhone disponible permite esa evidencia en su alcance; no acredita WatchConnectivity. |
+| App Group/widget y protección de archivos en iPhone | iPhone 11 físico/iOS 27 y simuladores iPhone/iPad; DX4–DX6 | DX4 acredita instalación de desarrollo y App Group en el alcance registrado. La comprobación física anterior al primer desbloqueo queda limitada/no observable y pendiente en DX6 para el gate Deluxe. No acredita WatchConnectivity. |
 | Pairing, desconexión/reconexión, suspensión, entrega background y VoiceOver watchOS | Pareja física compatible; DX6–DX7 | Pendiente por falta de Apple Watch. Ni fixtures ni Simulator satisfacen esta fila. |
 
 Apple documenta interacción de watchOS Simulator y comprobaciones de
