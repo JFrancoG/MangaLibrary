@@ -2,6 +2,7 @@
 
 **Estado:** Accepted
 **Fecha:** 2026-09-07
+**Actualización de validación:** 2026-09-08, traslado aprobado de primer desbloqueo a DX6.
 **Supersede:** [ADR-0021](0021-widget-reading-rotation-and-priority.md), cuya rotación y prioridad de lectura conserva.
 
 ## Contexto
@@ -163,8 +164,12 @@ contenido conservan su presentación y no incorporan esta cabecera.
   lectura y rotación de la colección completa. La prioridad añade oráculos de
   alta local y reincorporación, coalescencia/retirada, no-op, independencia del
   foco de lectura, límite de imágenes y vuelta circular desde el manga elegido.
-  Firma/protección y VoiceOver en
-  hardware siguen pendientes de DX4.5; no hace falta Apple Watch para este cambio.
+  La instalación de desarrollo, App Group efectivo y recorridos físicos de
+  VoiceOver DX4 se acreditan en la checklist, sin afirmar provisioning de
+  distribución. El propietario aprueba el 2026-09-08 trasladar a DX6 la
+  comprobación física anterior al primer desbloqueo: conserva el resultado
+  limitado/no observable y queda pendiente para el Deluxe Release Gate según
+  SDD 06/09. No hace falta Apple Watch para este caso de iPhone.
 
 ## Fuentes
 

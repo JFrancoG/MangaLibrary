@@ -19,7 +19,7 @@ struct MangaLibraryWidget: Widget {
     ReadingWidgetPreview.content
     ReadingWidgetPreview.empty
     ReadingWidgetPreview.redacted
-    ReadingWidgetPreview.unavailable
+    ReadingWidgetPreview.unavailable.preparingStatusIllustration(for: .systemSmall)
     ReadingWidgetPreview.unknownTotal
     ReadingWidgetPreview.shortTitle
 }
@@ -33,7 +33,7 @@ struct MangaLibraryWidget: Widget {
     CollectionWidgetPreview.longTitle
     CollectionWidgetPreview.empty
     CollectionWidgetPreview.redacted
-    CollectionWidgetPreview.unavailable
+    CollectionWidgetPreview.unavailable.preparingStatusIllustration(for: .systemMedium)
     CollectionWidgetPreview.unknownTotal
     CollectionWidgetPreview.zeroOwned
 }
@@ -46,5 +46,5 @@ struct MangaLibraryWidget: Widget {
     ReadingWidgetPreview.longTitles
     ReadingWidgetPreview.empty
     ReadingWidgetPreview.redacted
-    ReadingWidgetPreview.unavailable
+    ReadingWidgetPreview.unavailable.preparingStatusIllustration(for: .systemLarge)
 }

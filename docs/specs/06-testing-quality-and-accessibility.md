@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.35
-**Fecha:** 2026-09-07
+**Versión:** 1.36
+**Fecha:** 2026-09-08
 
 ## Propósito
 
@@ -511,6 +511,15 @@ La prueba de assets no acredita por sí sola la interfaz. Que una pareja opaca s
 - el gate DocC produce el archive esperado sin warnings.
 
 Un simulador no sustituye evidencia física cuando la capacidad dependa de hardware, llavero, App Group, WatchConnectivity o una tecnología de asistencia real.
+
+El ajuste aprobado por el propietario el 2026-09-08 traslada de DX4 a DX6 la
+comprobación física de protección anterior al primer desbloqueo del iPhone,
+conforme a [SDD 09](09-deluxe-reading-contract.md). El resultado actual conserva
+**limitado/no observable**; deja de bloquear el cierre de DX4, sin convertirse en
+una prueba superada. DX6 mantiene esa evidencia pendiente y el Deluxe Release
+Gate no se declara superado mientras falte. La recuperación tras desbloquear,
+un estado no disponible inyectado y los tests deterministas no sustituyen esa
+comprobación física ni cambian el contrato de protección.
 
 ## Fuera de alcance para 1.0
 

@@ -1,9 +1,341 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-09-07
-**Estado general:** Advanced entregado; Deluxe aprobado y DX1–DX3 entregadas mediante PR #80, #81 y #83 (3/7). DX4 implementado en la rama de #84; el propietario acepta todos los ajustes visuales y de UI. Instalación de desarrollo, extensión y App Group efectivos acreditados en iPhone 11. Validación técnica completada en los alcances registrados; pruebas físicas DX4.5 y recorrido sintético instrumentado de colección pendientes. DX4 y Deluxe Release Gate siguen abiertos.
+**Última actualización:** 2026-09-08
+**Estado general:** Advanced entregado; Deluxe aprobado y DX1–DX3 entregadas mediante PR #80, #81 y #83 (3/7). DX4 implementado en la rama de #84; UI aceptada. Instalación de desarrollo, extensión y App Group efectivos acreditados en iPhone 11. Colección acreditada con tests y observaciones físicas, incluida propiedad. No disponible final confirmado en las tres familias ES/EN. Versión normal reinstalada y recuperación de los tres widgets confirmada; primer desbloqueo físico limitado/no observable, trasladado a DX6 por aprobación del propietario. Validación DX4 completada en su alcance; entrega DX4 y Deluxe Release Gate pendientes.
 
-## DX4 — widget de iPhone/iPad — issue #84 (implementado; rotación y tamaño grande validados en su alcance)
+## DX4 — widget de iPhone/iPad — issue #84 (implementado y validado en su alcance; entrega pendiente)
+
+### Gate de entrega — 8 de septiembre
+
+Entrega completa autorizada por el propietario: commit/push, PR, revisión,
+merge y cierre del issue/rama. La publicación permanece pendiente en este registro.
+
+- Revisión independiente de datos/concurrencia/configuración y SwiftUI/accesibilidad
+  cerrada sin hallazgos pendientes. Audit de los 57 Swift contra `fa60f15`, cinco
+  candidatos justificados y cero infracciones; delta final del test revisado aparte.
+  El cambio protegido de proyecto es intencionado: +218/0, sin deriva posterior.
+- Se corrigen dos inspecciones de `generatedAt` en pruebas mediante un Decodable
+  privado, conservando los diez argumentos y valores esperados. No cambia producción.
+  `RunSomeTests` bajo Fast rechaza la selección por la limitación de tags del bridge;
+  bajo ReleaseGate solo ejecuta dos argumentos. No se acredita con ese intento la
+  matriz completa ni el Release Gate de producto.
+- Se repite **Fast 327 declaraciones / 506 invocaciones**, iPhone 17 Simulator/iOS27,
+  02:33:31, sin fallos, skips, expected failures ni runtime warnings. El árbol nativo
+  confirma los seis y cuatro argumentos de fechas aprobados. Bundle
+  `Test-MangaLibrary-2026.09.08_02-33-31-+0200.xcresult`; resumen y árbol locales
+  `dx4-delivery-fast-summary.json` y `dx4-delivery-fast-tree.json`.
+  El agregado MCP mezcla resultados ajenos y no es autoridad de conteo.
+- Integration 436/598 y DocC se reutilizan con sus fechas del 7 de septiembre;
+  fuentes de datos y documentación compilada sin cambios asociados. Total combinado
+  disjunto **763 declaraciones / 1.104 invocaciones**, sin sumar las repeticiones.
+- Build MCP 02:27:58 correcto, más build-for-testing limpio Debug/Release repetido
+  después de la revisión del test con el script aprobado: salida0, cero warnings,
+  errores o tareas de metadata de App Intents; log `dx4-delivery-reviewed-build.log`.
+  Xcode27 `27A5252f`, Swift6.4, ReleaseGate, destino genérico iOS Simulator.
+- Gate estático: 24 suites Fast/37 Integration, planes válidos. Catálogos/JSON,
+  enlaces y diff comprobados. MangaLibrary/Fast/iPhone11 restaurado, sin argumentos
+  de fixture ni sonda temporal; no se reinstala ni altera la prueba física aceptada.
+
+Se conserva el traslado aprobado del primer desbloqueo a DX6, limitado/no
+observable y pendiente para Deluxe. Los relatos anteriores mantienen sus cortes
+históricos; no se presenta esta entrega como inicio de DX5 ni gate Deluxe superado.
+
+### Ajuste de cierre aprobado — 8 de septiembre
+
+El propietario aprueba trasladar a DX6 la comprobación física de protección
+anterior al primer desbloqueo. SDD 09 v1.14, SDD 06 v1.36 y ADR 0022 conservan
+el resultado **limitado/no observable** y la obligación pendiente para el Deluxe
+Release Gate; no se declara superada ni se relaja la protección del bridge.
+La recuperación posterior y el estado inyectado no acreditan I/O protegido.
+
+Con los casos físicos de DX4 confirmados en el alcance de esta checklist y esa
+transferencia expresa, no quedan pruebas físicas pendientes que bloqueen DX4.
+La implementación y su evidencia están preparadas para la entrega autorizada;
+#84 y su rama siguen abiertos, sin PR/merge/cierre ni nuevos commit/push. Deluxe
+continúa en 3/7 subfases entregadas; DX5 y DX6 no se inician con este ajuste.
+
+Revisión independiente de los tres diffs normativos sin hallazgos; versiones,
+matrices y obligación pendiente coherentes. Enlaces relativos y diff comprobados.
+Esta actualización es documental. Se corrige además, con autorización separada,
+la errata local `limport Foundation`; `ReadingWidgetRotation.swift` vuelve a ser
+idéntico al archivo de HEAD. No hay cambio de comportamiento ni nuevas suites
+por esa restauración; las validaciones anteriores conservan sus fechas y alcances.
+Los registros cronológicos anteriores conservan el estado de su propia ejecución;
+la cabecera y las checklists actuales recogen la decisión posterior.
+
+### No disponible confirmado y versión normal reinstalada — 8 de septiembre
+
+El propietario confirma «Correctos los tres en español e inglés» sobre el
+binario de prueba final: ilustración y locución completa del título/mensaje de
+no disponible, sin anuncios decorativos, en las tres familias ES/EN del iPhone 11.
+Se completa ese caso de VO-04/05; no se extrapola a otras tecnologías de asistencia,
+a I/O protegido ni a primer desbloqueo.
+
+Xcode MCP confirma MangaLibrary/Fast/iPhone 11/iOS 27. Fuente sin sonda temporal
+y scheme sin argumentos de fixture. `RunProject` 02:08:08, sin debugger, instala
+y abre la versión normal, PID 1462, referencia `ac603eb80`; build correcto y
+`GetBuildLog` con cero warnings/errores. El propietario confirma después que los tres widgets vuelven a mostrar sus
+lecturas y colección: reinstalación y recuperación visible completadas.
+No hay cambios Swift nuevos, suites adicionales ni entrega. Primer desbloqueo
+conserva el límite no observable y su traslado a DX6 no está aprobado.
+
+### No disponible: texto directo e ilustración — 8 de septiembre
+
+El propietario confirma la locución del diseño anterior en las tres familias
+ES/EN y solicita el tono directo y el libro de los estados de acceso. Se registra
+ese resultado como histórico; el cambio posterior exige comprobar su texto final.
+SDD 09 v1.13: «¿Actualizamos?» / «Abre Manga Library y actualizamos tus mangas.»;
+EN «Let's refresh» / «Open Manga Library and we'll refresh your manga.».
+El título español breve está aprobado por el propietario y deja espacio al libro
+incluso en el pequeño estándar. Se reutiliza la imagen acotada existente, preparada
+por el provider, decorativa y omitida en tamaños de accesibilidad. No cambian
+snapshots, política temporal, cuenta, publicación ni entitlements.
+
+- Doce previews nativas iPhone 17 Pro/iOS 27: tres familias × ES/EN × estándar/AX5,
+  timeline de no disponible; manifest en
+  `.build/dx4-preview/2026-09-08-unavailable/`. Texto completo y libro presente en
+  estándar, sin libro en AX5. En pequeño ES AX5 el signo final queda en otra línea;
+  detalle cosmético, sin pérdida de mensaje. Revisión visual independiente sin
+  hallazgos materiales; previews no acreditan VoiceOver físico.
+- Revisión independiente de seis Swift y catálogo, Audit sin candidatos; Audit
+  del diff acumulado de siete Swift limpio. No se repiten suites de datos ni DocC
+  por este cambio de presentación; los gates anteriores conservan sus fechas.
+- `RunProject` 02:04:10, MangaLibrary/Fast/iPhone 11/iOS 27, sin debugger,
+  PID 1224 y referencia `adcecfa80`: instalado el nuevo binario de prueba;
+  build correcto y `GetBuildLog` con cero warnings/errores.
+- Sonda temporal solo DEBUG mediante la inyección existente de `.unavailable`,
+  con host normal y sin fixture de datos. Retirada inmediatamente de fuente tras
+  instalar; `MangaLibraryWidget.swift` coincide byte a byte con su versión normal
+  de este ajuste, SHA-256
+  `cd7f12f1f1861262587afe45d289c9aebabaae936b11dde510ba0c44660eb779`.
+
+Pendientes confirmar la ilustración y VoiceOver del nuevo texto en las tres
+familias ES/EN, y reinstalar/contrastar el binario normal. El teléfono conserva
+la prueba temporal hasta esa reinstalación; restaurar la fuente no basta.
+La prueba no acredita I/O protegido ni primer desbloqueo. El traslado de ese
+límite a DX6 sigue sin aprobar; no hay commit/push ni entrega DX4.
+
+### Propiedad confirmada y prueba temporal de no disponible — 8 de septiembre
+
+El propietario confirma actualización de tomos poseídos en la ficha visible.
+La revisión normativa permite completar la evidencia de colección con esa
+observación y los tests/recorridos anteriores; el intento incompleto de Simulator
+conserva su resultado histórico.
+
+Se instala en iPhone 11 una sonda solo DEBUG que inyecta `.unavailable` en el
+proveedor existente, conservando la vista real y el host normal. Revisión y Audit
+sin hallazgos; `RunProject` 01:42:03, sin debugger, PID 741, build correcto y cero
+warnings. La sonda de fuente se retira inmediatamente y vuelve al original.
+El teléfono conserva el binario temporal hasta comprobar VO ES/EN en las tres
+familias y reinstalar la versión normal: ambos pasos siguen pendientes.
+No se alteran archivos, cuenta, fence o entitlements para inducir el estado.
+Sin nuevas suites ni entrega; primer desbloqueo sigue limitado, aún sin aprobar
+su traslado propuesto a DX6.
+
+### Mi colección — retirada visible y propiedad por aclarar, 8 de septiembre
+
+El propietario confirma de nuevo prioridad del manga añadido y retirada inmediata
+del eliminado cuando estaba visible, en su observación. Informa que editar tomos
+en propiedad no cambia el widget; se aclara si se refiere a datos antiguos en la
+ficha visible o a que no salta al manga editado. Aclara después que editaba otro
+manga. Solo las altas/reincorporaciones proponen foco de colección según ADR-0022;
+esa ausencia de salto no demuestra un fallo. Se propone contrastar el conteo de
+la misma ficha tras variar realmente la cantidad poseída, en una entrada sin
+lectura. Resultado pendiente; revisión independiente sin defecto concreto de
+fuente, sin cambios de código ni entrega.
+
+### VoiceOver en Hoy — confirmado, 8 de septiembre
+
+El propietario confirma locución correcta del pequeño en Hoy, en el mismo
+recorrido de iPhone 11/iOS 27. No concreta idioma ni estado de bloqueo durante
+esa locución. VoiceOver de no disponible sigue pendiente y el tramo previo al
+primer desbloqueo conserva su límite no observable. Sin código, builds/tests
+ni entrega; se actualiza evidencia y tracker.
+
+### Colección sintética — intento limitado por herramientas, 7 de septiembre
+
+Xcode MCP instala y ejecuta la fixture con ambos argumentos explícitos en iPhone
+17 Simulator/iOS 27, PID 13355; build correcto y sin warnings. Se observan entradas
+sintéticas en Colección y el pequeño con Historias del viento, 2/8 y siete
+restantes. La pérdida repetida de la sesión de interacción y el fallo de gestos
+CUA impiden añadir el mediano y comprobar propiedad/logout. El recorrido de
+colección sigue pendiente; no se extrapola la observación del pequeño.
+
+Proceso detenido y sesión ya inexistente según Xcode MCP. Se restaura el destino
+iPhone 11; MangaLibrary/Fast y scheme sin argumentos ni diff. No se actúa sobre
+la app del iPhone físico ni se modifica Swift. Sin suites nuevas ni entrega.
+
+### Reinicio — observación limitada antes de desbloquear, 7 de septiembre
+
+El propietario no puede acceder a Hoy antes del primer desbloqueo: comunica que
+solo dispone de llamada de emergencia y que debe desbloquear para introducir
+el PIN de SIM. Tras completar el recorrido, llega a Inicio y Hoy muestra una
+lectura en el pequeño. Se confirma la recuperación visible posterior y se
+registra el tramo previo como no observable, sin dar por probados I/O protegido,
+ejecución del provider ni epoch, ni atribuir esa protección al PIN de la tarjeta.
+
+VoiceOver de no disponible no se ejercitó; colección sintética instrumentada
+sigue pendiente en instalación dedicada. No se cambian ajustes, código ni
+entitlements; solo documentación y tracker. Sin builds/tests nuevos ni entrega.
+
+### Hoy bloqueado — lectura visible, 7 de septiembre
+
+Tras indicar que los widgets estaban solo en Inicio y preparar un pequeño en Hoy,
+el propietario confirma acceso con el iPhone bloqueado y una lectura visible.
+Se registra la presentación con los permisos actuales en iPhone 11/iOS 27,
+después de haber desbloqueado previamente; no prueba ocultación, ejecución del
+provider ni acceso al almacenamiento protegido. El bloqueo de pantalla no
+equivale al bloqueo de sesión según SDD 09.
+
+Resta el recorrido tras reiniciar, antes de introducir el código y después de
+desbloquear sin abrir la app. Se conservan pendientes VoiceOver de no disponible
+y el escenario sintético instrumentado de colección dedicado. Sin código,
+builds/tests, cambios de permisos ni entrega; la corrección del pie sigue local.
+
+### Rotación posterior a edición — confirmada, 7 de septiembre
+
+El propietario confirma que pequeño y mediano cambian después de esperar en
+segundo plano; comunica cinco minutos exactos en esta observación. Se acredita
+continuación tras actualizar sin convertir ese intervalo en garantía de WidgetKit.
+Prioridades de alta/edición y rotación posterior quedan registradas.
+
+La preparación siguiente delimita reinicio/primer desbloqueo y privacidad: se
+pregunta si hay widgets en Hoy, conservando los permisos actuales. Lo no observable
+no se marcará como protección probada. Permanecen esos pendientes, VoiceOver de
+no disponible y el recorrido sintético instrumentado de colección dedicado.
+Sin código, builds/tests ni entrega nuevos; la corrección del pie sigue local.
+
+### Prioridad al editar y evidencia de retirada — 7 de septiembre
+
+El propietario confirma que editar una lectura existente la coloca primero en
+pequeño y grande. Se registra esa prioridad; resta observar la rotación después
+de esta edición en segundo plano. La prueba no impone cinco minutos exactos.
+
+La revisión independiente normativa permite reconciliar retirada con evidencia
+proporcional: tests deterministas de cierre/verificación/denegación más logout
+físico con redacción observada en los tres widgets ES/EN, sin debugger. No se
+exige otra inspección de bytes físicos ni se afirma haberla hecho. Primer
+desbloqueo y privacidad mantienen su propio alcance pendiente. Sin código,
+builds/tests ni entrega nuevos.
+
+### Título largo y prioridad de alta — confirmados, 7 de septiembre
+
+El propietario confirma un título considerablemente largo íntegro con VoiceOver
+en las tres familias ES/EN: pequeño truncado en pantalla, mediano en dos líneas
+completas y grande entero. Se registra el recorte solo donde se observó.
+También confirma expresamente que Mi colección mostró primero ese manga nuevo
+tras actualizar, sin comunicar una latencia. Se acredita prioridad de alta en
+mediano; edición de lectura existente y condiciones de rotación restantes siguen
+pendientes. Sin código, builds/tests ni entrega nuevos.
+
+### Bloqueo/desbloqueo — continuidad confirmada, 7 de septiembre
+
+El propietario confirma widgets con contenido al desbloquear sin abrir la app y
+sesión iniciada en Cuenta después. Se marca esa continuidad, manteniendo separados
+privacidad durante bloqueo, primer desbloqueo y fence. Aporta un manga como
+candidato para título largo; la locución completa y su recorte/idioma siguen
+pendientes de confirmación. Sin cambios de código, builds/tests ni entrega.
+
+### VoiceOver inglés — contenido confirmado, 7 de septiembre
+
+El propietario confirma todo el recorrido propuesto de contenido EN en los tres
+widgets, sin omisiones ni repeticiones. Contenido, vacíos y sesión cerrada tienen
+confirmación física ES/EN en los casos concretos del iPhone 11. Se reconcilia la
+checklist; no disponible, título largo identificado y las demás configuraciones
+mantienen sus límites o pendientes. No se declara cerrada toda accesibilidad/DX4.
+
+Siguiente paso propuesto: restaurar español y comprobar continuidad visible de
+contenido y sesión al bloquear/desbloquear, inicialmente sin abrir la app. No
+acredita protección antes del primer desbloqueo ni inspección del fence. Sin
+código, builds/tests ni entrega nuevos; la corrección del pie permanece local.
+
+### VoiceOver inglés — sesión cerrada confirmada, 7 de septiembre
+
+El propietario confirma presentación y locución correctas de sesión cerrada en
+los tres tamaños EN, sin anuncios de la ilustración. Vacíos y sesión cerrada
+quedan comprobados en ES/EN en sus configuraciones registradas; no acredita
+latencia ni lectura del fence. Se continúa con contenido EN de la cuenta habitual.
+Sin cambios de código, builds/tests ni entrega nuevos.
+
+### VoiceOver inglés — vacíos confirmados, 7 de septiembre
+
+El propietario confirma los mensajes vacíos visibles y hablados completos en
+los tres tamaños EN, con la cuenta vacía y el mismo iPhone 11/iOS 27. VO-05 queda
+parcial; se continúa por sesión cerrada en inglés antes de volver al contenido.
+No se extrapola a otros estados ni se cambia código, ejecutan builds/tests o
+realizan acciones de entrega.
+
+### VoiceOver vacíos — cuenta de prueba confirmada, 7 de septiembre
+
+El propietario confirma los mensajes vacíos completos en los tres tamaños ES,
+sin datos de la cuenta anterior ni anuncios decorativos, tras iniciar sesión
+normalmente con su cuenta vacía. La colección habitual permanece intacta y no se
+activa el escenario sintético. VO-04 tiene confirmados sesión cerrada y vacíos;
+no disponible conserva su pendiente. Se continúa con VO-05 en inglés desde la
+cuenta vacía. Sin código, builds/tests ni entrega nuevos.
+
+### VoiceOver sesión cerrada — tres tamaños confirmados, 7 de septiembre
+
+El propietario confirma presentación y locución correctas del estado de sesión
+cerrada en pequeño, mediano y grande ES: mensaje de acceso sin anuncios de la
+ilustración. Es evidencia de UI/VoiceOver en iPhone 11 sin debugger; no inspecciona
+el fence ni mide latencia. VO-04 conserva pendientes vacío y no disponible.
+
+Se prepara el siguiente caso sin alterar la colección personal. El escenario
+sintético existente exige instalación dedicada porque toma bridge y bookkeeping;
+no se activa en este iPhone. El propietario confirma que dispone de cuenta vacía;
+se continuará con login normal en ella para comprobar los vacíos, aún pendientes.
+Sin código, builds/tests ni acciones de entrega nuevos.
+
+### VoiceOver mediano — colección confirmada, 7 de septiembre
+
+El propietario confirma la locución completa y correcta de Mi colección en ES:
+encabezado, total, manga, tomos en propiedad, completitud y actualización, sin
+anuncios indebidos. VO-03 pasa para el contenido observado en iPhone 11; no se
+extiende a ambas variantes de completitud, estados vacíos ni inglés. Los tres
+tamaños tienen confirmación de contenido ES en los casos registrados.
+
+Se continúa con VO-04, sesión cerrada en las tres familias. Las pruebas de fence,
+privacidad y estados conservan sus evidencias separadas. Sin cambios de código,
+builds, tests ni entrega nuevos; la corrección del pie permanece local.
+
+### VoiceOver grande — seis lecturas confirmadas, 7 de septiembre
+
+El propietario confirma el recorrido completo propuesto en el grande ES:
+encabezado, los seis mangas con sus progresos y actualización final («7 barra 9,
+18:42»), sin anuncios indebidos. VO-02 pasa en esta configuración del iPhone 11;
+no acredita inglés ni otras distribuciones. El pie sin restantes se comprueba
+en este tamaño. Se continúa con VO-03, colección mediana. Sin código, builds,
+tests ni entrega nuevos; la corrección accesible del pie sigue local.
+
+### VoiceOver pequeño — corrección confirmada, 7 de septiembre
+
+El propietario confirma que el pie ya anuncia restantes y actualización completa
+(«7 barra 9, 18:42»). Al salir y volver a enfocar tras una rotación, anuncia el
+manga visible, incluso recién cambiado. VO-01 pasa en el pequeño ES con restantes;
+no se extrapola a EN, al pie sin restantes ni a los otros tamaños. Se conserva
+la rotación actual; no se observa contenido antiguo al recuperar el foco.
+
+Se continúa con VO-02 en el grande: títulos/progresos de todas las filas visibles
+en orden, actualización al final y ausencia de anuncios decorativos/duplicados.
+La corrección del pie permanece local y revisada; no hay nuevo commit/push.
+
+### VoiceOver pequeño — primer resultado físico, 7 de septiembre
+
+Tras el checkpoint `cebf2cf`, el propietario confirma en español encabezado,
+título/progreso completos y contador de restantes, pero el pequeño omite la
+actualización en su recorrido de VoiceOver. Si rota durante la locución, sigue
+anunciando el manga anterior. VO-01 queda parcial con incidencia, sin aprobar.
+El propietario confirma después que la fecha está visible y que el foco salta
+desde restantes a un icono de la app. El anuncio al salir/reentrar tras una
+rotación sigue pendiente. El registro exacto y los límites figuran en la
+checklist DX4. Se prepara una etiqueta única para el pie, con restantes y fecha
+formateada previamente según el locale, conservando el diseño. Nuevo plural
+EN/ES; el mediano y la rotación no cambian. Build MCP y tres previews nativas
+correctos en su alcance, sin warnings; revisión independiente sin hallazgos y
+Audit sin candidatos. RunProject 20:30:08 instala y abre el cambio en iPhone 11
+sin debugger (PID 25037); GetBuildLog sin warnings. La repetición física sigue
+pendiente; esta corrección posterior a `cebf2cf` no tiene commit/push.
 
 ### Aceptación de UI y comienzo de VoiceOver — 7 de septiembre
 
@@ -2135,7 +2467,7 @@ La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden d
 8. **R2 — envío y reconciliación de outbox.** R2.1 y R2.2 están entregados mediante la PR #60. La decisión del propietario del 2 de septiembre fija `{id}` como `Manga.ID` `int64` serializado en decimal; el UUID de entrada no forma el path y la discrepancia `string` queda como deuda contractual. R2.1 reutiliza el GET completo R1 e implementa POST y procesamiento conservador de intenciones no tombstone; R2.2 añade GET/DELETE individual, tombstones y la confirmación destructiva de UI. Ambos cortes están validados localmente y R2.2 cuenta con aceptación live multidispositivo de la ruta decimal y la ausencia reconciliada; el status/body exacto del primer DELETE y el GET presente `200` siguen sin caracterización directa. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, `blockedAuth` recuperable y rechazo positivo con reversión atómica. R2.4 se entrega mediante la PR #70 con revisión fresca, adopción remota o nueva intención consciente y resolución atómica del `blockedOutcome`.
 9. **Cota transversal de números de tomo, entregada mediante la PR #64.** Fija 300 como máximo inclusivo compartido, preserva `nil` como total desconocido y protege editor, mutación, R1 y R2 frente a valores históricos o remotos fuera de rango sin truncado ni transporte accidental.
 10. **Advanced Release Gate — aceptado y entregado mediante el issue #75 / PR #76.** A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. La automatización global acredita build, planes, Swift Testing, UI en iPhone/iPad, ReleaseGate, DocC, contrato e integridad sin warnings ni allowlists. La matriz manual está completa con VoiceOver, Control por voz y Switch Control en iPhone físico y Acceso total con teclado en iPad simulado, sin extrapolar este último a hardware. La fusión `06170b7` del 6 de septiembre de 2026 habilita la entrada a Deluxe.
-11. **Deluxe — plan aprobado en el issue #77.** DX1–DX3 entregadas mediante PR #80, #81 y #83 (3/7). DX4 está implementado localmente en #84: target WidgetKit, App Group, UI y composición live, con tests completos, builds limpios y DocC, lectura entre procesos observada en iPhone Simulator y adaptación y continuidad entre ventanas iPad verificadas. La validación automatizada y Simulator está completada en su alcance; DX4.5 conserva las pruebas físicas pendientes y la ampliación de la matriz combinatoria pertenece a DX6. DX5 no se inicia; la matriz conserva la evidencia física pendiente de Apple Watch para las fases posteriores.
+11. **Deluxe — plan aprobado en el issue #77.** DX1–DX3 entregadas mediante PR #80, #81 y #83 (3/7). DX4 está implementado localmente en #84: target WidgetKit, App Group, UI y composición live, con tests completos, builds limpios y DocC, lectura entre procesos observada en iPhone Simulator y adaptación y continuidad entre ventanas iPad verificadas. La validación automatizada, Simulator y física DX4 están completadas en su alcance; la comprobación física anterior al primer desbloqueo se traslada a DX6 por aprobación del propietario del 2026-09-08, como limitada/no observable y pendiente para el gate Deluxe, junto a la ampliación combinatoria. DX5 no se inicia; la matriz conserva la evidencia física pendiente de Apple Watch para las fases posteriores.
 
 S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad autenticable, pero permanece antes del gate Advanced y en una unidad separada porque incorpora el `App-Token`. S2.1 y S2.2 cierran superficies de Cuenta sin iniciar persistencia de producto. La outbox sí pertenece a L1: el worker de R2 puede llegar después, pero ninguna mutación expuesta puede escribir Colección sin registrar o coalescer su intención en la misma operación lógica.
 
@@ -2154,8 +2486,8 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 - La entrega original de S2 no acreditó una escritura live; la observación manual posterior de `201` y su compatibilidad quedan registradas en S2.2 sin exponer datos de cuenta.
 - S2.2 entregó mediante la PR #40 la validación y presentación de credenciales y la autoridad Keychain V2 vigente en ese momento; #58 cambia solo la infraestructura de sesión a JWT único/V3 y no altera el workflow visual ni incorpora persistencia de producto.
 - L1 entrega mediante la PR #44 `ModelContainer`, esquema V1, modelos SwiftData, outbox y primera mutación atómica. L2 entrega mediante la PR #50 el esquema V2, `@Query`, presentación offline y UI de Colección. R1 entrega mediante la PR #54 la lectura e importación remota con reconciliación local-first. R2.1/R2.2 entregan mediante la PR #60 el POST, GET/DELETE individual, vaciado seguro de intenciones no tombstone y tombstones, con aceptación live multidispositivo y la deuda contractual descrita en su evidencia. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, recuperación de `blockedAuth` y rechazo/reversión atómicos. R2.4 se entrega mediante la PR #70 con resolución manual durable de `blockedOutcome`.
-- A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. El issue #75 / PR #76 entrega Advanced con los gates automáticos y la matriz manual aceptados. Deluxe conserva el plan aprobado #77; DX1–DX3 están entregadas mediante PR #80/#81/#83. DX4 está implementado localmente en #84 con validación automatizada y Simulator completadas en su alcance y DX4.5 físico pendiente; DX5 no se inicia, y DX6/DX7 conservan integración, accesibilidad y gate global.
-- DX4 materializa target, entitlements App Group, consumidor WidgetKit y composición live de ADR 0010. Los gates técnicos y los recorridos iPhone/iPad Simulator están completados en su alcance. DX4.5 conserva la evidencia física pendiente; la ampliación combinatoria pertenece a DX6. watchOS y WatchConnectivity pertenecen a DX5.
+- A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. El issue #75 / PR #76 entrega Advanced con los gates automáticos y la matriz manual aceptados. Deluxe conserva el plan aprobado #77; DX1–DX3 están entregadas mediante PR #80/#81/#83. DX4 está implementado localmente en #84 con validación automatizada, Simulator y física completadas en el alcance DX4 aprobado; primer desbloqueo físico limitado/no observable transferido a DX6 y pendiente para el gate Deluxe; DX5 no se inicia, y DX6/DX7 conservan integración, accesibilidad y gate global.
+- DX4 materializa target, entitlements App Group, consumidor WidgetKit y composición live de ADR 0010. Los gates técnicos y los recorridos iPhone/iPad Simulator están completados en su alcance. DX4.5 completa su evidencia física en el alcance aprobado. DX6 conserva la prueba física anterior al primer desbloqueo, limitada/no observable y pendiente para el gate Deluxe, además de la ampliación combinatoria. watchOS y WatchConnectivity pertenecen a DX5.
 - La evidencia histórica de icono, sesión y accesibilidad se complementa con la matriz vigente de #75: VoiceOver, Control por voz y Switch Control en iPhone 11 físico, y Acceso total con teclado en iPad simulado. Sus límites se conservan en el apartado Advanced; no acredita App Group o WatchConnectivity, capacidades que pertenecen a Deluxe.
 - No se ha autorizado publicación DocC ni GitHub Pages.
 

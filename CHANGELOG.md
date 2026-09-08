@@ -36,6 +36,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- 2026-09-08 | 🐛 fix(widget): complete accessible widget states
 - 2026-09-06 | 🐛 fix(accessibility): unblock keyboard sign out
 - 2026-09-04 | 🐛 fix(accessibility): preserve VoiceOver context
 - 2026-09-02 | 🐛 fix(session): use Collection-compatible single JWT

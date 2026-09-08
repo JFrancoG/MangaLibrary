@@ -1,8 +1,8 @@
 # SDD 09: Contrato de lectura Deluxe — DX1–DX4
 
-**Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07
-**Versión:** 1.12
-**Fecha:** 2026-09-07
+**Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07; texto e ilustración de no disponible y traslado de la prueba física anterior al primer desbloqueo a DX6 aprobados el 2026-09-08
+**Versión:** 1.14
+**Fecha:** 2026-09-08
 **Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82) y [DX4 — issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
 ## Alcance y aprobación
@@ -97,24 +97,29 @@ El pie se ancla abajo: contador y fecha comparten fila cuando caben y se apilan
 cuando falta ancho; la fecha usa caption2 y conserva menor jerarquía visual.
 Ese ajuste visual inicial conservó selección, orden, wire, eventos y publicación. La ampliación aprobada posteriormente se detalla a continuación.
 
-## Estados sin contenido: presentación aprobada el 7 de septiembre
+## Estados sin contenido: presentación aprobada el 7 y 8 de septiembre
 
 El propietario aprueba un tono informal y directo para vacío de lectura y sesión
 redactada. Lectura vacía usa «¿Qué estás leyendo?» y «Marca tu tomo actual en
 Manga Library.»; sesión redactada usa «Tus mangas, aquí» e «Inicia sesión en
 Manga Library.». Los equivalentes ingleses conservan el significado. Colección
-vacía y recurso no disponible mantienen mensajes distintos; el último remite a
-Manga Library sin identificar un dispositivo que pueda ser incorrecto en iPad.
+vacía y recurso no disponible mantienen mensajes distintos. El 8 de septiembre
+el propietario extiende el tono informal y directo a no disponible: «¿Actualizamos?»
+y «Abre Manga Library y actualizamos tus mangas.», con los equivalentes
+«Let's refresh» y «Open Manga Library and we'll refresh your manga.». El mensaje
+remite a Manga Library sin identificar un dispositivo que pueda ser incorrecto
+en iPad.
 
 La ilustración del manga abierto ya incluida en el icono de la app se reutiliza
-como recurso decorativo local de la extensión para vacío y redacción. El grande
-centra el conjunto ilustración/título/explicación; el mediano ofrece composición
+como recurso decorativo local de la extensión para vacío, redacción y no
+disponible. El grande centra el conjunto ilustración/título/explicación;
+el mediano ofrece composición
 horizontal y el pequeño una imagen discreta solo si cabe. La imagen cede antes
 que los mensajes al adaptar espacio, y se omite en tamaños de accesibilidad.
 Las fuentes siguen siendo semánticas, los mensajes accesibles se conservan
-completos y no se añaden botones o gestos de autenticación en el widget. El estado
-no disponible conserva su símbolo semántico para no confundirse con una sesión
-cerrada o ausencia real de datos.
+completos y no se añaden botones o gestos de autenticación en el widget. La
+ilustración común no comunica el estado: los mensajes distintos conservan la
+diferencia semántica entre no disponible, sesión cerrada y ausencia real de datos.
 
 El recurso visual no altera snapshot, autoría, sesión, timeline ni publicación.
 El PNG original se conserva como recurso bundled fuera del imageset. Antes de
@@ -804,8 +809,19 @@ mayores, sin recortes al rotar. La checklist separa esta evidencia de la versió
 anterior y registra los límites de cada entorno.
 La instalación de desarrollo firmada y el App Group efectivo se acreditan
 posteriormente en iPhone 11/iOS 27, junto con la aceptación visual del propietario.
-La protección antes del primer desbloqueo y el resto de pruebas físicas conservan
-su estado pendiente en DX4.5; no se acredita provisioning de distribución.
+El propietario confirma después los recorridos físicos de DX4 registrados en la
+[checklist](../dx4-widget-validation.md), incluido VoiceOver de los tres tamaños
+ES/EN y la recuperación tras reinstalar la versión normal. No se acredita
+provisioning de distribución.
+
+El 2026-09-08 el propietario aprueba trasladar a DX6 la comprobación física de
+protección anterior al primer desbloqueo. El recorrido en iPhone 11 queda
+**limitado/no observable**: no permitió acceder al widget antes de desbloquear.
+Esta comprobación deja de bloquear el cierre de DX4, pero no se da por superada
+ni se elimina: permanece pendiente en DX6 y para el Deluxe Release Gate.
+Se conserva el contrato de lectura inaccesible como no disponible, sin inicializar
+otro epoch, y no se atribuye esa evidencia a la recuperación posterior, un estado
+inyectado, Simulator o tests deterministas.
 
 ## Ejemplos y matriz de validación
 
@@ -822,9 +838,9 @@ reales en composición aislada y DX3.5 conserva el gate técnico conjunto.
 | DX1 | JSON legible, conteos/estados coherentes, selección esperada independiente, límites y referencias documentados, ausencia de datos sensibles, revisión iOS. |
 | DX2 | Decoder real, exactitud Int64/UInt64, incompatibilidad, fence estable/cambiante/cerrado, reserva y crash, archivo inaccesible frente a corrupto, apertura A/B y logout/invalidación. |
 | DX3 | Todos los commits que cambian proyección, recorte por bytes y contador, abreviación Unicode, orden, cuota sin borrar recursos retenidos, JPEG completo seguido de fallo/crash antes del manifest y limpieza del huérfano demostrado, no-op antes de reservar y revisión 99→100 sin cambiar el prefijo. |
-| DX4 | Familias pequeña/mediana/grande en iPhone/iPad, EN/ES, Light/Dark, contraste, Dynamic Type/VoiceOver, sin red, antes de desbloqueo y lectura de App Group real. Rotación, fronteras de 300 s, renovación de fase, prioridad fuera del prefijo, no-op/coalescencia y retirada con fechas y colecciones sintéticas. |
+| DX4 | Familias pequeña/mediana/grande en iPhone/iPad, EN/ES, Light/Dark, contraste, Dynamic Type/VoiceOver, sin red y lectura de App Group real. Rotación, fronteras de 300 s, renovación de fase, prioridad fuera del prefijo, no-op/coalescencia y retirada con fechas y colecciones sintéticas. La comprobación física anterior al primer desbloqueo pertenece a DX6 por el ajuste aprobado el 2026-09-08. |
 | DX5 | Reloj enlazado, activación/reactivación, contextos reemplazados, duplicados/desorden/A→B, offline, cache y placeholder. |
-| DX6–DX7 | Matriz física y de tecnologías de asistencia por superficie; Advanced permanece verde; nuevos targets/planes/DocC sin warnings. |
+| DX6–DX7 | Matriz física y de tecnologías de asistencia por superficie. DX6 conserva pendiente la comprobación física de protección anterior al primer desbloqueo, limitada/no observable en DX4; debe acreditarse para el Deluxe Release Gate. Advanced permanece verde; nuevos targets/planes/DocC sin warnings. |
 
 ### Pruebas sin Apple Watch físico
 
@@ -848,7 +864,7 @@ cambiado destinos ni ejecutado pruebas watchOS en DX1.
 | Estados, ES/EN, títulos largos, scroll y Digital Crown | Watch Simulator de 40, 46 y 49 mm; DX5–DX6 | Cubre los extremos y un tamaño intermedio; la interacción es simulada, no ergonomía física. |
 | Dynamic Type, contraste, etiquetas y orden semántico | Simulator y Accessibility Inspector según capacidades disponibles; DX5–DX6 | Evidencia visual y semántica parcial. No equivale a VoiceOver watchOS real. |
 | Activación y `updateApplicationContext` | Caracterización de pareja iPhone/Watch Simulator compatible; DX5 | Registrar runtime/build, pareja, activación, envío, recepción y aplicación observados. Una llamada aceptada no demuestra recepción. |
-| App Group/widget y protección de archivos en iPhone | iPhone 11 físico/iOS 27 y simuladores iPhone/iPad; DX4–DX6 | El iPhone disponible permite esa evidencia en su alcance; no acredita WatchConnectivity. |
+| App Group/widget y protección de archivos en iPhone | iPhone 11 físico/iOS 27 y simuladores iPhone/iPad; DX4–DX6 | DX4 acredita instalación de desarrollo y App Group en el alcance registrado. La comprobación física anterior al primer desbloqueo queda limitada/no observable y pendiente en DX6 para el gate Deluxe. No acredita WatchConnectivity. |
 | Pairing, desconexión/reconexión, suspensión, entrega background y VoiceOver watchOS | Pareja física compatible; DX6–DX7 | Pendiente por falta de Apple Watch. Ni fixtures ni Simulator satisfacen esta fila. |
 
 Apple documenta interacción de watchOS Simulator y comprobaciones de

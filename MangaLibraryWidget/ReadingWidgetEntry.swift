@@ -46,8 +46,7 @@ extension ReadingWidgetEntry {
         switch state {
         case let .snapshot(snapshot): needsIllustration = snapshot.state == .empty
         case let .collection(snapshot, _): needsIllustration = snapshot.items.isEmpty
-        case .redacted: needsIllustration = true
-        case .unavailable: needsIllustration = false
+        case .redacted, .unavailable: needsIllustration = true
         }
         return Self(
             date: date,

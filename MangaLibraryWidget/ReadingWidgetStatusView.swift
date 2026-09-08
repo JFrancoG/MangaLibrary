@@ -33,22 +33,14 @@ struct ReadingWidgetStatusView: View {
             textBlock(titleFont: .caption2.weight(.semibold), messageFont: .caption2)
             textBlock(titleFont: .caption2.weight(.semibold), messageFont: .caption2, usesCompactMessage: true)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: state == .unavailable ? .topLeading : .center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .multilineTextAlignment(usesLeadingText ? .leading : .center)
         .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
     private var illustratedContent: some View {
-        if state == .unavailable {
-            VStack(alignment: .leading, spacing: 8) {
-                Image(systemName: "questionmark.circle")
-                    .font(.title3)
-                    .foregroundStyle(.brandPrimaryInk)
-                    .accessibilityHidden(true)
-                textBlock(titleFont: titleFont, messageFont: messageFont)
-            }
-        } else if family == .systemMedium {
+        if family == .systemMedium {
             HStack(alignment: .center, spacing: 12) {
                 illustration
                 textBlock(titleFont: titleFont, messageFont: messageFont)
@@ -95,14 +87,14 @@ struct ReadingWidgetStatusView: View {
         }
     }
 
-    private var usesLeadingText: Bool { family == .systemMedium || state == .unavailable }
+    private var usesLeadingText: Bool { family == .systemMedium }
 
     private var titleFont: Font {
-        family == .systemLarge && state != .unavailable ? .title2.weight(.semibold) : .headline
+        family == .systemLarge ? .title2.weight(.semibold) : .headline
     }
 
     private var messageFont: Font {
-        family == .systemLarge && state != .unavailable ? .body : .caption
+        family == .systemLarge ? .body : .caption
     }
 
     private var title: LocalizedStringResource {
@@ -110,8 +102,7 @@ struct ReadingWidgetStatusView: View {
         case (.reading, .empty): "What are you reading?"
         case (.collection, .empty): "No manga in your collection"
         case (_, .redacted): "Your manga, right here"
-        case (.reading, .unavailable): "Reading unavailable"
-        case (.collection, .unavailable): "Collection unavailable"
+        case (_, .unavailable): "Let's refresh"
         }
     }
 
@@ -120,7 +111,7 @@ struct ReadingWidgetStatusView: View {
         case (.reading, .empty): "Set your current volume in Manga Library."
         case (.collection, .empty): "Add manga to your collection in Manga Library."
         case (_, .redacted): "Sign in to Manga Library."
-        case (_, .unavailable): "Open Manga Library to update this widget."
+        case (_, .unavailable): "Open Manga Library and we'll refresh your manga."
         }
     }
 

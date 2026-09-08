@@ -4,6 +4,7 @@ struct ReadingWidgetFooterView: View {
     let snapshot: ReadingSnapshot
     let visibleCount: Int
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.locale) private var locale
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -18,6 +19,20 @@ struct ReadingWidgetFooterView: View {
             }
         }
         .foregroundStyle(.textSecondary)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(footerDescription)
+    }
+
+    private var footerDescription: Text {
+        if let total = snapshot.totalEligibleCount, total > Int64(visibleCount) {
+            Text("\(total - Int64(visibleCount)) more on iPhone. Updated \(formattedUpdateDate)")
+        } else {
+            Text("Updated \(formattedUpdateDate)")
+        }
+    }
+
+    private var formattedUpdateDate: String {
+        snapshot.generatedAt.formatted(.dateTime.month(.twoDigits).day().hour().minute().locale(locale))
     }
 
     @ViewBuilder private var remainingReadings: some View {

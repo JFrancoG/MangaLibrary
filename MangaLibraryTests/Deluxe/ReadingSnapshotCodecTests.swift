@@ -25,10 +25,10 @@ struct ReadingSnapshotCodecTests {
 
         let snapshot = try ReadingSnapshotCodec.decode(data)
         let encoded = try ReadingSnapshotCodec.encode(snapshot)
-        let object = try #require(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        let wire = try JSONDecoder().decode(EncodedTimestamp.self, from: encoded)
 
         #expect(abs(snapshot.generatedAt.timeIntervalSince1970 - expectedSeconds) < 0.000_001)
-        #expect(object["generatedAt"] as? String == timestamp)
+        #expect(wire.generatedAt == timestamp)
         #expect(snapshot.items.map(\.mangaID) == [20, 10, 30])
     }
 
@@ -55,9 +55,9 @@ struct ReadingSnapshotCodecTests {
         )
 
         let encoded = try ReadingSnapshotCodec.encode(snapshot)
-        let object = try #require(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        let wire = try JSONDecoder().decode(EncodedTimestamp.self, from: encoded)
 
-        #expect(object["generatedAt"] as? String == expectedTimestamp)
+        #expect(wire.generatedAt == expectedTimestamp)
         #expect(abs(snapshot.generatedAt.timeIntervalSince1970 - expectedSeconds) < 0.000_001)
         let decoded = try ReadingSnapshotCodec.decode(encoded)
         #expect(abs(decoded.generatedAt.timeIntervalSince1970 - expectedSeconds) < 0.000_001)
@@ -283,6 +283,10 @@ struct ReadingSnapshotCodecTests {
         #expect(snapshot.state == .content)
         #expect(try ReadingSnapshotCodec.contextByteCount(for: data) == expectedBytes)
     }
+}
+
+private struct EncodedTimestamp: Decodable {
+    let generatedAt: String
 }
 
 private enum DeluxeContractFixtures {

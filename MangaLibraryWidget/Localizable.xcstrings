@@ -145,6 +145,48 @@
         }
       }
     },
+    "%lld more on iPhone. Updated %@": {
+      "comment": "VoiceOver description of the reading widget footer. Includes the number of remaining readings and the already formatted update date/time; preserve both values and their order.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld more on iPhone. Updated %@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld more on iPhone. Updated %@"
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld más en el iPhone. Actualizado %@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld más en el iPhone. Actualizado %@"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld of %lld volumes owned": {
       "comment": "Full accessibility label for the ownership count and known series total; neither number is reading progress.",
       "extractionState": "manual",
@@ -337,24 +379,6 @@
         }
       }
     },
-    "Collection unavailable": {
-      "comment": "Title when the complete collection snapshot cannot be obtained safely.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Collection unavailable"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Colección no disponible"
-          }
-        }
-      }
-    },
     "Complete": {
       "comment": "Explicit collection-completion flag for the currently displayed manga; this is not reading completion.",
       "extractionState": "manual",
@@ -387,6 +411,24 @@
           "stringUnit": {
             "state": "translated",
             "value": "Incompleta"
+          }
+        }
+      }
+    },
+    "Let's refresh": {
+      "comment": "Friendly title asking the user to refresh unavailable widget data, not to install an app update.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let's refresh"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Actualizamos?"
           }
         }
       }
@@ -481,6 +523,24 @@
         }
       }
     },
+    "Open Manga Library and we'll refresh your manga.": {
+      "comment": "Open the app to refresh unavailable reading or collection data; no immediate timing guarantee.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Manga Library and we'll refresh your manga."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre Manga Library y actualizamos tus mangas."
+          }
+        }
+      }
+    },
     "Open Manga Library on iPhone to update this widget.": {
       "comment": "Safe fallback when a valid reading snapshot cannot be obtained.",
       "extractionState": "manual",
@@ -495,24 +555,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Abre Manga Library en el iPhone para actualizar el widget."
-          }
-        }
-      }
-    },
-    "Open Manga Library to update this widget.": {
-      "comment": "Unavailable widget instruction valid on both iPhone and iPad.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open Manga Library to update this widget."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Abre Manga Library para actualizar este widget."
           }
         }
       }
@@ -549,24 +591,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Leyendo"
-          }
-        }
-      }
-    },
-    "Reading unavailable": {
-      "comment": "Title for unavailable, inaccessible or incompatible shared data.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reading unavailable"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lectura no disponible"
           }
         }
       }

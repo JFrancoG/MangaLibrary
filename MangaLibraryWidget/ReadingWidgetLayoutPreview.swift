@@ -38,7 +38,7 @@ extension ReadingWidgetLayoutPreview {
     ReadingWidgetPreview.unknownTotal
     ReadingWidgetPreview.empty
     ReadingWidgetPreview.redacted
-    ReadingWidgetPreview.unavailable
+    ReadingWidgetPreview.unavailable.preparingStatusIllustration(for: .systemSmall)
 }
 
 #Preview("Collection · Medium · EN · AX 5", as: .systemMedium) {
@@ -49,7 +49,7 @@ extension ReadingWidgetLayoutPreview {
     CollectionWidgetPreview.largeCounts
     CollectionWidgetPreview.empty
     CollectionWidgetPreview.redacted
-    CollectionWidgetPreview.unavailable
+    CollectionWidgetPreview.unavailable.preparingStatusIllustration(for: .systemMedium)
     CollectionWidgetPreview.maximumCollection
     CollectionWidgetPreview.oneOwned
 }
@@ -82,7 +82,7 @@ extension ReadingWidgetLayoutPreview {
     ReadingWidgetPreview.unknownTotal
     ReadingWidgetPreview.empty
     ReadingWidgetPreview.redacted
-    ReadingWidgetPreview.unavailable
+    ReadingWidgetPreview.unavailable.preparingStatusIllustration(for: .systemLarge)
 }
 
 #Preview("Small · ES · Compact progress", as: .systemSmall) {

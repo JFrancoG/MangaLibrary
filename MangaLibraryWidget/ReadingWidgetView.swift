@@ -49,7 +49,11 @@ struct ReadingWidgetView: View {
                     statusIllustration: entry.statusIllustration
                 )
             case .unavailable:
-                ReadingWidgetStatusView(state: .unavailable, content: statusContent)
+                ReadingWidgetStatusView(
+                    state: .unavailable,
+                    content: statusContent,
+                    statusIllustration: entry.statusIllustration
+                )
             }
         }
         .foregroundStyle(.textPrimary)
