@@ -37,6 +37,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- 2026-09-11 | 🐛 fix(deluxe): preserve dates and record DX6 validation
 - 2026-09-08 | 🐛 fix(widget): complete accessible widget states
 - 2026-09-06 | 🐛 fix(accessibility): unblock keyboard sign out
 - 2026-09-04 | 🐛 fix(accessibility): preserve VoiceOver context

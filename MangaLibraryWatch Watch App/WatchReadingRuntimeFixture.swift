@@ -3,17 +3,18 @@ import Foundation
 import SwiftUI
 
 // Explicit Simulator-only UI/cache characterization. This does not exercise native connectivity.
-// Launch with -dx5-fixture content|longtitles|empty|redacted|unavailable|cache.
+// Launch with -dx5-fixture content|saved|longtitles|empty|redacted|unavailable|cache.
 // Add -dx5-locale es|en and -dx5-dynamic-type large|xxxLarge|accessibility5 when needed.
+// Saved delivers content, then reports temporary unavailability without removing the snapshot.
 // Launch content (or another snapshot), terminate, then launch cache to restore the same synthetic file.
 // Every other scenario discards only the fixture cache once per process, before delivering its snapshot.
 actor WatchReadingRuntimeFixture {
     enum Scenario: String {
-        case content, longtitles, empty, redacted, unavailable, cache
+        case content, saved, longtitles, empty, redacted, unavailable, cache
 
         var snapshot: ReadingSnapshot? {
             switch self {
-            case .content: WatchReadingPreview.content
+            case .content, .saved: WatchReadingPreview.content
             case .longtitles: WatchReadingPreview.longTitles
             case .empty: WatchReadingPreview.empty
             case .redacted: WatchReadingPreview.redacted
@@ -73,6 +74,10 @@ actor WatchReadingRuntimeFixture {
         }
         try Task.checkCancellation()
         await receive(.contentDrained)
+        if scenario == .saved {
+            try Task.checkCancellation()
+            await receive(.unavailable)
+        }
     }
 }
 

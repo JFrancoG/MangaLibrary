@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 
 struct ReadingWidgetFooterView: View {
     let snapshot: ReadingSnapshot
@@ -55,7 +56,13 @@ struct ReadingWidgetFooterView: View {
             if dynamicTypeSize.isAccessibilitySize {
                 Text(snapshot.generatedAt, format: .dateTime.day().month(.twoDigits).year(.twoDigits))
             } else {
-                Text("Updated \(snapshot.generatedAt, format: .dateTime.month(.twoDigits).day().hour().minute())")
+                ViewThatFits(in: .horizontal) {
+                    Text("Updated \(snapshot.generatedAt, format: .dateTime.month(.twoDigits).day().hour().minute())")
+                        .fixedSize(horizontal: true, vertical: false)
+                    Text(snapshot.generatedAt, format: .dateTime.month(.twoDigits).day().hour().minute())
+                        .fixedSize(horizontal: true, vertical: false)
+                    Text(snapshot.generatedAt, format: .dateTime.day().month(.twoDigits).year(.twoDigits))
+                }
             }
         }
         .font(.caption2)
@@ -65,3 +72,12 @@ struct ReadingWidgetFooterView: View {
         ))
     }
 }
+
+#if DEBUG
+#Preview("Footer · Small · ES", as: .systemSmall) {
+    ReadingWidgetLayoutPreview(locale: Locale(identifier: "es"), textSize: .large)
+} timeline: {
+    ReadingWidgetPreview.compactUnknownProgress
+    ReadingWidgetPreview.content
+}
+#endif
