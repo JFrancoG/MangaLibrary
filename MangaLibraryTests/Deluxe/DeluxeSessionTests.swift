@@ -11,6 +11,79 @@ import Testing
 
 @Suite("Deluxe session retirement", .tags(.integration))
 struct DeluxeSessionTests {
+    @Test(arguments: [false, true])
+    func `watch activation revalidates local expiry before offering the persisted context`(expired: Bool) async throws {
+        let fixture = try DeluxeSessionFixture()
+        defer { fixture.removeDirectory() }
+        let controller = try fixture.makeController(requireClosedFenceForDeletion: true)
+        try await fixture.restoreAndPublishEmpty(using: controller)
+        if expired {
+            fixture.clock.advance(by: 3_601)
+        }
+        let contexts = Mutex<[Data]>([])
+
+        try await controller.deliverWatchContext { data in
+            contexts.withLock { $0.append(data) }
+        }
+
+        let bytes = try #require(contexts.withLock { $0.last })
+        let snapshot = try ReadingSnapshotCodec.decode(bytes)
+        #expect(snapshot.state == (expired ? .redacted : .empty))
+        #expect((fixture.keychain.snapshot().record == nil) == expired)
+    }
+
+    @Test
+    func `watch activation cannot resend a prior launch before the session owner restores it`() async throws {
+        let fixture = try DeluxeSessionFixture()
+        defer { fixture.removeDirectory() }
+        let controller = try fixture.makeController()
+        try await fixture.restoreAndPublishEmpty(using: controller)
+        let contexts = Mutex<[Data]>([])
+        try await controller.deliverWatchContext { data in
+            contexts.withLock { $0.append(data) }
+        }
+        try #require(contexts.withLock { $0.count } == 1)
+        contexts.withLock { $0.removeAll() }
+
+        let relaunched = try fixture.makeController()
+        try await relaunched.deliverWatchContext { data in
+            contexts.withLock { $0.append(data) }
+        }
+
+        #expect(contexts.withLock { $0.isEmpty })
+        #expect(fixture.keychain.snapshot().record == fixture.session)
+    }
+
+    @Test
+    func `an unreachable watch does not block logout and its next attempt sends the retirement`() async throws {
+        let fixture = try DeluxeSessionFixture()
+        defer { fixture.removeDirectory() }
+        let attempts = Mutex<[Data]>([])
+        let publisher = ReadingSnapshotPublisher(
+            storage: fixture.storage,
+            now: { fixture.clock.value },
+            makeGeneration: { UUID() },
+            requestReload: { data in
+                attempts.withLock { $0.append(data) }
+                throw WatchReadingConnectivityError.deliveryFailed
+            }
+        )
+        let controller = try fixture.makeController(publisher: publisher, requireClosedFenceForDeletion: true)
+        try await fixture.restoreAndPublishEmpty(using: controller)
+
+        #expect(try await controller.logout() == .signedOut)
+
+        #expect(fixture.keychain.snapshot().record == nil)
+        let attempted = try #require(attempts.withLock { $0.last })
+        #expect(try ReadingSnapshotCodec.decode(attempted).state == .redacted)
+        let delivered = Mutex<[Data]>([])
+        try await controller.deliverWatchContext { data in
+            delivered.withLock { $0.append(data) }
+        }
+        let retried = try #require(delivered.withLock { $0.last })
+        #expect(try ReadingSnapshotCodec.decode(retried).state == .redacted)
+    }
+
     @Test(arguments: [false, true], [false, true])
     func `expiry during cover loading retires the old manifest and a failed close remains retryable`(
         failClose: Bool,

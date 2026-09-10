@@ -145,6 +145,10 @@ validate_scheme() {
 
 validate_filtered_plan Fast fast
 validate_filtered_plan Integration integration
+for name in Fast Integration ReleaseGate; do
+    require_plist_value "${TEST_PLAN_DIRECTORY}/${name}.xctestplan" \
+        defaultOptions.commandLineArgumentEntries.0.argument -ui-testing
+done
 validate_unfiltered_plan UI 0 MangaLibraryUITests false
 reject_plist_key "${TEST_PLAN_DIRECTORY}/UI.xctestplan" testTargets.1
 validate_unfiltered_plan ReleaseGate 0 MangaLibraryTests true

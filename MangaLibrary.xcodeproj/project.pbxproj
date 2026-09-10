@@ -10,6 +10,7 @@
 		E08BAC7F304DFC9D00FCE7C9 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E08BAC7E304DFC9D00FCE7C9 /* WidgetKit.framework */; };
 		E08BAC81304DFC9D00FCE7C9 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E08BAC80304DFC9D00FCE7C9 /* SwiftUI.framework */; };
 		E08BAC8C304DFC9E00FCE7C9 /* MangaLibraryWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E08BAC7C304DFC9D00FCE7C9 /* MangaLibraryWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E0B6C48F3052DDB700414016 /* MangaLibraryWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = E0B6C4853052DDB600414016 /* MangaLibraryWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,6 +35,13 @@
 			remoteGlobalIDString = E092EB943030809D0053FBC5;
 			remoteInfo = MangaLibrary;
 		};
+		E0B6C48D3052DDB700414016 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E092EB8D3030809D0053FBC5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E0B6C4843052DDB600414016;
+			remoteInfo = "MangaLibraryWatch Watch App";
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -46,6 +54,15 @@
 			);
 			name = "Embed Foundation Extensions";
 		};
+		E0B6C4933052DDB700414016 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolder = Product;
+			files = (
+				E0B6C48F3052DDB700414016 /* MangaLibraryWatch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -57,6 +74,7 @@
 		E092EB953030809D0053FBC5 /* MangaLibrary.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MangaLibrary.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E092EBA23030809E0053FBC5 /* MangaLibraryTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MangaLibraryTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E092EBAC3030809E0053FBC5 /* MangaLibraryUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MangaLibraryUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E0B6C4853052DDB600414016 /* MangaLibraryWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "MangaLibraryWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -83,6 +101,21 @@
 			);
 			target = E08BAC7B304DFC9D00FCE7C9 /* MangaLibraryWidgetExtension */;
 		};
+		E0B6C4AD3052DED200414016 /* Exceptions for "MangaLibrary" folder in "MangaLibraryWatch Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Resources/Assets.xcassets,
+				Resources/MangaLibrary.icon,
+				Shared/Deluxe/ReadingSnapshot.swift,
+				Shared/Deluxe/ReadingSnapshotCodec.swift,
+				Shared/Deluxe/SessionFence.swift,
+				Shared/Deluxe/WatchReadingConnectivity.swift,
+				Shared/Deluxe/WatchReadingModel.swift,
+				Shared/Deluxe/WatchReadingSnapshotReceiver.swift,
+				Shared/Deluxe/WatchReadingSnapshotStorage.swift,
+			);
+			target = E0B6C4843052DDB600414016 /* MangaLibraryWatch Watch App */;
+		};
 		E0E672FB3044C13400F20AEF /* Exceptions for "MangaLibrary" folder in "MangaLibrary" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -106,6 +139,7 @@
 			exceptions = (
 				E0E672FB3044C13400F20AEF /* Exceptions for "MangaLibrary" folder in "MangaLibrary" target */,
 				E08BACC2304E086800FCE7C9 /* Exceptions for "MangaLibrary" folder in "MangaLibraryWidgetExtension" target */,
+				E0B6C4AD3052DED200414016 /* Exceptions for "MangaLibrary" folder in "MangaLibraryWatch Watch App" target */,
 			);
 			path = MangaLibrary;
 			sourceTree = "<group>";
@@ -118,6 +152,11 @@
 		E092EBAF3030809E0053FBC5 /* MangaLibraryUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MangaLibraryUITests;
+			sourceTree = "<group>";
+		};
+		E0B6C4863052DDB600414016 /* MangaLibraryWatch Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "MangaLibraryWatch Watch App";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -141,6 +180,11 @@
 			);
 		};
 		E092EBA93030809E0053FBC5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		E0B6C4823052DDB600414016 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
 			);
@@ -174,6 +218,7 @@
 				E092EBA53030809E0053FBC5 /* MangaLibraryTests */,
 				E092EBAF3030809E0053FBC5 /* MangaLibraryUITests */,
 				E08BAC82304DFC9D00FCE7C9 /* MangaLibraryWidget */,
+				E0B6C4863052DDB600414016 /* MangaLibraryWatch Watch App */,
 				E08BAC7D304DFC9D00FCE7C9 /* Frameworks */,
 				E092EB963030809D0053FBC5 /* Products */,
 			);
@@ -186,6 +231,7 @@
 				E092EBA23030809E0053FBC5 /* MangaLibraryTests.xctest */,
 				E092EBAC3030809E0053FBC5 /* MangaLibraryUITests.xctest */,
 				E08BAC7C304DFC9D00FCE7C9 /* MangaLibraryWidgetExtension.appex */,
+				E0B6C4853052DDB600414016 /* MangaLibraryWatch Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -219,11 +265,13 @@
 				E092EB923030809D0053FBC5 /* Frameworks */,
 				E092EB933030809D0053FBC5 /* Resources */,
 				E08BAC91304DFC9E00FCE7C9 /* Embed Foundation Extensions */,
+				E0B6C4933052DDB700414016 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				E08BAC8B304DFC9E00FCE7C9 /* PBXTargetDependency */,
+				E0B6C48E3052DDB700414016 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				E092EB973030809D0053FBC5 /* MangaLibrary */,
@@ -275,6 +323,24 @@
 			productReference = E092EBAC3030809E0053FBC5 /* MangaLibraryUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		E0B6C4843052DDB600414016 /* MangaLibraryWatch Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E0B6C4903052DDB700414016 /* Build configuration list for PBXNativeTarget "MangaLibraryWatch Watch App" */;
+			buildPhases = (
+				E0B6C4813052DDB600414016 /* Sources */,
+				E0B6C4823052DDB600414016 /* Frameworks */,
+				E0B6C4833052DDB600414016 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				E0B6C4863052DDB600414016 /* MangaLibraryWatch Watch App */,
+			);
+			name = "MangaLibraryWatch Watch App";
+			productName = "MangaLibraryWatch Watch App";
+			productReference = E0B6C4853052DDB600414016 /* MangaLibraryWatch Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -299,6 +365,9 @@
 						CreatedOnToolsVersion = 27.0;
 						TestTargetID = E092EB943030809D0053FBC5;
 					};
+					E0B6C4843052DDB600414016 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 				};
 			};
 			buildConfigurationList = E092EB903030809D0053FBC5 /* Build configuration list for PBXProject "MangaLibrary" */;
@@ -320,6 +389,7 @@
 				E092EBA13030809E0053FBC5 /* MangaLibraryTests */,
 				E092EBAB3030809E0053FBC5 /* MangaLibraryUITests */,
 				E08BAC7B304DFC9D00FCE7C9 /* MangaLibraryWidgetExtension */,
+				E0B6C4843052DDB600414016 /* MangaLibraryWatch Watch App */,
 			);
 		};
 /* End PBXProject section */
@@ -341,6 +411,11 @@
 			);
 		};
 		E092EBAA3030809E0053FBC5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		E0B6C4833052DDB600414016 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -368,6 +443,11 @@
 			files = (
 			);
 		};
+		E0B6C4813052DDB600414016 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -385,6 +465,11 @@
 			isa = PBXTargetDependency;
 			target = E092EB943030809D0053FBC5 /* MangaLibrary */;
 			targetProxy = E092EBAD3030809E0053FBC5 /* PBXContainerItemProxy */;
+		};
+		E0B6C48E3052DDB700414016 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E0B6C4843052DDB600414016 /* MangaLibraryWatch Watch App */;
+			targetProxy = E0B6C48D3052DDB700414016 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -797,6 +882,77 @@
 			};
 			name = Release;
 		};
+		E0B6C4913052DDB700414016 /* Debug configuration for PBXNativeTarget "MangaLibraryWatch Watch App" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = MangaLibrary;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NWN8JUE438;
+				DOCC_CATALOG_DISPLAY_NAME = "$(PRODUCT_MODULE_NAME)";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Manga Library";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.plusprojects.MangaLibrary;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.plusprojects.MangaLibrary.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = NO;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		E0B6C4923052DDB700414016 /* Release configuration for PBXNativeTarget "MangaLibraryWatch Watch App" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = MangaLibrary;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NWN8JUE438;
+				DOCC_CATALOG_DISPLAY_NAME = "$(PRODUCT_MODULE_NAME)";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Manga Library";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.plusprojects.MangaLibrary;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.plusprojects.MangaLibrary.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = NO;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -837,6 +993,14 @@
 			buildConfigurations = (
 				E092EBBB3030809E0053FBC5 /* Debug configuration for PBXNativeTarget "MangaLibraryUITests" */,
 				E092EBBC3030809E0053FBC5 /* Release configuration for PBXNativeTarget "MangaLibraryUITests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		E0B6C4903052DDB700414016 /* Build configuration list for PBXNativeTarget "MangaLibraryWatch Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E0B6C4913052DDB700414016 /* Debug configuration for PBXNativeTarget "MangaLibraryWatch Watch App" */,
+				E0B6C4923052DDB700414016 /* Release configuration for PBXNativeTarget "MangaLibraryWatch Watch App" */,
 			);
 			defaultConfigurationName = Release;
 		};

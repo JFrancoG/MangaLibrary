@@ -1,7 +1,248 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-09-08
-**Estado general:** Advanced entregado; Deluxe aprobado y DX1–DX4 entregadas mediante PR #80, #81, #83 y #85 (4/7). El issue #84 está cerrado y su rama retirada local y remotamente. Widgets de lectura y colección validados en el alcance registrado, incluida la UI y VoiceOver ES/EN en iPhone 11. Primer desbloqueo físico limitado/no observable, transferido a DX6 y pendiente para el Deluxe Release Gate. DX5 es el siguiente corte y todavía no se ha iniciado.
+**Última actualización:** 2026-09-10
+**Estado general:** Advanced entregado; Deluxe aprobado y DX1–DX4 entregadas mediante PR #80, #81, #83 y #85 (4/7). DX5 está implementada y validada localmente en el alcance registrado, con issue #86 abierto y rama `codex/86-dx5-watch-companion`, con entrega autorizada y en preparación. Fast/Integration conservan 800 declaraciones / 1.149 invocaciones disjuntas aprobadas, builds finales Debug/Release y DocC limpios. UI/cache representativas y entrega WatchConnectivity de vacío, contenido en nueva sesión y logout/redacción verificadas en Simulator; entorno restaurado. La ampliación combinatoria y física de Apple Watch queda en DX6/DX7, junto a la evidencia física anterior al primer desbloqueo del iPhone, limitada/no observable. No se han iniciado esas subfases ni se declara entregada DX5.
+
+## DX5 — companion watchOS — issue #86 (entrega autorizada, en preparación)
+
+### Checkpoint previo al commit — 10 de septiembre
+
+El propietario autoriza la entrega completa de DX5: commit, push, PR, merge,
+cierre del issue y retirada de la rama. La entrega está en preparación; #86
+sigue abierto y no se acredita todavía merge ni cierre. DX6/DX7 no se inician.
+
+El Audit final queda cerrado sobre 25 Swift. Los tres ajustes de
+`UITestingReadingWidget.swift` afectan solo a espacios y disposición; los hashes
+de los otros 24 archivos permanecen idénticos. Se reutilizan Fast 353/539,
+Integration 447/610 y los gates canónicos Debug/Release y DocC ya aprobados.
+El build incremental MCP posterior al Audit aprueba a las **18:44:27** con
+`buildForTesting: true`, plan Fast e iPhone 17: 12,45 s, cero warnings y errores
+en el log completo `BuildProject-Log-20260910-184427.txt`.
+
+El IDE volvió a guardar el scheme temporal de validación y conservar un destino
+watch obsoleto. El intento de las 18:42 queda excluido: emitió dos warnings de
+actool para Watch8,1. Tras retirarlo en Manage Schemes, cerrar únicamente el
+proyecto MangaLibrary y restaurar su scheme compartido, se reabre el proyecto.
+MCP y Xcode UI confirman `MangaLibrary` / `Fast` / iPhone 17. Después del build
+limpio se comprueban la ausencia del scheme temporal, la depuración LLDB del
+ejecutable watch y el hash intacto del scheme canónico. Este checkpoint no
+anticipa la entrega.
+
+### Validación runtime y restauración del entorno — 10 de septiembre
+
+MCP vuelve a ejecutar Fast a las **17:48:21** en el mismo iPhone 17 Simulator y
+toolchain registrado: **353 declaraciones / 539 invocaciones aprobadas**, cero
+fallos, skips y expected failures, y `runtimeWarnings = []`. Lo confirma
+`Test-MangaLibrary-2026.09.10_17-48-21-+0200.xcresult`. La interrupción anterior
+queda como incidencia histórica; no hay un gate Fast pendiente por desconexión
+ni se suma la repetición a las **800/1.149** disjuntas de Fast/Integration.
+
+La nueva `WatchReadingRuntimeFixture`, exclusiva de DEBUG/Simulator, valida
+contenido, títulos largos, vacío, redacción, no disponible y cache
+con los propietarios y almacenamiento reales en `DX5Validation`. Sus flags
+explícitas fijan escenario, ES/EN y Dynamic Type; el modo `cache` conserva y
+restaura el archivo sintético tras relanzar. No instancia WC ni existe en Release.
+Su revisión independiente y Audit no encuentran hallazgos; el inventario Swift
+actual contiene 25 archivos. La
+[checklist DX5](dx5-watch-validation.md#reanudación-de-la-validación-runtime)
+recoge argumentos, secuencia y límites.
+
+Para destinos watch sin pareja se usa un scheme temporal que construye solo
+watch. El scheme compartido host+watch había provocado dos warnings `actool`
+de assets iOS para `Watch7,13`; no se aceptan ni suprimen. El build UI aislado
+pasa con cero warnings y errores, log MCP
+`31610C2A-8BC7-4E8E-BDF2-ED52CF4FDC85`. `DeviceInteractionInstallAndRun` repite
+dos avisos de assets iOS para `Watch8,1` al usar host+watch con UUID watch,
+log `AA4F5622`; también quedan fuera del gate aprobado. El build principal sobre
+iPhone posterior, log `29AC91BB`, pasa limpio. No se aceptan ni suprimen avisos.
+
+Los scripts canónicos se repiten tras la fixture con Xcode-RC 27.0 `27A266a`
+seleccionado explícitamente y Swift 6.4. Ambos terminan con salida 0:
+`dx5-runtime-final-build.log` acredita Debug/Release sin warnings, errores ni
+metadata de App Intents, y `dx5-runtime-final-docc.log` acredita archive DocC
+limpio. El primero compila para tests pero no los ejecuta; el archive permanece
+local y no se publica.
+
+La matriz oficial `DeviceInteraction` de 17:56–18:06 recorre en **40 mm**
+contenido ES Large, cache en proceso nuevo y títulos largos EN AX5; en **46 mm**,
+vacío ES Large, redacción EN Large y no disponible EN XXX Large; en **49 mm**,
+contenido EN XXX Large y redacción ES AX5. Digital Crown permite completar los
+recorridos de contenido y títulos largos, sin crash ni truncado permanente
+observado. Las jerarquías aportan semántica accesible, no VoiceOver físico.
+Cache se restaura con receptor y almacenamiento reales sin nuevos contextos WC.
+Es una matriz representativa, no todas las combinaciones; la ampliación queda
+en DX6. La checklist conserva los PID, artefactos y límites de cada recorrido.
+
+La pareja iPhone 17/Ultra 4 de 49 mm está **active, connected**, ambos Booted y
+ambas apps registradas por `listapps`. Sus runtimes efectivos son iOS 27.0
+`24A434` y watchOS 27.0 `24R362`, contrastados con `SIMULATOR_ROOT`. La evidencia
+posterior no identifica la causa de los errores WC históricos.
+
+El watch real, sin flags de fixture, mantiene el PID `71313` durante vacío →
+contenido en nueva sesión → logout/redacción. El iPhone `71730` envía 372 bytes
+a las 18:08:34.172; callback watch 18:08:35.533 y UI vacía confirmada. El iPhone
+`72025` publica 1.238 bytes de una nueva sesión a las 18:09:26.708; callback
+18:09:27.005 y ocho lecturas recorridas. Tras cerrar sesión y descartar solo los
+cambios sintéticos, la redacción de 252 bytes se acepta a las 18:11:44.750530;
+el watch recibe callback a las 18:11:45.041331. Las capturas finales de las
+18:11:59 confirman iPhone sin sesión y watch sin lecturas, fecha ni contador.
+Hay envío, callback y aplicación observados; no se atribuye a este recorrido
+coalescencia de pendientes, background, garantías de latencia ni hardware.
+
+Todas las sesiones oficiales se cierran, incluidas las dos nativas con
+`Session stopped`. Se retira `MangaLibraryDX5Validation`; quedan tres schemes,
+watch recupera LLDB y `MangaLibrary` conserva sus bytes. MCP queda en
+`MangaLibrary` / `Fast` / iPhone 17, con cero warnings en el navegador.
+No hay staging, commit ni acciones de entrega; no se avanza a DX6/DX7.
+
+### Companion completo y caracterización parcial — 10 de septiembre
+
+Tras desbloquear el Mac, Xcode UI incorpora las cinco fuentes compartidas
+pendientes, Assets y el icono al target watchOS. MCP verifica la pertenencia
+con `GetFileCompilerFlags`; `EXCLUDED_SOURCE_FILE_NAMES` permanece vacío y no
+se añaden flags por archivo. El entrypoint real conserva recepción continua,
+reconciliación al volver a activo y trabajo `.backgroundTask(.watchConnectivity)`.
+`BuildProject(buildForTesting: true)` de las **15:57:19** compila el companion
+completo y el host de pruebas con cero warnings y errores.
+
+`Scripts/validate-docc.sh` finaliza aprobado en Xcode 27.0 `27A266a`, Swift 6.4
+`swiftlang-6.4.0.34.1`, Release y destino genérico iOS, con cero warnings y errores.
+El target watch define `DOCC_CATALOG_DISPLAY_NAME = $(PRODUCT_MODULE_NAME)`
+en Debug/Release mediante Xcode UI después del rechazo del setting por MCP.
+El error anterior de extensión vacía encajaba con la landing sintetizada por
+DocC al diferir módulo y display name; se conserva como inferencia respaldada
+por el diagnóstico y la fuente primaria. No se añade un catálogo artificial ni
+se relaja el gate. Log `dx5-final-docc-naming.log` y archive local
+`.build/docc/MangaLibrary.doccarchive`, sin publicación.
+
+El script limpio final sobre el target completo finaliza con salida 0 y acredita
+Debug y Release sin warnings, errores ni tareas de metadata de App Intents en
+`dx5-final-clean-build.log`. Usa el destino genérico iOS Simulator, el scheme
+`MangaLibrary` y el plan `ReleaseGate`; no ejecuta tests. El scheme temporal de
+validación se retira y el scheme canónico `MangaLibrary` conserva sus bytes.
+El nuevo scheme compartido watch conserva su configuración de lanzamiento LLDB.
+Los `Info.plist` del
+watch construido y embebido confirman `WKApplication`, companion correcto y
+familia watch `4`, sin configuración de token embebida en el reloj; esa evidencia
+no identifica la causa de los errores WC del runtime.
+
+`RunProject` arranca el companion en SE 3 de **40 mm** a las **16:01:13**, PID
+`47368`, y Ultra 4 de **49 mm** a las **16:06:39**, PID `49729`. Se observa su
+pantalla inicial en español, sin crash de esos procesos observado. La preview 0
+de Series 12 de **46 mm** falla a las **15:58:30** en `UIKitCore`; la preview 6
+del estado no disponible también falla a las **16:09:19**, PID `51801`, en el
+pipeline de Preview de `UIKitCore`. Esto no acredita scroll, Digital Crown,
+Dynamic Type ejecutado, accesibilidad watchOS, otros estados ni continuidad
+de cache tras relanzar; los arranques reales se mantienen como evidencia separada.
+
+La fixture nativa requiere DEBUG, Simulator y las flags explícitas
+`-ui-testing -ui-testing-reading-widget -ui-testing-watch-connectivity`; el caso
+vacío añade `-ui-testing-reading-empty`. Ningún plan suministra estas flags de
+caracterización. Usa datos en memoria y una generación nueva de sesión; recupera
+y retira el bridge de la instalación de prueba antes de sembrar y activar WC,
+sin Keychain ni HTTP. La revisión independiente del seam no encuentra hallazgos
+funcionales de aislamiento, orden, sesión o tareas estructuradas. El delta sólo
+amplía la fixture manual DEBUG y no cambia la lógica compartida de las suites;
+queda compilado en el build final aprobado.
+
+En iPhone 17, el intento de las **16:05:45** activa WCSession y obtiene
+`WCErrorCodeDeviceNotPaired`. Tras lanzar el companion en la pareja Ultra 4 de
+49 mm/iPhone 17, el relanzamiento del iPhone de las **16:07:09** vuelve a activar
+y obtiene `WCErrorCodeWatchAppNotInstalled`. En esos intentos no se acreditan
+envío aceptado, callback ni contenido recibido. Es una limitación del entorno observado, no una
+afirmación general sobre Simulator. La [checklist DX5](dx5-watch-validation.md)
+separa arranque, UI, cache/receptor controlados y transporte entonces pendiente,
+caracterizado después en la reanudación registrada arriba.
+
+El intento final de `RunAllTests` no produce resultado: devuelve
+`BSServiceConnectionErrorDomain`, código 3, durante la respuesta XPC, y después
+`XcodeListWindows` devuelve `Transport closed`. Xcode GUI se reinicia con PID
+`52375`. Dos reconexiones con el mismo `mcpbridge` oficial de Xcode-RC completan
+`initialize` con versión `25317`, pero `tools/list` cierra STDIO. La repetición
+de Fast quedó entonces pendiente; ese error de herramienta no se presentó como
+un fallo de tests. La recuperación y el aprobado posterior constan en la
+reanudación registrada arriba. La skill oficial Apple `DeviceInteraction` ya
+estaba exportada y disponible localmente.
+
+La revisión independiente final de configuración y los deltas de estilo quedan
+sin hallazgos pendientes; el inventario de aquel corte contiene 24 Swift. El catálogo
+watch tiene 13 claves ES/EN completas y `git diff --check` pasa. Tras el reinicio,
+Xcode recuerda el scheme watch/Ultra 4 vía iPhone 17 y no confirma su restauración
+por UI; la ejecución Fast posterior confirma la reanudación mediante MCP,
+sin cambios al scheme iOS.
+En aquel corte DX5 continuaba en curso; la validación posterior se registra arriba.
+
+### Gates de lógica compartida — 10 de septiembre
+
+Xcode MCP ejecuta Fast **353 declaraciones / 539 invocaciones** a las 15:28:10 e
+Integration **447/610** a las 15:28:37 en iPhone 17 Simulator, iOS 27.0 `24A434`,
+Xcode 27.0 `27A266a` y Swift 6.4. Son **800/1.149 disjuntas**, cero fallos, skips,
+expected failures y runtime warnings, confirmados mediante los resúmenes y árboles
+nativos de `xcresulttool`. Las consolas no muestran emisiones WC del host aislado.
+
+La revisión independiente cierra los defectos de orden entre epochs y drenaje
+prematuro, incluidos contenido posterior durante una suspensión y reactivación
+posterior a un fallo. Las regresiones tienen RED/GREEN observado. Revisión iOS,
+Audit de 24 Swift y revisión estática de UI/accesibilidad sin hallazgos pendientes.
+La [checklist DX5](dx5-watch-validation.md) conserva bundles, alcance y limitaciones.
+
+El primer intento DocC verificó los settings de cinco targets, pero falló en la
+compilación documental del watch provisional con «No valid content was found».
+El log local `dx5-docc.log` conserva ese resultado; su resolución posterior
+figura en el registro actual.
+
+El script de builds limpios pasa Debug/Release sin warnings ni errores en el alcance
+app/widget/código compartido, todavía con watch provisional. Después se conecta el
+entrypoint real y se retiran las exclusiones temporales mediante MCP. El build de
+las 15:36:06 falló por colores compartidos ausentes; MCP confirmó cinco fuentes
+compartidas aún sin pertenencia watchOS. El Mac bloqueado demoró aquel ajuste.
+Esta evidencia es provisional y no acredita el companion completo; la integración
+posterior se recoge arriba. El delta del entrypoint recibe revisión iOS/SwiftUI
+y Audit sin hallazgos, con inventario de 23 Swift tras retirar el template y antes
+de ampliar la fixture de caracterización.
+
+### Inicio e implementación parcial — 10 de septiembre
+
+El propietario autoriza abrir issue y rama e implementar DX5. Preflight desde
+`main` limpio e idéntico a `origin/main@3fa4514`; se crea el
+[issue #86](https://github.com/JFrancoG/MangaLibrary/issues/86), hijo real del
+[plan #77](https://github.com/JFrancoG/MangaLibrary/issues/77), y la rama
+`codex/86-dx5-watch-companion`. No se autoriza commit, push, PR, merge, cierre
+ni avance a otra subfase.
+
+Xcode MCP crea `MangaLibraryWatch Watch App` como companion watchOS 27 de la
+app iOS existente, bundle `com.plusprojects.MangaLibrary.watchkitapp`.
+El diff incorpora recepción ordenada, cache privada acotada y reenvío del
+contexto canónico tras activación o restauración sin cambios. La UI prevista
+es una lista de lectura con progreso, fecha, estados ES/EN y placeholder local.
+La integración final del target y del ciclo de vida estaba entonces en curso.
+SDD 09 materializa este alcance; su versión actual es v1.16 y SDD 06 v1.37 delimita los gates.
+
+- MCP, iPhone 17 Simulator/iOS 27, scheme MangaLibrary y selección focal bajo
+  ReleaseGate: **29 invocaciones aprobadas**, receptor 17, almacenamiento 3,
+  framing 5 y reenvío canónico 4. Bundle
+  `Test-MangaLibrary-2026.09.10_14-59-35-+0200.xcresult`.
+  No es una ejecución completa de ReleaseGate ni evidencia de entrega WCSession.
+- El gate estático de planes pasa con 28 suites Fast y 39 Integration durante
+  la implementación; no acredita ejecución de los planes completos.
+- Cinco invocaciones adicionales de sesión/no-op pasan a las 15:12:15. Se detecta
+  que el host de las selecciones iniciales arrancaba la composición live y emitía
+  `WCErrorCodeDeviceNotPaired`; no se afirma aislamiento de ese host retrospectivamente.
+  Fast/Integration/ReleaseGate pasan ahora `-ui-testing`, exigido por el gate estático,
+  y reutilizan la composición DEBUG de fixtures. La siguiente ejecución RED ya no
+  muestra intentos WC del host; la regresión completa posterior acredita el GREEN.
+- El Mac bloqueado dejó pendiente la pertenencia de fuentes mediante Xcode UI.
+  Las pruebas iniciales usaron exclusiones temporales y el entrypoint del template;
+  no se atribuye a esas ejecuciones la integración posterior del companion.
+- Modelo, suites completas, builds, DocC y revisiones estaban pendientes en este
+  corte inicial. La [checklist DX5](dx5-watch-validation.md) conserva su evolución
+  y separa lógica controlada, UI simulada y transporte observado.
+
+La cache no acredita una sesión vigente y una llamada de envío aceptada no
+acredita recepción en el reloj. No hay evidencia de Apple Watch físico ni se
+rebaja su matriz de DX6/DX7. Deluxe conserva **4/7 entregadas**; DX5 no se
+declara completa con estos resultados iniciales. Los relatos siguientes
+mantienen el estado y la evidencia de sus fechas.
 
 ## DX4 — widgets de iPhone/iPad — issue #84 (entregado mediante PR #85)
 
@@ -2487,7 +2728,7 @@ La lista de capacidades de la SDD 00 es una puerta de aceptación, no un orden d
 8. **R2 — envío y reconciliación de outbox.** R2.1 y R2.2 están entregados mediante la PR #60. La decisión del propietario del 2 de septiembre fija `{id}` como `Manga.ID` `int64` serializado en decimal; el UUID de entrada no forma el path y la discrepancia `string` queda como deuda contractual. R2.1 reutiliza el GET completo R1 e implementa POST y procesamiento conservador de intenciones no tombstone; R2.2 añade GET/DELETE individual, tombstones y la confirmación destructiva de UI. Ambos cortes están validados localmente y R2.2 cuenta con aceptación live multidispositivo de la ruta decimal y la ausencia reconciliada; el status/body exacto del primer DELETE y el GET presente `200` siguen sin caracterización directa. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, `blockedAuth` recuperable y rechazo positivo con reversión atómica. R2.4 se entrega mediante la PR #70 con revisión fresca, adopción remota o nueva intención consciente y resolución atómica del `blockedOutcome`.
 9. **Cota transversal de números de tomo, entregada mediante la PR #64.** Fija 300 como máximo inclusivo compartido, preserva `nil` como total desconocido y protege editor, mutación, R1 y R2 frente a valores históricos o remotos fuera de rango sin truncado ni transporte accidental.
 10. **Advanced Release Gate — aceptado y entregado mediante el issue #75 / PR #76.** A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. La automatización global acredita build, planes, Swift Testing, UI en iPhone/iPad, ReleaseGate, DocC, contrato e integridad sin warnings ni allowlists. La matriz manual está completa con VoiceOver, Control por voz y Switch Control en iPhone físico y Acceso total con teclado en iPad simulado, sin extrapolar este último a hardware. La fusión `06170b7` del 6 de septiembre de 2026 habilita la entrada a Deluxe.
-11. **Deluxe — plan aprobado en el issue #77.** DX1–DX4 entregadas mediante PR #80, #81, #83 y #85 (4/7). DX4 se integra en `1868244`, con #84 cerrado y rama retirada: target WidgetKit, App Group, UI y composición live, con tests completos, builds limpios y DocC, lectura entre procesos observada en iPhone Simulator y adaptación y continuidad entre ventanas iPad verificadas. La validación automatizada, Simulator y física DX4 están completadas en su alcance; la comprobación física anterior al primer desbloqueo se traslada a DX6 por aprobación del propietario del 2026-09-08, como limitada/no observable y pendiente para el gate Deluxe, junto a la ampliación combinatoria. DX5 no se inicia; la matriz conserva la evidencia física pendiente de Apple Watch para las fases posteriores.
+11. **Deluxe — plan aprobado en el issue #77.** DX1–DX4 entregadas mediante PR #80, #81, #83 y #85 (4/7). DX4 se integra en `1868244`, con #84 cerrado y rama retirada: target WidgetKit, App Group, UI y composición live, con tests completos, builds limpios y DocC, lectura entre procesos observada en iPhone Simulator y adaptación y continuidad entre ventanas iPad verificadas. La validación automatizada, Simulator y física DX4 están completadas en su alcance; la comprobación física anterior al primer desbloqueo se traslada a DX6 por aprobación del propietario del 2026-09-08, como limitada/no observable y pendiente para el gate Deluxe, junto a la ampliación combinatoria. DX5 está implementada y validada localmente en el issue #86, con UI/cache representativas y entrega WatchConnectivity observadas en Simulator, con entrega autorizada y en preparación. La ampliación combinatoria y la evidencia física de Apple Watch permanecen en DX6/DX7.
 
 S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad autenticable, pero permanece antes del gate Advanced y en una unidad separada porque incorpora el `App-Token`. S2.1 y S2.2 cierran superficies de Cuenta sin iniciar persistencia de producto. La outbox sí pertenece a L1: el worker de R2 puede llegar después, pero ninguna mutación expuesta puede escribir Colección sin registrar o coalescer su intención en la misma operación lógica.
 
@@ -2506,8 +2747,8 @@ S2 no es una dependencia técnica del esquema L1 cuando ya existe una identidad 
 - La entrega original de S2 no acreditó una escritura live; la observación manual posterior de `201` y su compatibilidad quedan registradas en S2.2 sin exponer datos de cuenta.
 - S2.2 entregó mediante la PR #40 la validación y presentación de credenciales y la autoridad Keychain V2 vigente en ese momento; #58 cambia solo la infraestructura de sesión a JWT único/V3 y no altera el workflow visual ni incorpora persistencia de producto.
 - L1 entrega mediante la PR #44 `ModelContainer`, esquema V1, modelos SwiftData, outbox y primera mutación atómica. L2 entrega mediante la PR #50 el esquema V2, `@Query`, presentación offline y UI de Colección. R1 entrega mediante la PR #54 la lectura e importación remota con reconciliación local-first. R2.1/R2.2 entregan mediante la PR #60 el POST, GET/DELETE individual, vaciado seguro de intenciones no tombstone y tombstones, con aceptación live multidispositivo y la deuda contractual descrita en su evidencia. R2.3 se entrega mediante la PR #68 con retry/backoff seguro, recuperación de `blockedAuth` y rechazo/reversión atómicos. R2.4 se entrega mediante la PR #70 con resolución manual durable de `blockedOutcome`.
-- A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. El issue #75 / PR #76 entrega Advanced con los gates automáticos y la matriz manual aceptados. Deluxe conserva el plan aprobado #77; DX1–DX4 están entregadas mediante PR #80/#81/#83/#85 (4/7). DX4 está integrado en `1868244`, con #84 cerrado y rama retirada, y con validación automatizada, Simulator y física completadas en el alcance DX4 aprobado; primer desbloqueo físico limitado/no observable transferido a DX6 y pendiente para el gate Deluxe; DX5 no se inicia, y DX6/DX7 conservan integración, accesibilidad y gate global.
-- DX4 materializa target, entitlements App Group, consumidor WidgetKit y composición live de ADR 0010. Los gates técnicos y los recorridos iPhone/iPad Simulator están completados en su alcance. DX4.5 completa su evidencia física en el alcance aprobado. DX6 conserva la prueba física anterior al primer desbloqueo, limitada/no observable y pendiente para el gate Deluxe, además de la ampliación combinatoria. watchOS y WatchConnectivity pertenecen a DX5.
+- A1 se entrega mediante la PR #72 y Q2 mediante la PR #74. El issue #75 / PR #76 entrega Advanced con los gates automáticos y la matriz manual aceptados. Deluxe conserva el plan aprobado #77; DX1–DX4 están entregadas mediante PR #80/#81/#83/#85 (4/7). DX4 está integrado en `1868244`, con #84 cerrado y rama retirada, y con validación automatizada, Simulator y física completadas en el alcance DX4 aprobado; primer desbloqueo físico limitado/no observable transferido a DX6 y pendiente para el gate Deluxe; DX5 está implementada y validada localmente en #86, con entrega autorizada y en preparación; DX6/DX7 no se inician y conservan ampliación combinatoria, hardware, accesibilidad y gate global.
+- DX4 materializa target, entitlements App Group, consumidor WidgetKit y composición live de ADR 0010. Los gates técnicos y los recorridos iPhone/iPad Simulator están completados en su alcance. DX4.5 completa su evidencia física en el alcance aprobado. DX6 conserva la prueba física anterior al primer desbloqueo, limitada/no observable y pendiente para el gate Deluxe, además de la ampliación combinatoria. watchOS y WatchConnectivity quedan implementados y validados localmente en DX5, con evidencia representativa de Simulator y límites registrados en su checklist; su entrega está autorizada y en preparación.
 - La evidencia histórica de icono, sesión y accesibilidad se complementa con la matriz vigente de #75: VoiceOver, Control por voz y Switch Control en iPhone 11 físico, y Acceso total con teclado en iPad simulado. Sus límites se conservan en el apartado Advanced; no acredita App Group o WatchConnectivity, capacidades que pertenecen a Deluxe.
 - No se ha autorizado publicación DocC ni GitHub Pages.
 

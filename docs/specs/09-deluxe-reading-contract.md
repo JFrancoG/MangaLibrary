@@ -1,9 +1,9 @@
-# SDD 09: Contrato de lectura Deluxe — DX1–DX4
+# SDD 09: Contrato de lectura Deluxe — DX1–DX5
 
-**Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07; texto e ilustración de no disponible y traslado de la prueba física anterior al primer desbloqueo a DX6 aprobados el 2026-09-08
-**Versión:** 1.14
-**Fecha:** 2026-09-08
-**Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82) y [DX4 — issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
+**Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07; texto e ilustración de no disponible y traslado de la prueba física anterior al primer desbloqueo a DX6 aprobados el 2026-09-08; implementación y posterior entrega de DX5 autorizadas el 2026-09-10
+**Versión:** 1.16
+**Fecha:** 2026-09-10
+**Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), [DX4 — issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84) y [DX5 — issue #86](https://github.com/JFrancoG/MangaLibrary/issues/86), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
 ## Alcance y aprobación
 
@@ -11,7 +11,9 @@ El propietario aprobó el plan DX1–DX7 y después el contrato concreto DX1 el
 6 de septiembre de 2026. Este documento complementa la SDD 05 v1.9 con las
 decisiones que deberán cumplir las siguientes subfases. La autorización posterior
 del propietario para implementar DX4 materializa el target WidgetKit, su App Group
-y la conexión al ciclo de vida; watchOS conserva su aprobación separada. Conserva la arquitectura de
+y la conexión al ciclo de vida. El 10 de septiembre autoriza abrir issue y rama
+e implementar DX5, incluido el companion watchOS existente en el plan.
+Conserva la arquitectura de
 snapshots de ADR 0007/0022 (este último incorpora y supersede ADR-0021, sucesor de ADR-0010) y la autoridad Keychain V3 de ADR 0019; no necesita una
 nueva capa de persistencia de Colección ni otro ledger de sesión.
 
@@ -479,7 +481,7 @@ La proyección y envelope de lectura sirven a pequeño/grande y reloj. El recurs
 local de colección solo sirve al mediano y no se transfiere al reloj. Apple exige una
 `WCSession` activada para enviar; la falta de reachability no impide solicitar
 `updateApplicationContext(_:)`. Una llamada posterior reemplaza el contexto
-pendiente anterior. DX5 guardará/reintentará el último contexto deseado tras
+pendiente anterior. DX5 conserva/reintenta el último contexto deseado tras
 activación/reactivación y tratará `payloadTooLarge` aun bajo el presupuesto;
 un fallo del transporte no revierte el commit local o bloquea logout.
 
@@ -489,6 +491,64 @@ y una redacción tardía de A no retira B. La cache local del reloj no usa un TT
 para deducir autorización: conserva el último contexto aceptado hasta que otro
 lo sustituya o redacte. Esa cache puede permanecer visible sin conectividad y
 no demuestra que la sesión siga vigente en iPhone.
+
+### Materialización del companion — DX5
+
+El manifiesto durable y el fence del publicador iOS siguen siendo la autoridad
+del contexto deseado; no se añade otra cola persistida ni otro contador.
+Activación/reactivación y restauración sin cambio visible pueden ofrecer el
+contexto existente sin reservar revisión, cambiar fecha ni solicitar un reload
+de WidgetKit. El propietario de sesión revalida la capacidad y su expiración
+antes de ofrecer contenido; una sesión todavía no restaurada no autoriza el
+reenvío de la ejecución anterior. Un fence cerrado permite ofrecer únicamente
+la redacción compatible, incluida una intención de retirada durable cuyo
+envelope aún esté pendiente. En ese último caso se utiliza la revisión ya
+reservada y una fecha informativa del intento, sin escribir el manifest.
+El fallo de WatchConnectivity conserva el estado
+reintentable y no revierte la mutación local ni un logout ya seguro.
+
+El receptor del reloj serializa validación, aceptación y escritura. Conserva
+el orden de recepción al reconciliar callbacks y el último contexto disponible
+del sistema, también en activación y trabajo background. Esa reconciliación
+precede a mostrar una cache restaurada; no debe aparecer transitoriamente
+contenido que el último contexto recibido ya haya retirado. El reloj no abre
+Keychain, SwiftData, App Group ni conexiones HTTP y no autentica la sesión.
+
+La cache privada versionada guarda el snapshot y las barreras de epochs y
+sesiones retirados en un único archivo de **hasta 65.536 bytes**, reemplazado
+atómicamente. El reemplazo puede ocupar transitoriamente otro tanto. No contiene
+JPEG, credenciales ni un historial de lecturas. Su protección es
+`completeUntilFirstUserAuthentication`; la ruta no se comparte con iOS.
+Ausencia permite esperar el primer contexto; un archivo inaccesible, corrupto,
+sobredimensionado, enlace o tipo no regular produce no disponible. Un fallo de
+escritura oculta el contenido e intenta retirar y verificar el archivo anterior.
+Si escritura y retirada son imposibles, no se acredita retirada durable: la
+reactivación reconcilia el contexto del sistema cuando está disponible antes
+de mostrar cache. Tras un fallo simultáneo de escritura y retirada, una cache
+residual y un sistema todavía inaccesible no permiten acreditar retirada durable
+entre procesos; el aviso offline no cambia ese límite.
+
+Las barreras impiden revivir A después de B y no expiran por tiempo. Si una nueva
+transición excede el presupuesto de cache, se conserva el historial aceptado,
+se elimina el contenido mostrable y se persiste saturación. Una cache saturada
+permanece no disponible; no se descartan barreras para volver a aceptar datos.
+Esta política acota la cache sin inventar una vigencia de sesión.
+
+La pantalla usa una lista SwiftUI desplazable con el orden recibido, título,
+tomo actual, total conocido o desconocido y placeholder decorativo local.
+Muestra el número de lecturas que quedan en iPhone y la fecha informativa del
+snapshot. Diferencia vacío, redacción, no disponible y un fallo transitorio de
+actualización; este último puede conservar el último snapshot compatible sin
+afirmar que su sesión continúe vigente. Los textos ES/EN remiten a la app del
+iPhone para cualquier acción. Las previews construyen snapshots sintéticos sin
+activar WatchConnectivity ni leer almacenamiento.
+
+La implementación local y la validación técnica de DX5 están acreditadas. El
+propietario autoriza su entrega completa el 10 de septiembre; está en preparación,
+con el issue #86 todavía abierto y sin merge ni cierre acreditados. La
+[checklist DX5](../dx5-watch-validation.md) separa las pruebas lógicas, los builds
+completos y DocC, la matriz UI representativa y el transporte observado en
+Simulator. Ninguna sustituye la matriz ampliada y física pendiente de DX6–DX7.
 
 ### Preparación y publicación acotadas — DX3.2
 
@@ -769,37 +829,42 @@ previews, tests con directorios aislados y pruebas físicas.
 | --- | --- | --- |
 | App existente | `MangaLibrary`, `com.plusprojects.MangaLibrary`, iOS 27 | Verificado por Xcode MCP. |
 | Widget | Product name `MangaLibraryWidget`; target `MangaLibraryWidgetExtension`; bundle `com.plusprojects.MangaLibrary.widget` | Creado mediante Xcode MCP en DX4; Swift 6, iOS 27 y plataformas iPhone/iPad verificados. Fuentes comunes y Assets asignados mediante Xcode UI; builds MCP y gates limpios Debug/Release y DocC sin warnings. Validación automatizada y Simulator completadas en el alcance DX4: lectura entre procesos iPhone, adaptación y continuidad entre ventanas iPad. Hardware sigue pendiente. |
-| Companion | `MangaLibraryWatch`; bundle `com.plusprojects.MangaLibrary.watchkitapp`; watchOS 27 | Preparación aprobada; vincular con la app existente en DX5, no crear otra app iOS. |
+| Companion | Target y carpeta `MangaLibraryWatch Watch App`; bundle `com.plusprojects.MangaLibrary.watchkitapp`; watchOS 27 | Creado mediante Xcode MCP para la app iOS existente en DX5. Fuentes y ciclo de vida integrados; builds Debug/Release, DocC y recorridos representativos de Simulator acreditados. Entrega pendiente. |
 | App Group | `group.com.plusprojects.MangaLibrary.deluxe` para app iOS y widget | Entitlements añadidos mediante Xcode MCP a app y widget por autorización DX4. El escenario DEBUG acredita acceso efectivo entre procesos en iPhone Simulator. Provisioning y acceso en hardware siguen pendientes. No se añade al reloj. |
 | Widget kind | `com.plusprojects.MangaLibrary.reading` | Único kind de 1.0, compartido por provider y reload. |
 | Fuentes comunes | `MangaLibrary/Shared/Deluxe/` | Snapshot, fence, codec, lectores y configuración mínima compartida, incluidos en app y widget. Sin importar el módulo app o SwiftData. |
 | Publicación app | `MangaLibrary/Deluxe/` | Único escritor compuesto en `AppComposition`; efectos DX2–DX3 conectados a sesión y escenas en DX4. |
-| Consumidores | `MangaLibraryWidget/` y futuro `MangaLibraryWatch/` | Widget implementado localmente en DX4; companion y recepción WCSession continúan en DX5, sin iniciar. |
+| Consumidores | `MangaLibraryWidget/` y `MangaLibraryWatch Watch App/` | Widget entregado en DX4; companion y recepción WCSession implementados localmente en DX5, con callback y aplicación observados en Simulator. DX5 aún no entregada. |
 
-Xcode 27 build `27A5252f`, su compilador Swift 6.4 y los SDK watchOS/watchOS
-Simulator 27 se verificaron en esta sesión. Históricamente DX1 no compiló ni
-modificó el destino del IDE. DX4 ejecuta sus tests mediante MCP con el scheme
+La preparación histórica de DX1 y los primeros gates DX4 verificaron Xcode 27
+build `27A5252f`, Swift 6.4 y los SDK watchOS/watchOS Simulator 27. DX1 no compiló
+ni modificó el destino del IDE. DX4 ejecutó sus tests mediante MCP con el scheme
 `MangaLibrary`, iPhone 17 Simulator/iOS 27 `24A5423a`: Fast 278 declaraciones /
-399 invocaciones e Integration 408/563, todas aprobadas. La evidencia actual y
-los gates aún pendientes viven en [Progress](../Progress.md) y la
-[checklist DX4](../dx4-widget-validation.md).
+399 invocaciones e Integration 408/563, todas aprobadas. DX5 utiliza Xcode 27.0
+`27A266a`, Swift 6.4 y iPhone 17 Simulator/iOS 27.0 `24A434`. La evidencia actual y
+los gates aún pendientes viven en [Progress](../Progress.md), la
+[checklist DX4](../dx4-widget-validation.md) y la
+[checklist DX5](../dx5-watch-validation.md).
 
 Templates consultados por Xcode MCP:
 
 - Widget: `com.apple.dt.unit.multiPlatform.widget`. DX4 se crea con
   `includeConfigurationIntent: false`; usa `StaticConfiguration` y no incorpora
   App Intents ni configuración por instancia.
-- Watch: `com.apple.dt.unit.application.watchOS`, lifecycle SwiftUI. El default
-  `companionAppStyle` es `Watch-only App`; DX5 deberá resolver la vinculación a
-  MangaLibrary existente con el contrato que acepte Xcode, sin inventar el valor
-  del chooser. El template admite Swift Testing; no se selecciona XCTest unitario.
+- Watch: `com.apple.dt.unit.application.watchOS`, lifecycle SwiftUI. DX5 usa
+  `companionAppStyle: Watch App for Existing iOS App`, valor comprobado en el
+  template instalado, y `embedInAppNamed: MangaLibrary`. Las pruebas de lógica
+  compartida se ejecutan con Swift Testing en el target unitario iOS; no se crea
+  otro target de XCTest unitario.
 
 La pertenencia de fuentes comunes no incluye `AppComposition`, secretos,
 SwiftData ni configuración local en los consumidores. Nuevas configuraciones
 mantienen warnings como errores y concurrencia estricta; no heredan ciegamente
-ajustes exclusivos de iOS al target watchOS. El gate DocC valida los cuatro targets
-actuales y genera el archive fuera de Git. Los builds limpios Debug/Release y DocC
-pasan con cero warnings y errores. El escenario DEBUG en iPhone Simulator acredita
+ajustes exclusivos de iOS al target watchOS. En DX4, el gate DocC validó los cuatro
+targets entonces presentes y generó el archive fuera de Git; sus builds limpios
+Debug/Release y DocC pasaron con cero warnings y errores. DX5 acredita esos mismos
+gates con el nuevo target completo mediante los scripts canónicos y Xcode-RC
+seleccionado explícitamente. El escenario DEBUG de DX4 en iPhone Simulator acredita
 contenido, actualización y redacción observados por la extensión; no promete una
 latencia de WidgetKit. El contenido instalado también se observa en iPad Simulator;
 la continuidad entre dos ventanas está observada. El ajuste visual posterior de
@@ -849,13 +914,14 @@ Watch físico**. Esto permite implementar y validar parcialmente Deluxe con
 pruebas deterministas y Simulator; deja pendiente la evidencia física de reloj
 exigida por la SDD 06 para el Deluxe Release Gate.
 
-Xcode MCP (`XcodeListRunDestinations`, incluidos incompatibles) identifica
-iPhone 17 Simulator/iOS 27, iPhone 11 físico/iOS 27 y cinco simuladores watchOS
+El inventario histórico de DX1 mediante Xcode MCP (`XcodeListRunDestinations`,
+incluidos incompatibles) identificó iPhone 17 Simulator/iOS 27, iPhone 11
+físico/iOS 27 y cinco simuladores watchOS
 27: SE 3 de 40/44 mm, Series 11 de 42/46 mm y Ultra 3 de 49 mm. Los relojes
-figuran como plataforma incompatible con el scheme iOS actual: no implica un
-fallo del runtime ni acredita un target companion o una pareja enlazada. iPad
-se elegirá entre los simuladores existentes. No se han creado dispositivos,
-cambiado destinos ni ejecutado pruebas watchOS en DX1.
+figuraban como plataforma incompatible con el scheme iOS de aquel momento: no
+implicaba un fallo del runtime ni acreditaba un companion o una pareja enlazada.
+DX1 no creó dispositivos, cambió destinos ni ejecutó pruebas watchOS. La
+checklist DX5 identifica los dispositivos y runtimes utilizados posteriormente.
 
 | Evidencia planificada | Entorno y subfase | Alcance y límite |
 | --- | --- | --- |
@@ -870,11 +936,14 @@ cambiado destinos ni ejecutado pruebas watchOS en DX1.
 Apple documenta interacción de watchOS Simulator y comprobaciones de
 accesibilidad con Inspector. Su ejemplo de WatchConnectivity exige iPhone y
 Apple Watch físicos; no se ha localizado una garantía vigente expresa de
-`updateApplicationContext` en Simulator. DX5 caracterizará el runtime real
-antes de atribuirle soporte. Si no permite el intercambio, UI/cache/receptor se
-validan con fixtures y queda pendiente el transporte; no se cambia el canal
-canónico para hacer pasar la prueba. El doble sí comprobará que se conserva y
-reintenta el último contexto y que un reloj no alcanzable no bloquea logout.
+`updateApplicationContext` en Simulator. La caracterización DX5 sí observa
+envío, callback y aplicación de vacío, contenido de una nueva sesión sintética
+y logout en iPhone 17/iOS 27.0 `24A434` y Ultra 4/watchOS 27.0 `24R362`, sin
+reiniciar el Watch. Esa evidencia se limita a la pareja y recorrido registrados;
+no garantiza otros runtimes ni ejecución background. No se cambia el canal
+canónico para superar una limitación del entorno. Las pruebas controladas
+comprueban conservación/reintento del último contexto y logout cuando el reloj
+no está disponible, junto a los casos de orden y drenaje del contrato.
 
 Las pruebas de entrega observarán callbacks y contenido, sin usar sleeps como
 sincronización ni un plazo de entrega como oráculo. Incluso con hardware, el

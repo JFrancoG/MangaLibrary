@@ -1,0 +1,240 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%lld more on iPhone": {
+      "comment": "Readings omitted from the received selection because of the transfer budget; the count excludes every received item.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld more on iPhone"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld más en el iPhone"
+          }
+        }
+      }
+    },
+    "Couldn't refresh your readings. Open Manga Library on your iPhone.": {
+      "comment": "A temporary receiving or cache error while showing previously accepted readings; does not assert current iPhone authentication.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't refresh your readings. Open Manga Library on your iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se han podido actualizar tus lecturas. Abre Manga Library en el iPhone."
+          }
+        }
+      }
+    },
+    "Let's refresh": {
+      "comment": "Title when no compatible reading data is available on the watch.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Let's refresh"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vamos a actualizar"
+          }
+        }
+      }
+    },
+    "Manga #%lld": {
+      "comment": "Fallback title for a manga without a useful published title; the number is its stable manga identifier.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manga #%lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manga #%lld"
+          }
+        }
+      }
+    },
+    "Open Manga Library on your iPhone to bring your readings here.": {
+      "comment": "Useful next step when no compatible reading data is available on the watch.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Manga Library on your iPhone to bring your readings here."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre Manga Library en el iPhone para ver aquí tus lecturas."
+          }
+        }
+      }
+    },
+    "Reading": {
+      "comment": "Navigation title of the read-only Apple Watch companion.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leyendo"
+          }
+        }
+      }
+    },
+    "Set your current volume in Manga Library on your iPhone.": {
+      "comment": "Empty reading state: having a manga in the collection does not mean it is currently being read.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set your current volume in Manga Library on your iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marca tu tomo actual en Manga Library en el iPhone."
+          }
+        }
+      }
+    },
+    "Sign in to Manga Library on your iPhone.": {
+      "comment": "Shown after the watch receives session redaction.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to Manga Library on your iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicia sesión en Manga Library en el iPhone."
+          }
+        }
+      }
+    },
+    "Updated %@": {
+      "comment": "Informational generation date from iPhone, including year and time. Does not imply live connectivity or current authorization.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualizado: %@"
+          }
+        }
+      }
+    },
+    "Volume %lld · Total unknown": {
+      "comment": "Current reading volume with no known denominator; no completion percentage is inferred.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume %lld · Total unknown"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tomo %lld · Total desconocido"
+          }
+        }
+      }
+    },
+    "Volume %lld of %lld": {
+      "comment": "Current reading volume and known total; reaching the final volume does not mean reading is complete.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume %lld of %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tomo %lld de %lld"
+          }
+        }
+      }
+    },
+    "What are you reading?": {
+      "comment": "Title for a valid empty reading snapshot.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What are you reading?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Qué estás leyendo?"
+          }
+        }
+      }
+    },
+    "Your manga, right here": {
+      "comment": "Friendly title for the received session-redaction state.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your manga, right here"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus mangas, aquí"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.1"
+}

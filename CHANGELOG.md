@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- 2026-09-10 | ✨ feat(watch): add read-only reading companion
 - 2026-09-07 | ✨ feat(widget): add reading and collection widgets
 - 2026-09-06 | ✨ feat(deluxe): publish committed reading events
 - 2026-09-06 | ✨ feat(deluxe): prepare durable reading covers

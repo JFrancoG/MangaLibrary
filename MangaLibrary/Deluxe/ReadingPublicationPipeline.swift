@@ -19,19 +19,23 @@ actor ReadingPublicationPipeline {
     private let publisher: ReadingSnapshotPublisher
     private let loadCover: @Sendable (URL) async throws -> Data?
     private let reconcileSession: @Sendable (SessionAuthority) async throws -> Void
+    /// Offers the persisted watch context after a no-op, without reserving a revision or reloading widgets.
+    private let onProjectionUnchanged: @Sendable (SessionCommitAuthorization) async -> Void
 
     init(
         events: ReadingPublicationEvents,
         mutations: CollectionMutationActor,
         publisher: ReadingSnapshotPublisher,
         loadCover: @escaping @Sendable (URL) async throws -> Data?,
-        reconcileSession: @escaping @Sendable (SessionAuthority) async throws -> Void
+        reconcileSession: @escaping @Sendable (SessionAuthority) async throws -> Void,
+        onProjectionUnchanged: @escaping @Sendable (SessionCommitAuthorization) async -> Void = { _ in }
     ) {
         self.events = events
         self.mutations = mutations
         self.publisher = publisher
         self.loadCover = loadCover
         self.reconcileSession = reconcileSession
+        self.onProjectionUnchanged = onProjectionUnchanged
     }
 
     func run() async throws {
@@ -125,6 +129,9 @@ actor ReadingPublicationPipeline {
             preferredCollectionStartMangaID: collectionPreferred
         )
         events.consumePreference(for: event)
+        if result == nil {
+            await onProjectionUnchanged(event.authorization)
+        }
         return result
     }
 

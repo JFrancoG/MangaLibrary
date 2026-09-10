@@ -8,12 +8,20 @@ import WidgetKit
 /// The root supplies an in-memory container and enables this owner only for both UI-testing flags.
 /// This fixture takes over the canonical bridge and its existing private ledger in a test installation;
 /// it never creates a second publisher ledger, accesses Keychain or performs network requests.
+/// A separately enabled Simulator scenario activates native watch delivery only after retiring the
+/// preceding bridge and seeding this launch's synthetic account, whose session generation is fresh.
+/// Launch with `-ui-testing -ui-testing-reading-widget -ui-testing-watch-connectivity` for content;
+/// add `-ui-testing-reading-empty` for an empty reading projection. Account logout exercises the
+/// same canonical retirement; confirm discarding the synthetic pending changes when requested.
 actor UITestingReadingWidget {
     nonisolated let mutations: CollectionMutationActor
+    nonisolated let account: SessionAccount
 
     private let composition: ReadingPublicationComposition
     private let gate: SessionCommitGate
-    private var snapshot = SessionSnapshot.active(AccountPreviewSupport.account)
+    private let watchConnectivity: WatchReadingConnectivity?
+    private let startsWithEmptyReadings: Bool
+    private var snapshot: SessionSnapshot
     private var prepared = false
     private var seededCount = 0
     private var loggingOut = false
@@ -25,7 +33,12 @@ actor UITestingReadingWidget {
         }
     }
 
-    init(modelContainer: ModelContainer, publicationClock: @escaping @Sendable () -> Date = Date.init) throws {
+    init(
+        modelContainer: ModelContainer,
+        publicationClock: @escaping @Sendable () -> Date = Date.init,
+        watchConnectivity: WatchReadingConnectivity? = nil,
+        startsWithEmptyReadings: Bool = false
+    ) throws {
         guard let sharedDirectory = ReadingWidgetBridge.sharedDirectory() else {
             throw SessionControllerError.persistenceUnavailable
         }
@@ -37,14 +50,31 @@ actor UITestingReadingWidget {
             now: publicationClock,
             makeGeneration: { UUID() },
             loadCover: { _ in nil },
-            requestReload: { _ in
+            requestReload: { data in
                 WidgetCenter.shared.reloadTimelines(ofKind: ReadingWidgetBridge.kind)
+                try watchConnectivity?.send(data)
             }
+        )
+        let previewAccount = AccountPreviewSupport.account
+        let account = SessionAccount(
+            authority: SessionAuthority(
+                userID: previewAccount.id,
+                generation: watchConnectivity == nil ? previewAccount.authority.generation : UUID()
+            ),
+            id: previewAccount.id,
+            email: previewAccount.email,
+            isActive: previewAccount.isActive,
+            isAdmin: previewAccount.isAdmin,
+            role: previewAccount.role
         )
         composition = reading
         mutations = reading.mutations
+        self.account = account
+        self.watchConnectivity = watchConnectivity
+        self.startsWithEmptyReadings = startsWithEmptyReadings
+        snapshot = .active(account)
         gate = SessionCommitGate(
-            activeAuthority: AccountPreviewSupport.account.authority,
+            activeAuthority: account.authority,
             now: { Date(timeIntervalSince1970: 1_800_000_000) }
         )
     }
@@ -78,7 +108,11 @@ actor UITestingReadingWidget {
             try Task.checkCancellation()
             guard allowsPublication else { return }
             let reading = Self.readings[seededCount]
-            let command = Self.command(for: reading)
+            let command = Self.command(
+                for: reading,
+                authority: account.authority,
+                emptyReading: startsWithEmptyReadings
+            )
             do {
                 _ = try await mutations.apply(
                     command,
@@ -101,26 +135,53 @@ actor UITestingReadingWidget {
             loadCover: composition.loadCover,
             reconcileSession: { [self] authority in
                 try await reconcile(authority)
+            },
+            onProjectionUnchanged: { [self] _ in
+                try? await deliverWatchContext()
             }
         )
-        try await pipeline.run()
+        guard let watchConnectivity else {
+            try await pipeline.run()
+            return
+        }
+        // The fresh adapter has not been activated during recovery, so its send boundary cannot
+        // transfer a preceding installation's pending publication before the verified retirement.
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { [self] in
+                try await watchConnectivity.run { event in
+                    if case .activated = event {
+                        try? await deliverWatchContext()
+                    }
+                }
+            }
+            defer { group.cancelAll() }
+            try await pipeline.run()
+        }
     }
 
     private var allowsPublication: Bool {
-        snapshot == .active(AccountPreviewSupport.account)
+        snapshot == .active(account)
             && !loggingOut
-            && gate.authorizes(AccountPreviewSupport.account.authority)
+            && gate.authorizes(account.authority)
+    }
+
+    private func deliverWatchContext() async throws {
+        guard prepared, let watchConnectivity else { return }
+        try await composition.publisher.deliverWatchContext(
+            authorization: authorization(for: account.authority),
+            send: watchConnectivity.send
+        )
     }
 
     private func currentSnapshot() -> SessionSnapshot { snapshot }
 
     private func authorization(for authority: SessionAuthority) -> SessionCommitAuthorization? {
-        guard allowsPublication, authority == AccountPreviewSupport.account.authority else { return nil }
+        guard allowsPublication, authority == account.authority else { return nil }
         return gate.authorization(for: authority)
     }
 
     private func reconcile(_ authority: SessionAuthority) throws {
-        guard authority == AccountPreviewSupport.account.authority, !loggingOut else { return }
+        guard authority == account.authority, !loggingOut else { return }
         if case .active = snapshot {
             try gate.authorization(for: authority).perform {}
         }
@@ -129,7 +190,7 @@ actor UITestingReadingWidget {
     private func logout(discardPendingChanges: Bool) async throws -> SessionSnapshot {
         guard case .active = snapshot else { throw SessionControllerError.notAuthenticated }
         guard !loggingOut else { throw SessionControllerError.transitionInProgress }
-        let authority = AccountPreviewSupport.account.authority
+        let authority = account.authority
         guard let authorization = gate.suspendForLogout(authority) else {
             throw SessionControllerError.sessionChanged
         }
@@ -161,10 +222,7 @@ actor UITestingReadingWidget {
     }
 
     private func reactivate(_ authority: SessionAuthority) throws {
-        guard
-            snapshot == .active(AccountPreviewSupport.account),
-            authority == AccountPreviewSupport.account.authority
-        else { return }
+        guard snapshot == .active(account), authority == account.authority else { return }
         gate.activate(authority)
         let resumed = gate.authorization(for: authority)
         _ = try resumed.perform { composition.events.record(authorization: resumed) }
@@ -194,7 +252,11 @@ private extension UITestingReadingWidget {
         Reading(mangaID: 9_008, title: "Historias del viento", volume: 2, total: 8)
     ]
 
-    static func command(for reading: Reading) -> CollectionMutationCommand {
+    static func command(
+        for reading: Reading,
+        authority: SessionAuthority,
+        emptyReading: Bool
+    ) -> CollectionMutationCommand {
         let manga = CollectionMangaSnapshot(
             mangaID: reading.mangaID,
             title: reading.title,
@@ -210,13 +272,13 @@ private extension UITestingReadingWidget {
             coverURL: nil
         )
         return CollectionMutationCommand(
-            authority: AccountPreviewSupport.account.authority,
+            authority: authority,
             mangaID: reading.mangaID,
             mangaSnapshot: manga,
             knownTotalVolumes: reading.total,
             change: .replaceState(
                 ownedVolumes: reading.ownedVolumes,
-                readingVolume: reading.volume,
+                readingVolume: emptyReading ? nil : reading.volume,
                 isComplete: reading.isComplete
             )
         )

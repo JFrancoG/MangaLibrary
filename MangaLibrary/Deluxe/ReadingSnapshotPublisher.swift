@@ -55,6 +55,66 @@ actor ReadingSnapshotPublisher {
         return recovery
     }
 
+    /// Replays only canonical, currently authorized content, or a verified retirement, without a new publication.
+    ///
+    /// The session capability covers the synchronous send and both fence reads. A closed fence can
+    /// replay its reserved retirement before the redacted manifest has reached disk. This operation
+    /// never initializes an epoch, reserves a revision, writes a file, or requests a widget reload.
+    /// Transport failures propagate without undoing the durable publication or retirement.
+    func deliverWatchContext(
+        authorization: SessionCommitAuthorization?,
+        send: @Sendable (Data) throws -> Void
+    ) throws {
+        guard
+            let state = decodedState(try readCompatibleFile(.publisherState)),
+            let fence = try currentFence(),
+            state.publicationGeneration == fence.publicationGeneration,
+            fence.fenceRevision <= state.lastReservedFenceRevision
+        else { return }
+
+        if fence.allowedSessionGeneration == nil {
+            if case let .retirement(retirement) = state.intent, retirement.fence == fence {
+                let redaction = try ReadingSnapshot(
+                    publicationGeneration: state.publicationGeneration,
+                    revision: retirement.redactionRevision,
+                    sessionGeneration: retirement.redactionSessionGeneration,
+                    state: .redacted,
+                    generatedAt: now(),
+                    totalEligibleCount: nil,
+                    items: []
+                )
+                try send(ReadingSnapshotCodec.encode(redaction))
+            } else if
+                let data = try readCompatibleFile(.snapshot),
+                let snapshot = decodedSnapshot(data),
+                snapshot.publicationGeneration == state.publicationGeneration,
+                snapshot.revision <= state.lastReservedRevision,
+                snapshot.state == .redacted
+            {
+                try send(data)
+            }
+            return
+        }
+
+        guard
+            !state.requiresRetirement,
+            let authorization,
+            authorization.authority.generation == fence.allowedSessionGeneration
+        else { return }
+        try authorization.perform {
+            guard
+                let data = try readCompatibleFile(.snapshot),
+                let snapshot = decodedSnapshot(data),
+                snapshot.publicationGeneration == state.publicationGeneration,
+                snapshot.sessionGeneration == fence.allowedSessionGeneration,
+                snapshot.revision <= state.lastReservedRevision,
+                snapshot.state == .content || snapshot.state == .empty,
+                try currentFence() == fence
+            else { return }
+            try send(data)
+        }
+    }
+
     private func recover(deliverReloads: Bool) throws -> Recovery {
         let stateBytes = try readCompatibleFile(.publisherState)
         let fenceBytes = try readCompatibleFile(.fence)

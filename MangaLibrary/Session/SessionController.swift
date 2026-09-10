@@ -397,6 +397,20 @@ actor SessionController {
         _ = try await commitAuthorization(for: expectedAuthority)
     }
 
+    /// Refreshes eventual watch delivery from the canonical bridge, never from a retained transport payload.
+    ///
+    /// A launch that has not restored its session cannot resend content. An expired local capability
+    /// follows the ordinary retirement path; a transport error never rolls that retirement back.
+    func deliverWatchContext(send: @Sendable (Data) throws -> Void) async throws {
+        let authorization: SessionCommitAuthorization?
+        if case let .active(authenticated) = state {
+            authorization = try await commitAuthorization(for: authenticated.session.authority)
+        } else {
+            authorization = nil
+        }
+        try await deluxePublisher?.deliverWatchContext(authorization: authorization, send: send)
+    }
+
     /// Returns a commit capability only for the currently active local scope.
     ///
     /// Collection transactions and Deluxe publication consume the same capability at

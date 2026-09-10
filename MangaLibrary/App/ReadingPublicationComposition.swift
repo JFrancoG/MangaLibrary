@@ -11,7 +11,8 @@ struct ReadingPublicationComposition {
     /// Binds authorization rejection to the same owner that closes the shared session fence.
     func makePipeline(
         sessionController: SessionController,
-        onSessionReconciled: @escaping @Sendable (SessionAuthority) async -> Void = { _ in }
+        onSessionReconciled: @escaping @Sendable (SessionAuthority) async -> Void = { _ in },
+        onProjectionUnchanged: @escaping @Sendable (SessionCommitAuthorization) async -> Void = { _ in }
     ) -> ReadingPublicationPipeline {
         ReadingPublicationPipeline(
             events: events,
@@ -21,7 +22,8 @@ struct ReadingPublicationComposition {
             reconcileSession: { authority in
                 try await sessionController.reconcileReadingAuthorization(for: authority)
                 await onSessionReconciled(authority)
-            }
+            },
+            onProjectionUnchanged: onProjectionUnchanged
         )
     }
 }

@@ -9,6 +9,11 @@
     }
   ],
   "defaultOptions" : {
+    "commandLineArgumentEntries" : [
+      {
+        "argument" : "-ui-testing"
+      }
+    ],
     "codeCoverage" : false,
     "targetForVariableExpansion" : {
       "containerPath" : "container:MangaLibrary.xcodeproj",
