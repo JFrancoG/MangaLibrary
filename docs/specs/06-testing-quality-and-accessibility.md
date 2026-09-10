@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.36
-**Fecha:** 2026-09-08
+**Versión:** 1.37
+**Fecha:** 2026-09-10
 
 ## Propósito
 
@@ -35,6 +35,13 @@ frontera real controlada de `URLSession`, Keychain, SwiftData, migración,
 persistencia o composición. Los tags no se duplican en cada `@Test` ni se
 sustituyen por listas de nombres. `UI` contiene únicamente
 `MangaLibraryUITests`.
+
+`Fast`, `Integration` y `ReleaseGate` pasan explícitamente `-ui-testing` al
+host de `MangaLibraryTests`: reutilizan la composición DEBUG en memoria y los
+loaders deterministas, sin arrancar `AppComposition.live` ni `WCSession`.
+La acción Test del scheme usa Debug; el build-for-testing limpio de Release
+no ejecuta ese host. Las pruebas UI mantienen sus argumentos explícitos de
+lanzamiento. `Scripts/validate-test-plans.sh` exige esta selección de host.
 
 `Scripts/validate-test-plans.sh` es el gate estático de esta clasificación. La
 categoría permanece legible en la misma línea que `@Suite` para que el gate no
@@ -418,6 +425,25 @@ En las suites Deluxe, un evento sin cambio visible no publicará ni solicitará 
 
 Se inyectarán pérdida o corrupción de contador, overflow, disco lleno y carreras A/B para verificar recuperación, rotación de epoch con fence nuevo cerrado y revalidación de sesión. Una revisión reservada que no llegó al envelope quedará consumida; un envelope ya publicado cuyo reload quedó pendiente provocará otra solicitud dirigida sin una publicación nueva. Para watchOS se verificará que una nueva llamada a `updateApplicationContext(_:)` sustituye el contexto pendiente, que un epoch nuevo reemplaza la cache compatible anterior y que un reloj no alcanzable no bloquea logout. Ningún test esperará una actualización real de WidgetKit o WatchConnectivity ni impondrá sleeps o deadlines.
 
+DX5 añade oráculos de recepción, persistencia y reenvío: presupuesto del
+diccionario binary plist completo, barreras durables frente a A tardío,
+duplicados/desorden dentro del epoch, cache corrupta o inaccesible, fallo de
+escritura y saturación sin eliminar barreras. La activación y la restauración
+sin cambio de proyección deben ofrecer el último contexto publicado autorizado
+sin otra revisión, fecha o recarga de WidgetKit. Una retirada durable todavía
+sin envelope puede usar su revisión ya reservada y una fecha informativa del
+intento, sin escribir otro manifest. La expiración local se revalida antes de
+reenviar y una retirada segura no depende del éxito del transporte.
+
+El modelo de presentación debe reconciliar los eventos en orden antes de
+exponer cache restaurada, sin mostrar contenido retirado durante ese proceso.
+Las pruebas controladas cubren el ciclo de vida y sus cancelaciones, pero no
+acreditan que watchOS haya ejecutado o completado trabajo background real.
+Las suites compartidas se ejecutan en el target unitario iOS; se exige además
+compilar esas mismas fuentes dentro del target watchOS completo. La
+[checklist DX5](../dx5-watch-validation.md) separa esta evidencia de UI/cache en
+Watch Simulator y de los callbacks observados en una pareja compatible.
+
 ## Previews deterministas
 
 - Una preview estática puede construir directamente un estado representativo sin fingir una petición.
@@ -461,9 +487,11 @@ tarea de metadata de App Intents. Para compilar los imports `@testable` del
 target unitario bajo Release, habilita testabilidad exclusivamente como override
 de esa acción local; no cambia el valor distribuido del producto ni el resto de
 ajustes Release. `Scripts/validate-docc.sh` comprueba los valores efectivos de
-app, unit tests y UI tests en ambas configuraciones antes de construir
-documentación Release. Ambos seleccionan y verifican su Xcode sin modificar
-`xcode-select`.
+app, unit tests, UI tests, widget y companion watchOS en ambas configuraciones
+antes de construir documentación Release. Comprueba el companion con el SDK
+watchOS y los demás targets con iOS; el archive de MangaLibrary incluye los
+contratos compartidos, sin afirmar que exista un archive separado del reloj.
+Ambos seleccionan y verifican su Xcode sin modificar `xcode-select`.
 
 ## Calidad de producto
 

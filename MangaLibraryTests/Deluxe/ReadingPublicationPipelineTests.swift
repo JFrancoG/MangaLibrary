@@ -7,6 +7,25 @@ import Testing
 @Suite("Committed reading publication events", .tags(.integration))
 struct ReadingPublicationPipelineTests {
     @Test
+    func `an unchanged restoration offers watch delivery without another publication or widget reload`() async throws {
+        let harness = try Harness()
+        defer { harness.removeFiles() }
+        let settled = Mutex<[SessionAuthority]>([])
+        let pipeline = try harness.pipeline(onProjectionUnchanged: { authorization in
+            settled.withLock { $0.append(authorization.authority) }
+        }) { _ in nil }
+        _ = try #require(try await pipeline.process(harness.record()))
+        let manifest = try harness.storage.read(.snapshot)
+        try #require(settled.withLock { $0.isEmpty })
+
+        #expect(try await pipeline.process(harness.record()) == nil)
+
+        #expect(settled.withLock { $0 } == [harness.authority])
+        #expect(try harness.storage.read(.snapshot) == manifest)
+        #expect(harness.reloads.withLock { $0 } == 1)
+    }
+
+    @Test
     func `later committed intent invalidates the earlier ticket in the same session`() throws {
         let harness = try Harness()
         defer { harness.removeFiles() }
@@ -626,6 +645,7 @@ private extension ReadingPublicationPipelineTests {
             onReload: @escaping @Sendable () -> Void = {},
             onManifestFailure: @escaping @Sendable () -> Void = {},
             reconcileSession: @escaping @Sendable (SessionAuthority) async throws -> Void = { _ in },
+            onProjectionUnchanged: @escaping @Sendable (SessionCommitAuthorization) async -> Void = { _ in },
             loadCover: @escaping @Sendable (URL) async throws -> Data?
         ) throws -> ReadingPublicationPipeline {
             let observed = ReadingSnapshotStorage(
@@ -656,7 +676,8 @@ private extension ReadingPublicationPipelineTests {
                 mutations: mutations,
                 publisher: publisher,
                 loadCover: loadCover,
-                reconcileSession: reconcileSession
+                reconcileSession: reconcileSession,
+                onProjectionUnchanged: onProjectionUnchanged
             )
         }
 

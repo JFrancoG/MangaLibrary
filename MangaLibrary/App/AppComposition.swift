@@ -16,6 +16,7 @@ struct AppComposition {
     let registerUser: UserRegistrationClient.Operation
     let sessionController: SessionController
     let readingPublication: ReadingPublicationComposition
+    let watchConnectivity: WatchReadingConnectivity
 
     /// Builds only the dependencies used by a production launch.
     ///
@@ -34,7 +35,12 @@ struct AppComposition {
 
         let session = URLSession(configuration: configuration)
         let coverSource = ReadingCoverSource(session: session)
-        let reading = makeLiveReadingPublication(modelContainer: modelContainer, loadCover: coverSource.data)
+        let watchConnectivity = WatchReadingConnectivity()
+        let reading = makeLiveReadingPublication(
+            modelContainer: modelContainer,
+            loadCover: coverSource.data,
+            watchConnectivity: watchConnectivity
+        )
         let collectionMutations = reading.mutations
         let httpClient = HTTPClient(session: session)
         let apiConfiguration = try APIConfiguration(
@@ -113,13 +119,15 @@ struct AppComposition {
                 appToken: Bundle.main.object(forInfoDictionaryKey: "MangaLibraryAppToken") as? String
             ),
             sessionController: sessionController,
-            readingPublication: reading
+            readingPublication: reading,
+            watchConnectivity: watchConnectivity
         )
     }
 
     private static func makeLiveReadingPublication(
         modelContainer: ModelContainer,
-        loadCover: @escaping @Sendable (URL) async throws -> Data?
+        loadCover: @escaping @Sendable (URL) async throws -> Data?,
+        watchConnectivity: WatchReadingConnectivity
     ) -> ReadingPublicationComposition {
         let events = ReadingPublicationEvents()
         let publisherDirectory = URL.applicationSupportDirectory
@@ -135,8 +143,9 @@ struct AppComposition {
             storage: storage,
             now: { Date() },
             makeGeneration: { UUID() },
-            requestReload: { _ in
+            requestReload: { data in
                 WidgetCenter.shared.reloadTimelines(ofKind: ReadingWidgetBridge.kind)
+                try watchConnectivity.send(data)
             },
             coverStorage: covers
         )

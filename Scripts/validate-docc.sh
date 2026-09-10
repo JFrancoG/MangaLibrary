@@ -104,16 +104,20 @@ readonly PROJECT_LIST="$("${XCODEBUILD}" -list -json -project "${PROJECT_PATH}")
 readonly SCHEMES="$(printf '%s\n' "${PROJECT_LIST}" | /usr/bin/plutil -extract project.schemes json -o - -)"
 require_text "${SCHEMES}" "\"${SCHEME}\"" "Schemes de ${PROJECT_RELATIVE_PATH}"
 
-readonly TARGETS=(MangaLibrary MangaLibraryTests MangaLibraryUITests MangaLibraryWidgetExtension)
+readonly TARGETS=(MangaLibrary MangaLibraryTests MangaLibraryUITests MangaLibraryWidgetExtension "MangaLibraryWatch Watch App")
 readonly CONFIGURATIONS=(Debug Release)
 
 for target in "${TARGETS[@]}"; do
+    sdk=iphoneos
+    if [[ "${target}" == "MangaLibraryWatch Watch App" ]]; then
+        sdk=watchos
+    fi
     for configuration in "${CONFIGURATIONS[@]}"; do
         settings="$("${XCODEBUILD}" \
             -project "${PROJECT_PATH}" \
             -target "${target}" \
             -configuration "${configuration}" \
-            -sdk iphoneos \
+            -sdk "${sdk}" \
             -showBuildSettings)"
         context="${target} ${configuration}"
 

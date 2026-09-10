@@ -57,10 +57,23 @@ struct MangaLibraryApp: App {
 extension MangaLibraryApp {
     init() {
         let processArguments = ProcessInfo.processInfo.arguments
+#if DEBUG
+        let testsWatchConnectivity = processArguments.contains("-ui-testing-watch-connectivity")
+        let testsEmptyReadings = processArguments.contains("-ui-testing-reading-empty")
+        if testsWatchConnectivity || testsEmptyReadings {
+            precondition(
+                processArguments.contains("-ui-testing") && processArguments.contains("-ui-testing-reading-widget"),
+                "Reading characterization requires the explicit synthetic fixture flags."
+            )
+#if !targetEnvironment(simulator)
+            preconditionFailure("Native watch characterization is restricted to Simulator test installations.")
+#endif
+        }
+#endif
         if processArguments.contains("-ui-testing") {
 #if DEBUG
-            // UI automation owns deterministic scenarios and cannot fall
-            // through to production networking.
+            // Automated runs own deterministic scenarios. Native watch transport requires an
+            // additional Simulator-only characterization flag that no automated test plan supplies.
             do {
                 let testsCollectionDetailProjection = processArguments.contains(
                     "-ui-testing-collection-detail-projection"
@@ -85,12 +98,17 @@ extension MangaLibraryApp {
                 if testsPendingLogout {
                     try Self.seedUITestingPendingLogout(in: container)
                 }
-                let readingFixture = testsReadingWidget ? try UITestingReadingWidget(modelContainer: container) : nil
+                let watchConnectivity = testsWatchConnectivity ? WatchReadingConnectivity() : nil
+                let readingFixture = testsReadingWidget ? try UITestingReadingWidget(
+                    modelContainer: container,
+                    watchConnectivity: watchConnectivity,
+                    startsWithEmptyReadings: testsEmptyReadings
+                ) : nil
                 let mutationActor = readingFixture?.mutations ?? CollectionMutationActor(modelContainer: container)
                 let account: AccountModel
                 if let readingFixture {
                     account = AccountModel(
-                        initialState: .authenticated(AccountPreviewSupport.account, notice: nil),
+                        initialState: .authenticated(readingFixture.account, notice: nil),
                         operations: readingFixture.operations()
                     )
                 } else if testsPendingLogout {
@@ -151,14 +169,33 @@ extension MangaLibraryApp {
             let account = AccountModel(
                 operations: .live(controller: composition.sessionController, register: composition.registerUser)
             )
+            let watchConnectivity = composition.watchConnectivity
+            let readingPublisher = composition.readingPublication.publisher
+            let sessionController = composition.sessionController
             let publication = composition.readingPublication.makePipeline(
                 sessionController: composition.sessionController,
                 onSessionReconciled: { authority in
                     await account.reconcileSession(expectedAuthority: authority)
+                },
+                onProjectionUnchanged: { authorization in
+                    try? await readingPublisher.deliverWatchContext(
+                        authorization: authorization,
+                        send: watchConnectivity.send
+                    )
                 }
             )
             _readingPublication = State(initialValue: ReadingPublicationLifecycle(runPipeline: {
-                try await publication.run()
+                try await withThrowingTaskGroup(of: Void.self) { group in
+                    group.addTask {
+                        try? await watchConnectivity.run { event in
+                            if case .activated = event {
+                                try? await sessionController.deliverWatchContext(send: watchConnectivity.send)
+                            }
+                        }
+                    }
+                    defer { group.cancelAll() }
+                    try await publication.run()
+                }
             }))
             modelContainer = composition.modelContainer
             collectionMutation = CollectionMutation(
