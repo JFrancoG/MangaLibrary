@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.37
+**Versión:** 1.38
 **Fecha:** 2026-09-10
 
 ## Propósito
@@ -548,6 +548,34 @@ una prueba superada. DX6 mantiene esa evidencia pendiente y el Deluxe Release
 Gate no se declara superado mientras falte. La recuperación tras desbloquear,
 un estado no disponible inyectado y los tests deterministas no sustituyen esa
 comprobación física ni cambian el contrato de protección.
+
+### Entrega del proyecto con validación física de Watch diferida
+
+El **2026-09-10**, el propietario confirma que no prevé disponer de Apple Watch físico
+antes de entregar el proyecto y permite **la entrega del proyecto con esa
+validación física pendiente y documentada**. Se difieren a después de la entrega
+exclusivamente las filas H02/H03/H04 de la
+[matriz DX6](../dx6-integration-accessibility.md#dx64--hardware-y-tecnologías-de-asistencia):
+pairing y desconexión/reconexión de la pareja física, suspensión/entrega background
+y VoiceOver/uso físico de Watch. Se podrán adelantar si se dispone de una pareja
+compatible prestada, por ejemplo de un amigo, o de colaboración autorizada.
+No se fija una fecha de ejecución.
+
+Los criterios físicos se conservan **pendientes, no aprobados**. Simulator,
+fixtures, jerarquías, builds y pruebas controladas mantienen su alcance y no
+se convierten en evidencia equivalente. El Deluxe Release Gate completo sigue
+pendiente mientras falten esas comprobaciones; el registro de entrega debe
+identificar esta decisión y la evidencia diferida, sin declarar el gate completo
+en verde. La falta de esas pruebas Watch, por sí sola, ya no impide la entrega
+del proyecto con el pendiente documentado.
+
+Este aplazamiento **no incluye H01**, protección anterior al primer desbloqueo
+del iPhone, ni modifica ningún otro criterio. Se mantienen su resultado
+limitado/no observable y la obligación vigente descrita arriba. La decisión
+tampoco representa publicación en App Store ni autoriza acciones Git/GitHub de
+entrega, cierre de subfase o inicio de DX7; cada acción conserva su autorización
+separada. Los registros anteriores mantienen el alcance y las condiciones
+vigentes cuando se produjeron.
 
 ## Fuera de alcance para 1.0
 

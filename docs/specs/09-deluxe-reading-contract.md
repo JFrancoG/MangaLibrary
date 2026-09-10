@@ -1,9 +1,9 @@
 # SDD 09: Contrato de lectura Deluxe — DX1–DX5
 
-**Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07; texto e ilustración de no disponible y traslado de la prueba física anterior al primer desbloqueo a DX6 aprobados el 2026-09-08; implementación y posterior entrega de DX5 autorizadas el 2026-09-10; DX5 entregada mediante PR #87 ese mismo día
-**Versión:** 1.16
+**Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07; texto e ilustración de no disponible y traslado de la prueba física anterior al primer desbloqueo a DX6 aprobados el 2026-09-08; implementación y posterior entrega de DX5 autorizadas el 2026-09-10; DX5 entregada mediante PR #87 ese mismo día. DX6 en curso; entrega del proyecto con validación física de Watch diferida aprobada el 2026-09-10, con los límites de SDD 06 v1.38
+**Versión:** 1.17
 **Fecha:** 2026-09-10
-**Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), [DX4 — issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84) y [DX5 — issue #86](https://github.com/JFrancoG/MangaLibrary/issues/86), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
+**Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), [DX4 — issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84), [DX5 — issue #86](https://github.com/JFrancoG/MangaLibrary/issues/86) y [DX6 — issue #88](https://github.com/JFrancoG/MangaLibrary/issues/88), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
 ## Alcance y aprobación
 
@@ -16,6 +16,13 @@ e implementar DX5, incluido el companion watchOS existente en el plan.
 Conserva la arquitectura de
 snapshots de ADR 0007/0022 (este último incorpora y supersede ADR-0021, sucesor de ADR-0010) y la autoridad Keychain V3 de ADR 0019; no necesita una
 nueva capa de persistencia de Colección ni otro ledger de sesión.
+
+El 2026-09-10 autoriza también iniciar DX6 y, posteriormente, permite entregar
+el proyecto con la validación física de Watch pendiente para después de esa
+entrega, según [SDD 06 v1.38](06-testing-quality-and-accessibility.md#entrega-del-proyecto-con-validación-física-de-watch-diferida).
+La decisión cambia cuándo debe obtenerse esa evidencia, sin aprobarla ni alterar
+el contrato del companion. No aplaza H01 del iPhone ni otros criterios y no
+autoriza por sí sola acciones de entrega Git/GitHub, publicación o inicio de DX7.
 
 La autorización posterior para avanzar a DX2 concreta el almacenamiento y la
 recuperación ya exigidos. Esta revisión materializa codec, publicador y conexión
@@ -846,8 +853,9 @@ ni modificó el destino del IDE. DX4 ejecutó sus tests mediante MCP con el sche
 399 invocaciones e Integration 408/563, todas aprobadas. DX5 utiliza Xcode 27.0
 `27A266a`, Swift 6.4 y iPhone 17 Simulator/iOS 27.0 `24A434`. La evidencia actual y
 los gates aún pendientes viven en [Progress](../Progress.md), la
-[checklist DX4](../dx4-widget-validation.md) y la
-[checklist DX5](../dx5-watch-validation.md).
+[checklist DX4](../dx4-widget-validation.md), la
+[checklist DX5](../dx5-watch-validation.md) y la
+[matriz DX6](../dx6-integration-accessibility.md).
 
 Templates consultados por Xcode MCP:
 
@@ -908,7 +916,7 @@ reales en composición aislada y DX3.5 conserva el gate técnico conjunto.
 | DX3 | Todos los commits que cambian proyección, recorte por bytes y contador, abreviación Unicode, orden, cuota sin borrar recursos retenidos, JPEG completo seguido de fallo/crash antes del manifest y limpieza del huérfano demostrado, no-op antes de reservar y revisión 99→100 sin cambiar el prefijo. |
 | DX4 | Familias pequeña/mediana/grande en iPhone/iPad, EN/ES, Light/Dark, contraste, Dynamic Type/VoiceOver, sin red y lectura de App Group real. Rotación, fronteras de 300 s, renovación de fase, prioridad fuera del prefijo, no-op/coalescencia y retirada con fechas y colecciones sintéticas. La comprobación física anterior al primer desbloqueo pertenece a DX6 por el ajuste aprobado el 2026-09-08. |
 | DX5 | Reloj enlazado, activación/reactivación, contextos reemplazados, duplicados/desorden/A→B, offline, cache y placeholder. |
-| DX6–DX7 | Matriz física y de tecnologías de asistencia por superficie. DX6 conserva pendiente la comprobación física de protección anterior al primer desbloqueo, limitada/no observable en DX4; debe acreditarse para el Deluxe Release Gate. Advanced permanece verde; nuevos targets/planes/DocC sin warnings. |
+| DX6–DX7 | Matriz física y de tecnologías de asistencia por superficie. La validación física Watch H02/H03/H04 queda pendiente para después de entregar el proyecto por decisión del 2026-09-10; puede adelantarse con pareja compatible prestada. No se marca aprobada ni se declara verde el gate completo. DX6 conserva H01, protección anterior al primer desbloqueo del iPhone, limitada/no observable en DX4 y no incluida en ese aplazamiento. Advanced y los demás criterios conservan sus gates; nuevos targets/planes/DocC sin warnings. |
 
 ### Pruebas sin Apple Watch físico
 
@@ -916,6 +924,14 @@ El propietario confirma el 6 de septiembre de 2026 que **no dispone de Apple
 Watch físico**. Esto permite implementar y validar parcialmente Deluxe con
 pruebas deterministas y Simulator; deja pendiente la evidencia física de reloj
 exigida por la SDD 06 para el Deluxe Release Gate.
+
+El **2026-09-10** confirma que no prevé disponer de ese hardware antes de entregar el
+proyecto. Aprueba entregar el proyecto con las comprobaciones físicas Watch
+pendientes y documentadas para después de la entrega. H02/H03/H04 conservan sus
+criterios y se podrán adelantar con una pareja compatible prestada, por ejemplo
+de un amigo. Esta excepción de planificación no incluye H01 del iPhone ni las
+demás comprobaciones, no equivale a validación física y no declara superado el
+Deluxe Release Gate completo.
 
 El inventario histórico de DX1 mediante Xcode MCP (`XcodeListRunDestinations`,
 incluidos incompatibles) identificó iPhone 17 Simulator/iOS 27, iPhone 11
@@ -934,7 +950,7 @@ checklist DX5 identifica los dispositivos y runtimes utilizados posteriormente.
 | Dynamic Type, contraste, etiquetas y orden semántico | Simulator y Accessibility Inspector según capacidades disponibles; DX5–DX6 | Evidencia visual y semántica parcial. No equivale a VoiceOver watchOS real. |
 | Activación y `updateApplicationContext` | Caracterización de pareja iPhone/Watch Simulator compatible; DX5 | Registrar runtime/build, pareja, activación, envío, recepción y aplicación observados. Una llamada aceptada no demuestra recepción. |
 | App Group/widget y protección de archivos en iPhone | iPhone 11 físico/iOS 27 y simuladores iPhone/iPad; DX4–DX6 | DX4 acredita instalación de desarrollo y App Group en el alcance registrado. La comprobación física anterior al primer desbloqueo queda limitada/no observable y pendiente en DX6 para el gate Deluxe. No acredita WatchConnectivity. |
-| Pairing, desconexión/reconexión, suspensión, entrega background y VoiceOver watchOS | Pareja física compatible; DX6–DX7 | Pendiente por falta de Apple Watch. Ni fixtures ni Simulator satisfacen esta fila. |
+| Pairing, desconexión/reconexión, suspensión, entrega background y VoiceOver watchOS | Pareja física compatible; H02/H03/H04, seguimiento después de entregar el proyecto | Pendiente, no aprobado. Puede adelantarse con pareja compatible prestada. Por decisión del 2026-09-10, esta falta de evidencia no impide entregar el proyecto con el pendiente documentado; ni fixtures ni Simulator satisfacen la fila y el gate completo sigue pendiente. |
 
 Apple documenta interacción de watchOS Simulator y comprobaciones de
 accesibilidad con Inspector. Su ejemplo de WatchConnectivity exige iPhone y
@@ -954,11 +970,15 @@ ejemplo Apple advierte que el debugger impide la suspensión normal: la evidenci
 futura de background deberá incluir apertura desde el reloj sin debugger.
 
 No hace falta adquirir un reloj para avanzar las subfases de implementación.
-Para completar la fila física se podrá usar después una pareja compatible
-prestada o la colaboración autorizada de alguien con esos dispositivos. Mientras
-esa evidencia falte, DX6/DX7 la conservan pendiente y no se declara superado el
-Deluxe Release Gate. Cualquier cambio de ese criterio requerirá una decisión
-explícita en la SDD 06; la aprobación de este contrato no lo elimina.
+La decisión del 2026-09-10 permite además entregar el proyecto conservando esta
+validación física Watch pendiente para después, con la opción de adelantarla
+mediante una pareja compatible prestada o colaboración autorizada. Mientras
+falte, no se declara superado el Deluxe Release Gate completo; la entrega debe
+identificar el pendiente y la decisión de [SDD 06](06-testing-quality-and-accessibility.md#entrega-del-proyecto-con-validación-física-de-watch-diferida).
+No se fija una fecha. H01 del iPhone y los demás criterios mantienen su obligación
+vigente; tampoco se autoriza publicación en App Store, entrega Git/GitHub o
+inicio de DX7. Cualquier ampliación del aplazamiento necesita otra decisión
+explícita en la fuente normativa.
 
 ## Fuentes y riesgos
 

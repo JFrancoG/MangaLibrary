@@ -1,7 +1,243 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-09-10
-**Estado general:** Advanced entregado; Deluxe aprobado y DX1–DX5 entregadas mediante PR #80, #81, #83, #85 y #87 (5/7). DX5 está integrada en `main@4ab15f5`, con issue #86 cerrado y rama local/remota retirada. Fast/Integration conservan 800 declaraciones / 1.149 invocaciones disjuntas aprobadas, builds finales Debug/Release y DocC limpios. UI/cache representativas y entrega WatchConnectivity de vacío, contenido en nueva sesión y logout/redacción verificadas en Simulator. El plan #77 permanece abierto; DX6 es la siguiente subfase y no se ha iniciado. DX6/DX7 conservan la ampliación combinatoria y física de Apple Watch, junto a la evidencia física anterior al primer desbloqueo del iPhone, limitada/no observable. El Deluxe Release Gate sigue pendiente.
+**Última actualización:** 2026-09-11
+**Estado general:** Advanced y DX1–DX5 entregadas (5/7); plan #77 abierto. DX6 está en curso mediante issue #88 y rama `codex/88-dx6-integration-accessibility`, con matriz visual ampliada en widgets/Watch, integración nativa observada y gates del delta aprobados. El recorrido de 40 mm acredita títulos largos, seis estados ES/EN en AX5 y una muestra con Increase Contrast/Reduce Motion activados y restaurados. El widget pequeño ES/Dark mantiene su contenido con esos ajustes activados. Ajustes, sesiones y Xcode restaurados, con build final limpio a las 20:42; DX6.2/DX6.3 cumplidas en su alcance representativo y combinado; los límites se detallan abajo. El Deluxe Release Gate completo sigue pendiente y DX7 no está iniciada. El propietario permite entregar el proyecto con H02/H03/H04 físicas de Watch pendientes para después, anticipables con pareja compatible prestada; H01 del iPhone y los demás criterios no se aplazan.
+
+## DX6 — integración y accesibilidad — issue #88 (en curso)
+
+El propietario autoriza abrir issue y rama e iniciar DX6 el 10 de septiembre.
+Se crea el [issue #88](https://github.com/JFrancoG/MangaLibrary/issues/88),
+enlazado como subissue del [plan #77](https://github.com/JFrancoG/MangaLibrary/issues/77),
+y la rama `codex/88-dx6-integration-accessibility` desde
+`main@d2f6963dc2a506589d8b775dc7aaa9bf3589444f` limpio. El preflight identifica
+Xcode 27 RC `27A266a`, Swift 6.4 y `MangaLibrary` / `Fast` / iPhone 17, sin
+diagnósticos en el navegador; no constituye una nueva ejecución de gates.
+
+La [matriz DX6](dx6-integration-accessibility.md) organiza baseline, ampliación
+visual/semántica, integración nativa, hardware/tecnologías de asistencia y
+revisión/preparación de DX7. Reutiliza los resultados DX4/DX5 con sus fechas y
+límites, sin repetir de entrada las 800 declaraciones ni sumar repeticiones.
+El checkpoint de apertura no acreditaba nuevas ejecuciones y dejaba por confirmar
+la disponibilidad de hardware. El propietario indica después que no prevé disponer
+de Apple Watch antes de entregar el proyecto y aprueba el aplazamiento acotado
+registrado abajo. El primer desbloqueo del iPhone sigue limitado/no observable
+y pendiente para el gate. Este checkpoint no entrega DX6 ni inicia DX7.
+Los cierres y checkpoints siguientes conservan su estado histórico.
+
+La ejecución posterior incorpora **31 PNG distintos de widgets** revisados:
+20 de la matriz inicial de iPad, seis estados de iPhone 18 Pro ES/AX5 y cinco
+de la corrección del pie; un intento inválido queda excluido. Se corrige el corte
+de la hora del widget pequeño ES mediante alternativas de fecha por ancho,
+manteniendo la etiqueta accesible completa. Watch Ultra 4 conserva la redacción
+tras Crown y reactivación; esto no prueba suspensión/background real ni VoiceOver.
+El recorrido `saved` en **49 mm/ES/AX5, PID `91184`**, muestra aviso de actualización
+fallida, «Manga #2» con total desconocido y «Tomo 12 de 12». La semántica del pie
+estaba completa; la fecha visual quedó pendiente en ese primer recorrido. El selector experimental Dark
+no acreditó su aplicación y se retira: watchOS no admite Dark Mode de sistema.
+No queda como variante nativa pendiente; sí sigue pendiente Increased Contrast.
+El proceso termina durante el recorrido y reactivar inicia `91697`, sin fixture
+y redactado. Sin `Stop` ni instalación del agente principal en ese intervalo,
+logs vacíos y causa no atribuida; no se declara crash ni nueva entrega WC.
+La preview Watch sigue fallando en UIKitCore. El build oficial del corte observado
+aprueba con log completo de 934 líneas y cero diagnósticos `warning:`/`error:`.
+Tras retirar el selector de color, el Audit independiente vigente aprueba dos
+Swift, pie y fixture `saved`; el entrypoint Watch es idéntico a HEAD. Los gates
+canónicos posteriores aprueban Debug/Release y DocC con cero warnings y errores;
+planes válidos, 28 suites Fast/39 Integration, sin ejecutar tests nuevos.
+La revisión justifica reutilizar Fast 353/539 e Integration 447/610 al conservar
+tests, planes y lógica de datos/sesión, sin eximir el gate Advanced de Deluxe.
+
+El recorrido nativo posterior observa Alba de papel 1/3 en Widget Home y Watch
+tras editar lectura; cambiar propiedad de Bosque sin lectura mantiene solo Alba
+en Watch y avanza la fecha a 19:43. El logout sintético posterior retira lecturas,
+fecha y contador del reloj, PID `91697` intacto. Hay envíos aceptados y estado
+aplicado observado; los logs Watch están vacíos y no acreditan el callback en
+este tramo. El intento de cierre desde selector no ofrece mecanismo de cierre;
+reactivar mantiene el mismo PID, por lo que el arranque frío de I03 sigue limitado.
+La sesión Watch se cierra con `Session stopped`. El recorrido final `saved`,
+49 mm/ES/AX5 sin selector de color, conserva PID `97703` y confirma el pie
+completamente visible a las 19:49:59.198, incluidos cinco restantes y fecha/hora
+íntegras. El último build oficial aprueba con 735 líneas y cero diagnósticos. La
+[matriz DX6](dx6-integration-accessibility.md#registro-de-ejecución-dx6)
+registra artefactos y cobertura parcial. La restauración final queda completada:
+Watch normal sin flags, PID `98412`, muestra solo el estado redactado; sesiones
+cerradas con `Session stopped`. MCP vuelve a `MangaLibrary` / `Fast` / iPhone 17,
+Issue Navigator sin diagnósticos, schemes compartidos intactos, Watch con LLDB
+y sin diff de proyecto. Gates y limpieza del delta cumplidos; hardware,
+contraste aumentado, otros cruces y arranque frío nativo conservan sus límites.
+DX6/issue #88 siguen abiertos, sin entrega ni inicio de DX7/Deluxe Release Gate.
+
+### Decisión de entrega del proyecto y hardware Watch — 10 de septiembre
+
+El propietario permite **entregar el proyecto con la validación física Watch
+pendiente para después de la entrega** porque no prevé disponer de ese hardware a
+tiempo. Se actualizan [SDD 06 v1.38](specs/06-testing-quality-and-accessibility.md#entrega-del-proyecto-con-validación-física-de-watch-diferida),
+[SDD 09 v1.17](specs/09-deluxe-reading-contract.md#pruebas-sin-apple-watch-físico)
+y la matriz DX6: H02/H03/H04 conservan sus criterios físicos como pendientes,
+no aprobados. Se podrán adelantar con una pareja compatible prestada, por
+ejemplo de un amigo, o colaboración autorizada, sin fijar fecha.
+
+Simulator, fixtures y jerarquías no equivalen a esa evidencia, y el Deluxe
+Release Gate completo sigue pendiente mientras falte. Esa carencia Watch por
+sí sola ya no impide entregar el proyecto con el pendiente documentado.
+**H01 del iPhone y los demás criterios no se aplazan.** La decisión no autoriza
+acciones Git/GitHub de entrega, publicación en App Store, cierre de DX6 ni
+inicio de DX7. Los checkpoints anteriores conservan su contexto histórico.
+
+### Ampliación de 40 mm e Inspector — desde las 20:07
+
+Xcode RC `27A266a`/Swift 6.4 y el scheme local temporal `DX6 Watch Validation`,
+creado por UI para construir/ejecutar solo Watch, amplían la matriz de SE 3/40 mm.
+El build oficial `DA49AD49-386A-45E5-BFF4-A352D88C3085` aprueba con 413 líneas;
+el último log completo `47F84A9B-BD91-49DE-A409-3810A4070BEE`, con 388.
+Los once logs completos inspeccionados no contienen warnings ni errores de
+compilación. El inventario local `dx6-watch40-resume.json` registra diez
+instalaciones/ejecuciones de nueve configuraciones, 42 conjuntos de artefactos
+y 24 acciones UI; una petición caduca y no se ejecutan tests nuevos.
+
+Títulos largos ES/AX5, PID `2346`, acreditan tres etiquetas y pie completo;
+el suplemento PID `5662` cubre todas las palabras y progresos de ambos títulos
+largos mediante seis desplazamientos cortos y capturas solapadas, sin ellipsis
+ni superposición. Los seis estados vacío/redacción/no disponible ES/EN en AX5,
+PID `4435`/`4657`, `4935`/`5078` y `5254`/`5403`, muestran título y ayuda completos
+mediante Crown: solo vacío muestra fecha y ninguno muestra lecturas o contador.
+Los spinners de lanzamiento se recapturan estables. Se conservan dos mensajes
+AXUIA de serialización en redacción EN y ocho en no disponible ES, con jerarquía
+posterior completa; no se confunden con warnings de compilación.
+
+Contenido XXX Large, PID `3229`, muestra las tres filas, pero el pie visual
+queda pendiente por caducidad de sesión. Contenido AX5, PID `4145`, muestra
+primera/segunda filas y pie íntegros; la tercera conserva progreso y semántica,
+con título parcialmente bajo navegación. No se infiere truncado permanente ni
+crash a partir de esos límites. Las capturas no acreditan VoiceOver físico ni
+WatchConnectivity; los prefijos y resultados completos están en la
+[matriz DX6](dx6-integration-accessibility.md#ampliación-watch-de-40-mm-e-inspector--desde-las-2007).
+
+Inspector identifica Watch 40/PID `2346`; solo expone Reduce Motion con su
+valor original `0`, sin cambiarlo en esa inspección. No se localiza Increase
+Contrast en esa superficie; no se infiere que el sistema carezca de la
+capacidad. La inspección nativa posterior que se registra abajo sí permite
+activar y restaurar ambos ajustes. Manage Schemes vuelve a generar el scheme compartido de Widget y
+guarda configuración cacheada del Watch: el checkpoint limpio de las 19:51
+conserva su alcance histórico y no acredita el estado posterior a este tramo.
+
+
+### Ajustes nativos y restauración Watch — 20:29–20:33
+
+Settings nativo de Watch expone Increase Contrast y Reduce Motion; se observan
+ambos valores originales `0`, se activan a `1` y se recorre `longtitles` ES/AX5
+con PID `7376`, capturas `20_31_20_514` y `20_31_39_415`. Título y progreso
+conservan su lectura al desplazar. La evidencia es visual/de interacción, sin
+medición temporal de animaciones ni VoiceOver físico. Ambos ajustes vuelven a
+`0`, Reduce Motion a las `20_31_58_050` e Increase Contrast a las
+`20_32_37_214`, con evidencia nativa.
+
+Watch arranca después sin argumentos ni variables de fixture, PID `7734`,
+`20_33_00_560`: «Vamos a actualizar», sin lecturas, fecha o contador.
+`DX6 Watch40 Motion` termina con `Session stopped` y `Resume` ya no existe.
+El build `DCC49ED8-7139-4A55-8964-ABF9C98BB356` tiene 388 líneas sin warnings
+ni errores. El inventario amplía a 68 conjuntos de artefactos —42 matriz,
+24 ajustes y dos restauración—, doce instalaciones/ejecuciones y cero tests
+nuevos. Este checkpoint precede a la muestra de iPhone siguiente; la
+restauración general de schemes/proyecto aún está en curso.
+
+### Widget instalado con contraste y movimiento reducidos — 20:34–20:38
+
+La sesión `DX6 Widget Contrast Settings` de iPhone 17/iOS 27 observa el widget
+pequeño redacted ES/Dark en Home, SpringBoard PID `66102`. Ambos ajustes pasan
+de `0` a `1`; frente al baseline `20_34_29_164`, la captura `20_36_59_516`
+conserva título, ayuda, layout y etiqueta combinada, sin datos residuales. El
+fondo es más oscuro y la ayuda más clara en la composición observada; no se
+cuantifican ratios, animaciones o VoiceOver ni se extiende la muestra a otras
+familias/estados o a todos los tamaños de texto.
+
+Contraste y movimiento vuelven a `0` en `20_37_23_772` y `20_38_16_488`;
+Home final `20_38_34_567` conserva apariencia original y estado sin datos.
+La sesión termina con `Session stopped`: 18 conjuntos de artefactos, 15 acciones
+UI y dos activaciones de Settings, sin build, instalación o cambio de scheme.
+La restauración final de Xcode quedaba pendiente al terminar ese recorrido y
+se acredita en el checkpoint siguiente.
+
+### Restauración final y cierre técnico del tramo — 20:42
+
+Tras la serialización cacheada de Manage Schemes se cierra solo el proyecto
+MangaLibrary, se respalda la configuración fuera de Git y se restaura el scheme
+Watch byte a byte desde HEAD. Se retiran los dos artefactos generados por este
+tramo —scheme compartido Widget y temporal local DX6—. Al reabrir, Xcode MCP
+confirma solo dos schemes canónicos, MangaLibrary/Fast/iPhone 17 e Issue
+Navigator sin diagnósticos. Ambos schemes compartidos son idénticos a HEAD,
+sin diff de `project.pbxproj`; ajustes originales restaurados y sesiones cerradas.
+
+El build MCP **20:42:00** aprueba: `BuildProject-Log-20260910-204200.txt` y
+`GetBuildLog/BF0E18D4-75A8-4B20-8761-E5871F3FEA91.txt`, 439 líneas sin warnings,
+errores o issues estructurados. No ejecuta tests. DX6.2 queda cumplida dentro
+de la matriz representativa y DX6.3 con evidencia combinada; DX6.5 tiene revisión
+y registro preparados. **DX6/issue #88 siguen abiertos**, sin entrega ni inicio
+de DX7, con H01 no aplazado y las pruebas físicas Watch pendientes postentrega.
+El [checkpoint del issue #88](https://github.com/JFrancoG/MangaLibrary/issues/88#issuecomment-5623720754)
+reconcilia DX6.2/DX6.3 completadas con ese alcance y DX6.4/DX6.5 abiertas.
+
+### Pendientes de cierre y ampliaciones opcionales
+
+H01 mantiene su obligación física no aplazada y el resultado limitado/no
+observable. H02/H03/H04 permanecen pendientes para después de entregar el
+proyecto, anticipables con pareja compatible prestada. Las muestras de
+contraste/Reduce Motion, restauración de ajustes y Xcode, revisión y evidencia
+están registradas. El cierre de subfase y cada acción de entrega conservan su
+autorización; la reconciliación del tracker refleja el alcance proporcional.
+
+La [conclusión operativa de la matriz](dx6-integration-accessibility.md#pendientes-de-cierre-y-ampliaciones-opcionales)
+distingue esos pendientes de cruces exploratorios; no exige todo producto
+cartesiano. El mediano combina la confirmación física de propiedad visible DX4
+con los tests de publicación/rotación vigentes. I03/I04 adicionales amplían
+caracterización y el límite nativo de I06 no exige un mecanismo artificial de
+fallo nuevo. Esta reutilización no ejecuta el gate final de Advanced/Deluxe ni
+inicia DX7; la entrega del proyecto con Watch físico pendiente tampoco amplía
+el aplazamiento a H01 o los demás criterios.
+
+### H01 — intento físico con y sin SIM, comunicado el 11 de septiembre
+
+El propietario retira la SIM y apaga/enciende el iPhone. Sin petición de PIN de
+SIM, la pantalla bloqueada sigue sin permitir el desplazamiento lateral a Hoy;
+solo permite deslizar hacia arriba para desbloquear. Tras desbloquear y volver
+a bloquear, Hoy y el widget sí son accesibles. Comunica el mismo resultado con
+y sin SIM. Es evidencia manual del propietario; no se aporta un nuevo build.
+
+H01 conserva **intentado, limitado/no observable** antes del primer desbloqueo.
+Se acredita por separado la visibilidad posterior; no se infieren I/O protegido,
+provider, fallback ni epoch previos, y no se demuestra un defecto de la app.
+La [matriz DX6](dx6-integration-accessibility.md#h01--intento-físico-comunicado-el-11-de-septiembre)
+registra el alcance y las referencias Apple que distinguen PIN de SIM y primera
+autenticación del dispositivo. No se pide repetir el mismo recorrido ni cambiar
+controles de acceso. La aceptación del límite para cerrar DX6 sigue requiriendo
+decisión expresa conforme a SDD 06/09; el aplazamiento de Watch no la incluye.
+Solo documentación y tracker; sin código, builds/tests nuevos ni entrega.
+
+### Simulación de H01 y preparación de entrega — 11 de septiembre
+
+Se documenta el [alcance de la simulación](dx6-integration-accessibility.md#h01--alcance-de-la-simulación-y-preparación-de-entrega):
+la inyección de archivos inaccesibles valida la respuesta del código, sin
+acreditar la protección física anterior al primer desbloqueo. Se enlazan los
+tests existentes de propagación de fallos y conservación del fence; no se
+atribuyen nuevas ejecuciones ni un recorrido conjunto de recuperación.
+
+La revisión de preparación confirma dos Swift sin cambios respecto al corte
+validado, Audit sin hallazgos y diff limpio. Se reutilizan revisiones y gates
+del 10 de septiembre; `main` remoto sigue en `d2f6963`. Commit, push y PR con la
+limitación documentada son viables; #88 debe conservarse abierto, sin referencia
+de cierre automático. H01 sigue pendiente según SDD 06/09 y las pruebas físicas
+Watch continúan postentrega. Esta valoración no ejecuta entrega Git ni aprueba
+el cierre de DX6, el borrado de rama o el inicio de DX7.
+
+### Autorización de commit, push y PR de DX6 — 11 de septiembre
+
+El propietario autoriza publicar el trabajo de la rama DX6 mediante commit,
+push y PR indicando sus límites. La PR referenciará #88 sin cierre automático:
+H01 permanece limitado/no observable y las pruebas físicas Watch H02/H03/H04
+siguen pendientes postentrega. Se conserva la evidencia de validación existente
+y el Audit del diff de dos Swift sin hallazgos. El resultado Git verificado se
+registra en el [issue #88](https://github.com/JFrancoG/MangaLibrary/issues/88).
+Esta autorización no incluye merge, cierre de issue, borrado de rama o DX7.
 
 ## DX5 — companion watchOS — issue #86 (entregada mediante PR #87)
 
