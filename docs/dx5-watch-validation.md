@@ -1,18 +1,39 @@
 # DX5 — validación del companion watchOS
 
 **Última actualización:** 2026-09-10
-**Estado:** DX5 implementada y validada localmente en el alcance registrado, con entrega autorizada y en preparación. Fast/Integration conservan 800 declaraciones / 1.149 invocaciones disjuntas aprobadas, con Fast repetido tras recuperar MCP. Builds finales Debug/Release y DocC limpios. UI/cache representativas y entrega nativa de vacío, contenido en nueva sesión y redacción por logout verificadas en Simulator; entorno restaurado. La ampliación combinatoria y física pertenece a DX6/DX7. Deluxe mantiene DX1–DX4 entregadas (4/7); el issue #86 sigue abierto hasta completar la entrega y no se avanza de subfase.
-**Tracker:** [issue #86](https://github.com/JFrancoG/MangaLibrary/issues/86), hijo del [plan #77](https://github.com/JFrancoG/MangaLibrary/issues/77); rama `codex/86-dx5-watch-companion`.
+**Estado:** DX5 entregada mediante PR #87 y merge `4ab15f5`, con issue #86 cerrado y rama local/remota retirada. Fast/Integration conservan 800 declaraciones / 1.149 invocaciones disjuntas aprobadas, con Fast repetido tras recuperar MCP. Builds finales Debug/Release y DocC limpios. UI/cache representativas y entrega nativa de vacío, contenido en nueva sesión y redacción por logout verificadas en Simulator. Deluxe mantiene DX1–DX5 entregadas (5/7) y el plan #77 abierto. DX6 es la siguiente subfase, sin iniciar; DX6/DX7 conservan la ampliación combinatoria y física. El Deluxe Release Gate sigue pendiente.
+**Tracker:** [issue #86](https://github.com/JFrancoG/MangaLibrary/issues/86), hijo del [plan #77](https://github.com/JFrancoG/MangaLibrary/issues/77); rama `codex/86-dx5-watch-companion` retirada tras la entrega.
 
 El propietario autorizó abrir issue y rama e implementar DX5; posteriormente,
-el 10 de septiembre, autoriza su entrega completa mediante commit, push, PR,
-merge, cierre del issue y retirada de la rama. La entrega está en preparación,
-con #86 todavía abierto y sin merge ni cierre acreditados. No se autoriza
-avanzar a DX6/DX7. La autoridad
+el 10 de septiembre, autorizó su entrega completa mediante commit, push, PR,
+merge, cierre del issue y retirada de la rama. Esa entrega está completada
+mediante la PR #87; el issue #86 está cerrado y la rama retirada. DX6 es la
+siguiente subfase, sin iniciar. La autoridad
 permanece en [SDD 05](specs/05-deluxe-watch-and-widget.md),
 [SDD 09 v1.16](specs/09-deluxe-reading-contract.md),
 [SDD 06 v1.37](specs/06-testing-quality-and-accessibility.md) y
 [ADR 0007](adr/0007-watchos-widgetkit-and-data-bridges.md).
+
+## Cierre de entrega — 10 de septiembre
+
+La [PR #87](https://github.com/JFrancoG/MangaLibrary/pull/87) se fusiona en `main`
+a las **16:52:21 UTC** del 2026-09-10 mediante
+[`4ab15f58be84d749d8287eb5b8390fa622e1dd1e`](https://github.com/JFrancoG/MangaLibrary/commit/4ab15f58be84d749d8287eb5b8390fa622e1dd1e),
+con el commit de implementación
+[`d22a867ff148a8b9e781c6665c05d6b2496b9dfe`](https://github.com/JFrancoG/MangaLibrary/commit/d22a867ff148a8b9e781c6665c05d6b2496b9dfe).
+El [issue #86](https://github.com/JFrancoG/MangaLibrary/issues/86) se cierra a las
+**16:52:22 UTC**. La rama `codex/86-dx5-watch-companion` se elimina local y
+remotamente tras comprobar ascendencia y cero commits exclusivos; su ausencia
+queda verificada. `main` incorpora el merge por avance directo.
+
+La PR #87 no tenía checks CI ni revisiones remotas configurados. Los gates
+locales y las revisiones independientes registrados en esta checklist
+constituyen la evidencia de aceptación.
+
+El [plan #77](https://github.com/JFrancoG/MangaLibrary/issues/77) sigue abierto:
+**DX1–DX5 entregadas (5/7)**, DX6 siguiente y sin iniciar. La entrega conserva
+los límites de DX6/DX7 y no supera el Deluxe Release Gate. Los checkpoints
+anteriores al merge que figuran abajo se mantienen como evidencia histórica.
 
 ## Configuración y alcance
 
@@ -374,7 +395,7 @@ del issue o la rama.
 | DocC | Aprobado sobre el corte runtime final | `dx5-runtime-final-docc.log`, archive local y cero warnings/errores; sin publicación. |
 | Revisión independiente iOS y SwiftUI/accesibilidad | Código compartido, entrypoint, UI estática, fixture y configuración aprobados | Sin hallazgos funcionales pendientes; UI ejecutada con los límites de la matriz. |
 | Swift Source Style, modo Audit | Aprobado sobre fuentes y deltas revisados | Inventario actual de 25 Swift, con delta de fixture/entrypoint revisado y sin hallazgos pendientes de estilo. |
-| Documentación, catálogos y Git | Evidencia actualizada; entrega autorizada y en preparación | 13 claves ES/EN; sesiones cerradas y scheme canónico intacto. El checkpoint previo al commit revalida el entorno; merge y cierre pendientes. |
+| Documentación, catálogos y Git | DX5 entregada mediante PR #87 | 13 claves ES/EN; sesiones cerradas y scheme canónico intacto. Merge `4ab15f5`, issue #86 cerrado y rama retirada; plan #77 abierto. |
 
 ## Matriz de Simulator y transporte
 

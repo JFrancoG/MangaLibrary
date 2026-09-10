@@ -1,6 +1,6 @@
 # SDD 09: Contrato de lectura Deluxe — DX1–DX5
 
-**Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07; texto e ilustración de no disponible y traslado de la prueba física anterior al primer desbloqueo a DX6 aprobados el 2026-09-08; implementación y posterior entrega de DX5 autorizadas el 2026-09-10
+**Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07; texto e ilustración de no disponible y traslado de la prueba física anterior al primer desbloqueo a DX6 aprobados el 2026-09-08; implementación y posterior entrega de DX5 autorizadas el 2026-09-10; DX5 entregada mediante PR #87 ese mismo día
 **Versión:** 1.16
 **Fecha:** 2026-09-10
 **Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), [DX4 — issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84) y [DX5 — issue #86](https://github.com/JFrancoG/MangaLibrary/issues/86), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
@@ -543,9 +543,12 @@ afirmar que su sesión continúe vigente. Los textos ES/EN remiten a la app del
 iPhone para cualquier acción. Las previews construyen snapshots sintéticos sin
 activar WatchConnectivity ni leer almacenamiento.
 
-La implementación local y la validación técnica de DX5 están acreditadas. El
-propietario autoriza su entrega completa el 10 de septiembre; está en preparación,
-con el issue #86 todavía abierto y sin merge ni cierre acreditados. La
+La implementación y la validación técnica de DX5 están acreditadas. Su entrega
+autorizada se completa el 10 de septiembre mediante la
+[PR #87](https://github.com/JFrancoG/MangaLibrary/pull/87), integrada en `main`
+con [`4ab15f5`](https://github.com/JFrancoG/MangaLibrary/commit/4ab15f58be84d749d8287eb5b8390fa622e1dd1e);
+el issue #86 queda cerrado y la rama local/remota retirada. El plan #77 permanece
+abierto con DX1–DX5 entregadas (5/7); DX6 es la siguiente subfase, sin iniciar. La
 [checklist DX5](../dx5-watch-validation.md) separa las pruebas lógicas, los builds
 completos y DocC, la matriz UI representativa y el transporte observado en
 Simulator. Ninguna sustituye la matriz ampliada y física pendiente de DX6–DX7.
@@ -828,13 +831,13 @@ previews, tests con directorios aislados y pruebas físicas.
 | Elemento | Valor previsto | Estado |
 | --- | --- | --- |
 | App existente | `MangaLibrary`, `com.plusprojects.MangaLibrary`, iOS 27 | Verificado por Xcode MCP. |
-| Widget | Product name `MangaLibraryWidget`; target `MangaLibraryWidgetExtension`; bundle `com.plusprojects.MangaLibrary.widget` | Creado mediante Xcode MCP en DX4; Swift 6, iOS 27 y plataformas iPhone/iPad verificados. Fuentes comunes y Assets asignados mediante Xcode UI; builds MCP y gates limpios Debug/Release y DocC sin warnings. Validación automatizada y Simulator completadas en el alcance DX4: lectura entre procesos iPhone, adaptación y continuidad entre ventanas iPad. Hardware sigue pendiente. |
-| Companion | Target y carpeta `MangaLibraryWatch Watch App`; bundle `com.plusprojects.MangaLibrary.watchkitapp`; watchOS 27 | Creado mediante Xcode MCP para la app iOS existente en DX5. Fuentes y ciclo de vida integrados; builds Debug/Release, DocC y recorridos representativos de Simulator acreditados. Entrega pendiente. |
-| App Group | `group.com.plusprojects.MangaLibrary.deluxe` para app iOS y widget | Entitlements añadidos mediante Xcode MCP a app y widget por autorización DX4. El escenario DEBUG acredita acceso efectivo entre procesos en iPhone Simulator. Provisioning y acceso en hardware siguen pendientes. No se añade al reloj. |
+| Widget | Product name `MangaLibraryWidget`; target `MangaLibraryWidgetExtension`; bundle `com.plusprojects.MangaLibrary.widget` | Creado mediante Xcode MCP en DX4; Swift 6, iOS 27 y plataformas iPhone/iPad verificados. Fuentes comunes y Assets asignados mediante Xcode UI; builds MCP y gates limpios Debug/Release y DocC sin warnings. Validación automatizada, Simulator y física completadas en el alcance DX4 registrado en su checklist. La comprobación física anterior al primer desbloqueo sigue limitada/no observable y pendiente en DX6. |
+| Companion | Target y carpeta `MangaLibraryWatch Watch App`; bundle `com.plusprojects.MangaLibrary.watchkitapp`; watchOS 27 | Creado mediante Xcode MCP para la app iOS existente en DX5. Fuentes y ciclo de vida integrados; builds Debug/Release, DocC y recorridos representativos de Simulator acreditados. Entregada mediante [PR #87](https://github.com/JFrancoG/MangaLibrary/pull/87). |
+| App Group | `group.com.plusprojects.MangaLibrary.deluxe` para app iOS y widget | Entitlements añadidos mediante Xcode MCP a app y widget por autorización DX4. Acceso efectivo entre procesos acreditado en iPhone Simulator e instalación de desarrollo en iPhone 11; no acredita distribución ni I/O anterior al primer desbloqueo. No se añade al reloj. |
 | Widget kind | `com.plusprojects.MangaLibrary.reading` | Único kind de 1.0, compartido por provider y reload. |
 | Fuentes comunes | `MangaLibrary/Shared/Deluxe/` | Snapshot, fence, codec, lectores y configuración mínima compartida, incluidos en app y widget. Sin importar el módulo app o SwiftData. |
 | Publicación app | `MangaLibrary/Deluxe/` | Único escritor compuesto en `AppComposition`; efectos DX2–DX3 conectados a sesión y escenas en DX4. |
-| Consumidores | `MangaLibraryWidget/` y `MangaLibraryWatch Watch App/` | Widget entregado en DX4; companion y recepción WCSession implementados localmente en DX5, con callback y aplicación observados en Simulator. DX5 aún no entregada. |
+| Consumidores | `MangaLibraryWidget/` y `MangaLibraryWatch Watch App/` | Widget entregado en DX4; companion y recepción WCSession entregados en DX5 mediante [PR #87](https://github.com/JFrancoG/MangaLibrary/pull/87), con callback y aplicación observados en Simulator. |
 
 La preparación histórica de DX1 y los primeros gates DX4 verificaron Xcode 27
 build `27A5252f`, Swift 6.4 y los SDK watchOS/watchOS Simulator 27. DX1 no compiló
