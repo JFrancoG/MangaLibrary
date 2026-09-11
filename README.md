@@ -4,58 +4,33 @@ Manga Library es una aplicación SwiftUI local-first para explorar un catálogo 
 
 ## Estado
 
-**Advanced está aceptado y entregado** mediante el [issue #75](https://github.com/JFrancoG/MangaLibrary/issues/75) y la [PR #76](https://github.com/JFrancoG/MangaLibrary/pull/76). **Deluxe tiene siete subfases en el [plan #77](https://github.com/JFrancoG/MangaLibrary/issues/77), con DX1–DX4 entregadas (4/7)** mediante las PR [#80](https://github.com/JFrancoG/MangaLibrary/pull/80), [#81](https://github.com/JFrancoG/MangaLibrary/pull/81), [#83](https://github.com/JFrancoG/MangaLibrary/pull/83) y [#85](https://github.com/JFrancoG/MangaLibrary/pull/85). DX3 completa sus cinco bloques de proyección persistida, prefijo estable, portadas y eventos ordenados; se integra en `fa60f15` y cierra [#82](https://github.com/JFrancoG/MangaLibrary/issues/82).
+**Advanced y DX1–DX5 están entregadas (5/7 subfases de Deluxe).** El
+[plan #77](https://github.com/JFrancoG/MangaLibrary/issues/77) mantiene el
+seguimiento. DX5 incorporó el companion watchOS de solo lectura mediante
+[PR #87](https://github.com/JFrancoG/MangaLibrary/pull/87).
 
-**DX4 está entregado mediante la [PR #85](https://github.com/JFrancoG/MangaLibrary/pull/85), merge [`1868244`](https://github.com/JFrancoG/MangaLibrary/commit/18682445a6b1de36fffeaf26775880fdc629ce66), con el [issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84) cerrado y la rama retirada local y remotamente.** La validación automatizada, Simulator y física está completada en su alcance aprobado. Incluye widget pequeño, mediano y grande EN/ES para iPhone/iPad, App Group, doble fence y publicación ligada al ciclo de vida. La evidencia registra lectura entre procesos, mutación y logout, adaptación iPhone/iPad y continuidad entre ventanas.
+El corte técnico DX6 está integrado en `main` mediante
+[PR #89](https://github.com/JFrancoG/MangaLibrary/pull/89), merge `681ea6d`:
+integra validación representativa de widgets/Watch, accesibilidad y el ajuste que
+conserva las fechas del widget pequeño. El [issue #88](https://github.com/JFrancoG/MangaLibrary/issues/88)
+permanece abierto por los criterios físicos pendientes.
 
-La ampliación aprobada el 7 de septiembre añade rotación programada cada cinco minutos, prioridad del manga cuyo tomo cambia y grupos adaptables de hasta seis lecturas. Pasan **716 declaraciones / 1.014 invocaciones** de Swift Testing, incluida la corrección de precisión de fechas detectada al comprobar el reloj real, y builds limpios Debug/Release y DocC sin warnings. Revisión independiente y previews de los tres tamaños completas; Simulator acredita rotación natural y prioridad en iPhone y tamaño grande en portrait/landscape de iPad. [ADR-0021](docs/adr/0021-widget-reading-rotation-and-priority.md) registra el contrato y sus límites: WidgetKit decide el momento efectivo del cambio.
+**DX7 está iniciado en [#90](https://github.com/JFrancoG/MangaLibrary/issues/90)**
+para consolidar el Deluxe Release Gate. El [informe DX7](docs/dx7-deluxe-release-gate.md)
+separa configuración, builds, tests, DocC y evidencia física. El gate completo
+continúa pendiente: H01 conserva la comprobación anterior al primer desbloqueo
+del iPhone como limitada/no observable; H02/H03/H04 del Watch se difieren hasta
+después de entregar el proyecto por decisión del propietario. Podrán adelantarse
+con una pareja física compatible prestada. La excepción Watch no incluye H01.
 
-La petición posterior del mismo día está implementada: pequeño con `Tomo N/T`
-o `Tomo N`, grande ampliado con 1–4 lecturas reales y mediano «Mi colección»
-con una ficha rotatoria, tomos en propiedad, completitud y total de mangas,
-incluidos los que no se están leyendo. [ADR-0022](docs/adr/0022-widget-collection-projection-and-adaptive-reading.md)
-concreta el recurso local completo y acotado, enlazado al publicador y fence
-existentes. Pasan **754 declaraciones / 1.093 invocaciones**, builds limpios y
-DocC sin warnings; 29 previews revisadas y revisión independiente de fuente.
-La comprobación interactiva de esta ampliación quedó pendiente por Mac bloqueado;
-los recorridos anteriores de Simulator conservan su alcance histórico.
-
-El propietario confirma posteriormente que los widgets funcionan como espera.
-El ajuste visual siguiente incorpora «¿Qué estás leyendo?» y «Tus mangas, aquí»,
-con la ilustración del manga abierto del icono en los estados sin contenido;
-se adapta a cada familia y cede espacio al texto con Dynamic Type. Esta
-confirmación no identifica hardware ni sustituye pruebas físicas concretas.
-
-La prueba posterior en iPhone11 detectó que WidgetKit rechazaba archivar la
-ilustración de1024×1024 y seguía mostrando el estado anterior. Se ha corregido
-preparando miniaturas acotadas antes del render. La extensión actual ya no
-registra ese rechazo y el propietario confirma que ahora se muestra correctamente
-en el iPhone 11.
-
-El ajuste posterior amplía la portada del grande con 1, 5 y 6 lecturas y hace
-que un alta local o una reincorporación aparezca primero en «Mi colección».
-Después continúa la rotación; los cinco minutos siguen siendo orientativos.
-SDD09 v1.10 y ADR-0022 concretan la prioridad local independiente de lectura,
-sin guardar un historial de adquisiciones ni cambiar el orden de la colección.
-Pasan **763 declaraciones / 1.104 invocaciones**, builds Debug/Release y DocC
-sin warnings. La versión está instalada en iPhone11; quedan por confirmar allí
-la prioridad al añadir bajo condiciones controladas. Los tamaños se aceptan
-posteriormente como parte del cierre visual.
-
-Una segunda petición amplía de nuevo las cinco/seis lecturas: portadas y
-texto mayores, menos separación y una alternativa intermedia cuando no caben.
-SDD09 v1.11 mantiene el resto de tamaños y la prioridad de nuevas altas.
-Quince previews revisadas y builds Debug/Release sin warnings; instalada en
-iPhone11 y aceptada visualmente por el propietario.
-
-El propietario confirma el último ajuste del grande y aprueba destacar el
-total de «Mi colección» en una pastilla junto al título; abajo queda solo la
-fecha. SDD09 v1.12 conserva el conteo y adapta la cabecera al espacio disponible.
-Veintiuna previews revisadas y builds Debug/Release sin warnings; instalada en
-el iPhone11. El propietario da por terminados todos los ajustes visuales y de
-UI y autoriza guardar el avance con commit/push e iniciar VoiceOver.
-
-El [contrato](docs/specs/09-deluxe-reading-contract.md), [Progress](docs/Progress.md) y la [checklist DX4](docs/dx4-widget-validation.md) conservan el alcance de cada ejecución anterior y la validación final. VoiceOver ES/EN, estados, títulos largos, propiedad, rotación, logout y recuperación de los tres widgets están confirmados en iPhone 11 en los casos registrados. SDD09 v1.14 y SDD06 v1.36 recogen el traslado aprobado de la prueba física anterior al primer desbloqueo a DX6: limitada/no observable y pendiente para el gate Deluxe. El binario normal está reinstalado y su contenido confirmado. DX4 está entregado; no requiere Apple Watch. **El siguiente corte es DX5 (companion watchOS), todavía sin iniciar; el Deluxe Release Gate no está superado.**
+Los widgets pequeño/grande proyectan lecturas y el mediano una ficha de la
+colección, todos de solo lectura y en ES/EN. La rotación local y sus prioridades
+son orientativas: WidgetKit decide el momento efectivo. El reloj recibe contextos
+versionados mediante WatchConnectivity y conserva cache compatible; no ofrece
+login ni edición independiente. Contratos y evidencia detallada:
+[SDD 09](docs/specs/09-deluxe-reading-contract.md),
+[DX4](docs/dx4-widget-validation.md), [DX5](docs/dx5-watch-validation.md),
+[DX6](docs/dx6-integration-accessibility.md) y [Progress](docs/Progress.md).
 
 El catálogo público está entregado en cuatro cortes: [C1](https://github.com/JFrancoG/MangaLibrary/issues/13) materializa el shell, la primera página y el detalle por `Manga.ID`; [C2](https://github.com/JFrancoG/MangaLibrary/issues/21) añade paginación incremental y lista/cuadrícula; [C3](https://github.com/JFrancoG/MangaLibrary/issues/25) incorpora búsqueda avanzada, filtros y «Mejores»; y [C4](https://github.com/JFrancoG/MangaLibrary/issues/27) enriquece manga y detalle, adopta navegación compacta nativa y anticipa la siguiente página. El contrato cromático y la adopción ejecutable de [Library Red](https://github.com/JFrancoG/MangaLibrary/issues/29) también están entregados.
 

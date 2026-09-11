@@ -1,8 +1,8 @@
 # SDD 07: Documentación y DocC
 
 **Estado:** Aprobada
-**Versión:** 1.4
-**Fecha:** 2026-09-04
+**Versión:** 1.5
+**Fecha:** 2026-09-11
 
 ## Propósito
 
@@ -95,17 +95,26 @@ La landing es deliberadamente el único contenido inicial. Cada artículo se añ
 - selecciona Xcode 27 de forma local al proceso, sin modificar `xcode-select`, y verifica Apple Swift 6.4;
 - fija proyecto, scheme, configuración Release y destino genérico iOS reales;
 - contrasta los argumentos de `xcodebuild`, la acción `docbuild` y `--warnings-as-errors` con la ayuda y el manual instalados;
-- comprueba la configuración efectiva de app, unit tests y UI tests en Debug y Release;
+- comprueba la configuración efectiva de app, unit tests, UI tests, widget y
+  companion watchOS en Debug y Release; usa SDK watchOS para el companion e iOS
+  para los demás targets;
 - construye la documentación integrada de la app con todos los warnings DocC como errores;
 - usa DerivedData temporal, reemplaza solo la salida aprobada y comprueba `.build/docc/MangaLibrary.doccarchive`;
 - falla ante enlaces o símbolos no resueltos, recursos ausentes, directivas inválidas o firmas desalineadas;
-- exige `LM_SKIP_METADATA_EXTRACTION = YES` en app, unit tests y UI tests,
+- exige `LM_SKIP_METADATA_EXTRACTION = YES` en los cinco targets,
   Debug y Release, mientras el producto no declare App Intents, conforme a ADR
   0020;
 - falla ante cualquier warning o error de herramienta, sin filtros ni allowlists;
 - registra toolchain, comando, resultado y alcance excluido sin publicar el archive.
 
 Quick Help y Documentation Preview son comprobaciones editoriales; no prueban por sí solas un archive limpio. No se afirmará que el gate pasa hasta ejecutarlo con éxito.
+
+DX7 comprueba además el inventario y los schemes mediante
+`Scripts/validate-deluxe-configuration.py`. El archive canónico sigue siendo
+`MangaLibrary.doccarchive`, que incluye los contratos compartidos compilados en
+la app. No se afirma que haya un archive independiente del widget o del Watch.
+La cobertura documental permanece selectiva, sin porcentajes ni artículos
+duplicados para alcanzar una cuota por target.
 
 ## Dependencias y publicación
 

@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.38
-**Fecha:** 2026-09-10
+**Versión:** 1.39
+**Fecha:** 2026-09-11
 
 ## Propósito
 
@@ -76,6 +76,34 @@ y añade las suites del bridge compartido, sus targets y sus entitlements.
 Un tipo no implementado, un target ausente o un bridge no-op no cuentan como
 evidencia. Los casos Deluxe enumerados debajo permanecen como contrato futuro,
 pero no bloquean una candidata Advanced anterior a su gate de entrada.
+
+### Inventario ejecutable de DX7
+
+El gate Deluxe conserva los cuatro planes existentes. Las pruebas deterministas
+de WidgetKit y Watch viven en `MangaLibraryTests`; no se crea un target de tests
+watchOS ni se atribuye ejecución watchOS a esas pruebas alojadas en iOS.
+`ReleaseGate` ejecuta completos `MangaLibraryTests` y `MangaLibraryUITests`.
+
+`Scripts/validate-deluxe-configuration.py`, junto a
+`Scripts/validate-test-plans.sh`, contrasta los cinco targets reales de
+`project.pbxproj`, sus tipos, dependencias, identidades en schemes/planes y
+selección habilitada. Rechaza targets omitidos o añadidos sin actualizar el gate,
+referencias ajenas al proyecto, exclusiones de targets de test, host sintético
+deshabilitado y overrides por configuración que puedan alterar esa selección.
+Es validación estática con Python 3 y biblioteca estándar; no prueba ejecución.
+
+`Scripts/validate-advanced-build.sh --deluxe` incorpora ambas comprobaciones y
+exige que cada build-for-testing limpio Debug/Release incluya en su grafo los
+cinco targets: app iOS, widget, companion watchOS, unit tests y UI tests. El
+scheme principal construye widget y Watch mediante sus dependencias reales;
+el scheme Watch conserva su ejecutable específico. No se modifican los schemes
+para aparentar cobertura ni se suman builds como ejecuciones de tests.
+
+La ejecución completa del plan `ReleaseGate` mediante Xcode MCP debe registrar
+destino, declaraciones e invocaciones cuando proceda, fallos, skips y expected
+failures, junto a los resultados nativos. Un inventario estático o resultados
+históricos no satisfacen esa nueva ejecución. El
+[informe DX7](../dx7-deluxe-release-gate.md) relaciona cada gate y sus límites.
 
 ## Cobertura por riesgo
 
