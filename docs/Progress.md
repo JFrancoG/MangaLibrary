@@ -10,6 +10,102 @@ aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
 
+## M02 — Bootstrap DEBUG — issue #110
+
+El propietario autoriza el 2026-09-12 abrir
+[#110](https://github.com/JFrancoG/MangaLibrary/issues/110) e implementar la unidad
+bootstrap DEBUG de M02. La rama `codex/110-m02-debug-bootstrap` parte de
+`main@7efe42a`, después de M01. El alcance conserva SDD 01/06/09 y ADR-0017;
+ADR-0015 es un antecedente supersedido, no una autoridad vigente.
+
+| Archivo | Responsabilidad y longitud final |
+| --- | --- |
+| `MangaLibraryApp.swift` | Entrada, instalación del container y estado SwiftUI; selecciona el resultado sintético o el arranque live. Pasa de 557 a 144 líneas. |
+| `App/UITestingBootstrap.swift` | 120 líneas. Valida flags, crea una composición en memoria y devuelve un resultado efímero de dependencias explícitas. No queda almacenado ni pasa por Environment. |
+| `App/UITestingCollectionScenarios.swift` | 231 líneas. Siete factories de efectos y semillas de colección; contextos locales síncronos, invariantes y secuencia originales. |
+| `App/UITestingCollectionPresentation.swift` | 61 líneas. Dos factories de presentación con las mismas vistas, acciones y semántica accesible. |
+| `App/UITestingPendingLogoutSession.swift` | 50 líneas. El mismo actor sintético de logout, con estado, capturas y operaciones conservados. |
+
+Los cuatro archivos nuevos están íntegramente bajo `#if DEBUG`. La App conserva
+privados todos sus miembros. El soporte extraído pasa a acceso interno solo en
+DEBUG para que lo compongan la factory y la App. El actor sintético se traslada;
+no se crea un segundo propietario de sesión. `AppComposition.live` no cambia.
+
+`@MainActor` se limita a la factory que construye AccountModel/lifecycle y al
+enum de presentación, que antes heredaba ese aislamiento desde App. Los seeds
+crean y usan su propio ModelContext síncronamente en la llamada; no lo conservan
+ni cruzan actores con modelos vivos. No se añaden escapes ni atributos Sendable.
+
+Se preservan los nueve flags, su precedencia y sus precondiciones. La
+caracterización Watch/lecturas vacías exige ambos flags sintéticos base y
+Simulator. Los fallos terminan mediante la misma precondición, sin fallback
+live. Release sigue rechazando `-ui-testing`; no contiene los cuatro soportes
+nuevos. Los flags de caracterización manual no se añaden a los planes.
+
+### Validación M02 bootstrap
+
+- Preflight Xcode MCP: MangaLibrary, iPhone 17 Simulator / iOS 27.0, plan Fast;
+  Swift 6, concurrencia complete, aislamiento nonisolated y deployment iOS 27.
+- `BuildProject(buildForTesting: true)` correcto y `GetBuildLog` sin warnings.
+- Audit swift-source-style manual y recall sobre cinco Swift, incluidos los
+  cuatro no versionados: cero candidatos restantes. Se compacta una firma
+  trasladada que ahora cabe en 113 columnas y la lectura de un flag que cabe
+  en su nueva indentación. `git diff --check` limpio.
+- Comparación de traslado contra la base: cuerpos de siete helpers de escenarios,
+  dos factories de presentación y actor de logout iguales salvo whitespace y
+  acceso del propietario. Una evaluación estática de los condicionales confirma
+  que el texto activo de Release es idéntico salvo whitespace y que los cuatro
+  archivos nuevos quedan vacíos. Esto complementa, no sustituye, el build.
+- Revisión iOS independiente: sin hallazgos; confirma flags, errores, aislamiento,
+  autoridad y separación de responsabilidades. Revisión SwiftUI independiente:
+  sin hallazgos; navegación, jerarquía, acciones, label, identificador, estilo y
+  padding de las dos factories permanecen iguales.
+- Sin nuevo tipo View, layout, copy o comportamiento: no se repiten previews ni
+  la matriz manual de accesibilidad por este traslado. No se añade DocC al
+  soporte de pruebas ni se genera otro archive; el alcance Release documentado
+  permanece idéntico. No se añaden tests estructurales ni cambian oráculos,
+  declaraciones, tags o planes.
+
+- `Scripts/validate-advanced-build.sh --deluxe`, con Xcode 27 RC `27A266a`
+  y Swift 6.4 `swiftlang-6.4.0.34.1`: cinco targets, Debug y Release, cero
+  warnings/errores y cero tareas de metadata App Intents. Se ejecuta después
+  del Audit y antes de los tests. No se modifica el proyecto Xcode.
+- `Scripts/validate-test-plans.sh`: 28 suites Fast / 40 Integration, filtros,
+  targets, partición y host sintético correctos.
+- `RunAllTests` Fast a las 01:21:28: **358 declaraciones / 568 invocaciones**;
+  Integration a las 01:21:44: **454 / 629**. Total disjunto **812 / 1.197**,
+  cero fallos, skips, fallos esperados y runtime warnings. iPhone 17 Simulator,
+  iOS 27.0; horas Europe/Madrid del 2026-09-12.
+- Summary y árbol nativos de ambos `.xcresult` confirman 812 identificadores
+  únicos aprobados, sin intersección entre planes. Se descartan los agregados
+  MCP que mezclan planes históricos. Son ejecuciones nuevas de M02, no M01.
+- Bundles `Test-MangaLibrary-2026.09.12_01-21-28-+0200.xcresult` y
+  `Test-MangaLibrary-2026.09.12_01-21-44-+0200.xcresult`, fuera de Git.
+
+- Plan UI iniciado mediante `RunAllTests` a las 01:22:08: **11/11 XCUITest
+  aprobados**, sin fallos, skips, fallos esperados ni runtime warnings. Duración
+  nativa de 393 segundos. El resumen y árbol del bundle
+  `Test-MangaLibrary-2026.09.12_01-22-08-+0200.xcresult` coinciden con los once
+  identificadores de la suite versionada, incluidas ambas rutas de detalle.
+- El MCP falla al serializar su respuesta mientras el runner UI sigue activo.
+  Se espera a que Xcode cierre el bundle original en DerivedData y se leen
+  summary/árbol mediante `xcresulttool`, sin relanzar tests ni sustituir el
+  ejecutor por CLI. La suite termina Passed; el error del bridge no se confunde
+  con un fallo de test. Plan activo devuelto a Fast; diagnósticos MCP finales
+  sin warnings.
+
+Implementación y validación local completadas: 812 declaraciones Swift Testing
+/ 1.197 invocaciones y 11 tests UI. No se ejecuta la caracterización manual
+Watch/lecturas vacías ni hardware/backend; sus restricciones se conservan por
+comparación estática y build. No cambia el estado de los pendientes físicos.
+La segunda unidad M02, extracción productiva de `blockedOutcome`, sigue fuera
+de este diff. El propietario autoriza el 2026-09-12 commit, push, PR, merge,
+cierre de #110 y borrado de la rama. La entrega reutiliza los gates anteriores:
+los cinco Swift coinciden por SHA-256 con el contenido validado y el Audit de
+estilo del diff se repite antes de la PR. Los enlaces definitivos de entrega
+se registran en #110.
+
+
 ## M01 — Constantes de contratos compartidos — issue #108
 
 El propietario autoriza el 2026-09-12 abrir
