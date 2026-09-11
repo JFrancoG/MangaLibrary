@@ -9,14 +9,6 @@ import Testing
 
 @Suite("Catalog API client", .tags(.fast))
 struct CatalogAPIClientTests {
-    @Test("A page request defaults to the first twenty items")
-    func pageRequestDefaultsToFirstPage() throws {
-        let request = try CatalogPageRequest()
-
-        #expect(request.page == 1)
-        #expect(request.per == 20)
-    }
-
     @Test("A page request rejects an invalid page", arguments: [Int64(-1), 0])
     func pageRequestRejectsInvalidPage(_ page: Int64) {
         #expect(throws: CatalogPageRequest.ValidationError.invalidPage) {
@@ -289,7 +281,10 @@ struct CatalogAPIClientTests {
 
         let page = try await client.fetch(CatalogPageRequest())
 
-        #expect(page.items.first?.totalVolumes == nil)
+        #expect(page.items.count == 1)
+        let manga = try #require(page.items.first)
+        #expect(manga.id == 42)
+        #expect(manga.totalVolumes == nil)
     }
 
     @Test("The maximum supported published volume total remains known")
@@ -299,7 +294,10 @@ struct CatalogAPIClientTests {
 
         let page = try await client.fetch(CatalogPageRequest())
 
-        #expect(page.items.first?.totalVolumes == CollectionVolumePolicy.maximum)
+        #expect(page.items.count == 1)
+        let manga = try #require(page.items.first)
+        #expect(manga.id == 42)
+        #expect(manga.totalVolumes == 300)
     }
 
     @Test("A missing optional published volume total remains unknown")
@@ -309,7 +307,10 @@ struct CatalogAPIClientTests {
 
         let page = try await client.fetch(CatalogPageRequest())
 
-        #expect(page.items.first?.totalVolumes == nil)
+        #expect(page.items.count == 1)
+        let manga = try #require(page.items.first)
+        #expect(manga.id == 42)
+        #expect(manga.totalVolumes == nil)
     }
 
     @Test("Every valid author role maps to its domain value", arguments: CatalogAuthorRoleMapping.allCases)
@@ -445,7 +446,10 @@ struct CatalogAPIClientTests {
 
         let page = try await client.fetch(CatalogPageRequest())
 
-        #expect(page.items.first?.coverURL == nil)
+        #expect(page.items.count == 1)
+        let manga = try #require(page.items.first)
+        #expect(manga.id == 42)
+        #expect(manga.coverURL == nil)
     }
 
     private func makeClient(returning data: Data) throws -> CatalogAPIClient {

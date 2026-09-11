@@ -106,6 +106,7 @@ struct CollectionOutboxSyncCoordinatorTests {
         }
 
         let evidence = await probe.evidence()
+        #expect(evidence.claimCount == 0)
         #expect(evidence.submitCount == 0)
         #expect(evidence.fetchCount == 0)
         #expect(evidence.confirmedItems.isEmpty)
@@ -930,6 +931,7 @@ private actor WorkerProbe {
     }
 
     struct Evidence: Equatable {
+        let claimCount: Int
         let submitCount: Int
         let fetchCount: Int
         let importCount: Int
@@ -948,6 +950,7 @@ private actor WorkerProbe {
     private let hasBlockedOutcome: Bool
     private let storeFailure: (boundary: WorkerStoreBoundary, error: CollectionOutboxUploadError)?
     private var actions: [CollectionOutboxUploadClaim]
+    private var claimCount = 0
     private var submitCount = 0
     private var fetchCount = 0
     private var importCount = 0
@@ -997,6 +1000,7 @@ private actor WorkerProbe {
     }
 
     func claim(_ authorization: SessionCommitAuthorization) throws -> CollectionOutboxUploadClaim? {
+        claimCount += 1
         try failIfConfigured(at: .claim)
         guard authorization.authority == requestAuthorization.authority else { throw Failure.failed }
         guard actions.isEmpty == false else { return nil }
@@ -1059,6 +1063,7 @@ private actor WorkerProbe {
 
     func evidence() -> Evidence {
         Evidence(
+            claimCount: claimCount,
             submitCount: submitCount,
             fetchCount: fetchCount,
             importCount: importCount,

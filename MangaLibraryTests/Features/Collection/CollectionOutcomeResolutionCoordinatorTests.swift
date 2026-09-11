@@ -105,8 +105,8 @@ struct CollectionOutcomeResolutionCoordinatorTests {
         #expect(evidence.resolvedDecisions.isEmpty)
     }
 
-    @Test("Preserving an existing N plus one reports the durable continuation")
-    func existingLaterIntentReportsDurableContinuation() async throws(any Error) {
+    @Test("The coordinator propagates the store continuation result")
+    func existingLaterIntentPropagatesStoreContinuation() async throws(any Error) {
         let probe = R24CoordinatorProbe(
             fetchResults: [.success(Self.remoteEntry), .success(Self.remoteEntry)],
             storeResolution: .continuedExistingIntent(operationID: Self.laterOperationID, sequence: 2)
@@ -117,6 +117,7 @@ struct CollectionOutcomeResolutionCoordinatorTests {
         let resolution = try await coordinator.resolve(review, decision: .keepDevice)
 
         #expect(resolution == .continuedExistingIntent(operationID: Self.laterOperationID, sequence: 2))
+        #expect(await probe.evidence().resolvedDecisions == [.keepDevice])
     }
 
     @Test("Changed manga metadata requires a new decision and does not mutate")
@@ -207,16 +208,20 @@ struct CollectionOutcomeResolutionCoordinatorTests {
         #expect(await probe.evidence().resolvedDecisions.isEmpty)
     }
 
-    @Test("Authority that becomes stale after GET prevents the commit")
+    @Test("Authority invalidated by the confirmation GET prevents the store commit")
     func staleAuthorityAfterGetPreventsCommit() async throws(any Error) {
-        let probe = R24CoordinatorProbe(fetchResults: [.success(Self.remoteEntry)], validationResults: [false])
+        let probe = R24CoordinatorProbe(fetchResults: [.success(Self.remoteEntry), .success(Self.remoteEntry)])
         let coordinator = Self.coordinator(probe: probe)
+        let review = try await coordinator.review(operationID: Self.operationID, expectedAuthority: Self.authority)
+        await probe.invalidateAfterNextFetch()
 
         await #expect(throws: CollectionBlockedOutcomeError.sessionChanged) {
-            try await coordinator.review(operationID: Self.operationID, expectedAuthority: Self.authority)
+            try await coordinator.resolve(review, decision: .keepDevice)
         }
 
-        #expect(await probe.evidence().resolvedDecisions.isEmpty)
+        let evidence = await probe.evidence()
+        #expect(evidence.fetchTokens.count == 2)
+        #expect(evidence.resolvedDecisions.isEmpty)
     }
 }
 
@@ -340,6 +345,8 @@ private actor R24CoordinatorProbe {
     }
 
     private var fetchResults: [FetchResult]
+    private var invalidatesAfterNextFetch = false
+    private var isAuthorized = true
     private var validationResults: [Bool]
     private var evidenceResults: [CollectionBlockedOutcomeEvidence]
     private let storeResolution: CollectionBlockedOutcomeStoreResolution
@@ -359,7 +366,12 @@ private actor R24CoordinatorProbe {
         self.storeResolution = storeResolution
     }
 
+    func invalidateAfterNextFetch() {
+        invalidatesAfterNextFetch = true
+    }
+
     func validate(_ authorization: SessionRequestAuthorization) -> Bool {
+        guard isAuthorized else { return false }
         guard authorization.authority == CollectionOutcomeResolutionCoordinatorTests.authority else { return false }
         guard validationResults.isEmpty == false else { return true }
         return validationResults.removeFirst()
@@ -370,6 +382,10 @@ private actor R24CoordinatorProbe {
             throw CollectionBlockedOutcomeError.incompatibleRemoteState
         }
         fetchTokens.append(token)
+        if invalidatesAfterNextFetch {
+            isAuthorized = false
+            invalidatesAfterNextFetch = false
+        }
         guard fetchResults.isEmpty == false else { throw CollectionBlockedOutcomeError.unavailable }
 
         switch fetchResults.removeFirst() {

@@ -62,6 +62,7 @@ actor SessionController {
         case authorizationRecoveryResolvedRefresh
         case authorizationRecoveryAwaitingRefresh
         case localAuthorizationAwaitingRefresh
+        case restorationAwaitingRestore
         case restorationAwaitingRefresh
     }
 
@@ -184,6 +185,7 @@ actor SessionController {
     /// not cancel restoration needed by the rest of the app.
     func restore() async throws(any Error) -> SessionSnapshot {
         if let restoreFlight {
+            await synchronizationObserver(.restorationAwaitingRestore)
             return try await awaitRestore(flight: restoreFlight)
         }
         if pendingDeluxeRetirement != nil {

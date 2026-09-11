@@ -728,6 +728,7 @@ struct CredentialFormViewModelTests {
         #expect(focus == .email)
         #expect(viewModel.emailFailure == .invalidEmail)
         #expect(viewModel.passwordFailure == .passwordRequired)
+        await viewModel.waitForPendingOperation()
         #expect(await session.remoteCalls().isEmpty)
     }
 
@@ -829,6 +830,7 @@ struct CredentialFormViewModelTests {
         #expect(focus == .concealedPassword)
         #expect(viewModel.emailFailure == nil)
         #expect(viewModel.passwordFailure == .passwordTooShort)
+        await viewModel.waitForPendingOperation()
         #expect(await session.remoteCalls().isEmpty)
     }
 

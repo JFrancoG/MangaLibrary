@@ -33,14 +33,17 @@ struct SessionPersistenceActorTests {
 
         let renewed = try #require(try await harness.persistence.replaceAccess(replacement, expected: active.authority))
 
+        let durableReader = SessionPersistenceActor(keychain: harness.keychain)
+        #expect(try await durableReader.restore() == .active(renewed))
         #expect(renewed.access == replacement)
         #expect(renewed.authority == active.authority)
         #expect(
             try await harness.persistence.replaceAccess(
-                replacement,
+                SessionCredential(value: "stale-write", expiresAt: Self.issuedAt.addingTimeInterval(10)),
                 expected: SessionAuthority(userID: Self.userA, generation: Self.generationB)
             ) == nil
         )
+        #expect(try await durableReader.restore() == .active(renewed))
     }
 
     @Test("A second activation stays blocked while a session exists")
@@ -50,6 +53,7 @@ struct SessionPersistenceActorTests {
         let sessionA = try await activateA(in: harness.persistence)
         let sessionB = try makeSession(userID: Self.userB, generation: Self.generationB)
 
+        let durableReader = SessionPersistenceActor(keychain: harness.keychain)
         await #expect(throws: SessionPersistenceError.transitionBlocked) {
             try await harness.persistence.activate(
                 userID: sessionB.userID,
@@ -57,6 +61,7 @@ struct SessionPersistenceActorTests {
                 access: sessionB.access
             )
         }
+        #expect(try await durableReader.restore() == .active(sessionA))
         await #expect(throws: SessionPersistenceError.transitionBlocked) {
             try await harness.persistence.activate(
                 userID: sessionB.userID,
@@ -65,6 +70,7 @@ struct SessionPersistenceActorTests {
                 replacing: SessionAuthority(userID: sessionA.userID, generation: Self.generationB)
             )
         }
+        #expect(try await durableReader.restore() == .active(sessionA))
     }
 
     @Test("A late generation cannot delete the current session")

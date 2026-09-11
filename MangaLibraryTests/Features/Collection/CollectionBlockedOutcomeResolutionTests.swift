@@ -317,6 +317,17 @@ struct CollectionBlockedOutcomeResolutionTests {
         }
 
         #expect(try Self.readOperationFence(fixture.container) == priorFence)
+        let readContext = ModelContext(fixture.container)
+        let entries = try readContext.fetch(FetchDescriptor<CollectionEntry>())
+        let operations = try readContext.fetch(FetchDescriptor<CollectionOutboxOperation>())
+        #expect(entries.count == 1)
+        #expect(operations.count == 1)
+        let entry = try #require(entries.first)
+        #expect(entry.userID == Self.userID)
+        #expect(entry.mangaID == Self.mangaID)
+        #expect(entry.state == Self.localState)
+        #expect(entry.confirmedState == Self.confirmedState)
+        #expect(entry.mangaSnapshot == Self.mangaSnapshot)
     }
 
     @Test("Resolution never changes another manga pair or another user")

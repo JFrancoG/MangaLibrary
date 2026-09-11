@@ -488,7 +488,19 @@ struct CollectionMutationActorTests {
         #expect(store.operations.count == 1)
         #expect(store.operations.first?.operationID == Self.operationA)
         #expect(store.operations.first?.sequence == 2)
-        #expect(store.operations.first?.desiredState == result.state)
+        let expectedState = CollectionSnapshot(
+            ownedVolumes: [1, 2],
+            readingVolume: 1,
+            isComplete: false,
+            knownTotalVolumes: 3,
+            isTombstone: false
+        )
+        #expect(result.state == expectedState)
+        #expect(store.operations.first?.desiredState == expectedState)
+        let readContext = ModelContext(container)
+        let entries = try readContext.fetch(FetchDescriptor<CollectionEntry>())
+        #expect(entries.count == 1)
+        #expect(try #require(entries.first).state == expectedState)
         #expect(store.operations.first?.state == .queued)
         #expect(store.operations.first?.retryCount == 0)
         #expect(store.operations.first?.nextRetryAt == nil)
