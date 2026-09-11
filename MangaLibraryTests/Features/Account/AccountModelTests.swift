@@ -989,8 +989,12 @@ private actor ControlledAccountSession {
 
     nonisolated func operations() -> AccountModel.Operations {
         AccountModel.Operations(
-            currentSnapshot: { [self] in await currentSnapshot() },
-            restore: { [self] in try await restore() },
+            currentSnapshot: { [self] in
+                await currentSnapshot()
+            },
+            restore: { [self] in
+                try await restore()
+            },
             login: { [self] email, password in
                 try await login(email: email, password: password)
             },

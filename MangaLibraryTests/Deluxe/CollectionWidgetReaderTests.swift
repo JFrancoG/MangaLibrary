@@ -32,7 +32,10 @@ struct CollectionWidgetReaderTests {
         let reader = CollectionWidgetReader(
             readFence: { Fixture.openFence },
             readSnapshot: {
-                Fixture.manifest(digest: "0b733ff83495ea5f11a0d8e9f0eadb1f42b656427412399bffeae0627df52f57", byteCount: 30)
+                Fixture.manifest(
+                    digest: "0b733ff83495ea5f11a0d8e9f0eadb1f42b656427412399bffeae0627df52f57",
+                    byteCount: 30
+                )
             },
             readCollection: { _ in Data(#"{"formatVersion":1,"items":[]}"#.utf8) }
         )
@@ -50,7 +53,9 @@ struct CollectionWidgetReaderTests {
         let reader = CollectionWidgetReader(
             readFence: { Fixture.openFence },
             readSnapshot: { Data(text.utf8) },
-            readCollection: { _ in throw Fixture.Failure.inaccessible }
+            readCollection: { _ in
+                throw Fixture.Failure.inaccessible
+            }
         )
 
         #expect(try reader.readResult() == .unavailable)
@@ -61,7 +66,9 @@ struct CollectionWidgetReaderTests {
         let reader = CollectionWidgetReader(
             readFence: { Fixture.closedFence },
             readSnapshot: { Data("corrupt residual manifest".utf8) },
-            readCollection: { _ in throw Fixture.Failure.inaccessible }
+            readCollection: { _ in
+                throw Fixture.Failure.inaccessible
+            }
         )
 
         #expect(try reader.readResult() == .redacted)
@@ -81,7 +88,9 @@ struct CollectionWidgetReaderTests {
         let reader = CollectionWidgetReader(
             readFence: { Fixture.openFence },
             readSnapshot: { otherManifest },
-            readCollection: { _ in throw Fixture.Failure.inaccessible }
+            readCollection: { _ in
+                throw Fixture.Failure.inaccessible
+            }
         )
 
         #expect(try reader.readResult() == .unavailable)
@@ -94,13 +103,17 @@ struct CollectionWidgetReaderTests {
             readFence: { currentFence.withLock { $0 } },
             readSnapshot: {
                 if !duringSlot {
-                    currentFence.withLock { $0 = Fixture.closedFence }
+                    currentFence.withLock {
+                        $0 = Fixture.closedFence
+                    }
                 }
                 return Fixture.manifest()
             },
             readCollection: { _ in
                 if duringSlot {
-                    currentFence.withLock { $0 = Fixture.closedFence }
+                    currentFence.withLock {
+                        $0 = Fixture.closedFence
+                    }
                 }
                 return Fixture.collection
             }
@@ -136,7 +149,10 @@ struct CollectionWidgetReaderTests {
         let reader = CollectionWidgetReader(
             readFence: { Fixture.openFence },
             readSnapshot: {
-                Fixture.manifest(digest: "021fb596db81e6d02bf3d2586ee3981fe519f275c0ac9ca76bbcf2ebb4097d96", byteCount: 1)
+                Fixture.manifest(
+                    digest: "021fb596db81e6d02bf3d2586ee3981fe519f275c0ac9ca76bbcf2ebb4097d96",
+                    byteCount: 1
+                )
             },
             readCollection: { _ in Data("{".utf8) }
         )

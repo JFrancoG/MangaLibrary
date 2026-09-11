@@ -213,7 +213,9 @@ struct SessionPersistenceStoreTests {
         ]
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        if status == errSecItemNotFound { return 0 }
+        if status == errSecItemNotFound {
+            return 0
+        }
 
         try #require(status == errSecSuccess)
         return try #require(result as? [[String: Any]]).count

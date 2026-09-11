@@ -32,11 +32,15 @@ struct ReadingCoverStorageTests {
         let effects = ReadingCoverStorage.Effects(
             read: live.read,
             writeExclusive: { url, data in
-                events.withLock { $0.append(url.deletingLastPathComponent().lastPathComponent) }
+                events.withLock {
+                    $0.append(url.deletingLastPathComponent().lastPathComponent)
+                }
                 try live.writeExclusive(url, data)
             },
             promoteExclusive: { source, destination in
-                events.withLock { $0.append("promotion") }
+                events.withLock {
+                    $0.append("promotion")
+                }
                 try live.promoteExclusive(source, destination)
             },
             remove: live.remove,
@@ -328,7 +332,9 @@ struct ReadingCoverStorageTests {
             writeExclusive: live.writeExclusive,
             promoteExclusive: live.promoteExclusive,
             remove: live.remove,
-            inventory: { _ in throw StorageFailure.locked }
+            inventory: { _ in
+                throw StorageFailure.locked
+            }
         )
         let before = try harness.files()
 

@@ -280,7 +280,9 @@ extension CollectionAPIClient {
     init(httpClient: HTTPClient, configuration: APIConfiguration) {
         self.init(
             configuration: configuration,
-            loadData: { request in try await httpClient.data(for: request) },
+            loadData: { request in
+                try await httpClient.data(for: request)
+            },
             loadResponse: { request in
                 try await httpClient.response(for: request, accepting: [200, 404])
             }

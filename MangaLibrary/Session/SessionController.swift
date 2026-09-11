@@ -192,7 +192,9 @@ actor SessionController {
         guard case .notRestored = state else { return snapshot(for: state) }
 
         let identity = OperationIdentity()
-        let task = Task<SessionSnapshot, any Error> { try await self.performRestore() }
+        let task = Task<SessionSnapshot, any Error> {
+            try await self.performRestore()
+        }
         let flight = RestoreFlight(identity: identity, task: task)
         restoreFlight = flight
         return try await awaitRestore(flight: flight)
@@ -267,7 +269,9 @@ actor SessionController {
         } catch {
             let wasSuperseded = activeLoginIdentity !== identity
             clearLogin(identity)
-            if wasSuperseded { throw SessionControllerError.sessionChanged }
+            if wasSuperseded {
+                throw SessionControllerError.sessionChanged
+            }
             if let expiredCredentialCleanupError {
                 throw expiredCredentialCleanupError
             }
@@ -350,7 +354,9 @@ actor SessionController {
     func requestAuthorization() async throws(any Error) -> SessionRequestAuthorization {
         guard pendingTransition == nil else { throw SessionControllerError.transitionInProgress }
         guard case let .active(authenticated) = state else {
-            if case .authenticationRequired = state { throw SessionControllerError.authenticationRequired }
+            if case .authenticationRequired = state {
+                throw SessionControllerError.authenticationRequired
+            }
 
             throw SessionControllerError.notAuthenticated
         }
@@ -534,7 +540,9 @@ actor SessionController {
             } else {
                 let hasPendingChanges = try await logoutPendingChangesObserver(logoutAuthorization)
                 try Task.checkCancellation()
-                if hasPendingChanges { throw SessionControllerError.pendingCollectionChanges }
+                if hasPendingChanges {
+                    throw SessionControllerError.pendingCollectionChanges
+                }
             }
 
             if let deluxePublisher {
@@ -575,7 +583,9 @@ actor SessionController {
             } else {
                 clearPendingTransition(transition)
             }
-            if error is CancellationError { throw CancellationError() }
+            if error is CancellationError {
+                throw CancellationError()
+            }
             throw map(error)
         }
     }
@@ -876,9 +886,7 @@ actor SessionController {
                 _ = try await completeDeluxeRetirement()
                 return
             }
-            guard try await persistence.remove(expected: authority) else {
-                throw SessionControllerError.sessionChanged
-            }
+            guard try await persistence.remove(expected: authority) else { throw SessionControllerError.sessionChanged }
             guard pendingTransition == transition, isActive(authority: authority) else {
                 clearPendingTransition(transition)
                 throw SessionControllerError.sessionChanged
@@ -1122,8 +1130,12 @@ actor SessionController {
     }
 
     private func clearLogin(_ identity: OperationIdentity) {
-        if activeLoginIdentity === identity { activeLoginIdentity = nil }
-        if committingLoginIdentity === identity { committingLoginIdentity = nil }
+        if activeLoginIdentity === identity {
+            activeLoginIdentity = nil
+        }
+        if committingLoginIdentity === identity {
+            committingLoginIdentity = nil
+        }
     }
 
     private func clearRefreshCommit(_ identity: OperationIdentity) {
@@ -1160,15 +1172,21 @@ actor SessionController {
     }
 
     private func clearRestore(_ identity: OperationIdentity) {
-        if restoreFlight?.identity === identity { restoreFlight = nil }
+        if restoreFlight?.identity === identity {
+            restoreFlight = nil
+        }
     }
 
     private func clearRefresh(_ identity: OperationIdentity) {
-        if refreshFlight?.identity === identity { refreshFlight = nil }
+        if refreshFlight?.identity === identity {
+            refreshFlight = nil
+        }
     }
 
     private func map(_ error: any Error, invalidCredentialsOnUnauthorized: Bool = false) -> SessionControllerError {
-        if let error = error as? SessionControllerError { return error }
+        if let error = error as? SessionControllerError {
+            return error
+        }
         if let error = error as? SessionAPIClientError {
             switch error {
             case .unavailable:

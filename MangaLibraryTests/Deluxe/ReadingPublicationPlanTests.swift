@@ -83,7 +83,9 @@ struct ReadingPublicationPlanTests {
         let candidates = Self.candidates(count: 100, title: String(repeating: "a", count: 512))
         let expected = Array(candidates.prefix(53)) + [candidates[99]]
         try #require(Self.oracleContext(expected, total: 100, preferred: 100) <= 32_768)
-        try #require(Self.oracleContext(Array(candidates.prefix(54)) + [candidates[99]], total: 100, preferred: 100) > 32_768)
+        try #require(
+            Self.oracleContext(Array(candidates.prefix(54)) + [candidates[99]], total: 100, preferred: 100) > 32_768
+        )
 
         let plan = try ReadingPublicationPlan(projection: Self.projection(candidates), preferredStartMangaID: 100)
 
@@ -97,7 +99,9 @@ struct ReadingPublicationPlanTests {
             + [Self.candidate(mangaID: 56, title: "a" + String(repeating: "\u{0001}", count: 511))]
         let expected = Array(candidates.prefix(50)) + [candidates[55]]
         try #require(Self.oracleContext(expected, total: 56, preferred: 56) <= 32_768)
-        try #require(Self.oracleContext(Array(candidates.prefix(51)) + [candidates[55]], total: 56, preferred: 56) > 32_768)
+        try #require(
+            Self.oracleContext(Array(candidates.prefix(51)) + [candidates[55]], total: 56, preferred: 56) > 32_768
+        )
 
         let plan = try ReadingPublicationPlan(projection: Self.projection(candidates), preferredStartMangaID: 56)
 
@@ -358,9 +362,13 @@ private extension ReadingPublicationPlanTests {
         preferred: Int64? = nil,
         collectionReference: Bool = false
     ) throws -> Data {
-        let coverValue = try cover.map { try oracleString($0) } ?? "null"
+        let coverValue = try cover.map {
+            try oracleString($0)
+        } ?? "null"
         let wireItems = try items.map { item in
-            let titleValue = try item.title.map { try oracleString($0) } ?? "null"
+            let titleValue = try item.title.map {
+                try oracleString($0)
+            } ?? "null"
             let totalValue = item.totalVolumes.map(String.init) ?? "null"
             return #"{"coverResourceID":\#(coverValue),"mangaID":\#(item.mangaID),"#
                 + #""readingVolume":\#(item.readingVolume),"title":\#(titleValue),"totalVolumes":\#(totalValue)}"#

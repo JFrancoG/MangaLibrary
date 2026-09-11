@@ -10,6 +10,86 @@ aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
 
+## S01 — Normalización léxica de Swift — issue #100
+
+El propietario autoriza el 2026-09-11 abrir issue/rama y corregir los archivos
+S01 del informe previo a la entrega. [#100](https://github.com/JFrancoG/MangaLibrary/issues/100)
+registra el plan Approved y la rama `codex/100-s01-swift-style` parte de
+`main@a76fd1192e23ad32774a63f245bb50c1e4c4e883` limpio, tras la entrega D01–D03.
+
+Se adjudican las 455 ubicaciones originales en los 68 archivos afectados:
+454 se normalizan y una ya estaba desplegada por A01 en
+`ReadingWatchDeliveryTests`. Las líneas se localizan por contenido y contexto
+contra la base auditada `5e1fb14`, sin aplicar ciegamente números históricos.
+La suma por categorías cuenta dos veces el closure default de
+`ReadingWidgetProvider`, que también superaba 120 columnas.
+
+| Categoría S01 | Ubicaciones originales | Resultado |
+| --- | ---: | --- |
+| Closures con efectos compactados | 387 | 386 normalizadas; una ya resuelta por A01. |
+| Controles compactados | 31 | Cuerpos de `if`, `while` y `catch` desplegados. |
+| Helper mutante | 1 | Cuerpo de `record()` desplegado. |
+| Llamadas/cabeceras simples verticales | 12 | Compactadas donde caben; builders y cuerpos permanecen separados. |
+| Guards simples | 12 | Compactados con una única salida inmediata. |
+| Cuatro argumentos horizontales | 2 | Argumentos y cierre alineados en vertical. |
+| Longitud no atómica | 11 | Argumentos/operandos repartidos sin partir literales. |
+
+La revisión posterior ajusta el formato exterior de seis llamadas cuyos
+closures se han desplegado, evitando wrapping híbrido. No se renombran
+símbolos, reordenan declaraciones, extraen helpers ni alteran anotaciones,
+constantes, localización, contratos o pruebas. Los casos U/T/C/M mantienen
+su alcance separado. Se conservan las excepciones deliberadas del inventario:
+predicados/accessors puros, literales wire y regex, tuplas, `defer` idiomáticos
+y guards con condición compleja.
+
+### Evidencia y límites S01
+
+- Xcode MCP verifica MangaLibrary, scheme `MangaLibrary`, iPhone 17 Simulator
+  iOS 27.0 y plan Fast. Configuración efectiva Swift 6, strict complete,
+  aislamiento nonisolated y warnings como errores; sin cambios de configuración.
+- `BuildProject(buildForTesting: true)` termina correctamente. El log completo
+  tiene 1.633 líneas, cero diagnósticos warning/error y usa Xcode RC.
+- Una comprobación temporal con SwiftParser/SwiftSyntax del propio toolchain
+  compara los 68 archivos con `a76fd11`: árbol sintáctico, tokens, literales y
+  comentarios idénticos, sin errores de parseo. No se añade paquete ni dependencia
+  al proyecto. El cambio se limita al whitespace fuera de literales/comentarios.
+- Los planes mantienen 28 suites Fast y 40 Integration, partición, targets y
+  selección de host correctos. Se compilan los tests existentes; no se crean
+  tests de formato ni se presenta esta compilación como ejecución de tests.
+- Audit independiente del diff completo de 68 Swift, incluidos tests, helpers,
+  previews y llamadas anidadas: sin hallazgos pendientes después de las seis
+  correcciones de wrapping. Recall oficial: 26 candidatos adjudicados, ninguno
+  constituye un incumplimiento restante. Se conservan seis firmas con callbacks,
+  catorce llamadas con closures, tres construcciones `#Predicate`, un array
+  de secuencia observable y dos inicializadores anidados de cuatro argumentos.
+- `MANGALIBRARY_DEVELOPER_DIR=/Applications/Xcode-RC.app/Contents/Developer
+  Scripts/validate-advanced-build.sh --deluxe`: build-for-testing limpio de
+  los cinco targets en Debug y Release, cero warnings/errores y sin extracción
+  de metadata App Intents. Xcode 27 RC `27A266a`, Swift 6.4
+  `swiftlang-6.4.0.34.1`; DerivedData temporal propio por configuración.
+- `MANGALIBRARY_DEVELOPER_DIR=/Applications/Xcode-RC.app/Contents/Developer
+  Scripts/validate-docc.sh`: archive Release generado en
+  `.build/docc/MangaLibrary.doccarchive`, cero warnings/errores y warnings DocC
+  tratados como errores; sin publicación ni cambios en su contenido fuente.
+- Los dos Markdown modificados tienen 27 enlaces locales y 10 anchors válidos;
+  `git diff --check` correcto. El diff contiene solo los 68 Swift del inventario,
+  Progress y CHANGELOG; proyecto, configuración, scripts, contratos y planes
+  intactos. Xcode conserva scheme/destino/plan originales y cero diagnósticos.
+
+Los tests de comportamiento no se vuelven a ejecutar para este cambio léxico,
+con identidad sintáctica comprobada y compilación de sus targets. No se acredita
+una nueva candidata ReleaseGate, comportamiento live, previews ni accesibilidad
+física. El catálogo y el contenido DocC permanecen intactos. Una línea DocC de
+121 columnas introducida por A01 está fuera de las construcciones S01 modificadas;
+no se reescribe como efecto lateral ni se afirma una auditoría global nueva.
+
+El propietario autoriza posteriormente el 2026-09-11 commit, push, PR, merge,
+cierre de #100 y retirada de su rama. La entrega verifica que los 68 Swift
+coinciden exactamente con la normalización revisada, repite recall, integridad
+sintáctica y revisión del diff y reutiliza los builds/DocC anteriores al no haber
+cambios posteriores de código. El resultado definitivo de Git se registra en
+#100. #77/#88 conservan 5/7 y los pendientes físicos; no se inicia otro hallazgo.
+
 ## D02 → D03 → D01 — Reconciliación documental — issue #98
 
 El propietario autoriza el 2026-09-11 una unidad documental, en ese orden,

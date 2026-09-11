@@ -137,7 +137,9 @@ struct CollectionReadingEventTests {
                 try await fixture.actor.importRemote(
                     [ReadingEventFixture.remote(title: "Rolled back title", reading: 3)],
                     authorization: fixture.authorization,
-                    afterMutation: { _ in throw ReadingEventFailure.injected }
+                    afterMutation: { _ in
+                        throw ReadingEventFailure.injected
+                    }
                 )
             }
         case .rejection:
@@ -146,7 +148,9 @@ struct CollectionReadingEventTests {
                 try await fixture.actor.resolvePermanentRejection(
                     work,
                     authorization: fixture.authorization,
-                    afterMutation: { throw ReadingEventFailure.injected }
+                    afterMutation: {
+                        throw ReadingEventFailure.injected
+                    }
                 )
             }
         case .blockedOutcome:
@@ -161,7 +165,9 @@ struct CollectionReadingEventTests {
                     evidence: .absent,
                     decision: .useRemote,
                     authorization: fixture.authorization,
-                    afterMutation: { throw ReadingEventFailure.injected }
+                    afterMutation: {
+                        throw ReadingEventFailure.injected
+                    }
                 )
             }
         case .logout:
@@ -169,7 +175,9 @@ struct CollectionReadingEventTests {
             await #expect(throws: CollectionLogoutError.persistenceConflict) {
                 try await fixture.actor.discardPendingChangesForLogout(
                     authorization: logout,
-                    afterRestoringPair: { _ in throw ReadingEventFailure.injected }
+                    afterRestoringPair: { _ in
+                        throw ReadingEventFailure.injected
+                    }
                 )
             }
         }
@@ -214,7 +222,9 @@ struct CollectionReadingEventTests {
             try await fixture.actor.importRemote(
                 [ReadingEventFixture.remote(reading: 3)],
                 authorization: fixture.authorization,
-                afterMutation: { _ in throw CancellationError() }
+                afterMutation: { _ in
+                    throw CancellationError()
+                }
             )
         }
 
@@ -265,7 +275,9 @@ private struct ReadingEventFixture {
     }
 
     func recordPrevious() throws -> ReadingPublicationEvent {
-        try authorization.perform { events.record(authorization: authorization) }
+        try authorization.perform {
+            events.record(authorization: authorization)
+        }
     }
 
     func persistedReading() throws -> Int64? {

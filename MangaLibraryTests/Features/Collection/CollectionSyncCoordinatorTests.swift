@@ -63,20 +63,30 @@ struct CollectionSyncCoordinatorTests {
         let fetch = ReplacingCollectionFetch(remoteEntry: Self.remoteEntry)
         let imports = CollectionImportRecorder()
         let coordinator = CollectionSyncCoordinator(
-            authorize: { try await authorizations.next() },
+            authorize: {
+                try await authorizations.next()
+            },
             validateAuthorization: { _ in true },
-            fetchRemote: { accessToken in try await fetch.load(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await fetch.load(accessToken: accessToken)
+            },
             importRemote: { entries, authorization in
                 await imports.record(entries: entries, userID: authorization.authority.userID)
             }
         )
 
-        let first = Task { try await coordinator.importAuthenticatedCollection() }
+        let first = Task {
+            try await coordinator.importAuthenticatedCollection()
+        }
         await fetch.waitForRequestCount(1)
-        let second = Task { try await coordinator.importAuthenticatedCollection() }
+        let second = Task {
+            try await coordinator.importAuthenticatedCollection()
+        }
 
         try await second.value
-        await #expect(throws: CancellationError.self) { try await first.value }
+        await #expect(throws: CancellationError.self) {
+            try await first.value
+        }
         #expect(await fetch.accessTokens() == ["fixture-access-A", "fixture-access-B"])
         #expect(await fetch.firstRequestWasCancelled())
         #expect(await imports.events() == [.init(userID: Self.userB, mangaIDs: [42])])
@@ -92,17 +102,23 @@ struct CollectionSyncCoordinatorTests {
                 Self.authorization(authority: authority, accessToken: "fixture-access-A")
             },
             validateAuthorization: { _ in true },
-            fetchRemote: { accessToken in try await fetch.load(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await fetch.load(accessToken: accessToken)
+            },
             importRemote: { entries, authorization in
                 await imports.record(entries: entries, userID: authorization.authority.userID)
             }
         )
-        let caller = Task { try await coordinator.importAuthenticatedCollection() }
+        let caller = Task {
+            try await coordinator.importAuthenticatedCollection()
+        }
         await fetch.waitForRequestCount(1)
 
         caller.cancel()
 
-        await #expect(throws: CancellationError.self) { try await caller.value }
+        await #expect(throws: CancellationError.self) {
+            try await caller.value
+        }
         #expect(await fetch.firstRequestWasCancelled())
         #expect(await imports.events().isEmpty)
     }
@@ -117,7 +133,9 @@ struct CollectionSyncCoordinatorTests {
             },
             validateAuthorization: { _ in true },
             fetchRemote: { _ in [Self.remoteEntry] },
-            importRemote: { _, _ in await importGate.suspendUntilOpen() }
+            importRemote: { _, _ in
+                await importGate.suspendUntilOpen()
+            }
         )
         let caller = Task {
             try await coordinator.importAuthenticatedCollection(onUnusableSnapshot: { _ in })
@@ -127,7 +145,9 @@ struct CollectionSyncCoordinatorTests {
         caller.cancel()
         await importGate.open()
 
-        await #expect(throws: CancellationError.self) { try await caller.value }
+        await #expect(throws: CancellationError.self) {
+            try await caller.value
+        }
     }
 
     @Test("A model-actor cancellation remains cancellation without authorization revalidation")
@@ -140,12 +160,16 @@ struct CollectionSyncCoordinatorTests {
                 Self.authorization(authority: authority, accessToken: "fixture-access-A")
             },
             validateAuthorization: { _ in
-                validationCount.withLock { $0 += 1 }
+                validationCount.withLock {
+                    $0 += 1
+                }
                 return true
             },
             fetchRemote: { _ in [Self.remoteEntry] },
             importRemote: { _, _ in
-                importCount.withLock { $0 += 1 }
+                importCount.withLock {
+                    $0 += 1
+                }
                 throw CollectionRemoteImportError.cancelled
             }
         )
@@ -169,7 +193,9 @@ struct CollectionSyncCoordinatorTests {
                 Self.authorization(authority: authority, accessToken: "fixture-access-A")
             },
             validateAuthorization: { authorization in
-                validationCount.withLock { $0 += 1 }
+                validationCount.withLock {
+                    $0 += 1
+                }
                 return currentAuthority.withLock { $0 == authorization.authority }
             },
             fetchRemote: { _ in [Self.remoteEntry] },
@@ -180,7 +206,9 @@ struct CollectionSyncCoordinatorTests {
 
         await #expect(throws: CollectionSyncError.unsupportedVolumeData) {
             try await coordinator.importAuthenticatedCollection { _ in
-                recoveryCount.withLock { $0 += 1 }
+                recoveryCount.withLock {
+                    $0 += 1
+                }
             }
         }
 
@@ -202,14 +230,20 @@ struct CollectionSyncCoordinatorTests {
         let coordinator = CollectionSyncCoordinator(
             authorize: { authorization },
             validateAuthorization: { _ in true },
-            recoverAuthorization: { _ in throw failure.error },
-            fetchRemote: { _ in throw CollectionAPIClientError.network(.statusCode(401)) },
+            recoverAuthorization: { _ in
+                throw failure.error
+            },
+            fetchRemote: { _ in
+                throw CollectionAPIClientError.network(.statusCode(401))
+            },
             importRemote: { _, _ in }
         )
 
         await #expect(throws: failure.error) {
             try await coordinator.importAuthenticatedCollection { _ in
-                recoveryCount.withLock { $0 += 1 }
+                recoveryCount.withLock {
+                    $0 += 1
+                }
                 throw CollectionOutboxSyncError.sessionChanged
             }
         }
@@ -235,12 +269,16 @@ struct CollectionSyncCoordinatorTests {
                 await recoveryGate.suspendUntilOpen()
                 throw failure.error
             },
-            fetchRemote: { _ in throw CollectionAPIClientError.network(.statusCode(401)) },
+            fetchRemote: { _ in
+                throw CollectionAPIClientError.network(.statusCode(401))
+            },
             importRemote: { _, _ in }
         )
         let caller = Task {
             try await coordinator.importAuthenticatedCollection { _ in
-                recoveryCount.withLock { $0 += 1 }
+                recoveryCount.withLock {
+                    $0 += 1
+                }
             }
         }
         await recoveryGate.waitUntilArrived()
@@ -248,7 +286,9 @@ struct CollectionSyncCoordinatorTests {
         caller.cancel()
         await recoveryGate.open()
 
-        await #expect(throws: failure.error) { try await caller.value }
+        await #expect(throws: failure.error) {
+            try await caller.value
+        }
         #expect(recoveryCount.withLock { $0 } == 0)
     }
 
@@ -331,7 +371,9 @@ struct CollectionSyncCoordinatorTests {
                 await recoveries.record(rejectedAuthorization)
                 return Self.authorization(authority: authority, accessToken: "unexpected-access")
             },
-            fetchRemote: { accessToken in try await fetch.load(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await fetch.load(accessToken: accessToken)
+            },
             importRemote: { entries, commitAuthorization in
                 await imports.record(entries: entries, userID: commitAuthorization.authority.userID)
             }
@@ -357,7 +399,9 @@ struct CollectionSyncCoordinatorTests {
         let imports = CollectionImportRecorder()
         let coordinator = CollectionSyncCoordinator(
             authorize: { initial },
-            validateAuthorization: { candidate in await current.matches(candidate) },
+            validateAuthorization: { candidate in
+                await current.matches(candidate)
+            },
             fetchRemote: { _ in
                 await current.replace(with: renewed)
                 throw CollectionAPIClientError.network(.statusCode(403))
@@ -386,13 +430,17 @@ struct CollectionSyncCoordinatorTests {
         let imports = CollectionImportRecorder()
         let coordinator = CollectionSyncCoordinator(
             authorize: { initial },
-            validateAuthorization: { candidate in await current.matches(candidate) },
+            validateAuthorization: { candidate in
+                await current.matches(candidate)
+            },
             recoverAuthorization: { rejectedAuthorization in
                 await recoveries.record(rejectedAuthorization)
                 await current.replace(with: renewed)
                 return renewed
             },
-            fetchRemote: { accessToken in try await fetch.load(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await fetch.load(accessToken: accessToken)
+            },
             importRemote: { entries, commitAuthorization in
                 await imports.record(entries: entries, userID: commitAuthorization.authority.userID)
             }
@@ -419,7 +467,9 @@ struct CollectionSyncCoordinatorTests {
                 await recoveries.record(rejectedAuthorization)
                 throw SessionControllerError.authenticationRequired
             },
-            fetchRemote: { accessToken in try await fetch.load(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await fetch.load(accessToken: accessToken)
+            },
             importRemote: { entries, commitAuthorization in
                 await imports.record(entries: entries, userID: commitAuthorization.authority.userID)
             }
@@ -445,13 +495,17 @@ struct CollectionSyncCoordinatorTests {
         let imports = CollectionImportRecorder()
         let coordinator = CollectionSyncCoordinator(
             authorize: { initial },
-            validateAuthorization: { candidate in await current.matches(candidate) },
+            validateAuthorization: { candidate in
+                await current.matches(candidate)
+            },
             recoverAuthorization: { rejectedAuthorization in
                 await recoveries.record(rejectedAuthorization)
                 await current.replace(with: renewed)
                 return renewed
             },
-            fetchRemote: { accessToken in try await fetch.load(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await fetch.load(accessToken: accessToken)
+            },
             importRemote: { entries, commitAuthorization in
                 await imports.record(entries: entries, userID: commitAuthorization.authority.userID)
             }
@@ -483,13 +537,17 @@ struct CollectionSyncCoordinatorTests {
         let imports = CollectionImportRecorder()
         let coordinator = CollectionSyncCoordinator(
             authorize: { initial },
-            validateAuthorization: { candidate in await current.matches(candidate) },
+            validateAuthorization: { candidate in
+                await current.matches(candidate)
+            },
             recoverAuthorization: { rejectedAuthorization in
                 await recoveries.record(rejectedAuthorization)
                 await current.replace(with: renewed)
                 return renewed
             },
-            fetchRemote: { accessToken in try await fetch.load(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await fetch.load(accessToken: accessToken)
+            },
             importRemote: { entries, commitAuthorization in
                 await imports.record(entries: entries, userID: commitAuthorization.authority.userID)
             }
@@ -519,7 +577,9 @@ struct CollectionSyncCoordinatorTests {
             recoverAuthorization: { _ in
                 throw SessionAuthorizationRecoveryError.identityRejected(statusCode: 401)
             },
-            fetchRemote: { accessToken in try await fetch.load(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await fetch.load(accessToken: accessToken)
+            },
             importRemote: { entries, commitAuthorization in
                 await imports.record(entries: entries, userID: commitAuthorization.authority.userID)
             }
@@ -544,7 +604,9 @@ struct CollectionSyncCoordinatorTests {
                 throw SessionAuthorizationRecoveryError.identityRejected(statusCode: 401)
             },
             validateAuthorization: { _ in true },
-            fetchRemote: { accessToken in try await fetch.load(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await fetch.load(accessToken: accessToken)
+            },
             importRemote: { entries, commitAuthorization in
                 await imports.record(entries: entries, userID: commitAuthorization.authority.userID)
             }
@@ -697,7 +759,9 @@ struct CollectionSyncCoordinatorTests {
             },
             fetchRemote: { _ in [Self.remoteEntry] },
             importRemote: { entries, authorization in
-                clock.withLock { $0 = $0.addingTimeInterval(601) }
+                clock.withLock {
+                    $0 = $0.addingTimeInterval(601)
+                }
                 try await actor.importRemote(entries, authorization: authorization)
             }
         )
@@ -905,10 +969,14 @@ struct CollectionSyncCoordinatorTests {
             client: client,
             mutationActor: CollectionMutationActor(modelContainer: container)
         )
-        let importTask = Task { try await coordinator.importAuthenticatedCollection() }
+        let importTask = Task {
+            try await coordinator.importAuthenticatedCollection()
+        }
         await responseGate.waitUntilArrived()
         storage.failNext(.removeAll, with: .temporarilyUnavailable)
-        let logoutTask = Task { try await controller.logout() }
+        let logoutTask = Task {
+            try await controller.logout()
+        }
         await deletionGate.waitUntilEntered()
 
         await responseGate.open()
@@ -1009,15 +1077,21 @@ struct CollectionSyncCoordinatorTests {
         let imports = CollectionImportRecorder()
         let callGate = CoordinatorCallGate()
         let coordinator = CollectionSyncCoordinator(
-            authorize: { try await authorizations.next() },
+            authorize: {
+                try await authorizations.next()
+            },
             validateAuthorization: { _ in true },
-            fetchRemote: { accessToken in try await fetch.load(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await fetch.load(accessToken: accessToken)
+            },
             importRemote: { entries, authorization in
                 await imports.record(entries: entries, userID: authorization.authority.userID)
             }
         )
 
-        let current = Task { try await coordinator.importAuthenticatedCollection() }
+        let current = Task {
+            try await coordinator.importAuthenticatedCollection()
+        }
         await fetch.waitForRequestCount(1)
         let stale = Task {
             await callGate.suspendUntilOpen()
@@ -1027,7 +1101,9 @@ struct CollectionSyncCoordinatorTests {
 
         stale.cancel()
         await callGate.open()
-        await #expect(throws: CancellationError.self) { try await stale.value }
+        await #expect(throws: CancellationError.self) {
+            try await stale.value
+        }
         await fetch.succeedFirstRequest()
         try await current.value
 
@@ -1147,7 +1223,9 @@ struct CollectionSyncCoordinatorTests {
         return SessionController(
             apiClient: SessionAPIClient(
                 configuration: try APIConfiguration(baseURL: baseURL),
-                loadData: { request in try await loader.load(request) },
+                loadData: { request in
+                    try await loader.load(request)
+                },
                 now: now
             ),
             persistence: SessionPersistenceActor(operations: storage.operations()),
@@ -1163,7 +1241,9 @@ struct CollectionSyncCoordinatorTests {
         let baseURL = try #require(URL(string: "https://collection.example.test"))
         return CollectionAPIClient(
             configuration: try APIConfiguration(baseURL: baseURL),
-            loadData: { request in try await loader.load(request) }
+            loadData: { request in
+                try await loader.load(request)
+            }
         )
     }
 
@@ -1255,7 +1335,9 @@ private actor R1CollectionDataLoader {
 
     func load(_ request: URLRequest) async throws(any Error) -> Data {
         requests.append(request)
-        if let responseGate { await responseGate.suspendUntilOpen() }
+        if let responseGate {
+            await responseGate.suspendUntilOpen()
+        }
         guard replies.isEmpty == false else { throw ScriptError.exhausted }
 
         switch replies.removeFirst() {
@@ -1283,22 +1365,30 @@ private actor R1RequestGate {
 
     func suspendUntilOpen() async {
         arrived = true
-        arrivalWaiters.forEach { $0.resume() }
+        arrivalWaiters.forEach {
+            $0.resume()
+        }
         arrivalWaiters.removeAll()
         guard isOpen == false else { return }
 
-        await withCheckedContinuation { openWaiters.append($0) }
+        await withCheckedContinuation {
+            openWaiters.append($0)
+        }
     }
 
     func waitUntilArrived() async {
         guard arrived == false else { return }
 
-        await withCheckedContinuation { arrivalWaiters.append($0) }
+        await withCheckedContinuation {
+            arrivalWaiters.append($0)
+        }
     }
 
     func open() {
         isOpen = true
-        openWaiters.forEach { $0.resume() }
+        openWaiters.forEach {
+            $0.resume()
+        }
         openWaiters.removeAll()
     }
 }
@@ -1435,7 +1525,9 @@ private actor ReplacingCollectionFetch {
                 }
             }
         } onCancel: {
-            Task { await self.cancelFirstRequest() }
+            Task {
+                await self.cancelFirstRequest()
+            }
         }
     }
 
@@ -1469,7 +1561,9 @@ private actor ReplacingCollectionFetch {
     private func resumeSatisfiedRequestWaiters() {
         let satisfied = requestWaiters.filter { recordedAccessTokens.count >= $0.expectedCount }
         requestWaiters.removeAll { recordedAccessTokens.count >= $0.expectedCount }
-        satisfied.forEach { $0.continuation.resume() }
+        satisfied.forEach {
+            $0.continuation.resume()
+        }
     }
 }
 
@@ -1493,22 +1587,30 @@ private actor CoordinatorCallGate {
 
     func suspendUntilOpen() async {
         arrived = true
-        arrivalWaiters.forEach { $0.resume() }
+        arrivalWaiters.forEach {
+            $0.resume()
+        }
         arrivalWaiters.removeAll()
         guard isOpen == false else { return }
 
-        await withCheckedContinuation { openWaiters.append($0) }
+        await withCheckedContinuation {
+            openWaiters.append($0)
+        }
     }
 
     func waitUntilArrived() async {
         guard arrived == false else { return }
 
-        await withCheckedContinuation { arrivalWaiters.append($0) }
+        await withCheckedContinuation {
+            arrivalWaiters.append($0)
+        }
     }
 
     func open() {
         isOpen = true
-        openWaiters.forEach { $0.resume() }
+        openWaiters.forEach {
+            $0.resume()
+        }
         openWaiters.removeAll()
     }
 }

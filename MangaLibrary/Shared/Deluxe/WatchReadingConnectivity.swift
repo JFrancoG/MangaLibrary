@@ -140,7 +140,9 @@ final class WatchReadingConnectivity: NSObject, WCSessionDelegate, Sendable {
                 }
                 self.activate()
             },
-            checkContentDrain: { self.enqueueContentDrain($0) },
+            checkContentDrain: {
+                self.enqueueContentDrain($0)
+            },
             receive: receive
         )
     }

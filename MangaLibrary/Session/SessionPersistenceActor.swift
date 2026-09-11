@@ -15,10 +15,18 @@ actor SessionPersistenceActor {
 
         static func live(keychain: SessionKeychainStore) -> Self {
             Self(
-                load: { try keychain.load() },
-                save: { try keychain.save($0) },
-                removeLegacy: { try keychain.removeLegacy() },
-                removeAll: { try keychain.removeAll() }
+                load: {
+                    try keychain.load()
+                },
+                save: {
+                    try keychain.save($0)
+                },
+                removeLegacy: {
+                    try keychain.removeLegacy()
+                },
+                removeAll: {
+                    try keychain.removeAll()
+                }
             )
         }
     }
@@ -74,9 +82,7 @@ actor SessionPersistenceActor {
         _ access: SessionCredential,
         expected: SessionAuthority
     ) throws(any Error) -> SessionPersistedSession? {
-        guard let current = try operations.load(), current.authority == expected else {
-            return nil
-        }
+        guard let current = try operations.load(), current.authority == expected else { return nil }
 
         let replacement = try current.replacingAccess(with: access)
         try operations.save(replacement)
@@ -85,9 +91,7 @@ actor SessionPersistenceActor {
 
     /// Deletes only the expected generation and all known legacy session items.
     func remove(expected: SessionAuthority) throws(any Error) -> Bool {
-        guard let current = try operations.load(), current.authority == expected else {
-            return false
-        }
+        guard let current = try operations.load(), current.authority == expected else { return false }
 
         try operations.removeAll()
         return true

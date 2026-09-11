@@ -43,7 +43,9 @@ struct ReadingLiveSnapshotStorageTests {
         #expect(throws: ReadingSnapshotStorageError.unavailable) {
             try storage.read(.fence)
         }
-        resolved.withLock { $0 = shared }
+        resolved.withLock {
+            $0 = shared
+        }
         #expect(try storage.read(.fence) == nil)
         try storage.replace(.fence, fence)
         try storage.replace(.publisherState, privateState)
@@ -53,7 +55,9 @@ struct ReadingLiveSnapshotStorageTests {
         #expect(FileManager.default.fileExists(atPath: shared.appending(path: "publisher-state.json").path) == false)
         #expect(FileManager.default.fileExists(atPath: publisher.appending(path: "session-fence.json").path) == false)
 
-        resolved.withLock { $0 = nil }
+        resolved.withLock {
+            $0 = nil
+        }
         #expect(throws: ReadingSnapshotStorageError.unavailable) {
             try storage.read(.publisherState)
         }
@@ -63,7 +67,9 @@ struct ReadingLiveSnapshotStorageTests {
         #expect(try Data(contentsOf: shared.appending(path: "session-fence.json")) == fence)
         #expect(try Data(contentsOf: publisher.appending(path: "publisher-state.json")) == privateState)
 
-        resolved.withLock { $0 = shared }
+        resolved.withLock {
+            $0 = shared
+        }
         #expect(try storage.read(.fence) == fence)
         #expect(try storage.read(.publisherState) == privateState)
     }

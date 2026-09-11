@@ -46,7 +46,9 @@ struct ReadingWidgetProvider: TimelineProvider {
 
 extension ReadingWidgetProvider {
     init(
-        loadEntry: @escaping @Sendable (WidgetFamily) -> ReadingWidgetEntry = { ReadingWidgetEntry.loadLive(family: $0) }
+        loadEntry: @escaping @Sendable (WidgetFamily) -> ReadingWidgetEntry = {
+            ReadingWidgetEntry.loadLive(family: $0)
+        }
     ) {
         readEntry = loadEntry
     }

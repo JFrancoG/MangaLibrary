@@ -26,10 +26,7 @@ struct CollectionRemotePipelineTests {
         let remoteEntries = try await client.fetch(accessToken: "fixture-access")
         let authority = SessionAuthority(userID: Self.userID, generation: UUID())
         let gate = SessionCommitGate(activeAuthority: authority)
-        try await actor.importRemote(
-            remoteEntries,
-            authorization: gate.authorization(for: authority)
-        )
+        try await actor.importRemote(remoteEntries, authorization: gate.authorization(for: authority))
 
         let context = ModelContext(container)
         let entries = try context.fetch(FetchDescriptor<CollectionEntry>())
@@ -157,11 +154,7 @@ struct CollectionAPIClientTests {
     @Test("An omitted nullable reading volume decodes as no active volume")
     func omittedReadingVolumeDecodesAsNil() async throws(any Error) {
         let remoteID = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
-        let entryWithoutReadingVolume = Self.entry(
-            remoteID: remoteID,
-            mangaID: 42,
-            includesReadingVolume: false
-        )
+        let entryWithoutReadingVolume = Self.entry(remoteID: remoteID, mangaID: 42, includesReadingVolume: false)
         let client = try makeClient(data: Self.snapshot(entryWithoutReadingVolume))
 
         let entries = try await client.fetch(accessToken: "fixture-access")
@@ -175,9 +168,7 @@ struct CollectionAPIClientTests {
     func nonpositiveReportedTotalRejectsImport(_ reportedTotal: Int64) async throws(any Error) {
         let remoteID = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
         let client = try makeClient(
-            data: Self.snapshot(
-                Self.entry(remoteID: remoteID, mangaID: 42, volumes: reportedTotal)
-            )
+            data: Self.snapshot(Self.entry(remoteID: remoteID, mangaID: 42, volumes: reportedTotal))
         )
         let remoteEntries = try await client.fetch(accessToken: "fixture-access")
         let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
@@ -186,10 +177,7 @@ struct CollectionAPIClientTests {
         let commitGate = SessionCommitGate(activeAuthority: authority)
 
         await #expect(throws: CollectionRemoteImportError.nonPositiveKnownTotal(reportedTotal)) {
-            try await actor.importRemote(
-                remoteEntries,
-                authorization: commitGate.authorization(for: authority)
-            )
+            try await actor.importRemote(remoteEntries, authorization: commitGate.authorization(for: authority))
         }
 
         let context = ModelContext(container)

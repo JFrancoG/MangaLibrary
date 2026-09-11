@@ -83,9 +83,15 @@ actor UITestingReadingWidget {
 
     nonisolated func operations() -> AccountModel.Operations {
         AccountModel.Operations(
-            currentSnapshot: { [self] in await currentSnapshot() },
-            restore: { [self] in await currentSnapshot() },
-            login: { _, _ in throw SessionControllerError.unavailable },
+            currentSnapshot: { [self] in
+                await currentSnapshot()
+            },
+            restore: { [self] in
+                await currentSnapshot()
+            },
+            login: { _, _ in
+                throw SessionControllerError.unavailable
+            },
             register: { _, _ in .notSubmitted(.unavailable) },
             logout: { [self] discardPendingChanges in
                 try await logout(discardPendingChanges: discardPendingChanges)
@@ -193,9 +199,7 @@ actor UITestingReadingWidget {
         guard case .active = snapshot else { throw SessionControllerError.notAuthenticated }
         guard !loggingOut else { throw SessionControllerError.transitionInProgress }
         let authority = account.authority
-        guard let authorization = gate.suspendForLogout(authority) else {
-            throw SessionControllerError.sessionChanged
-        }
+        guard let authorization = gate.suspendForLogout(authority) else { throw SessionControllerError.sessionChanged }
         loggingOut = true
         defer { loggingOut = false }
         do {
@@ -205,7 +209,9 @@ actor UITestingReadingWidget {
             if discardPendingChanges {
                 try await mutations.discardPendingChangesForLogout(authorization: authorization)
             }
-            try authorization.perform { composition.events.invalidate(authority: authority) }
+            try authorization.perform {
+                composition.events.invalidate(authority: authority)
+            }
             closeAttempted = true
             let retirement = try await composition.publisher.close(authorization: authorization)
             gate.invalidate(authority)
@@ -227,7 +233,9 @@ actor UITestingReadingWidget {
         guard snapshot == .active(account), authority == account.authority else { return }
         gate.activate(authority)
         let resumed = gate.authorization(for: authority)
-        _ = try resumed.perform { composition.events.record(authorization: resumed) }
+        _ = try resumed.perform {
+            composition.events.record(authorization: resumed)
+        }
     }
 }
 

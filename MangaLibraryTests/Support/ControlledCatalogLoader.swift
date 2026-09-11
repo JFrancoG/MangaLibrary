@@ -92,7 +92,9 @@ actor ControlledCatalogLoader {
         requestWaiters.removeAll {
             recordedRequests.count >= $0.expectedCount
         }
-        satisfiedWaiters.forEach { $0.continuation.resume() }
+        satisfiedWaiters.forEach {
+            $0.continuation.resume()
+        }
     }
 
     private func resumeSatisfiedCancellationWaiters() {
@@ -102,6 +104,8 @@ actor ControlledCatalogLoader {
         cancellationWaiters.removeAll {
             cancelledRequestIndices.contains($0.requestIndex)
         }
-        satisfiedWaiters.forEach { $0.continuation.resume() }
+        satisfiedWaiters.forEach {
+            $0.continuation.resume()
+        }
     }
 }

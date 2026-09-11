@@ -149,7 +149,8 @@ private extension ReadingSnapshotFileReaderTests {
 
 private extension ReadingSnapshotFileReaderTests.Harness {
     init() throws {
-        directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        directory = FileManager.default.temporaryDirectory
+            .appending(path: UUID().uuidString, directoryHint: .isDirectory)
         shared = directory.appending(path: "shared", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: shared, withIntermediateDirectories: true)
         try ReadingSnapshotFileReaderTests.fixture("fence-open-a")

@@ -11,7 +11,11 @@ struct ReadingPublicationLifecycleTests {
         let calls = Mutex(0)
         let identities = ReadingLifecycleIdentities()
         let lifecycle = ReadingPublicationLifecycle(
-            runPipeline: { calls.withLock { $0 += 1 } },
+            runPipeline: {
+                calls.withLock {
+                    $0 += 1
+                }
+            },
             makeIdentity: identities.next
         )
         let initialWake = lifecycle.wakeID
@@ -68,7 +72,9 @@ struct ReadingPublicationLifecycleTests {
     func `an unexpected consumer failure stays visible without guessing a session authority`() async throws {
         let calls = Mutex(0)
         let lifecycle = ReadingPublicationLifecycle(runPipeline: {
-            calls.withLock { $0 += 1 }
+            calls.withLock {
+                $0 += 1
+            }
             throw ReadingPublicationPipelineError.consumerAlreadyRunning
         })
         let initialWake = lifecycle.wakeID
@@ -136,12 +142,20 @@ struct ReadingPublicationLifecycleTests {
     @Test
     func `an already cancelled scene neither starts the consumer nor wakes other scenes`() async {
         let calls = Mutex(0)
-        let lifecycle = ReadingPublicationLifecycle(runPipeline: { calls.withLock { $0 += 1 } })
+        let lifecycle = ReadingPublicationLifecycle(
+            runPipeline: {
+                calls.withLock {
+                    $0 += 1
+                }
+            }
+        )
         let initialWake = lifecycle.wakeID
 
         await withTaskGroup(of: Void.self) { group in
             group.cancelAll()
-            group.addTask { await lifecycle.run() }
+            group.addTask {
+                await lifecycle.run()
+            }
             await group.waitForAll()
         }
 

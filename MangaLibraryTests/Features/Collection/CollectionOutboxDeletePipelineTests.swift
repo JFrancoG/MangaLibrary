@@ -241,7 +241,9 @@ struct CollectionOutboxDeletePipelineTests {
                     throw DeletePipelineProbe.Failure.lostDeleteResponse
                 }
             },
-            fetchRemote: { accessToken in try await probe.fetchFull(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await probe.fetchFull(accessToken: accessToken)
+            },
             fetchRemoteEntry: { requestedMangaID, accessToken in
                 try await probe.fetchIndividual(mangaID: requestedMangaID, accessToken: accessToken)
             },
@@ -472,9 +474,7 @@ private actor DeletePipelineProbe {
     func fetchIndividual(mangaID: Manga.ID, accessToken: String) throws -> CollectionRemoteEntry? {
         guard accessToken == "synthetic-access" else { throw Failure.unexpectedRequest }
         recordedEvents.append(.get(mangaID))
-        guard case let .uncertain(remoteEntry) = outcome else {
-            throw Failure.unexpectedRequest
-        }
+        guard case let .uncertain(remoteEntry) = outcome else { throw Failure.unexpectedRequest }
         return remoteEntry
     }
 

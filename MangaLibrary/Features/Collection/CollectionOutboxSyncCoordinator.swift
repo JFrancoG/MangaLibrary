@@ -783,7 +783,9 @@ actor CollectionOutboxSyncCoordinator {
 extension CollectionOutboxSyncCoordinator {
     init(sessionController: SessionController, client: CollectionAPIClient, mutationActor: CollectionMutationActor) {
         self.init(
-            authorize: { try await sessionController.requestAuthorization() },
+            authorize: {
+                try await sessionController.requestAuthorization()
+            },
             validateAuthorization: { authorization in
                 try await sessionController.authorizes(authorization)
             },
@@ -806,7 +808,9 @@ extension CollectionOutboxSyncCoordinator {
                     )
                 }
             },
-            fetchRemote: { accessToken in try await client.fetch(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await client.fetch(accessToken: accessToken)
+            },
             fetchRemoteEntry: { mangaID, accessToken in
                 try await client.fetch(mangaID: mangaID, accessToken: accessToken)
             },

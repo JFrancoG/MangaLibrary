@@ -13,7 +13,9 @@ struct ReadingRotationPublicationTests {
         let composition = try fixture.composition()
         _ = try await fixture.publishRestored(composition)
         let addedAt = Date(timeIntervalSince1970: 1_800_000_600)
-        fixture.clock.withLock { $0 = addedAt }
+        fixture.clock.withLock {
+            $0 = addedAt
+        }
 
         try await fixture.add(4, in: composition)
         _ = try #require(try await fixture.publishLatest(composition))
@@ -33,7 +35,9 @@ struct ReadingRotationPublicationTests {
         let composition = try fixture.composition()
         _ = try await fixture.publishRestored(composition)
         let addedAt = Date(timeIntervalSince1970: 1_800_000_600)
-        fixture.clock.withLock { $0 = addedAt }
+        fixture.clock.withLock {
+            $0 = addedAt
+        }
 
         try await fixture.add(4, in: composition)
         try await fixture.add(5, in: composition)
@@ -58,11 +62,15 @@ struct ReadingRotationPublicationTests {
         defer { fixture.removeFiles() }
         let original = try fixture.composition()
         _ = try await fixture.publishRestored(original)
-        fixture.clock.withLock { $0 = Date(timeIntervalSince1970: 1_800_000_600) }
+        fixture.clock.withLock {
+            $0 = Date(timeIntervalSince1970: 1_800_000_600)
+        }
         try await fixture.add(4, in: original)
         _ = try #require(try await fixture.publishLatest(original))
         let before = try fixture.bytes()
-        fixture.clock.withLock { $0 = Date(timeIntervalSince1970: 1_800_003_600) }
+        fixture.clock.withLock {
+            $0 = Date(timeIntervalSince1970: 1_800_003_600)
+        }
         let restored = try fixture.composition()
 
         #expect(try await fixture.publishRestored(restored) == nil)
@@ -89,7 +97,9 @@ struct ReadingRotationPublicationTests {
         let focused = CollectionWidgetRotation(snapshot: added, generatedAt: before.generatedAt)
         #expect(focused.item(at: before.generatedAt)?.mangaID == 4)
         let deletedAt = Date(timeIntervalSince1970: 1_800_000_600)
-        fixture.clock.withLock { $0 = deletedAt }
+        fixture.clock.withLock {
+            $0 = deletedAt
+        }
 
         _ = try await composition.mutations.apply(
             CollectionMutationCommand(
@@ -121,7 +131,9 @@ struct ReadingRotationPublicationTests {
         #expect(focused.item(at: before.generatedAt)?.mangaID == 4)
         let replacement = SessionAuthority(userID: fixture.authority.userID, generation: UUID())
         let restoredAt = Date(timeIntervalSince1970: 1_800_000_600)
-        fixture.clock.withLock { $0 = restoredAt }
+        fixture.clock.withLock {
+            $0 = restoredAt
+        }
         fixture.gate.activate(replacement)
         composition.events.record(authorization: fixture.gate.authorization(for: replacement))
 
@@ -156,7 +168,9 @@ struct ReadingRotationPublicationTests {
         let readingsBefore = ReadingWidgetRotation(snapshot: deletedManifest).items(at: deletedManifest.generatedAt)
         try #require(readingsBefore.map(\.mangaID) == [2, 1])
         let addedAt = Date(timeIntervalSince1970: 1_800_000_600)
-        fixture.clock.withLock { $0 = addedAt }
+        fixture.clock.withLock {
+            $0 = addedAt
+        }
 
         try await fixture.add(3, in: composition)
         _ = try #require(try await fixture.publishLatest(composition))
@@ -180,7 +194,9 @@ struct ReadingRotationPublicationTests {
         let focused = CollectionWidgetRotation(snapshot: added, generatedAt: before.generatedAt)
         try #require(focused.item(at: before.generatedAt)?.mangaID == 4)
         let editedAt = Date(timeIntervalSince1970: 1_800_000_600)
-        fixture.clock.withLock { $0 = editedAt }
+        fixture.clock.withLock {
+            $0 = editedAt
+        }
 
         try await fixture.add(5, in: composition)
         _ = try await composition.mutations.apply(
@@ -209,7 +225,9 @@ struct ReadingRotationPublicationTests {
         defer { fixture.removeFiles() }
         let composition = try fixture.composition()
         _ = try await fixture.publishRestored(composition)
-        fixture.clock.withLock { $0 = Date(timeIntervalSince1970: 1_800_000_600) }
+        fixture.clock.withLock {
+            $0 = Date(timeIntervalSince1970: 1_800_000_600)
+        }
 
         try await fixture.edit(2, reading: 3, in: composition)
         let snapshot = try #require(try await fixture.publishLatest(composition))
@@ -231,7 +249,9 @@ struct ReadingRotationPublicationTests {
         try await fixture.edit(2, reading: 2, in: composition)
         _ = try await fixture.publishLatest(composition)
         let before = try fixture.bytes()
-        fixture.clock.withLock { $0 = Date(timeIntervalSince1970: 1_800_003_600) }
+        fixture.clock.withLock {
+            $0 = Date(timeIntervalSince1970: 1_800_003_600)
+        }
 
         try await fixture.edit(1, reading: 1, in: composition)
         #expect(try await fixture.publishLatest(composition) == nil)
@@ -292,7 +312,9 @@ struct ReadingRotationPublicationTests {
         let original = try fixture.composition()
         try await fixture.edit(2, reading: 2, in: original)
         _ = try await fixture.publishLatest(original)
-        fixture.clock.withLock { $0 = Date(timeIntervalSince1970: 1_800_000_600) }
+        fixture.clock.withLock {
+            $0 = Date(timeIntervalSince1970: 1_800_000_600)
+        }
         let restored = try fixture.composition()
 
         try await restored.mutations.importRemote(
@@ -323,7 +345,9 @@ struct ReadingRotationPublicationTests {
         let coverReader = ReadingCoverReader(sharedDirectory: fixture.directory.appending(path: "shared"))
         #expect(coverReader.read(cover) != nil)
         let before = try fixture.bytes()
-        fixture.clock.withLock { $0 = Date(timeIntervalSince1970: 1_800_003_600) }
+        fixture.clock.withLock {
+            $0 = Date(timeIntervalSince1970: 1_800_003_600)
+        }
         let restored = try fixture.composition()
 
         #expect(try await fixture.publishRestored(restored) == nil)
@@ -419,7 +443,9 @@ struct ReadingRotationPublicationTests {
         let deleted = try #require(try await fixture.publishLatest(composition))
         #expect(deleted.items.map(\.mangaID) == [2, 3])
         #expect(deleted.preferredStartMangaID == 2)
-        fixture.clock.withLock { $0 = Date(timeIntervalSince1970: 1_800_000_600) }
+        fixture.clock.withLock {
+            $0 = Date(timeIntervalSince1970: 1_800_000_600)
+        }
 
         _ = try await composition.mutations.apply(
             CollectionMutationCommand(
@@ -492,7 +518,9 @@ private extension ReadingRotationPublicationTests {
                 now: { self.clock.withLock { $0 } },
                 makeGeneration: { UUID() },
                 loadCover: { url in
-                    self.loads.withLock { $0.append(Int64(url.lastPathComponent) ?? 0) }
+                    self.loads.withLock {
+                        $0.append(Int64(url.lastPathComponent) ?? 0)
+                    }
                     return self.source
                 },
                 requestReload: { data in
@@ -501,7 +529,9 @@ private extension ReadingRotationPublicationTests {
                     } catch {
                         Issue.record(error)
                     }
-                    self.reloads.withLock { $0 += 1 }
+                    self.reloads.withLock {
+                        $0 += 1
+                    }
                 }
             )
         }
@@ -519,7 +549,9 @@ private extension ReadingRotationPublicationTests {
                 mutations: composition.mutations,
                 publisher: composition.publisher,
                 loadCover: composition.loadCover,
-                reconcileSession: { _ in throw Failure.unexpectedReconciliation }
+                reconcileSession: { _ in
+                    throw Failure.unexpectedReconciliation
+                }
             )
             return try await pipeline.process(event)
         }
@@ -578,9 +610,15 @@ private extension ReadingRotationPublicationTests {
 
         func readCollection() throws -> (ReadingSnapshot, CollectionWidgetSnapshot) {
             let reader = CollectionWidgetReader(
-                readFence: { try self.storage.read(.fence) },
-                readSnapshot: { try self.storage.read(.snapshot) },
-                readCollection: { try self.storage.read($0 == 0 ? .collection0 : .collection1) }
+                readFence: {
+                    try self.storage.read(.fence)
+                },
+                readSnapshot: {
+                    try self.storage.read(.snapshot)
+                },
+                readCollection: {
+                    try self.storage.read($0 == 0 ? .collection0 : .collection1)
+                }
             )
             guard case let .snapshot(manifest, collection) = try reader.readResult() else {
                 throw Failure.unavailableCollection

@@ -218,9 +218,7 @@ final class CatalogModel {
 
         do {
             let request = try CatalogPageRequest(query: query, page: requestedNextPage)
-            guard let page = try await fetchPage(request) else {
-                return
-            }
+            guard let page = try await fetchPage(request) else { return }
 
             let integration = integrate(page.items, into: content.items)
             let pagination = pagination(after: page)
@@ -251,9 +249,7 @@ final class CatalogModel {
 
         do {
             let request = try CatalogPageRequest(query: query)
-            guard let page = try await fetchPage(request) else {
-                return
-            }
+            guard let page = try await fetchPage(request) else { return }
 
             if page.items.isEmpty {
                 state = .empty

@@ -170,7 +170,9 @@ final class SessionCommitGate: Sendable {
     }
 
     func invalidateAll() {
-        activeSession.withLock { $0 = nil }
+        activeSession.withLock {
+            $0 = nil
+        }
     }
 
     func authorizes(_ authority: SessionAuthority) -> Bool {

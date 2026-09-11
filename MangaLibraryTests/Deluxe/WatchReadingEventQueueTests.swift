@@ -27,7 +27,9 @@ struct WatchReadingEventQueueTests {
             group.addTask {
                 try await queue.run(
                     untilContentDrained: true,
-                    prepare: { queue.record(.activated) },
+                    prepare: {
+                        queue.record(.activated)
+                    },
                     checkContentDrain: { identity in
                         let status = preparation.withLock { state in
                             let previous = state
@@ -50,7 +52,9 @@ struct WatchReadingEventQueueTests {
                                 _ = await iterator.next()
                             }
                         case let .received(data):
-                            accepted.withLock { $0 = data }
+                            accepted.withLock {
+                                $0 = data
+                            }
                         case .contentDrained, .requestedContentDrained, .invalidContext, .unavailable:
                             break
                         }
@@ -59,7 +63,9 @@ struct WatchReadingEventQueueTests {
             }
             var started = entered.stream.makeAsyncIterator()
             _ = await started.next()
-            preparation.withLock { $0.activated = activates }
+            preparation.withLock {
+                $0.activated = activates
+            }
             if activates {
                 queue.record(.activated)
             }
@@ -87,8 +93,16 @@ struct WatchReadingEventQueueTests {
         let stored = Mutex<Data?>(nil)
         let storage = WatchReadingSnapshotStorage(
             read: { stored.withLock { $0 } },
-            replace: { data in stored.withLock { $0 = data } },
-            discard: { stored.withLock { $0 = nil } }
+            replace: { data in
+                stored.withLock {
+                    $0 = data
+                }
+            },
+            discard: {
+                stored.withLock {
+                    $0 = nil
+                }
+            }
         )
         let receiver = WatchReadingSnapshotReceiver(storage: storage)
         let entered = AsyncStream<Void>.makeStream()
@@ -122,7 +136,9 @@ struct WatchReadingEventQueueTests {
             }
             var started = entered.stream.makeAsyncIterator()
             _ = await started.next()
-            current.withLock { $0 = second }
+            current.withLock {
+                $0 = second
+            }
             queue.record(.received(second))
             resume.continuation.yield(())
             try await group.waitForAll()
@@ -148,7 +164,9 @@ struct WatchReadingEventQueueTests {
 
         try await queue.run(
             untilContentDrained: true,
-            prepare: { queue.record(.contentDrained) },
+            prepare: {
+                queue.record(.contentDrained)
+            },
             checkContentDrain: { identity in
                 guard let identity else { return }
                 queue.record(.received(current))
@@ -156,7 +174,9 @@ struct WatchReadingEventQueueTests {
             },
             receive: { event in
                 if case let .received(data) = event {
-                    accepted.withLock { $0 = data }
+                    accepted.withLock {
+                        $0 = data
+                    }
                 }
             }
         )
@@ -171,8 +191,16 @@ struct WatchReadingEventQueueTests {
         let cache = Mutex<Data?>(nil)
         let storage = WatchReadingSnapshotStorage(
             read: { cache.withLock { $0 } },
-            replace: { bytes in cache.withLock { $0 = bytes } },
-            discard: { cache.withLock { $0 = nil } }
+            replace: { bytes in
+                cache.withLock {
+                    $0 = bytes
+                }
+            },
+            discard: {
+                cache.withLock {
+                    $0 = nil
+                }
+            }
         )
         let receiver = WatchReadingSnapshotReceiver(storage: storage)
         let queue = WatchReadingEventQueue()
@@ -195,7 +223,12 @@ struct WatchReadingEventQueueTests {
 
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
-                try await queue.run(prepare: { queue.record(.activated) }, checkContentDrain: { _ in }) { event in
+                try await queue.run(
+                    prepare: {
+                        queue.record(.activated)
+                    },
+                    checkContentDrain: { _ in }
+                ) { event in
                     switch event {
                     case .activated:
                         entered.continuation.yield(())
@@ -222,7 +255,8 @@ struct WatchReadingEventQueueTests {
             group.cancelAll()
             do {
                 try await group.waitForAll()
-            } catch is CancellationError {}
+            } catch is CancellationError {
+            }
         }
 
         let relaunched = WatchReadingSnapshotReceiver(storage: storage)

@@ -22,7 +22,9 @@ extension WatchReadingSnapshotStorage {
     /// Defers storage creation until the first accepted context is written.
     init(directory: URL) {
         self.init(
-            read: { try Self.read(directory) },
+            read: {
+                try Self.read(directory)
+            },
             replace: { data in
                 guard data.count <= Self.maximumByteCount else { throw WatchReadingSnapshotStorageError.incompatible }
                 try Self.validate(directory, creating: true)

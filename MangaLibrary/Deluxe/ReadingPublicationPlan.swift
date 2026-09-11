@@ -83,11 +83,7 @@ extension ReadingPublicationPlan {
         while upper < candidates.count {
             try Task.checkCancellation()
             upper += min(upper, candidates.count - upper)
-            guard try Self.fits(
-                candidates.prefix(upper),
-                projection: projection,
-                collectionReference: reference
-            ) else {
+            guard try Self.fits(candidates.prefix(upper), projection: projection, collectionReference: reference) else {
                 break
             }
             lower = upper

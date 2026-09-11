@@ -274,7 +274,9 @@ struct CollectionOutboxDeleteSyncTests {
     private static func coordinator(probe: DeleteSyncProbe) -> CollectionOutboxSyncCoordinator {
         coordinator(
             probe: probe,
-            validateAuthorization: { authorization in await probe.validates(authorization) }
+            validateAuthorization: { authorization in
+                await probe.validates(authorization)
+            }
         )
     }
 
@@ -283,18 +285,28 @@ struct CollectionOutboxDeleteSyncTests {
         validateAuthorization: @escaping CollectionOutboxSyncCoordinator.ValidateAuthorization
     ) -> CollectionOutboxSyncCoordinator {
         CollectionOutboxSyncCoordinator(
-            authorize: { await probe.authorization() },
+            authorize: {
+                await probe.authorization()
+            },
             validateAuthorization: validateAuthorization,
             claimNextUpload: { authorization, _ in
                 try await probe.claim(authorization)
             },
-            submit: { item, token in try await probe.delete(item, accessToken: token) },
-            fetchRemote: { token in try await probe.fetchFull(accessToken: token) },
+            submit: { item, token in
+                try await probe.delete(item, accessToken: token)
+            },
+            fetchRemote: { token in
+                try await probe.fetchFull(accessToken: token)
+            },
             fetchRemoteEntry: { mangaID, token in
                 try await probe.fetchIndividual(mangaID: mangaID, accessToken: token)
             },
-            importRemote: { _, _ in Issue.record("A tombstone reconciliation must not import a partial snapshot") },
-            confirmUpload: { _, _ in Issue.record("A tombstone must use its deletion resolution") },
+            importRemote: { _, _ in
+                Issue.record("A tombstone reconciliation must not import a partial snapshot")
+            },
+            confirmUpload: { _, _ in
+                Issue.record("A tombstone must use its deletion resolution")
+            },
             resolveDeletion: { item, evidence, authorization in
                 try await probe.resolve(item, evidence: evidence, authorization: authorization)
             },

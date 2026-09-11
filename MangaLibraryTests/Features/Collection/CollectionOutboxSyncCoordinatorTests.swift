@@ -279,13 +279,21 @@ struct CollectionOutboxSyncCoordinatorTests {
     func replacementReconcilesTheSinglePersistedFlight() async throws(any Error) {
         let probe = ControlledSingleFlightProbe()
         let coordinator = CollectionOutboxSyncCoordinator(
-            authorize: { await probe.authorization() },
-            validateAuthorization: { authorization in await probe.validates(authorization) },
+            authorize: {
+                await probe.authorization()
+            },
+            validateAuthorization: { authorization in
+                await probe.validates(authorization)
+            },
             claimNextUpload: { authorization, _ in
                 try await probe.claim(authorization)
             },
-            submit: { item, accessToken in try await probe.submit(item, accessToken: accessToken) },
-            fetchRemote: { accessToken in try await probe.fetchRemote(accessToken: accessToken) },
+            submit: { item, accessToken in
+                try await probe.submit(item, accessToken: accessToken)
+            },
+            fetchRemote: { accessToken in
+                try await probe.fetchRemote(accessToken: accessToken)
+            },
             importRemote: { entries, authorization in
                 try await probe.importRemote(entries, authorization: authorization)
             },
@@ -297,12 +305,18 @@ struct CollectionOutboxSyncCoordinatorTests {
             }
         )
 
-        let first = Task { try await coordinator.synchronizeAuthenticatedOutbox() }
+        let first = Task {
+            try await coordinator.synchronizeAuthenticatedOutbox()
+        }
         await probe.waitUntilSubmitStarts()
-        let replacement = Task { try await coordinator.synchronizeAuthenticatedOutbox() }
+        let replacement = Task {
+            try await coordinator.synchronizeAuthenticatedOutbox()
+        }
         await probe.waitUntilSubmitCancellation()
 
-        await #expect(throws: CancellationError.self) { try await first.value }
+        await #expect(throws: CancellationError.self) {
+            try await first.value
+        }
         try await replacement.value
 
         let evidence = await probe.evidence()
@@ -316,13 +330,21 @@ struct CollectionOutboxSyncCoordinatorTests {
     func cancelledLateSnapshotFailureDoesNotCancelCurrentFlight() async throws(any Error) {
         let probe = ControlledSingleFlightProbe()
         let outboxCoordinator = CollectionOutboxSyncCoordinator(
-            authorize: { await probe.authorization() },
-            validateAuthorization: { authorization in await probe.validates(authorization) },
+            authorize: {
+                await probe.authorization()
+            },
+            validateAuthorization: { authorization in
+                await probe.validates(authorization)
+            },
             claimNextUpload: { authorization, _ in
                 try await probe.claim(authorization)
             },
-            submit: { item, accessToken in try await probe.submit(item, accessToken: accessToken) },
-            fetchRemote: { accessToken in try await probe.fetchRemote(accessToken: accessToken) },
+            submit: { item, accessToken in
+                try await probe.submit(item, accessToken: accessToken)
+            },
+            fetchRemote: { accessToken in
+                try await probe.fetchRemote(accessToken: accessToken)
+            },
             importRemote: { entries, authorization in
                 try await probe.importRemote(entries, authorization: authorization)
             },
@@ -335,13 +357,21 @@ struct CollectionOutboxSyncCoordinatorTests {
         )
         let lateFailure = LateSnapshotFailure()
         let importCoordinator = CollectionSyncCoordinator(
-            authorize: { await probe.authorization() },
-            validateAuthorization: { authorization in await probe.validates(authorization) },
-            fetchRemote: { _ in try await lateFailure.fetch() },
+            authorize: {
+                await probe.authorization()
+            },
+            validateAuthorization: { authorization in
+                await probe.validates(authorization)
+            },
+            fetchRemote: { _ in
+                try await lateFailure.fetch()
+            },
             importRemote: { _, _ in }
         )
 
-        let current = Task { try await outboxCoordinator.synchronizeAuthenticatedOutbox() }
+        let current = Task {
+            try await outboxCoordinator.synchronizeAuthenticatedOutbox()
+        }
         await probe.waitUntilSubmitStarts()
         let stale = Task {
             try await importCoordinator.importAuthenticatedCollection { authorization in
@@ -352,7 +382,9 @@ struct CollectionOutboxSyncCoordinatorTests {
         stale.cancel()
         await lateFailure.failRequest()
 
-        await #expect(throws: CancellationError.self) { try await stale.value }
+        await #expect(throws: CancellationError.self) {
+            try await stale.value
+        }
         await probe.finishSubmit()
         try await current.value
 
@@ -489,7 +521,9 @@ struct CollectionOutboxSyncCoordinatorTests {
     private static func makeCoordinator(probe: WorkerProbe) -> CollectionOutboxSyncCoordinator {
         makeCoordinator(
             probe: probe,
-            validateAuthorization: { authorization in await probe.validates(authorization) }
+            validateAuthorization: { authorization in
+                await probe.validates(authorization)
+            }
         )
     }
 
@@ -498,21 +532,31 @@ struct CollectionOutboxSyncCoordinatorTests {
         validateAuthorization: @escaping CollectionOutboxSyncCoordinator.ValidateAuthorization
     ) -> CollectionOutboxSyncCoordinator {
         CollectionOutboxSyncCoordinator(
-            authorize: { await probe.authorization() },
+            authorize: {
+                await probe.authorization()
+            },
             validateAuthorization: validateAuthorization,
             claimNextUpload: { authorization, _ in
                 try await probe.claim(authorization)
             },
-            submit: { item, accessToken in try await probe.submit(item, accessToken: accessToken) },
-            fetchRemote: { accessToken in try await probe.fetchRemote(accessToken: accessToken) },
+            submit: { item, accessToken in
+                try await probe.submit(item, accessToken: accessToken)
+            },
+            fetchRemote: { accessToken in
+                try await probe.fetchRemote(accessToken: accessToken)
+            },
             importRemote: { entries, authorization in
                 try await probe.importRemote(entries, authorization: authorization)
             },
-            confirmUpload: { item, authorization in try await probe.confirm(item, authorization: authorization) },
+            confirmUpload: { item, authorization in
+                try await probe.confirm(item, authorization: authorization)
+            },
             blockUploadOutcome: { item, authorization in
                 try await probe.block(item, authorization: authorization)
             },
-            hasBlockedOutcome: { authorization in try await probe.hasBlocked(authorization) }
+            hasBlockedOutcome: { authorization in
+                try await probe.hasBlocked(authorization)
+            }
         )
     }
 
@@ -520,14 +564,24 @@ struct CollectionOutboxSyncCoordinatorTests {
         probe: ControlledSingleFlightProbe
     ) -> CollectionOutboxSyncCoordinator {
         CollectionOutboxSyncCoordinator(
-            authorize: { await probe.authorization() },
-            validateAuthorization: { authorization in await probe.validates(authorization) },
+            authorize: {
+                await probe.authorization()
+            },
+            validateAuthorization: { authorization in
+                await probe.validates(authorization)
+            },
             claimNextUpload: { authorization, _ in
                 try await probe.claim(authorization)
             },
-            nextRecoveredUpload: { authorization in try await probe.nextRecovered(authorization) },
-            submit: { item, accessToken in try await probe.submit(item, accessToken: accessToken) },
-            fetchRemote: { accessToken in try await probe.fetchRemote(accessToken: accessToken) },
+            nextRecoveredUpload: { authorization in
+                try await probe.nextRecovered(authorization)
+            },
+            submit: { item, accessToken in
+                try await probe.submit(item, accessToken: accessToken)
+            },
+            fetchRemote: { accessToken in
+                try await probe.fetchRemote(accessToken: accessToken)
+            },
             importRemote: { entries, authorization in
                 try await probe.importRemote(entries, authorization: authorization)
             },
@@ -720,7 +774,9 @@ private actor ControlledSingleFlightProbe {
                 }
             }
         } onCancel: {
-            Task { await self.cancelSuspendedSubmit() }
+            Task {
+                await self.cancelSuspendedSubmit()
+            }
         }
         try Task.checkCancellation()
     }
@@ -752,14 +808,18 @@ private actor ControlledSingleFlightProbe {
         if submitStarted {
             return
         }
-        await withCheckedContinuation { submitStartWaiters.append($0) }
+        await withCheckedContinuation {
+            submitStartWaiters.append($0)
+        }
     }
 
     func waitUntilSubmitCancellation() async {
         if submitWasCancelled {
             return
         }
-        await withCheckedContinuation { submitCancellationWaiters.append($0) }
+        await withCheckedContinuation {
+            submitCancellationWaiters.append($0)
+        }
     }
 
     func finishSubmit() {
@@ -830,7 +890,9 @@ private actor LateSnapshotFailure {
         if requestStarted {
             return
         }
-        await withCheckedContinuation { requestWaiters.append($0) }
+        await withCheckedContinuation {
+            requestWaiters.append($0)
+        }
     }
 
     func failRequest() {

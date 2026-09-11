@@ -124,7 +124,9 @@ struct CollectionRemoteImportTests {
                 ],
                 authorization: Self.authorization(for: Self.userID),
                 afterMutation: { mutationCount in
-                    if mutationCount == 1 { throw InjectedRemoteImportFailure() }
+                    if mutationCount == 1 {
+                        throw InjectedRemoteImportFailure()
+                    }
                 }
             )
         }
@@ -147,7 +149,9 @@ struct CollectionRemoteImportTests {
                 authorization: Self.authorization(for: Self.userID),
                 afterMutation: { mutationCount in
                     if mutationCount == 1 {
-                        withUnsafeCurrentTask { task in task?.cancel() }
+                        withUnsafeCurrentTask { task in
+                            task?.cancel()
+                        }
                     }
                 }
             )
@@ -940,7 +944,9 @@ struct CollectionRemoteImportTests {
         operation.cancel()
         await gate.open()
 
-        await #expect(throws: CollectionRemoteImportError.cancelled) { try await operation.value }
+        await #expect(throws: CollectionRemoteImportError.cancelled) {
+            try await operation.value
+        }
         #expect(try readRemoteStore(container) == priorStore)
     }
 
@@ -1266,22 +1272,30 @@ private actor RemoteImportStartGate {
 
     func suspendUntilOpen() async {
         arrived = true
-        arrivalWaiters.forEach { $0.resume() }
+        arrivalWaiters.forEach {
+            $0.resume()
+        }
         arrivalWaiters.removeAll()
         guard isOpen == false else { return }
 
-        await withCheckedContinuation { openWaiters.append($0) }
+        await withCheckedContinuation {
+            openWaiters.append($0)
+        }
     }
 
     func waitUntilArrived() async {
         guard arrived == false else { return }
 
-        await withCheckedContinuation { arrivalWaiters.append($0) }
+        await withCheckedContinuation {
+            arrivalWaiters.append($0)
+        }
     }
 
     func open() {
         isOpen = true
-        openWaiters.forEach { $0.resume() }
+        openWaiters.forEach {
+            $0.resume()
+        }
         openWaiters.removeAll()
     }
 }

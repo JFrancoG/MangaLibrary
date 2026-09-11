@@ -202,7 +202,9 @@ struct CollectionMutationAuthorizationTests {
             actor: CollectionMutationActor(modelContainer: container),
             accountModel: accountModel,
             sessionAuthorization: CollectionSessionAuthorization { authority in
-                calls.withLock { $0 += 1 }
+                calls.withLock {
+                    $0 += 1
+                }
                 return SessionCommitGate(activeAuthority: authority).authorization(for: authority)
             }
         )
@@ -378,7 +380,9 @@ struct CollectionMutationAuthorizationTests {
                 calls.withLock { count in
                     count += 1
                     if count == 1 {
-                        clock.withLock { $0 = $0.addingTimeInterval(2) }
+                        clock.withLock {
+                            $0 = $0.addingTimeInterval(2)
+                        }
                         return authorization
                     }
                     return nil
@@ -565,7 +569,9 @@ private final class CollectionCommitAuthorizationSequence: Sendable {
     }
 
     func next() -> SessionCommitAuthorization {
-        values.withLock { $0.removeFirst() }
+        values.withLock {
+            $0.removeFirst()
+        }
     }
 
     var isEmpty: Bool {

@@ -24,7 +24,9 @@ final class ReadingPublicationTicket: Sendable {
     }
 
     fileprivate func invalidate() {
-        valid.withLock { $0 = false }
+        valid.withLock {
+            $0 = false
+        }
     }
 }
 

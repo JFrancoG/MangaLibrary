@@ -297,9 +297,7 @@ extension CollectionWidgetSnapshot.Item {
         coverResourceID: String? = nil
     ) throws {
         guard mangaID > 0 else { throw CollectionWidgetSnapshotError.invalidMangaID }
-        guard (0...300).contains(ownedVolumeCount) else {
-            throw CollectionWidgetSnapshotError.invalidOwnedVolumeCount
-        }
+        guard (0...300).contains(ownedVolumeCount) else { throw CollectionWidgetSnapshotError.invalidOwnedVolumeCount }
         if let totalVolumes {
             guard (1...300).contains(totalVolumes), ownedVolumeCount <= totalVolumes else {
                 throw CollectionWidgetSnapshotError.invalidTotalVolumes

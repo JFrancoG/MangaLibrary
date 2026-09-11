@@ -195,9 +195,7 @@ struct CollectionBlockedOutcomeResolutionTests {
             ]
         )
 
-        let claim = try #require(
-            try await fixture.actor.claimNextUpload(authorization: fixture.authorization)
-        )
+        let claim = try #require(try await fixture.actor.claimNextUpload(authorization: fixture.authorization))
         guard case let .send(workItem) = claim else {
             Issue.record("Expected the preserved later intent to become claimable")
             return
@@ -488,9 +486,7 @@ struct CollectionBlockedOutcomeResolutionTests {
 
         let reopened = try MangaLibrarySchema.makeContainer(storeURL: storeURL)
         let context = ModelContext(reopened)
-        let operation = try #require(
-            try context.fetch(FetchDescriptor<CollectionOutboxOperation>()).first
-        )
+        let operation = try #require(try context.fetch(FetchDescriptor<CollectionOutboxOperation>()).first)
         let entry = try #require(try context.fetch(FetchDescriptor<CollectionEntry>()).first)
 
         #expect(operation.operationID == Self.blockedOperationID)
@@ -537,7 +533,12 @@ private extension CollectionBlockedOutcomeResolutionTests {
         blockedSequence: Int64 = 1
     ) throws(any Error) -> R24Fixture {
         let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
-        try seedFixture(in: container, localState: localState, laterState: laterState, blockedSequence: blockedSequence)
+        try seedFixture(
+            in: container,
+            localState: localState,
+            laterState: laterState,
+            blockedSequence: blockedSequence
+        )
 
         let authority = SessionAuthority(userID: userID, generation: generation)
         let gate = SessionCommitGate(activeAuthority: authority)
@@ -649,9 +650,7 @@ private extension CollectionBlockedOutcomeResolutionTests {
 
     static func readOperationFence(_ container: ModelContainer) throws(any Error) -> R24OperationFence {
         let context = ModelContext(container)
-        let operation = try #require(
-            try context.fetch(FetchDescriptor<CollectionOutboxOperation>()).first
-        )
+        let operation = try #require(try context.fetch(FetchDescriptor<CollectionOutboxOperation>()).first)
         return R24OperationFence(
             operationID: operation.operationID,
             userID: operation.userID,

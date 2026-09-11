@@ -189,7 +189,9 @@ struct ReadingWatchDeliveryTests {
         let messages = Mutex<[Data]>([])
 
         try await harness.publisher().deliverWatchContext(authorization: harness.authorization) { data in
-            messages.withLock { $0.append(data) }
+            messages.withLock {
+                $0.append(data)
+            }
         }
 
         let data = try #require(messages.withLock { $0.first })
@@ -208,7 +210,9 @@ struct ReadingWatchDeliveryTests {
         let messages = Mutex<[Data]>([])
 
         try await publisher.deliverWatchContext(authorization: nil) { data in
-            messages.withLock { $0.append(data) }
+            messages.withLock {
+                $0.append(data)
+            }
         }
 
         let data = try #require(messages.withLock { $0.first })
@@ -228,19 +232,27 @@ struct ReadingWatchDeliveryTests {
         let messages = Mutex<[Data]>([])
 
         try await publisher.deliverWatchContext(authorization: harness.authorization) { data in
-            messages.withLock { $0.append(data) }
+            messages.withLock {
+                $0.append(data)
+            }
         }
         try #require(messages.withLock { $0.count } == 1)
-        messages.withLock { $0.removeAll() }
+        messages.withLock {
+            $0.removeAll()
+        }
 
         try await publisher.deliverWatchContext(authorization: nil) { data in
-            messages.withLock { $0.append(data) }
+            messages.withLock {
+                $0.append(data)
+            }
         }
         let oldAuthorization = harness.authorization
         _ = try #require(harness.gate.suspendForLogout(harness.authority))
         do {
             try await publisher.deliverWatchContext(authorization: oldAuthorization) { data in
-                messages.withLock { $0.append(data) }
+                messages.withLock {
+                    $0.append(data)
+                }
             }
         } catch is SessionCommitAuthorizationError {
         }
@@ -264,7 +276,9 @@ struct ReadingWatchDeliveryTests {
         let messages = Mutex<[Data]>([])
 
         try await harness.publisher().deliverWatchContext(authorization: nil) { data in
-            messages.withLock { $0.append(data) }
+            messages.withLock {
+                $0.append(data)
+            }
         }
 
         let data = try #require(messages.withLock { $0.first })
@@ -296,7 +310,11 @@ struct ReadingWatchDeliveryTests {
             ReadingSnapshotPublisher(
                 storage: storage ?? ReadingSnapshotStorage(
                     read: { [self] file in files.withLock { $0[file] } },
-                    replace: { [self] file, data in files.withLock { $0[file] = data } }
+                    replace: { [self] file, data in
+                        files.withLock {
+                            $0[file] = data
+                        }
+                    }
                 ),
                 now: { Date(timeIntervalSince1970: 1_788_652_800) },
                 makeGeneration: { UUID() },

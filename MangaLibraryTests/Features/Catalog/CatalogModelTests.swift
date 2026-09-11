@@ -827,6 +827,8 @@ private actor ReentrantCatalogFilterOptionsLoader {
         requestWaiters.removeAll {
             count >= $0.expectedCount
         }
-        satisfiedWaiters.forEach { $0.continuation.resume() }
+        satisfiedWaiters.forEach {
+            $0.continuation.resume()
+        }
     }
 }

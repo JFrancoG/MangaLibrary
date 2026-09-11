@@ -298,7 +298,9 @@ struct ReadingProjectionPublicationTests {
             let observed = ReadingSnapshotStorage(
                 read: storage.read,
                 replace: { file, data in
-                    self.writes.withLock { $0.append(file) }
+                    self.writes.withLock {
+                        $0.append(file)
+                    }
                     try self.storage.replace(file, data)
                 }
             )
@@ -310,7 +312,9 @@ struct ReadingProjectionPublicationTests {
                     if failReload {
                         throw ReadingSnapshotStorageError.unavailable
                     }
-                    self.reloads.withLock { $0.append(data) }
+                    self.reloads.withLock {
+                        $0.append(data)
+                    }
                 }
             )
         }
@@ -324,8 +328,12 @@ struct ReadingProjectionPublicationTests {
         }
 
         func clearEffects() {
-            writes.withLock { $0.removeAll() }
-            reloads.withLock { $0.removeAll() }
+            writes.withLock {
+                $0.removeAll()
+            }
+            reloads.withLock {
+                $0.removeAll()
+            }
         }
     }
 }

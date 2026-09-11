@@ -137,7 +137,9 @@ struct ReadingCoverStorage {
             guard identities.insert(resource.identifier).inserted else { continue }
             let existing = try existingResource(resource.identifier)
             let retained = try hasReceipt(resource.identifier)
-            if let existing, existing != resource { continue }
+            if let existing, existing != resource {
+                continue
+            }
             if existing != nil, retained {
                 selected.append(resource)
                 continue

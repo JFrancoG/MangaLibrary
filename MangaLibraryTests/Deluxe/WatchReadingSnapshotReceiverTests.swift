@@ -366,7 +366,9 @@ struct WatchReadingSnapshotReceiverTests {
         let receiver = WatchReadingSnapshotReceiver(storage: cache.storage)
         try #require(Self.identities(await receiver.receive(Self.context())) == [20, 10])
         try #require(cache.bytes.withLock { $0 } != nil)
-        cache.failWrites.withLock { $0 = true }
+        cache.failWrites.withLock {
+            $0 = true
+        }
 
         let result = await receiver.receive(Self.context(revision: 8, state: "redacted"))
         let relaunched = WatchReadingSnapshotReceiver(storage: cache.storage)
@@ -384,7 +386,9 @@ struct WatchReadingSnapshotReceiverTests {
         try #require(Self.identities(await receiver.receive(Self.context())) == [20, 10])
         try #require(cache.bytes.withLock { $0 } != nil)
         let protected = WatchReadingSnapshotStorage(
-            read: { throw CacheFailure.inaccessible },
+            read: {
+                throw CacheFailure.inaccessible
+            },
             replace: cache.storage.replace,
             discard: cache.storage.discard
         )
@@ -399,7 +403,9 @@ struct WatchReadingSnapshotReceiverTests {
         let cache = Cache()
         let receiver = WatchReadingSnapshotReceiver(storage: cache.storage)
         try #require(Self.identities(await receiver.receive(Self.context())) == [20, 10])
-        cache.bytes.withLock { $0 = Data("interrupted cache bytes".utf8) }
+        cache.bytes.withLock {
+            $0 = Data("interrupted cache bytes".utf8)
+        }
         let relaunched = WatchReadingSnapshotReceiver(storage: cache.storage)
 
         #expect(await relaunched.restore() == .unavailable)
@@ -422,7 +428,9 @@ struct WatchReadingSnapshotReceiverTests {
         let fixture = Self.nearlyFullCache(retiredSessions: generations)
         try #require(fixture.count <= 65_536)
         try #require(fixture.count + 39 > 65_536)
-        cache.bytes.withLock { $0 = fixture }
+        cache.bytes.withLock {
+            $0 = fixture
+        }
         let receiver = WatchReadingSnapshotReceiver(storage: cache.storage)
         try #require(Self.identities(await receiver.restore()) == [20, 10])
 
@@ -506,9 +514,15 @@ private extension WatchReadingSnapshotReceiverTests {
                     if self.failWrites.withLock({ $0 }) || self.persistenceFailure.withLock({ $0 }) == .replace {
                         throw CacheFailure.inaccessible
                     }
-                    self.bytes.withLock { $0 = data }
+                    self.bytes.withLock {
+                        $0 = data
+                    }
                 },
-                discard: { self.bytes.withLock { $0 = nil } }
+                discard: {
+                    self.bytes.withLock {
+                        $0 = nil
+                    }
+                }
             )
         }
     }
