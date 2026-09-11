@@ -22,7 +22,7 @@ struct ReadingCoverReader {
         defer { close(file) }
 
         guard
-            let data = try? ReadingCoverFileAccess.read(fileDescriptor: file, limit: 65_536),
+            let data = try? ReadingCoverFileAccess.read(fileDescriptor: file, limit: ReadingCoverResource.maximumByteCount),
             let resource = ReadingCoverResource(jpegData: data),
             resource.identifier == identifier
         else { return nil }

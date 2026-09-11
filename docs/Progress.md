@@ -10,6 +10,86 @@ aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
 
+## M01 — Constantes de contratos compartidos — issue #108
+
+El propietario autoriza el 2026-09-12 abrir
+[#108](https://github.com/JFrancoG/MangaLibrary/issues/108) e implementar M01.
+La rama `codex/108-m01-shared-contract-constants` parte de `main@526af40`, tras
+C01–C04. SDD 09 y ADR-0022 conservan sus valores y comportamiento.
+
+| Contrato | Definición y consumidores |
+| --- | --- |
+| Manifiesto y contexto Watch | `ReadingSnapshotCodec.maximumByteCount` conserva el límite JSON de 32 KiB; `maximumContextByteCount` nombra separadamente los 32 KiB del diccionario binary plist completo. Selector, publicador, transporte y receptor usan este segundo presupuesto al medir contexto. |
+| Portadas JPEG | Almacenamiento, recuperación y lector usan los 64 KiB de `ReadingCoverResource.maximumByteCount`. La caché persistida de Watch conserva su límite propio. |
+| Títulos | `ReadingSnapshotTitle.maximumByteCount` comparte los 512 bytes UTF-8 entre preparación y validación de lecturas/colección. La abreviación sigue reservando elipsis y caracteres completos; no cambia el título persistido. |
+| Rotación | `WidgetRotationTiming.interval`, privado al archivo de rotaciones, comparte los 300 segundos. Se conservan ancla, foco, fase y doce fronteras futuras. |
+| Archivos compartidos | `ReadingSnapshotSharedFile` define nombres y cotas de fence, manifiesto y ambos slots. El publicador y los lectores usan el contrato; `publisher-state.json` y su límite privado permanecen exclusivamente en `ReadingSnapshotStorage.File`. |
+| Directorio privado | `AppComposition.readingPublisherDirectory` resuelve la misma ruta bajo Application Support para composición live y bootstrap UI. No crea almacenamiento, cambia protección ni amplía App Groups. |
+
+El cambio afecta a 14 Swift existentes. No añade archivos, dependencias,
+configuraciones, anotaciones de concurrencia ni nuevos efectos. Los parámetros
+locales de URLSession permanecen en composición: su extracción no aportaría
+un contrato compartido. Tampoco se unifican límites de otros recursos por tener
+el mismo número. M02 permanece fuera de esta unidad.
+
+`ReadingSnapshotStorage.File` conserva las cinco identidades y sus usos como
+clave mediante `Hashable`; sustituye el raw value redundante por `name`, que
+consulta el contrato compartido. La búsqueda de consumidores confirma que no
+había inicialización desde raw value ni persistencia de este enum.
+
+DocC documenta únicamente las dos fronteras nuevas: presupuesto UTF-8 y archivos
+compartidos sin ledger privado. El codec ya explica las dos mediciones. Se
+omiten propiedades obvias, adaptadores triviales y la constante de rotación.
+
+### Validación M01
+
+- Preflight Xcode MCP oficial: scheme MangaLibrary, iPhone 17 Simulator / iOS
+  27.0, plan Fast; Swift 6, concurrencia complete y aislamiento nonisolated.
+- Audit swift-source-style manual y recall sobre los 14 Swift: sin hallazgos.
+  Los cuatro candidatos conservan disposición vertical por closures o tipos de
+  función; son construcciones previas fuera del cambio. Cinco expresiones
+  atómicas de 121–125 columnas conservan una comparación o llamada legible:
+  guards de contexto de publicador/transporte/receptor, lectura de portada y
+  selección del slot. `git diff --check` limpio.
+- Revisión iOS independiente del diff, consumidores y pertenencia a targets:
+  cerrada sin hallazgos. La revisión detectó las comparaciones de contexto del
+  selector y del transporte aún ligadas al presupuesto JSON; ambas quedaron
+  corregidas antes de congelar el diff final.
+- `Scripts/validate-test-plans.sh`: 28 suites Fast y 40 Integration;
+  clasificación, filtros y partición correctos. No se modifica ningún test.
+  Se mantienen oráculos independientes de tamaños, rutas, títulos y tiempos;
+  no se añaden tests estructurales que solo repitan las constantes.
+- `Scripts/validate-docc.sh`, con `MANGALIBRARY_DEVELOPER_DIR` apuntando a
+  Xcode 27 RC `27A266a` / Swift 6.4 `swiftlang-6.4.0.34.1`: archive generado
+  para iOS genérico en Release, cero warnings y errores. Se comprueban las
+  páginas generadas de las dos fronteras nuevas. Archive fuera de Git en
+  `.build/docc/MangaLibrary.doccarchive`; sin publicación ni tutoriales.
+
+- Build MCP inicial correcto y cero diagnósticos. Tras cerrar la revisión se
+  repite `Scripts/validate-advanced-build.sh --deluxe` sobre el diff final:
+  cinco targets, Debug/Release, cero warnings/errores y cero tareas de metadata
+  App Intents. Se ejecuta antes de los tests, con el mismo Xcode verificado.
+- `RunAllTests` Fast a las 00:43:42: **358 declaraciones / 568 invocaciones**;
+  Integration a las 00:44:04: **454 / 629**. Total disjunto **812 / 1.197**,
+  cero fallos, skips, fallos esperados y runtime warnings. iPhone 17 Simulator,
+  iOS 27.0; horas Europe/Madrid del 2026-09-12.
+- Recuentos contrastados con `xcresulttool get test-results summary` y
+  `test-results tests`: 812 identificadores únicos aprobados y ninguna
+  intersección entre planes. Los agregados MCP mezclan resultados anteriores;
+  no se usan como recuento ni se reutilizan ejecuciones de C01–C04.
+- Bundles `Test-MangaLibrary-2026.09.12_00-43-42-+0200.xcresult` y
+  `Test-MangaLibrary-2026.09.12_00-44-04-+0200.xcresult`, fuera de Git.
+  Plan activo devuelto a Fast; diagnósticos MCP finales sin warnings.
+
+Implementación y validación local completadas. El propietario autoriza el
+2026-09-12 commit, push, PR, merge, cierre de #108 y borrado de su rama.
+Se reutilizan los gates anteriores porque el contenido Swift sigue idéntico;
+el Audit del diff se repite antes de la PR. Los enlaces definitivos de entrega
+se registran en #108. Se excluyen ejecución UI,
+hardware, backend y publicación; el bootstrap UI conserva su expresión de ruta
+mediante el nuevo acceso de composición y queda compilado en Debug. #77/#88
+conservan 5/7 y sus pendientes físicos.
+
 ## C01–C04 — Anotaciones de concurrencia — issue #106
 
 El propietario autoriza el 2026-09-11 abrir

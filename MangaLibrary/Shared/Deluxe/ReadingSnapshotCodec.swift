@@ -12,6 +12,7 @@ import Foundation
 /// must also measure the binary plist context before committing a transportable projection.
 enum ReadingSnapshotCodec {
     static let maximumByteCount = 32_768
+    static let maximumContextByteCount = 32_768
 
     static func encode(_ snapshot: ReadingSnapshot) throws -> Data {
         try encodedData(snapshot)

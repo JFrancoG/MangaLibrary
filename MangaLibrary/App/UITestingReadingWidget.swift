@@ -45,8 +45,7 @@ actor UITestingReadingWidget {
         let reading = try AppComposition.makeReadingPublication(
             modelContainer: modelContainer,
             sharedDirectory: sharedDirectory,
-            publisherDirectory: URL.applicationSupportDirectory
-                .appending(path: "ReadingPublisher", directoryHint: .isDirectory),
+            publisherDirectory: AppComposition.readingPublisherDirectory,
             now: publicationClock,
             makeGeneration: { UUID() },
             loadCover: { _ in nil },

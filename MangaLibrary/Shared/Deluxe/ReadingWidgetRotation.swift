@@ -12,14 +12,14 @@ struct ReadingWidgetRotation {
         guard snapshot.state == .content, snapshot.items.count > 1 else { return [date] }
         let slotStart = snapshot.generatedAt.addingTimeInterval(slotOffset(at: date))
         return [min(date, slotStart)] + (1...12).map { slot in
-            slotStart.addingTimeInterval(TimeInterval(slot) * 300)
+            slotStart.addingTimeInterval(TimeInterval(slot) * WidgetRotationTiming.interval)
         }
     }
 
     func items(at date: Date) -> [ReadingSnapshot.Item] {
         guard snapshot.state == .content, snapshot.items.count > 1 else { return snapshot.items }
         let preferredIndex = snapshot.items.firstIndex { $0.mangaID == snapshot.preferredStartMangaID } ?? 0
-        let steps = slotOffset(at: date) / 300
+        let steps = slotOffset(at: date) / WidgetRotationTiming.interval
         let shift = Int(steps.truncatingRemainder(dividingBy: Double(snapshot.items.count)))
         let startIndex = (preferredIndex + shift) % snapshot.items.count
         return Array(snapshot.items[startIndex...]) + snapshot.items[..<startIndex]
@@ -41,7 +41,8 @@ struct ReadingWidgetRotation {
 
 private extension ReadingWidgetRotation {
     func slotOffset(at date: Date) -> TimeInterval {
-        floor(max(0, date.timeIntervalSince(snapshot.generatedAt)) / 300) * 300
+        let elapsed = max(0, date.timeIntervalSince(snapshot.generatedAt))
+        return floor(elapsed / WidgetRotationTiming.interval) * WidgetRotationTiming.interval
     }
 }
 
@@ -54,14 +55,14 @@ struct CollectionWidgetRotation {
         guard snapshot.items.count > 1 else { return [date] }
         let slotStart = generatedAt.addingTimeInterval(slotOffset(at: date))
         return [min(date, slotStart)] + (1...12).map { slot in
-            slotStart.addingTimeInterval(TimeInterval(slot) * 300)
+            slotStart.addingTimeInterval(TimeInterval(slot) * WidgetRotationTiming.interval)
         }
     }
 
     func item(at date: Date) -> CollectionWidgetSnapshot.Item? {
         guard !snapshot.items.isEmpty else { return nil }
         let preferredIndex = snapshot.items.firstIndex { $0.mangaID == snapshot.preferredStartMangaID } ?? 0
-        let steps = slotOffset(at: date) / 300
+        let steps = slotOffset(at: date) / WidgetRotationTiming.interval
         let shift = Int(steps.truncatingRemainder(dividingBy: Double(snapshot.items.count)))
         let index = (preferredIndex + shift) % snapshot.items.count
         return snapshot.items[index]
@@ -81,6 +82,11 @@ struct CollectionWidgetRotation {
 
 private extension CollectionWidgetRotation {
     func slotOffset(at date: Date) -> TimeInterval {
-        floor(max(0, date.timeIntervalSince(generatedAt)) / 300) * 300
+        let elapsed = max(0, date.timeIntervalSince(generatedAt))
+        return floor(elapsed / WidgetRotationTiming.interval) * WidgetRotationTiming.interval
     }
+}
+
+private enum WidgetRotationTiming {
+    static let interval: TimeInterval = 300
 }

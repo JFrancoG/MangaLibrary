@@ -29,7 +29,7 @@ enum WatchReadingContext {
         guard data.count <= ReadingSnapshotCodec.maximumByteCount else {
             throw WatchReadingConnectivityError.payloadTooLarge
         }
-        guard try ReadingSnapshotCodec.contextByteCount(for: data) <= ReadingSnapshotCodec.maximumByteCount else {
+        guard try ReadingSnapshotCodec.contextByteCount(for: data) <= ReadingSnapshotCodec.maximumContextByteCount else {
             throw WatchReadingConnectivityError.payloadTooLarge
         }
     }
