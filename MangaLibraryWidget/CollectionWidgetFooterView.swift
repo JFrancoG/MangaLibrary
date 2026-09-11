@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import WidgetKit
 
 struct CollectionWidgetFooterView: View {
     let generatedAt: Date
@@ -20,3 +21,11 @@ struct CollectionWidgetFooterView: View {
         .accessibilityLabel(Text("Updated \(generatedAt, format: .dateTime.month(.twoDigits).day().hour().minute())"))
     }
 }
+
+#if DEBUG
+#Preview("Collection update date", as: .systemMedium) {
+    ReadingWidgetComponentPreview(component: .collectionWidgetFooter, locale: Locale(identifier: "es"))
+} timeline: {
+    CollectionWidgetPreview.content
+}
+#endif

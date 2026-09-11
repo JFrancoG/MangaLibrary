@@ -39,6 +39,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- 2026-09-11 | 🐛 fix(ui): use brand ink for collection completion
+
 - 2026-09-11 | 🐛 fix(collection): scope outbox to active user
 
 - 2026-09-11 | 🐛 fix(watch): retry failed cache persistence
@@ -103,6 +105,10 @@ All notable changes to this project are documented in this file.
 - 2026-09-06 | ✅ test(deluxe): verify the complete publication pipeline
 
 ### Maintenance
+
+- 2026-09-11 | 🔧 chore(previews): add local widget component previews
+
+- 2026-09-11 | 🔧 chore(widget): remove seven retired localization keys
 
 - 2026-09-11 | 📦 build(deluxe): enforce complete release gates
 

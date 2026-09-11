@@ -1,5 +1,6 @@
 import CoreGraphics
 import SwiftUI
+import WidgetKit
 
 struct ReadingWidgetContentView: View {
     let snapshot: ReadingSnapshot
@@ -110,3 +111,11 @@ struct ReadingWidgetContentView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("Reading content", as: .systemLarge) {
+    ReadingWidgetComponentPreview(component: .readingWidgetContent)
+} timeline: {
+    ReadingWidgetPreview.threeReadings
+}
+#endif

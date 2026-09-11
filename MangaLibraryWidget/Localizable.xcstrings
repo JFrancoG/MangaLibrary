@@ -325,24 +325,6 @@
         }
       }
     },
-    "Choose your current volume in Manga Library.": {
-      "comment": "Explanation for an empty reading snapshot.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose your current volume in Manga Library."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Elige tu tomo actual en Manga Library."
-          }
-        }
-      }
-    },
     "Collection complete": {
       "comment": "Full accessibility label when the user marked the displayed manga collection as complete.",
       "extractionState": "manual",
@@ -487,24 +469,6 @@
         }
       }
     },
-    "No current reading": {
-      "comment": "An authorized collection has no current volume selected.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No current reading"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sin lecturas actuales"
-          }
-        }
-      }
-    },
     "No manga in your collection": {
       "comment": "Empty state of an authorized complete collection snapshot.",
       "extractionState": "manual",
@@ -537,24 +501,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Abre Manga Library y actualizamos tus mangas."
-          }
-        }
-      }
-    },
-    "Open Manga Library on iPhone to update this widget.": {
-      "comment": "Safe fallback when a valid reading snapshot cannot be obtained.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open Manga Library on iPhone to update this widget."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Abre Manga Library en el iPhone para actualizar el widget."
           }
         }
       }
@@ -609,24 +555,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Marca tu tomo actual en Manga Library."
-          }
-        }
-      }
-    },
-    "Sign in on iPhone": {
-      "comment": "Title when the shared reading session is redacted.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign in on iPhone"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inicia sesión en el iPhone"
           }
         }
       }
@@ -793,42 +721,6 @@
         }
       }
     },
-    "Your collection will appear after you sign in.": {
-      "comment": "Explanation for the redacted medium collection widget.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your collection will appear after you sign in."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tu colección aparecerá cuando inicies sesión."
-          }
-        }
-      }
-    },
-    "Your current volumes, shared from Manga Library on iPhone.": {
-      "comment": "Widget gallery description. This widget only reads data shared by the app.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your current volumes, shared from Manga Library on iPhone."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tus tomos actuales, compartidos desde Manga Library en el iPhone."
-          }
-        }
-      }
-    },
     "Your manga, right here": {
       "comment": "Welcoming title for a signed-out widget; the supporting text explicitly requests sign-in.",
       "extractionState": "manual",
@@ -843,24 +735,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tus mangas, aquí"
-          }
-        }
-      }
-    },
-    "Your readings will appear after you sign in.": {
-      "comment": "Explanation when no reading session is allowed.",
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your readings will appear after you sign in."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tus lecturas aparecerán cuando inicies sesión."
           }
         }
       }

@@ -183,8 +183,23 @@ enum CollectionPreviewSupport {
 
     static func row(container: ModelContainer) -> some View {
         let entry = requireEntry(mangaID: CatalogPreviewSupport.mangas[1].id, in: container)
+        let completedManga = CatalogPreviewSupport.mangas[0]
+        let completedEntry = CollectionEntry(
+            userID: entry.userID,
+            mangaID: completedManga.id,
+            state: CollectionSnapshot(
+                ownedVolumes: Array(1...27),
+                readingVolume: nil,
+                isComplete: true,
+                knownTotalVolumes: completedManga.totalVolumes,
+                isTombstone: false
+            ),
+            confirmedState: nil,
+            mangaSnapshot: CollectionMangaSnapshot(manga: completedManga)
+        )
 
         return List {
+            CollectionRowView(entry: completedEntry)
             CollectionRowView(entry: entry)
         }
     }

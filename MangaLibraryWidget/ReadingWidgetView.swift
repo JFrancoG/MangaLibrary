@@ -73,3 +73,11 @@ struct ReadingWidgetView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("Collection widget", as: .systemMedium) {
+    ReadingWidgetComponentPreview(component: .readingWidget)
+} timeline: {
+    CollectionWidgetPreview.content
+}
+#endif

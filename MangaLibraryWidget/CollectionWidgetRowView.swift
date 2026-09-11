@@ -1,5 +1,6 @@
 import CoreGraphics
 import SwiftUI
+import WidgetKit
 
 struct CollectionWidgetRowView: View {
     let item: CollectionWidgetSnapshot.Item
@@ -109,3 +110,11 @@ struct CollectionWidgetRowView: View {
         item.isComplete ? "Collection complete" : "Collection incomplete"
     }
 }
+
+#if DEBUG
+#Preview("Completed collection", as: .systemMedium) {
+    ReadingWidgetComponentPreview(component: .collectionWidgetRow, locale: Locale(identifier: "es"))
+} timeline: {
+    CollectionWidgetPreview.completed
+}
+#endif

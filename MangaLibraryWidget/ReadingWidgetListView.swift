@@ -1,5 +1,6 @@
 import CoreGraphics
 import SwiftUI
+import WidgetKit
 
 struct ReadingWidgetListView: View {
     let snapshot: ReadingSnapshot
@@ -36,3 +37,11 @@ struct ReadingWidgetListView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
+
+#if DEBUG
+#Preview("Reading list", as: .systemLarge) {
+    ReadingWidgetComponentPreview(component: .readingWidgetList)
+} timeline: {
+    ReadingWidgetPreview.content
+}
+#endif

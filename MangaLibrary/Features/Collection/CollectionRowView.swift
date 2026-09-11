@@ -67,7 +67,7 @@ struct CollectionRowView: View {
 
     private var completionIndicator: some View {
         Image(systemName: "checkmark.seal.fill")
-            .foregroundStyle(.brandPrimary)
+            .foregroundStyle(.brandPrimaryInk)
             .accessibilityLabel("Complete collection")
     }
 
