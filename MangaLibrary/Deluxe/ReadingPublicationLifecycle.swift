@@ -19,11 +19,11 @@ final class ReadingPublicationLifecycle {
 
     @ObservationIgnored private var running = false
     @ObservationIgnored private let runPipeline: @Sendable () async throws -> Void
-    @ObservationIgnored private let makeIdentity: @Sendable () -> UUID
+    @ObservationIgnored private let makeIdentity: () -> UUID
 
     init(
         runPipeline: @escaping @Sendable () async throws -> Void,
-        makeIdentity: @escaping @Sendable () -> UUID = { UUID() }
+        makeIdentity: @escaping () -> UUID = { UUID() }
     ) {
         self.runPipeline = runPipeline
         self.makeIdentity = makeIdentity

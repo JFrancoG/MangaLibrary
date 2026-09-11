@@ -1,6 +1,6 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-09-11
+**Última actualización:** 2026-09-12
 **Estado general:** Advanced y DX1–DX5 entregadas (5/7); plan #77 abierto.
 DX6 integra su corte técnico por PR #89 (`681ea6d`), con #88 abierto por H01 y
 las pruebas físicas Watch. DX7 entrega su corte técnico mediante PR #91
@@ -9,6 +9,70 @@ El Deluxe Release Gate completo continúa pendiente en #88/#77; H01 no está
 aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
+
+## C01–C04 — Anotaciones de concurrencia — issue #106
+
+El propietario autoriza el 2026-09-11 abrir
+[#106](https://github.com/JFrancoG/MangaLibrary/issues/106) e implementar juntos
+C01–C04. La rama `codex/106-c01-c04-concurrency-annotations` parte de
+`main@5fc4eaf`, tras T01/T02. SDD 01 (ARCH-007/008/009), SDD 06 y ADR 0003
+permiten esta simplificación sin cambiar los contratos de producto.
+
+| Hallazgo | Cambio | Frontera conservada |
+| --- | --- | --- |
+| C01 | Retirados 15 `@MainActor` interiores de `Task`: uno en cada ViewModel de credenciales y 13 en `AccountModelTests`. | Propietarios y suites siguen en MainActor; las tareas heredan ese aislamiento y conservan capturas, cancelación y ciclo de vida. |
+| C02 | Retirada la conformidad explícita `Sendable` de `CollectionOutboxRetryResolution` y `R24OperationFenceMutation`. | Los enums internos sin payload conservan la inferencia segura; `Equatable`, `CaseIterable` y las clases sincronizadas permanecen. |
+| C03 | Retirados los dos `@Sendable` de `ReadingPublicationLifecycle.makeIdentity`, propiedad y parámetro. | La factoría síncrona solo se usa en el propietario MainActor. `runPipeline` sigue siendo una capacidad asíncrona Sendable. |
+| C04 | Retirado `@MainActor` de `CollectionAccessTests` y `CollectionEditorTestContext`. | La suite pura y el contenedor de referencias dejan de exigir MainActor. La suite de autorización, la del editor, el modelo observable y sus operaciones mantienen su aislamiento. |
+
+Son **21 retiradas en ocho Swift**: 17 atributos MainActor, dos atributos
+Sendable de funciones y dos conformidades explícitas de enums. No se modifican
+cuerpos, aserciones ni declaraciones de tests, ni se añaden tareas o escapes de
+concurrencia. No se mueven modelos SwiftData vivos entre actores. El compilador
+verifica las inferencias y accesos; crear tests de esas propiedades estructurales
+contradiría SDD 06. La regresión existente comprueba el comportamiento.
+
+### Validación C01–C04
+
+- Preflight Xcode MCP oficial: MangaLibrary, scheme compartido MangaLibrary,
+  iPhone 17 Simulator / iOS 27.0 y Fast. Configuración efectiva Swift 6,
+  concurrencia complete y aislamiento predeterminado nonisolated; se conserva
+  el perfil explícito greenfield-xcode27.
+- `BuildProject(buildForTesting: true)` y `GetBuildLog(severity: warning)`:
+  compilación correcta, cero diagnósticos. No cambia la configuración.
+- Audit swift-source-style manual y recall sobre ocho Swift: un candidato,
+  el inicializador del lifecycle, mantiene disposición vertical justificada
+  por los tipos de closure y el default. `git diff --check` limpio.
+- `MANGALIBRARY_DEVELOPER_DIR` selecciona Xcode 27 RC `27A266a`, Swift 6.4
+  `swiftlang-6.4.0.34.1`; `Scripts/validate-advanced-build.sh --deluxe` pasa
+  sobre el diff final antes de ejecutar tests: cinco targets, Debug y Release,
+  cero warnings/errores y cero tareas de extracción de metadata App Intents.
+- `Scripts/validate-test-plans.sh`: 28 suites Fast y 40 Integration; filtros,
+  targets, partición y plan predeterminado correctos.
+- `RunAllTests` Fast a las 23:37:16: **358 declaraciones / 568 invocaciones**;
+  Integration a las 23:37:27: **454 / 629**. Total disjunto **812 / 1.197**,
+  cero fallos, skips, fallos esperados y runtime warnings. iPhone 17 Simulator,
+  iOS 27.0; horas Europe/Madrid del 2026-09-11.
+- Recuentos y resultados contrastados con `xcresulttool get test-results
+  summary` y `test-results tests` de ambos bundles. Las 812 declaraciones son
+  únicas y aprobadas; incluyen los cuatro tests puros de acceso y las suites
+  de Cuenta, formularios, autorización, editor, blockedOutcome y lifecycle.
+  Los agregados MCP siguen mezclando resultados de planes anteriores y no se
+  utilizan como conteo. No se reutilizan aquí las ejecuciones de T01/T02.
+- Bundles `Test-MangaLibrary-2026.09.11_23-37-16-+0200.xcresult` y
+  `Test-MangaLibrary-2026.09.11_23-37-27-+0200.xcresult`, fuera de Git. Se
+  devuelve el plan activo a Fast. Diagnósticos MCP finales: cero warnings.
+
+La revisión iOS/concurrencia independiente de los ocho Swift y las 21 retiradas
+termina sin hallazgos: contrasta propietarios, usos, capturas y cruces de
+aislamiento con las reglas de Swift y los contratos vigentes. La unidad excluye
+M01/M02, UI, hardware, backend y nuevo archive DocC; no cambia contratos
+documentados. #77/#88 conservan 5/7 y sus pendientes físicos.
+
+El 2026-09-12 el propietario autoriza commit, push, PR, merge, cierre de #106 y
+borrado de su rama. Se reutiliza la validación anterior porque el contenido
+Swift permanece idéntico. El Audit de estilo del diff se repite antes de la
+PR; los enlaces definitivos de entrega se registran en #106.
 
 ## T01–T02 — Calidad de tests y oráculos — issue #104
 

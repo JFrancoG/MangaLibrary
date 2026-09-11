@@ -44,7 +44,7 @@ struct AccountModelTests {
         await session.setLoginResult(for: "a@example.invalid", result: .success(.active(Self.accountA)), gate: gate)
         let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        let signIn = Task { @MainActor in
+        let signIn = Task {
             await model.signIn(email: "a@example.invalid", password: "synthetic-passphrase")
         }
         await gate.waitUntilArrived()
@@ -178,7 +178,7 @@ struct AccountModelTests {
             operations: session.operations()
         )
 
-        let signOut = Task { @MainActor in
+        let signOut = Task {
             await model.signOut()
         }
         await signOut.value
@@ -319,7 +319,7 @@ struct AccountModelTests {
         )
         await model.reconcileSession(expectedAuthority: Self.accountA.authority)
         let gate = AccountOperationGate()
-        let reconciliation = Task { @MainActor in
+        let reconciliation = Task {
             await gate.suspendUntilOpen()
             await model.reconcileSession(
                 expectedAuthority: Self.accountA.authority,
@@ -343,7 +343,7 @@ struct AccountModelTests {
             initialState: .authenticated(Self.accountA, notice: nil),
             operations: session.operations()
         )
-        let genericReconciliation = Task { @MainActor in
+        let genericReconciliation = Task {
             await model.reconcileSession(expectedAuthority: Self.accountA.authority)
         }
         await gate.waitUntilArrived()
@@ -367,7 +367,7 @@ struct AccountModelTests {
             initialState: .authenticated(Self.accountA, notice: nil),
             operations: session.operations()
         )
-        let genericReconciliation = Task { @MainActor in
+        let genericReconciliation = Task {
             await model.reconcileSession(expectedAuthority: Self.accountA.authority)
         }
         await gate.waitUntilArrived()
@@ -394,7 +394,7 @@ struct AccountModelTests {
             operations: session.operations()
         )
 
-        let reconciliation = Task { @MainActor in
+        let reconciliation = Task {
             await model.reconcileSession(expectedAuthority: Self.accountA.authority)
         }
         await gate.waitUntilArrived()
@@ -414,7 +414,7 @@ struct AccountModelTests {
         await session.setLoginResult(for: "b@example.invalid", result: .success(.active(Self.accountB)))
         let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        let signInA = Task { @MainActor in
+        let signInA = Task {
             await model.signIn(email: "a@example.invalid", password: "synthetic-a")
         }
         await gateA.waitUntilArrived()
@@ -438,7 +438,7 @@ struct AccountModelTests {
         )
         let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        let signIn = Task { @MainActor in
+        let signIn = Task {
             await model.signIn(email: "a@example.invalid", password: "synthetic-passphrase")
         }
         await gate.waitUntilArrived()
@@ -456,7 +456,7 @@ struct AccountModelTests {
         await session.setLoginResult(for: "a@example.invalid", result: .success(.active(Self.accountA)), gate: gate)
         let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        let signIn = Task { @MainActor in
+        let signIn = Task {
             await model.signIn(email: "a@example.invalid", password: "synthetic-passphrase")
         }
         await gate.waitUntilArrived()
@@ -475,7 +475,7 @@ struct AccountModelTests {
         let entryGate = AccountOperationGate()
         let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        let registration = Task { @MainActor in
+        let registration = Task {
             await entryGate.suspendUntilOpen()
             await model.register(email: "reader@example.invalid", password: "synthetic-passphrase")
         }
@@ -585,7 +585,7 @@ struct AccountModelTests {
         )
         let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        let registration = Task { @MainActor in
+        let registration = Task {
             await model.register(email: "reader@example.invalid", password: "synthetic-passphrase")
         }
         await loginGate.waitUntilArrived()
@@ -612,7 +612,7 @@ struct AccountModelTests {
         )
         let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        let registration = Task { @MainActor in
+        let registration = Task {
             await model.register(email: "reader@example.invalid", password: "synthetic-passphrase")
         }
         await loginGate.waitUntilArrived()
@@ -654,7 +654,7 @@ struct AccountModelTests {
         await session.setLoginResult(for: "b@example.invalid", result: .success(.active(Self.accountB)))
         let model = AccountModel(initialState: .signedOut(failure: nil), operations: session.operations())
 
-        let registrationA = Task { @MainActor in
+        let registrationA = Task {
             await model.register(email: "a@example.invalid", password: "synthetic-a")
         }
         await registrationGate.waitUntilArrived()

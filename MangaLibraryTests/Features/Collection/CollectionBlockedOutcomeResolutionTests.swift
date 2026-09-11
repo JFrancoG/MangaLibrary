@@ -811,7 +811,7 @@ private struct R24Operation: Equatable {
     let state: CollectionOutboxState
 }
 
-private enum R24OperationFenceMutation: CaseIterable, Sendable {
+private enum R24OperationFenceMutation: CaseIterable {
     case operationID
     case sequence
     case retryCount
