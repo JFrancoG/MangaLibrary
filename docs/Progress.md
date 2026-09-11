@@ -10,6 +10,54 @@ aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
 
+## D02 → D03 → D01 — Reconciliación documental — issue #98
+
+El propietario autoriza el 2026-09-11 una unidad documental, en ese orden,
+con [issue #98](https://github.com/JFrancoG/MangaLibrary/issues/98) y rama
+`codex/98-d01-d03-documentation-reconciliation`. La implementación parte de
+`main@67e3ac7ba7117317932b5e5777eb28f67132cea8` limpio, tras entregar A01–A03.
+
+- **D02:** README, índice, resúmenes de Progress, matrices DX6/DX7 y SDD 09 v1.20
+  reflejan los cortes técnicos entregados por PR #89/#91, #90 cerrado, cinco
+  targets y el modo `--deluxe`. Se corrigen las referencias al bridge futuro
+  y a una proyección única del widget. Los checkpoints anteriores conservan
+  sus resultados y autorizaciones, identificados como históricos.
+- **D03:** la caracterización API enlaza la aceptación funcional de R2.2:
+  identidad decimal, borrado concurrente, GET de reconciliación y ausencia
+  remota final en el recorrido de tres dispositivos. Conserva por separado
+  el status/body desconocido del primer DELETE y la falta de captura directa
+  del GET individual presente `200`; no inventa una secuencia HTTP observada.
+- **D01:** outline y storyboard explican pequeño/grande de lecturas y mediano
+  de colección, slots de 300 segundos, entry actual más doce futuras,
+  `.atEnd` con varios elementos y `.never` en los casos definidos. Incorporan
+  A01–A03, los checkpoints DX7/A03 y la preparación pendiente de la candidata
+  final. Siguen siendo borradores; no se genera presentación ni vídeo.
+
+### Validación documental D01–D03
+
+Se contrastan SDD 04/05/06/07/08/09, ADR-0022, evidencia R2.2 y A01–A03,
+Git y tracker, junto con las familias/timeline del widget y los dos scripts
+reproducibles. La reconciliación no cambia requisitos ni resultados históricos.
+La comprobación local de 128 enlaces y 24 anchors en los diez Markdown
+modificados termina sin errores. La revisión de afirmaciones obsoletas y
+privacidad del diff y `git diff --check` verifican este alcance.
+`shasum -a 256 -c SHA256SUMS`, desde `Contracts/OpenAPI`, confirma
+`openapi.json: OK`; snapshot y checksum permanecen sin cambios.
+
+El diff es exclusivamente Markdown externo al catálogo DocC. No se modifican
+Swift, proyecto, scripts ni tests. Build, tests, previews y archive DocC nuevos
+no aplican a esta unidad; las cifras citadas pertenecen a sus ejecuciones
+históricas, no a una nueva validación de la candidata. No hay nuevas peticiones
+funcionales a la API ni evidencia física adicional.
+
+#77/#88 permanecen abiertos y el contador sigue en 5/7. H01 no está aplazado;
+H02/H03/H04 conservan exclusivamente la excepción Watch postentrega de SDD 06.
+El propietario autoriza posteriormente el 2026-09-11 commit, push, PR, merge,
+cierre de #98 y retirada de su rama. La entrega conserva tres commits en el
+orden D02 → D03 → D01 y repite enlaces, checksum y revisión del diff documental.
+El resultado definitivo de Git se registra en #98; no cierra #77/#88 ni inicia
+otro hallazgo.
+
 ## A03 — Consulta de outbox por usuario autenticado — issue #96
 
 El propietario autoriza el 2026-09-11 abrir issue/rama e implementar A03 de la

@@ -52,6 +52,8 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-11 | 📝 docs(delivery): align D01 presentation drafts
+
 - 2026-09-11 | 📝 docs(api): clarify D03 functional acceptance
 
 - 2026-09-11 | 📝 docs(deluxe): reconcile D02 delivery status
