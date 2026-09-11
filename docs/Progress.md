@@ -8,6 +8,93 @@ el 2026-09-11, en `codex/90-dx7-deluxe-release-gate` desde ese `main` limpio.
 El Deluxe Release Gate completo continúa pendiente; el inicio técnico no aprueba
 los criterios físicos ni amplía el aplazamiento de H02/H03/H04.
 
+## A03 — Consulta de outbox por usuario autenticado — issue #96
+
+El propietario autoriza el 2026-09-11 abrir issue/rama e implementar A03 de la
+auditoría previa a la entrega. [#96](https://github.com/JFrancoG/MangaLibrary/issues/96)
+registra el plan Approved. La rama `codex/96-a03-user-scoped-outbox` parte de
+`main@20ff5abf8822a109ce87bbef72387fb1ae20628b` limpio, con A02 integrado por PR #95.
+
+La consulta del shell deja de cargar toda la outbox. `MainShellView` observa la
+autoridad autenticada y entrega esa captura a `MainShellContentView`; el hijo
+configura `@Query` con un predicado por usuario o `false` cuando no existe
+sesión autenticada. Mantiene todos sus estados, incluidos los confirmados, y
+conserva los filtros defensivos de avisos e identidad. El hijo permanece en la
+misma posición, sin `.id` por cuenta: conserva las pestañas y sus propietarios,
+las tareas existentes y una sola restauración. La autoridad completa mantiene
+la reactivación por generación aunque no cambie el usuario del fetch.
+
+La separación concreta una frontera de consulta ya exigida por COL-003 y
+ADR-0004. No modifica esquema, persistencia de escritura, política de sesión,
+R1/R2, API, proyecto, test plans, entitlements ni aislamiento. SDD 01 v1.10,
+SDD 03 v1.7 y SDD 06 v1.42 reflejan el alcance; ADR-0009 y la guía de color
+actualizan solo el nombre del propietario del TabView/tint. DocC documenta
+el comportamiento sin autoridad y el motivo de conservar estados confirmados.
+
+### Evidencia A03
+
+- Preflight Xcode MCP: MangaLibrary, scheme `MangaLibrary`, iPhone 17 Simulator,
+  iOS 27.0 (`24A434`); plan inicial y final Fast. Lenguaje Swift 6, strict complete,
+  aislamiento predeterminado nonisolated y warnings como errores verificados
+  mediante los build settings oficiales. Los scripts comprueban Xcode 27 RC
+  `27A266a` y Swift 6.4 `swiftlang-6.4.0.34.1`. Ningún cambio de configuración.
+- RED: dos tests de integración fallan al usar un predicado `true`, equivalente
+  al fetch global previo: A y B reciben las cuatro operaciones y sin autoridad
+  se reciben también cuatro. Esa caracterización usa SwiftData real, sin mocks
+  de fetch. Un intento anterior de compilación del fixture necesitó usar las
+  transiciones encapsuladas del modelo y `Manga.ID`; no se cuenta como RED.
+- GREEN focalizado: 2/2. La revisión añade un tercer control de preservación de
+  identidad tras `queued → sending → confirmed`, con guardados y refetch.
+- `RunAllTests` Integration: **455/455 declaraciones, 630 invocaciones**.
+  Incluye las tres regresiones nuevas: A → B → nil → A, aviso durable y
+  resolución, indiferencia ante cambios ajenos, cambios de cuenta/generación y
+  estabilidad en transiciones ordinarias del worker. Container aislado por test,
+  datos sintéticos y verificación desde contextos distintos después de guardar.
+- `RunAllTests` Fast: **359/359 declaraciones, 567 invocaciones**.
+  Ambos planes tienen cero fallos, skips o expected failures; recuentos leídos
+  del `xcresult` nativo, porque el agregado MCP mezcla selecciones previas.
+- `RunAllTests` UI: **11/11** recorridos aprobados, sin fallos, skips, expected
+  failures ni diagnósticos en las categorías de warnings del resultado nativo.
+  El bridge falló al devolver el resultado; `GetConsoleOutput` confirmó que
+  el runner seguía activo y se esperó al cierre del mismo `xcresult`, sin repetir ni sustituir
+  la ejecución MCP. Incluye login, registro, logout con decisión pendiente,
+  resolución de bloqueos, convivencia de avisos y navegación de Colección.
+  No añade un harness UI de dos usuarios ni mide el número de reinicios de tasks.
+- Las tres pruebas nuevas cumplen tests-de-verdad: ejecutan el predicado usado
+  por la Query contra el store, con identidades esperadas explícitas y cambios
+  persistidos. Comprueban fetch, avisos y valor de identidad; no prueban por sí
+  solas el reinicio de una tarea SwiftUI montada ni cuentan getters como cobertura.
+- Revisión iOS independiente del código y los tests: sin hallazgos. Audit de
+  estilo manual y recall sobre cuatro Swift: cero candidatos y líneas ≤120.
+  No se añaden `@MainActor`, `@Sendable`, escapes ni copias observables.
+- Revisión SwiftUI independiente: sin hallazgos. Se inspeccionan seis renders
+  explícitos de `MainShellView` y `MainShellContentView`, índice 0, Large,
+  XXX Large y AX 5, mediante Xcode MCP en iPhone 18 Pro/iOS 27.0. Las pestañas
+  y el contenido visible mantienen jerarquía y legibilidad. Un preflight blanco
+  transitorio se descarta; los tres renders explícitos posteriores de ese
+  archivo son correctos. No se acredita scroll, VoiceOver, teclado ni foco.
+- Log MCP de build: 564 líneas, cero diagnósticos y sin extracción App Intents.
+  El navegador continúa sin warnings tras las previews. Los enlaces Markdown
+  locales, la clasificación de planes (28 suites Fast/40 Integration) y
+  `git diff --check` son correctos.
+- `MANGALIBRARY_DEVELOPER_DIR=/Applications/Xcode-RC.app/Contents/Developer
+  Scripts/validate-advanced-build.sh --deluxe`: Debug/Release limpios de los
+  cinco targets, cero warnings/errores y sin extracción App Intents. Usa un
+  DerivedData temporal propio por configuración; compila tests sin ejecutarlos.
+- `MANGALIBRARY_DEVELOPER_DIR=/Applications/Xcode-RC.app/Contents/Developer
+  Scripts/validate-docc.sh`: archive Release generado en
+  `.build/docc/MangaLibrary.doccarchive`, cero warnings/errores y warnings DocC
+  tratados como errores. El JSON del símbolo `userPredicate(userID:)` contiene
+  el contrato nuevo; no hay publicación.
+
+El propietario autoriza también el 2026-09-11 commit, push, PR, merge, cierre de
+#96 y borrado de su rama. La entrega reutiliza los gates anteriores porque el
+Swift validado no cambia; repite el Audit de estilo sobre los cuatro archivos,
+la inspección del diff y la comprobación de alcance antes del commit. El resultado
+definitivo de Git se registra en [#96](https://github.com/JFrancoG/MangaLibrary/issues/96).
+Los demás hallazgos y los límites físicos H01/H02/H03/H04 de #77/#88 conservan
+su alcance separado.
+
 ## A02 — Reintento exacto de caché Watch — issue #94
 
 El propietario autoriza el 2026-09-11 abrir issue/rama e implementar A02 de la

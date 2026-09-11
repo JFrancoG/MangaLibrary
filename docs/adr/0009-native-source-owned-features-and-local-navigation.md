@@ -55,7 +55,8 @@ service locator. En previews interactivas, una sesión efímera con `URLProtocol
 local alimenta el mismo pipeline HTTP y DTO que live; SwiftData usa un
 `ModelContainer` en memoria con el mismo esquema.
 
-`MainShellView` posee `selectedTab: AppTab` y contiene un `TabView` estable con
+El shell, compuesto por `MainShellView` y su hijo estable `MainShellContentView`,
+posee `selectedTab: AppTab` en ese hijo y contiene un `TabView` estable con
 Catálogo, Colección y Cuenta, sin una pila que envuelva todo el shell. Catálogo y
 Colección poseen selecciones independientes y usan `NavigationSplitView`; Cuenta
 posee `[AccountRoute]` dentro de su `NavigationStack`. Lista y cuadrícula abren el
