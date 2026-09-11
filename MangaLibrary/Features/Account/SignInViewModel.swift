@@ -105,7 +105,7 @@ final class SignInViewModel {
         prepareForSubmission(currentFocus: currentFocus)
 
         pendingOperation?.cancel()
-        pendingOperation = Task { @MainActor [accountModel] in
+        pendingOperation = Task { [accountModel] in
             await accountModel.signIn(email: submittedEmail, password: submittedPassword)
         }
         return nil

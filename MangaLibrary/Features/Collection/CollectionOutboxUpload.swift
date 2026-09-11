@@ -63,7 +63,7 @@ enum CollectionOutboxResolution: Equatable {
 }
 
 /// The durable local resolution of one positively classified pre-send failure.
-enum CollectionOutboxRetryResolution: Equatable, Sendable {
+enum CollectionOutboxRetryResolution: Equatable {
     case scheduled
     case superseded
 }

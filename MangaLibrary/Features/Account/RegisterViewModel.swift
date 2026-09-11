@@ -97,7 +97,7 @@ final class RegisterViewModel {
         prepareForSubmission(currentFocus: currentFocus)
 
         pendingOperation?.cancel()
-        pendingOperation = Task { @MainActor [accountModel] in
+        pendingOperation = Task { [accountModel] in
             await accountModel.register(email: submittedEmail, password: submittedPassword)
         }
         return nil

@@ -9,7 +9,6 @@ import Synchronization
 import Testing
 @testable import MangaLibrary
 
-@MainActor
 @Suite("Collection access", .tags(.fast))
 struct CollectionAccessTests {
     @Test("Reauthentication retains the known identity without authorizing mutations")

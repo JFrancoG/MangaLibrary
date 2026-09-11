@@ -473,7 +473,6 @@ struct CollectionEditorModelTests {
     }
 }
 
-@MainActor
 private struct CollectionEditorTestContext {
     let container: ModelContainer
     let mutation: CollectionMutation
