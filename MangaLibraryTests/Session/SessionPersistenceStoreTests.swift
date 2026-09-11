@@ -10,21 +10,6 @@ import Testing
 
 @Suite("Session Keychain store", .tags(.integration))
 struct SessionPersistenceStoreTests {
-    @Test("Live Keychain wiring uses V3 and both known legacy namespaces")
-    func liveStoreUsesTheVersionedNamespaces() throws(any Error) {
-        let bundleIdentifier = try #require(Bundle.main.bundleIdentifier)
-        let store = try SessionKeychainStore.live()
-
-        #expect(store.service == "\(bundleIdentifier).session.current.v3")
-        #expect(
-            store.legacyServices
-                == [
-                    "\(bundleIdentifier).session-secrets.v1",
-                    "\(bundleIdentifier).session.current.v2",
-                ]
-        )
-    }
-
     @Test("Keychain keeps only the current versioned session")
     func keychainReplacesThePreviousSession() throws(any Error) {
         let service = "com.mangalibrary.tests.session.\(UUID().uuidString)"

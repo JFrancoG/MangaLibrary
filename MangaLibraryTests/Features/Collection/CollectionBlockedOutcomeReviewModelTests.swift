@@ -54,14 +54,22 @@ struct CollectionBlockedOutcomeReviewModelTests {
     }
 
     @Test("A cloud change during confirmation hides decisions until another review")
-    func changedCloudVersionRequiresAnotherReview() async {
+    func changedCloudVersionRequiresAnotherReview() async throws {
         let probe = ReviewModelProbe(review: Self.review, resolveBehavior: .failure(.remoteChanged(.absent)))
         let model = Self.model(probe: probe, initialState: .ready(Self.review))
 
         let didResolve = await model.resolve(.useRemote)
 
         #expect(didResolve == false)
-        #expect(model.state == .failed(.remoteChanged, review: Self.review.replacingEvidence(.absent)))
+        guard case let .failed(failure, failedReview) = model.state else {
+            Issue.record("Expected the changed-cloud review failure")
+            return
+        }
+        let review = try #require(failedReview)
+        #expect(failure == .remoteChanged)
+        #expect(review.evidence == .absent)
+        #expect(review.context == Self.review.context)
+        #expect(await model.resolve(.useRemote) == false)
         #expect(await probe.evidence().decisions == [.useRemote])
     }
 

@@ -200,17 +200,24 @@ struct ReadingSnapshotCodecTests {
         }
     }
 
-    @Test
-    func `constructors reject empty content and absent session`() throws {
+    @Test(arguments: [true, false])
+    func `constructors reject empty content and absent session`(_ hasSession: Bool) throws {
+        let item = try ReadingSnapshot.Item(
+            mangaID: 1,
+            title: nil,
+            readingVolume: 1,
+            totalVolumes: nil,
+            coverResourceID: nil
+        )
         #expect(throws: ReadingSnapshotError.invalidState) {
             try ReadingSnapshot(
                 publicationGeneration: DeluxeContractFixtures.publicationGeneration,
                 revision: 1,
-                sessionGeneration: nil,
+                sessionGeneration: hasSession ? DeluxeContractFixtures.publicationGeneration : nil,
                 state: .content,
                 generatedAt: DeluxeContractFixtures.date,
-                totalEligibleCount: 0,
-                items: []
+                totalEligibleCount: hasSession ? 0 : 1,
+                items: hasSession ? [] : [item]
             )
         }
     }
@@ -247,7 +254,7 @@ struct ReadingSnapshotCodecTests {
     }
 
     @Test
-    func `nullable fields remain mandatory wire keys`() throws {
+    func `a nullable item title remains a mandatory wire key`() throws {
         let data = try DeluxeContractFixtures.replacing("\"title\": null,", with: "", in: "content")
 
         #expect(throws: (any Error).self) {

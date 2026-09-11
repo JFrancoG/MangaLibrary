@@ -5,7 +5,7 @@ import Testing
 @Suite("Watch local snapshot cache files", .tags(.integration))
 struct WatchReadingSnapshotStorageTests {
     @Test
-    func `an atomic replacement survives recreation and a discard removes it`() throws {
+    func `a replacement survives recreation and a discard removes it`() throws {
         let directory = Self.directory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let storage = WatchReadingSnapshotStorage(directory: directory)

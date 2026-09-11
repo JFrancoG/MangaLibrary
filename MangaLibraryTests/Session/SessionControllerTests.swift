@@ -13,11 +13,23 @@ struct SessionControllerTests {
     @Test("Login completes the remote chain before saving one session")
     func loginActivatesOnlyAfterIdentity() async throws(any Error) {
         let storage = ControlledSessionPersistenceStorage()
-        let loader = ScriptedSessionDataLoader(replies: [.data(Self.accessResponse), .data(Self.identityResponse)])
+        let identityGate = SessionRequestGate()
+        let loader = ScriptedSessionDataLoader(
+            replies: [.data(Self.accessResponse), .data(Self.identityResponse)],
+            identityGate: identityGate
+        )
         let controller = try makeController(loader: loader, storage: storage)
         _ = try await controller.restore()
 
-        let snapshot = try await controller.login(email: "reader@example.invalid", password: "synthetic-passphrase")
+        let login = Task {
+            try await controller.login(email: "reader@example.invalid", password: "synthetic-passphrase")
+        }
+        await identityGate.waitUntilArrived()
+        #expect(storage.snapshot().record == nil)
+        #expect(storage.snapshot().journal.contains(.save) == false)
+        #expect(await controller.currentSnapshot() == .signedOut)
+        await identityGate.open()
+        let snapshot = try await login.value
 
         #expect(snapshot == .active(Self.remoteAccount))
         #expect(storage.snapshot().record?.userID == Self.userID)
@@ -1087,40 +1099,26 @@ struct SessionControllerTests {
         #expect(try await controller.authorizes(staleAuthorization) == false)
     }
 
-    @Test("Session invalidation linearizes after an authorized synchronous commit")
-    func commitAuthorizationSerializesInvalidation() async throws(any Error) {
+    @Test("Invalidation rejects subsequent commit effects in either sequential order", arguments: [true, false])
+    func invalidationFencesSubsequentCommitEffects(_ commitsBeforeInvalidation: Bool) throws {
         let authority = SessionAuthority(userID: Self.userID, generation: Self.generation)
-        let commitGate = SessionCommitGate(activeAuthority: authority)
-        let authorization = commitGate.authorization(for: authority)
-        let criticalSection = SynchronousPersistenceGate()
-        let invalidationStarted = Atomic(false)
-        let invalidationFinished = Atomic(false)
-        let commit = Task {
+        let gate = SessionCommitGate(activeAuthority: authority)
+        let authorization = gate.authorization(for: authority)
+        var effects: [String] = []
+
+        if commitsBeforeInvalidation {
             try authorization.perform {
-                criticalSection.pause()
-                return true
+                effects.append("committed")
             }
         }
-        await criticalSection.waitUntilEntered()
-        let invalidation = Task {
-            invalidationStarted.store(true, ordering: .releasing)
-            commitGate.invalidate(authority)
-            invalidationFinished.store(true, ordering: .releasing)
-        }
-        while invalidationStarted.load(ordering: .acquiring) == false {
-            await Task.yield()
-        }
+        gate.invalidate(authority)
 
-        let finishedBeforeCommit = invalidationFinished.load(ordering: .acquiring)
-        #expect(finishedBeforeCommit == false)
-        criticalSection.open()
-        #expect(try await commit.value)
-        await invalidation.value
-        let finishedAfterCommit = invalidationFinished.load(ordering: .acquiring)
-        #expect(finishedAfterCommit)
         #expect(throws: SessionCommitAuthorizationError.sessionChanged) {
-            try authorization.perform { true }
+            try authorization.perform {
+                effects.append("unauthorized")
+            }
         }
+        #expect(effects == (commitsBeforeInvalidation ? ["committed"] : []))
     }
 
     @Test("Authorization suspended in refresh cannot survive logout")
@@ -1865,12 +1863,20 @@ struct SessionControllerTests {
     @Test("Logout publishes signed out only after deleting Keychain")
     func logoutDeletesTheCurrentSession() async throws(any Error) {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
-        let storage = ControlledSessionPersistenceStorage(record: session)
+        let deletionGate = SynchronousPersistenceGate()
+        let storage = ControlledSessionPersistenceStorage(record: session, removeAllGate: deletionGate)
         let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
         let controller = try makeController(loader: loader, storage: storage)
         _ = try await controller.restore()
 
-        #expect(try await controller.logout() == .signedOut)
+        let logout = Task {
+            try await controller.logout()
+        }
+        await deletionGate.waitUntilEntered()
+        #expect(storage.snapshot().record == session)
+        #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
+        deletionGate.open()
+        #expect(try await logout.value == .signedOut)
         #expect(storage.snapshot().record == nil)
     }
 
@@ -2021,8 +2027,8 @@ struct SessionControllerTests {
         #expect(storage.snapshot().journal.filter { $0 == .removeAll }.isEmpty)
     }
 
-    @Test("A discarded outbox remains resolved when Keychain deletion fails and logout retries")
-    func failedKeychainDeletionDoesNotResurrectDiscardedWork() async throws(any Error) {
+    @Test("Logout retry does not repeat a successful discard after Keychain deletion fails")
+    func failedKeychainDeletionDoesNotRepeatTheDiscard() async throws(any Error) {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
         let storage = ControlledSessionPersistenceStorage(record: session)
         let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
@@ -2376,8 +2382,21 @@ struct SessionControllerTests {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
         let storage = ControlledSessionPersistenceStorage(record: session)
         let gate = SessionRequestGate()
+        let joiningGate = SessionRequestGate()
         let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)], identityGate: gate)
-        let controller = try makeController(loader: loader, storage: storage)
+        let controller = try makeController(
+            loadData: { request in
+                let data = try await loader.load(request)
+                try Task.checkCancellation()
+                return data
+            },
+            storage: storage,
+            synchronizationObserver: { point in
+                if point == .restorationAwaitingRestore {
+                    await joiningGate.suspendUntilOpen()
+                }
+            }
+        )
 
         let cancelled = Task {
             try await controller.restore()
@@ -2386,7 +2405,9 @@ struct SessionControllerTests {
         let remaining = Task {
             try await controller.restore()
         }
+        await joiningGate.waitUntilArrived()
         cancelled.cancel()
+        await joiningGate.open()
         await gate.open()
 
         await #expect(throws: CancellationError.self) {
@@ -2394,6 +2415,7 @@ struct SessionControllerTests {
         }
         #expect(try await remaining.value == .active(Self.remoteAccount))
         #expect(storage.snapshot().journal.filter { $0 == .load }.count == 1)
+        #expect(await loader.requestPaths() == ["/users/jwt/me"])
     }
 
     @Test("A superseded login cannot replace the newer account")

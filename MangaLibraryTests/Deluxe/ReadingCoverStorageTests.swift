@@ -423,7 +423,7 @@ struct ReadingCoverStorageTests {
     }
 
     @Test(arguments: ["../outside", "/absolute", "aa/../../outside", String(repeating: "A", count: 64)])
-    func `reader treats invalid identifiers as placeholders`(_ identifier: String) throws {
+    func `invalid identifiers return no cover from an empty directory`(_ identifier: String) throws {
         let harness = try Harness()
         defer { harness.remove() }
 

@@ -10,6 +10,44 @@ aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
 
+## T01–T02 — Calidad de tests y oráculos — issue #104
+
+El propietario autoriza el 2026-09-11 abrir
+[#104](https://github.com/JFrancoG/MangaLibrary/issues/104) e implementar T01/T02.
+La rama `codex/104-t01-t02-test-oracles` parte de `main@967a4aa`, tras U01–U03.
+Se retiran las dos declaraciones estructurales de T01 y se revisan las 23 de
+T02. El [registro por caso](t01-t02-test-validation.md) conserva identificadores
+originales, nuevos nombres, oráculos, evidencia y límites.
+
+Las mejoras exigen existencia de resultados, valores esperados independientes,
+readbacks reales de Keychain/SwiftData y efectos observados en la frontera
+temporal correspondiente. Los títulos de orquestación y lectura se ajustan a
+lo probado. La antigua bandera previa a invalidación se sustituye por dos
+órdenes secuenciales con efectos; no se afirma contención runtime del mutex.
+El único cambio productivo amplía el observador de sincronización existente
+con la incorporación a un vuelo de restauración ya capturado.
+
+La revisión iOS/testing independiente detectó que el loader del test de
+cancelación no cooperaba después de liberar la respuesta. Se corrigió solo
+ese caso mediante `Task.checkCancellation()` y la reauditoría cerró el P2.
+Audit de estilo manual y recall sobre los 14 Swift afectados: sin hallazgos
+pendientes; los candidatos preexistentes no amplían este diff.
+
+Los resultados nativos finales acreditan Fast **358 declaraciones/568
+invocaciones** e Integration **454/629**, total disjunto **812/1.197**, sin
+fallos, skips, fallos esperados ni runtime warnings. El cruce por identificador
+confirma los 23 casos revisados. El script aprobado `validate-advanced-build.sh
+--deluxe` pasa sobre el diff final: cinco targets, Debug y Release, cero warnings
+y errores. Cuatro regresiones compilables provocan los
+fallos esperados en Catálogo, constructor, Keychain y vuelo compartido; tras
+restaurar los archivos, ambos planes vuelven a GREEN. El registro por caso
+detalla las corridas y las limitaciones del inventario/agregado MCP.
+
+El propietario autoriza después commit, push, PR, merge, cierre de #104 y
+borrado de su rama. Se reutiliza la validación anterior porque el diff Swift
+permanece idéntico; el resultado definitivo de Git se enlaza en #104. #77/#88
+siguen 5/7, con H01 y la evidencia física Watch en sus condiciones vigentes.
+
 ## U01–U03 — Coherencia de color, localización y previews — issue #102
 
 El propietario autoriza el 2026-09-11 implementar el plan conjunto de
