@@ -5,7 +5,9 @@
 Este documento caracteriza la superficie de transporte observada el 25 de agosto
 de 2026. El [OpenAPI vivo][live-contract], descubierto desde la
 [documentación de la API][live-docs], sigue siendo la autoridad actual antes de
-implementar o modificar una operación.
+implementar o modificar una operación. Las observaciones runtime posteriores
+se identifican por separado; la reconciliación documental del 2026-09-11 no
+constituye una nueva consulta al servicio ni una nueva captura HTTP.
 
 El [snapshot versionado][snapshot] es una baseline histórica, canónica y
 sanitizada para revisar deriva y construir fixtures futuros. No fija la URL base,
@@ -181,8 +183,23 @@ dicen “manga ID” y el parámetro tiene schema `string`, mientras `MangaDTO.i
 `id` con formato UUID. La decisión de producto del 2 de septiembre de 2026 fija
 `{id}` como el `Manga.ID` numérico serializado mediante sus dígitos decimales. El
 UUID de la entrada no se usa para formar esos paths. El tipo machine-readable
-inconsistente queda registrado como deuda del contrato y la aceptación live de
-GET/DELETE individual permanece pendiente de caracterización funcional.
+inconsistente queda registrado como deuda del contrato. La aceptación funcional
+live multidispositivo de R2.2 ya está registrada en
+[Progress — evidencia y límite live de R2.2][r2-2-evidence] y entregada mediante
+[PR #60](https://github.com/JFrancoG/MangaLibrary/pull/60).
+
+| Aspecto | Evidencia y alcance |
+| --- | --- |
+| Identidad del path decimal | Aceptación funcional de la ruta que usa `Manga.ID`, sin sustituirlo por el UUID de entrada. |
+| Borrado y reconciliación | El recorrido de tres dispositivos descrito en Progress acepta el DELETE concurrente, el GET individual de reconciliación y la ausencia remota final observada desde una sesión fresca. |
+| Primer DELETE | Su resultado de transporte fue incierto. El status y el body exactos no quedaron caracterizados; la ausencia final no permite deducirlos. |
+| GET individual presente `200` | Sigue sin caracterización live directa separada. Los fixtures de tests no sustituyen esa observación. |
+
+La [SDD 04][sdd-04] acepta esa ruta funcional multidispositivo sin exigir que se
+haya capturado la secuencia directa GET presente `200` → DELETE `200` → GET
+`404`. Se conservan como deuda la discrepancia `string`/`int64` y los detalles
+HTTP no capturados. El snapshot y su checksum siguen describiendo el contrato
+publicado en la baseline; no se modifican para hacerlos coincidir con runtime.
 
 `POST` y `DELETE` responden con un entero sin semántica adicional tipada. El
 OpenAPI tampoco ofrece idempotency key. Estas ausencias sostienen la política de
@@ -215,7 +232,7 @@ en otro caso existente. `mainPicture` y `url` son strings nullable, no schemas
 - No se declara una política de compatibilidad ni versionado de la API.
 - No se garantiza orden estable entre páginas.
 - El schema `string` de `/collection/manga/{id}` contradice el `int64` de la
-  identidad de manga que la app serializará en decimal.
+  identidad de manga que la app serializa en decimal.
 - La búsqueda dedicada por prefijo no es paginada y no satisface por sí sola el
   requisito de catálogo escalable.
 
@@ -236,8 +253,9 @@ Antes de implementar o cambiar una operación:
 6. derivar después DTOs y fixtures mínimos para la operación implementada.
 
 La baseline del 25 de agosto se obtuvo sin peticiones funcionales, login, altas
-ni escrituras. La observación manual posterior de `201` queda separada arriba y
-no altera su snapshot. Build, tests de Xcode y TDD no aplicaron a la creación de
+ni escrituras. Las observaciones manuales posteriores de alta, autorización de
+Colección y aceptación funcional R2.2 quedan separadas arriba y no alteran su
+snapshot. Build, tests de Xcode y TDD no aplicaron a la creación de
 la baseline; sí aplicaron validación JSON/OpenAPI, referencias, checksum,
 privacidad, enlaces y revisión iOS/API.
 
@@ -247,3 +265,5 @@ privacidad, enlaces y revisión iOS/API.
 [sdd-04]: ../specs/04-authentication-and-sync.md
 [adr-0019]: ../adr/0019-single-jwt-session-and-keychain-v3.md
 [practice-statement]: ../sources/Practica_Mis_Mangas_SDP_2026.md#creación-de-usuario
+
+[r2-2-evidence]: ../Progress.md#evidencia-y-límite-live-de-r22
