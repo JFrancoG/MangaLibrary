@@ -28,7 +28,9 @@ actor ReadingSnapshotPublisher {
     private let storage: ReadingSnapshotStorage
     private let now: @Sendable () -> Date
     private let makeGeneration: @Sendable () -> UUID
+    /// Notifies the local widget only; these bytes never authorize a Watch transfer.
     private let requestReload: @Sendable (Data) throws -> Void
+    private let sendWatchContext: @Sendable (Data) throws -> Void
     private let coverStorage: ReadingCoverStorage?
 
     init(
@@ -36,12 +38,14 @@ actor ReadingSnapshotPublisher {
         now: @escaping @Sendable () -> Date,
         makeGeneration: @escaping @Sendable () -> UUID,
         requestReload: @escaping @Sendable (Data) throws -> Void,
+        sendWatchContext: @escaping @Sendable (Data) throws -> Void = { _ in },
         coverStorage: ReadingCoverStorage? = nil
     ) {
         self.storage = storage
         self.now = now
         self.makeGeneration = makeGeneration
         self.requestReload = requestReload
+        self.sendWatchContext = sendWatchContext
         self.coverStorage = coverStorage
     }
 
@@ -49,9 +53,12 @@ actor ReadingSnapshotPublisher {
     ///
     /// A closed fence whose recovery metadata is lost cannot prove a harmless bootstrap.
     /// Its caller must retire any residual Keychain generation before accepting authentication.
+    /// Widget reload recovery grants no content authority to Watch. Only a verified redaction
+    /// can be offered here; content waits for a current capability through ``deliverWatchContext(authorization:send:)``.
     func recover() throws -> Recovery {
         let recovery = try recover(deliverReloads: true)
         recoverCovers()
+        try? deliverWatchContext(authorization: nil, send: sendWatchContext)
         return recovery
     }
 
@@ -580,6 +587,10 @@ actor ReadingSnapshotPublisher {
             }
         }
         recoverCovers()
+        // Delivery is eventual and revalidates after the durable commit, independently of widget reload failure.
+        defer {
+            try? deliverWatchContext(authorization: authorization, send: sendWatchContext)
+        }
         do {
             try requestReload(data)
         } catch {
@@ -719,6 +730,7 @@ actor ReadingSnapshotPublisher {
     ///
     /// The caller has already conditionally removed Keychain. Failure leaves a retryable intention;
     /// it must never reactivate the outgoing session or roll back the closed fence.
+    /// Watch can receive the verified reserved redaction even when writing its manifest or reloading widgets fails.
     func finishRetirement(_ commit: RetirementCommit) throws {
         guard
             commit.fence.allowedSessionGeneration == nil,
@@ -729,6 +741,9 @@ actor ReadingSnapshotPublisher {
             try currentFence() == commit.fence
         else { return }
 
+        defer {
+            try? deliverWatchContext(authorization: nil, send: sendWatchContext)
+        }
         let existingData = try readCompatibleFile(.snapshot)
         let existing = decodedSnapshot(existingData)
         let data: Data

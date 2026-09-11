@@ -50,8 +50,10 @@ actor UITestingReadingWidget {
             now: publicationClock,
             makeGeneration: { UUID() },
             loadCover: { _ in nil },
-            requestReload: { data in
+            requestReload: { _ in
                 WidgetCenter.shared.reloadTimelines(ofKind: ReadingWidgetBridge.kind)
+            },
+            sendWatchContext: { data in
                 try watchConnectivity?.send(data)
             }
         )
