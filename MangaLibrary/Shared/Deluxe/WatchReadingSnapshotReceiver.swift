@@ -14,6 +14,7 @@ enum WatchReadingSnapshotState: Equatable {
 actor WatchReadingSnapshotReceiver {
     private let storage: WatchReadingSnapshotStorage
     private var cache = WatchReadingSnapshotCache()
+    private var pendingWrite: (context: Data, cache: WatchReadingSnapshotCache)?
     private var restored = false
 
     init(storage: WatchReadingSnapshotStorage) {
@@ -53,6 +54,9 @@ actor WatchReadingSnapshotReceiver {
     /// A failed cache write hides the projection and removes and verifies the preceding file. If all
     /// writes and removal are inaccessible, durable retirement cannot be claimed; the caller must
     /// reconcile WCSession's most recently received context before presenting a cache on reactivation.
+    /// This instance can retry the exact bytes of its last failed candidate, showing it only after
+    /// verified persistence. A new accepted transition, incompatible input or saturation supersedes
+    /// that candidate; durable duplicates and other bytes with the same revision remain ignored.
     func receive(_ data: Data) -> WatchReadingSnapshotState {
         _ = restore()
         guard restored, !cache.saturated else { return .unavailable }
@@ -66,6 +70,10 @@ actor WatchReadingSnapshotReceiver {
             var unavailable = cache
             unavailable.snapshot = nil
             return commit(unavailable)
+        }
+
+        if let pendingWrite, pendingWrite.context == data {
+            return commit(pendingWrite.cache, context: data)
         }
 
         guard !cache.retiredEpochs.contains(snapshot.publicationGeneration) else { return state }
@@ -87,7 +95,7 @@ actor WatchReadingSnapshotReceiver {
                 proposed.revision = max(proposed.revision, snapshot.revision)
             }
             guard proposed != cache else { return state }
-            return commit(proposed)
+            return commit(proposed, context: data)
         }
         if snapshot.publicationGeneration != cache.epoch {
             if let previous = cache.epoch {
@@ -106,14 +114,15 @@ actor WatchReadingSnapshotReceiver {
         proposed.session = snapshot.sessionGeneration ?? proposed.session
         proposed.revision = snapshot.revision
         proposed.snapshot = snapshot
-        return commit(proposed)
+        return commit(proposed, context: data)
     }
 
     private var state: WatchReadingSnapshotState {
         cache.snapshot.map(WatchReadingSnapshotState.snapshot) ?? .unavailable
     }
 
-    private func commit(_ proposed: WatchReadingSnapshotCache) -> WatchReadingSnapshotState {
+    private func commit(_ proposed: WatchReadingSnapshotCache, context: Data? = nil) -> WatchReadingSnapshotState {
+        pendingWrite = nil
         var next = proposed
         let data: Data
         do {
@@ -137,6 +146,10 @@ actor WatchReadingSnapshotReceiver {
         } catch {
             cache = next
             cache.snapshot = nil
+            if let context, !next.saturated {
+                // Retain the complete proposed transition, including retirement barriers, for this instance only.
+                pendingWrite = (context, next)
+            }
             do {
                 try discardAndVerify()
             } catch {

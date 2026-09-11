@@ -37,6 +37,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- 2026-09-11 | 🐛 fix(watch): retry failed cache persistence
+
 - 2026-09-11 | 🐛 fix(deluxe): authorize Watch recovery
 - 2026-09-11 | 🐛 fix(deluxe): preserve dates and record DX6 validation
 - 2026-09-08 | 🐛 fix(widget): complete accessible widget states

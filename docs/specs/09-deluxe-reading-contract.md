@@ -1,7 +1,7 @@
 # SDD 09: Contrato de lectura Deluxe — DX1–DX5
 
 **Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07; texto e ilustración de no disponible y traslado de la prueba física anterior al primer desbloqueo a DX6 aprobados el 2026-09-08; implementación y posterior entrega de DX5 autorizadas el 2026-09-10; DX5 entregada mediante PR #87 ese mismo día. DX6 en curso; entrega del proyecto con validación física de Watch diferida aprobada el 2026-09-10, con los límites de SDD 06 v1.38
-**Versión:** 1.18
+**Versión:** 1.19
 **Fecha:** 2026-09-11
 **Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), [DX4 — issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84), [DX5 — issue #86](https://github.com/JFrancoG/MangaLibrary/issues/86) y [DX6 — issue #88](https://github.com/JFrancoG/MangaLibrary/issues/88), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
@@ -542,6 +542,19 @@ reactivación reconcilia el contexto del sistema cuando está disponible antes
 de mostrar cache. Tras un fallo simultáneo de escritura y retirada, una cache
 residual y un sistema todavía inaccesible no permiten acreditar retirada durable
 entre procesos; el aviso offline no cambia ese límite.
+
+El receptor puede conservar en su instancia un único candidato cuya escritura o
+lectura de verificación falló: los bytes de entrada válidos y acotados junto con
+la transición completa de cache propuesta. La proyección permanece oculta hasta
+reofrecer exactamente esos bytes y completar escritura y lectura verificadas.
+No se acepta otro contenido con igual revisión. Un duplicado ya durable no
+reescribe. Una transición nueva aceptada sustituye el candidato, incluso si su
+persistencia falla; una entrada incompatible o saturación lo descarta. Las
+entradas rechazadas por orden o barreras no modifican el candidato pendiente.
+Si la transición era una redacción de A ajena a B, completar su persistencia
+conserva la proyección B y la barrera de A. El reintento no reinicia metadata,
+expira barreras ni añade tareas o archivos: depende de una nueva oferta del
+contexto y no sobrevive por sí mismo al proceso.
 
 Las barreras impiden revivir A después de B y no expiran por tiempo. Si una nueva
 transición excede el presupuesto de cache, se conserva el historial aceptado,
