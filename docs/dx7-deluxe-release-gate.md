@@ -5,9 +5,16 @@
 [plan #77](https://github.com/JFrancoG/MangaLibrary/issues/77).
 **Base:** `main@681ea6d8022ed6cae883b5b5ec2eb57adc459633`, merge de DX6 por PR #89.
 **Rama:** `codex/90-dx7-deluxe-release-gate`.
-**Estado:** corte técnico implementado y validado localmente; gate completo y entrega Git pendientes.
+**Estado actual (2026-09-11):** corte técnico entregado mediante [PR #91](https://github.com/JFrancoG/MangaLibrary/pull/91), merge `5e1fb14`; #90 cerrado y su rama retirada. El Deluxe Release Gate completo permanece pendiente en #88/#77.
+
+La ejecución descrita abajo pertenece a DX7 sobre su base y commit `c68fe92`.
+A01–A03 se entregaron después, con evidencia propia en [Progress](Progress.md).
+Los recuentos históricos de este informe no se actualizan con tests posteriores
+ni se presentan como ejecución de la futura candidata final.
 
 ## Alcance aprobado
+
+### Checkpoints de autorización del 2026-09-11, previos a la entrega
 
 El propietario autoriza iniciar DX7 tras integrar el corte técnico DX6. Se
 consolidan los gates de Advanced y Deluxe sin añadir funcionalidades de producto.
@@ -18,6 +25,13 @@ El propietario autoriza posteriormente commit, push, creación de PR y cierre
 de issue/rama. La PR conservará H01 y H02/H03/H04 pendientes y referenciará
 #90 sin cierre automático. El resultado efectivo de publicación y cualquier
 merge posterior se registran en el tracker canónico; no se anticipan aquí.
+
+### Resultado posterior verificado
+
+La autorización posterior de entrega culmina en PR #91 integrada y #90 cerrado
+como corte técnico. El merge `5e1fb14` conserva H01 y H02/H03/H04 pendientes en
+#88/#77; no cierra el gate completo ni cambia 5/7. Las autorizaciones iniciales
+anteriores describen su momento y no sustituyen este resultado.
 
 Las fuentes normativas son SDD [05](specs/05-deluxe-watch-and-widget.md),
 [06](specs/06-testing-quality-and-accessibility.md),
@@ -141,5 +155,6 @@ skip, fallo esperado o test no ejecutado. Restaurar después la selección previ
   de RocketSim no obliga a repetir las muestras válidas ni completa hardware.
 
 El avance de scripts o un ReleaseGate automatizado aprobado no significa que
-el **Deluxe Release Gate completo** esté verde. #88, #90 y #77 conservan los
-pendientes correspondientes y el plan mantiene DX1–DX5 entregadas (5/7).
+el **Deluxe Release Gate completo** esté verde. #90 está cerrado por su corte
+técnico; #88 y #77 conservan los pendientes físicos y el seguimiento del gate.
+El plan mantiene DX1–DX5 entregadas (5/7).

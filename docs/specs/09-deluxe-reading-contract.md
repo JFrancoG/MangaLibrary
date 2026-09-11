@@ -1,7 +1,7 @@
 # SDD 09: Contrato de lectura Deluxe — DX1–DX5
 
-**Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07; texto e ilustración de no disponible y traslado de la prueba física anterior al primer desbloqueo a DX6 aprobados el 2026-09-08; implementación y posterior entrega de DX5 autorizadas el 2026-09-10; DX5 entregada mediante PR #87 ese mismo día. DX6 en curso; entrega del proyecto con validación física de Watch diferida aprobada el 2026-09-10, con los límites de SDD 06 v1.38
-**Versión:** 1.19
+**Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07; texto e ilustración de no disponible y traslado de la prueba física anterior al primer desbloqueo a DX6 aprobados el 2026-09-08; implementación y posterior entrega de DX5 autorizadas el 2026-09-10; DX5 entregada mediante PR #87 ese mismo día. Cortes técnicos DX6 y DX7 integrados mediante PR #89/#91; #88/#77 abiertos y Deluxe completo pendiente; entrega del proyecto con validación física de Watch diferida aprobada el 2026-09-10, con los límites de SDD 06, establecidos en v1.38
+**Versión:** 1.20
 **Fecha:** 2026-09-11
 **Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), [DX4 — issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84), [DX5 — issue #86](https://github.com/JFrancoG/MangaLibrary/issues/86) y [DX6 — issue #88](https://github.com/JFrancoG/MangaLibrary/issues/88), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
@@ -571,7 +571,7 @@ afirmar que su sesión continúe vigente. Los textos ES/EN remiten a la app del
 iPhone para cualquier acción. Las previews construyen snapshots sintéticos sin
 activar WatchConnectivity ni leer almacenamiento.
 
-La implementación y la validación técnica de DX5 están acreditadas. Su entrega
+**Checkpoint de entrega DX5 — 2026-09-10.** La implementación y la validación técnica de DX5 están acreditadas. Su entrega
 autorizada se completa el 10 de septiembre mediante la
 [PR #87](https://github.com/JFrancoG/MangaLibrary/pull/87), integrada en `main`
 con [`4ab15f5`](https://github.com/JFrancoG/MangaLibrary/commit/4ab15f58be84d749d8287eb5b8390fa622e1dd1e);
@@ -580,6 +580,13 @@ abierto con DX1–DX5 entregadas (5/7); DX6 es la siguiente subfase, sin iniciar
 [checklist DX5](../dx5-watch-validation.md) separa las pruebas lógicas, los builds
 completos y DocC, la matriz UI representativa y el transporte observado en
 Simulator. Ninguna sustituye la matriz ampliada y física pendiente de DX6–DX7.
+
+**Estado posterior — 2026-09-11.** Los cortes técnicos de
+[DX6](../dx6-integration-accessibility.md) y [DX7](../dx7-deluxe-release-gate.md)
+están integrados por PR #89/#91. #90 está cerrado; #88/#77 conservan H01 y
+H02/H03/H04 con los límites vigentes. A01–A03 y sus resultados posteriores se
+registran en [Progress](../Progress.md). Se mantienen 5/7 subfases plenamente
+entregadas; este ajuste documental no modifica el contrato ni acredita otro gate.
 
 ### Preparación y publicación acotadas — DX3.2
 
