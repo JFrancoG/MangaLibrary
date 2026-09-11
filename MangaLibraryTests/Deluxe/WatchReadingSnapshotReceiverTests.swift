@@ -5,6 +5,227 @@ import Testing
 
 @Suite("Watch reading acceptance and retirement", .tags(.fast))
 struct WatchReadingSnapshotReceiverTests {
+    @Test(arguments: PersistenceFailure.allCases, ["content", "empty", "redacted", "unavailable"])
+    func `an exact failed context recovers only after its cache can be written and verified`(
+        failure: PersistenceFailure,
+        wireState: String
+    ) async throws {
+        let cache = Cache()
+        let receiver = WatchReadingSnapshotReceiver(storage: cache.storage)
+        _ = await receiver.restore()
+        let context = Self.context(state: wireState)
+        cache.persistenceFailure.withLock {
+            $0 = failure
+        }
+
+        #expect(await receiver.receive(context) == .unavailable)
+        #expect(await receiver.receive(context) == .unavailable)
+        #expect(cache.bytes.withLock { $0 } == nil)
+        cache.persistenceFailure.withLock {
+            $0 = nil
+        }
+
+        let recovered = await receiver.receive(context)
+        let relaunched = WatchReadingSnapshotReceiver(storage: cache.storage)
+        let restored = await relaunched.restore()
+
+        #expect(Self.snapshot(recovered)?.state.rawValue == wireState)
+        #expect(Self.snapshot(restored)?.state.rawValue == wireState)
+        #expect(Self.snapshot(restored)?.revision == 7)
+        #expect(Self.identities(restored) == (wireState == "content" ? [20, 10] : []))
+        #expect(Self.snapshot(restored)?.generatedAt == Date(timeIntervalSince1970: 1_788_652_800))
+        let durable = try #require(cache.bytes.withLock { $0 })
+        let writes = cache.writeAttempts.withLock { $0 }
+        #expect(writes == 3)
+        #expect(await receiver.receive(context) == recovered)
+        #expect(cache.writeAttempts.withLock { $0 } == writes)
+        #expect(cache.bytes.withLock { $0 } == durable)
+    }
+
+    @Test(arguments: ["title", "state", "session", "encoding"])
+    func `equal revision with different bytes cannot replace a failed candidate`(_ change: String) async {
+        let cache = Cache()
+        let receiver = WatchReadingSnapshotReceiver(storage: cache.storage)
+        cache.failWrites.withLock {
+            $0 = true
+        }
+        let context = Self.context()
+        #expect(await receiver.receive(context) == .unavailable)
+        cache.failWrites.withLock {
+            $0 = false
+        }
+        let altered: Data
+        switch change {
+        case "title":
+            altered = Data(String(decoding: context, as: UTF8.self)
+                .replacingOccurrences(of: "Alba de papel", with: "Other content").utf8)
+        case "state":
+            altered = Self.context(state: "redacted")
+        case "session":
+            altered = Self.context(session: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+        default:
+            altered = context + Data("\n".utf8)
+        }
+
+        #expect(await receiver.receive(altered) == .unavailable)
+        #expect(cache.writeAttempts.withLock { $0 } == 1)
+        let recovered = await receiver.receive(context)
+        #expect(Self.identities(recovered) == [20, 10])
+        #expect(Self.snapshot(recovered)?.items.first?.title == "Alba de papel")
+    }
+
+    @Test(arguments: ["incompatible", "retirement", "session", "epoch"])
+    func `a superseded failed candidate cannot restore its previous projection`(_ transition: String) async {
+        let cache = Cache()
+        let receiver = WatchReadingSnapshotReceiver(storage: cache.storage)
+        cache.failWrites.withLock {
+            $0 = true
+        }
+        let context = Self.context()
+        #expect(await receiver.receive(context) == .unavailable)
+        cache.failWrites.withLock {
+            $0 = false
+        }
+        let replacement: Data
+        switch transition {
+        case "retirement":
+            replacement = Self.context(revision: 8, state: "redacted")
+        case "session":
+            replacement = Self.context(revision: 8, session: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+        case "epoch":
+            replacement = Self.context(revision: 1, epoch: "22222222-2222-4222-8222-222222222222")
+        default:
+            replacement = Data("invalid context".utf8)
+        }
+        let current = await receiver.receive(replacement)
+        let durable = cache.bytes.withLock { $0 }
+        let writes = cache.writeAttempts.withLock { $0 }
+
+        #expect(await receiver.receive(context) == current)
+        #expect(cache.bytes.withLock { $0 } == durable)
+        #expect(cache.writeAttempts.withLock { $0 } == writes)
+        if transition == "incompatible" {
+            #expect(current == .unavailable)
+        } else if transition == "retirement" {
+            #expect(Self.snapshot(current)?.state == .redacted)
+        } else {
+            #expect(Self.identities(current) == [20, 10])
+            #expect(Self.snapshot(current)?.revision == (transition == "epoch" ? 1 : 8))
+        }
+    }
+
+    @Test
+    func `retrying an unrelated redaction preserves B and durably retires A`() async throws {
+        let cache = Cache()
+        let receiver = WatchReadingSnapshotReceiver(storage: cache.storage)
+        let sessionB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+        try #require(Self.identities(await receiver.receive(Self.context(session: sessionB))) == [20, 10])
+        cache.failWrites.withLock {
+            $0 = true
+        }
+        let retirementA = Self.context(revision: 8, state: "redacted")
+        #expect(await receiver.receive(retirementA) == .unavailable)
+        cache.failWrites.withLock {
+            $0 = false
+        }
+
+        let recovered = await receiver.receive(retirementA)
+        let relaunched = WatchReadingSnapshotReceiver(storage: cache.storage)
+        let restored = await relaunched.restore()
+
+        #expect(Self.snapshot(recovered)?.sessionGeneration?.uuidString.lowercased() == sessionB)
+        #expect(Self.snapshot(restored)?.revision == 7)
+        #expect(Self.identities(restored) == [20, 10])
+        #expect(await relaunched.receive(Self.context(revision: 99)) == restored)
+    }
+
+    @Test(arguments: ["revision", "retirement", "session", "epoch", "incompatible"])
+    func `a later failed transition replaces the previous retry candidate`(_ transition: String) async {
+        let cache = Cache()
+        let receiver = WatchReadingSnapshotReceiver(storage: cache.storage)
+        cache.failWrites.withLock {
+            $0 = true
+        }
+        let previous = Self.context()
+        #expect(await receiver.receive(previous) == .unavailable)
+        let next: Data
+        switch transition {
+        case "retirement":
+            next = Self.context(revision: 8, state: "redacted")
+        case "session":
+            next = Self.context(revision: 8, session: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+        case "epoch":
+            next = Self.context(revision: 1, epoch: "22222222-2222-4222-8222-222222222222")
+        case "incompatible":
+            next = Data("incompatible replacement".utf8)
+        default:
+            next = Self.context(revision: 8)
+        }
+        #expect(await receiver.receive(next) == .unavailable)
+        cache.failWrites.withLock {
+            $0 = false
+        }
+
+        #expect(await receiver.receive(previous) == .unavailable)
+        #expect(cache.writeAttempts.withLock { $0 } == 2)
+        let recovered = await receiver.receive(next)
+        let relaunched = WatchReadingSnapshotReceiver(storage: cache.storage)
+        let restored = await relaunched.restore()
+        if transition == "incompatible" {
+            #expect(recovered == .unavailable)
+            #expect(restored == .unavailable)
+        } else {
+            #expect(Self.snapshot(restored)?.revision == (transition == "epoch" ? 1 : 8))
+            #expect(Self.snapshot(recovered)?.state == (transition == "retirement" ? .redacted : .content))
+            #expect(Self.identities(restored) == (transition == "retirement" ? [] : [20, 10]))
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func `saturation discards a pending retry even when its own write fails`(_ failSaturation: Bool) async throws {
+        let cache = Cache()
+        let emptySize = Self.nearlyFullCache(retiredSessions: []).count
+        let count = (65_536 - emptySize + 1) / 39
+        let generations = (1...count).map { index in
+            let digits = String(index)
+            return "00000000-0000-4000-8000-" + String(repeating: "0", count: 12 - digits.count) + digits
+        }
+        let fixture = Self.nearlyFullCache(retiredSessions: generations)
+        try #require(fixture.count <= 65_536 && fixture.count + 39 > 65_536)
+        cache.bytes.withLock {
+            $0 = fixture
+        }
+        let receiver = WatchReadingSnapshotReceiver(storage: cache.storage)
+        try #require(Self.identities(await receiver.restore()) == [20, 10])
+        cache.failWrites.withLock {
+            $0 = true
+        }
+        let pending = Self.context(revision: 8)
+        #expect(await receiver.receive(pending) == .unavailable)
+        cache.failWrites.withLock {
+            $0 = failSaturation
+        }
+        let replacement = Self.context(revision: 9, session: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+        #expect(await receiver.receive(replacement) == .unavailable)
+        cache.failWrites.withLock {
+            $0 = false
+        }
+        let writes = cache.writeAttempts.withLock { $0 }
+
+        #expect(await receiver.receive(pending) == .unavailable)
+        #expect(await receiver.receive(replacement) == .unavailable)
+        #expect(cache.writeAttempts.withLock { $0 } == writes)
+        if !failSaturation {
+            let relaunched = WatchReadingSnapshotReceiver(storage: cache.storage)
+            #expect(await relaunched.restore() == .unavailable)
+            #expect(await relaunched.receive(pending) == .unavailable)
+        }
+    }
+
+    enum PersistenceFailure: CaseIterable {
+        case replace, readBack, mismatch
+    }
+
     @Test
     func `received content survives an offline relaunch without reordering the published list`() async throws {
         let cache = Cache()
@@ -259,12 +480,30 @@ private extension WatchReadingSnapshotReceiverTests {
     final class Cache: Sendable {
         let bytes = Mutex<Data?>(nil)
         let failWrites = Mutex(false)
+        let persistenceFailure = Mutex<PersistenceFailure?>(nil)
+        let writeAttempts = Mutex(0)
 
         var storage: WatchReadingSnapshotStorage {
             WatchReadingSnapshotStorage(
-                read: { self.bytes.withLock { $0 } },
+                read: {
+                    let data = self.bytes.withLock { $0 }
+                    if data != nil {
+                        switch self.persistenceFailure.withLock({ $0 }) {
+                        case .readBack:
+                            throw CacheFailure.inaccessible
+                        case .mismatch:
+                            return Data("unverified write".utf8)
+                        default:
+                            break
+                        }
+                    }
+                    return data
+                },
                 replace: { data in
-                    if self.failWrites.withLock({ $0 }) {
+                    self.writeAttempts.withLock {
+                        $0 += 1
+                    }
+                    if self.failWrites.withLock({ $0 }) || self.persistenceFailure.withLock({ $0 }) == .replace {
                         throw CacheFailure.inaccessible
                     }
                     self.bytes.withLock { $0 = data }

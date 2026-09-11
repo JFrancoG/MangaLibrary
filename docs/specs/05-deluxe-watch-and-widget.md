@@ -1,8 +1,8 @@
 # SDD 05: Deluxe, watchOS y widget
 
 **Estado:** Aprobada
-**Versión:** 1.9
-**Fecha:** 2026-09-07
+**Versión:** 1.10
+**Fecha:** 2026-09-11
 **Gate de entrada:** Advanced Release Gate superado
 
 ## Propósito
@@ -105,7 +105,7 @@ El provider leerá `fence inicial → envelope → fence final`; en el mediano i
 
 Los consumidores aplicarán estas reglas:
 
-- dentro de la misma `publicationGeneration`, una revisión igual o anterior se ignora; las revisiones de epochs distintos no se comparan numéricamente;
+- dentro de la misma `publicationGeneration`, una revisión igual o anterior se ignora; las revisiones de epochs distintos no se comparan numéricamente. El receptor Watch puede completar la persistencia fallida del último candidato exacto según SDD 09; no constituye una aceptación de otros bytes con igual revisión;
 - una redacción solo retira contenido de la `sessionGeneration` a la que pertenece;
 - contenido de una sesión nueva solo se vuelve elegible cuando su envelope ya está publicado y el fence se abre expresamente para ella;
 - una redacción antigua de la sesión A no puede borrar contenido posterior de la sesión B;

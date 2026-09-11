@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.40
+**Versión:** 1.41
 **Fecha:** 2026-09-11
 
 ## Propósito
@@ -470,6 +470,13 @@ manifest sin reservar otra revisión. Se verifica también revocación entre
 commit y envío, redacción reservada con manifest pendiente y fallos independientes
 de escritura de redacción, reload y Watch: un consumidor no bloquea al otro ni
 convierte un reload completado en pendiente por un fallo de transporte.
+
+A02 verifica la recuperación del candidato exacto tras fallos de escritura,
+lectura de verificación o bytes discordantes, incluidos los cuatro estados del
+wire y fallos repetidos. La cache recuperada se reabre desde otro receptor y los
+duplicados durables no reescriben. Otros bytes con igual revisión no sustituyen
+el candidato; entradas incompatibles, transiciones posteriores aunque fallen,
+retirada A/B y saturación con escritura exitosa o fallida conservan sus barreras.
 
 El modelo de presentación debe reconciliar los eventos en orden antes de
 exponer cache restaurada, sin mostrar contenido retirado durante ese proceso.

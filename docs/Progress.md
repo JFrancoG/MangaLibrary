@@ -8,6 +8,73 @@ el 2026-09-11, en `codex/90-dx7-deluxe-release-gate` desde ese `main` limpio.
 El Deluxe Release Gate completo continúa pendiente; el inicio técnico no aprueba
 los criterios físicos ni amplía el aplazamiento de H02/H03/H04.
 
+## A02 — Reintento exacto de caché Watch — issue #94
+
+El propietario autoriza el 2026-09-11 abrir issue/rama e implementar A02 de la
+auditoría previa a la entrega. [#94](https://github.com/JFrancoG/MangaLibrary/issues/94)
+registra el plan Approved. La rama `codex/94-a02-watch-cache-recovery` parte de
+`main@66d65482204ee9f780daefae6565a5fcb1d72a0b` limpio, con A01 integrado por PR #93.
+
+El receptor Watch conserva en su instancia como máximo un candidato fallido:
+bytes exactos de entrada y transición completa propuesta. Permite reofrecerlo
+tras un fallo de escritura o verificación y solo muestra la proyección cuando
+se verifica la persistencia. Las barreras avanzadas no retroceden; una transición
+posterior sustituye el candidato aunque falle, mientras incompatibilidad y
+saturación lo descartan. Otros bytes con igual revisión siguen rechazados y un
+duplicado durable no reescribe. La retirada tardía de A conserva la proyección B
+junto con su barrera. No cambia el formato de caché, los presupuestos, los
+consumidores ni el aislamiento; no hay tareas automáticas de reintento.
+
+SDD 05 v1.10, SDD 06 v1.41 y SDD 09 v1.19 concretan el contrato y sus regresiones.
+DocC de `receive(_:)` documenta identidad, invalidación y persistencia verificada.
+
+### Evidencia A02
+
+- Preflight Xcode MCP: MangaLibrary, scheme `MangaLibrary`, iPhone 17 Simulator,
+  iOS 27.0 (`24A434`), plan inicial/final Fast. Xcode 27 RC `27A266a`,
+  Swift 6.4 `swiftlang-6.4.0.34.1`, lenguaje Swift 6, strict complete y
+  aislamiento predeterminado nonisolated. No se modifica configuración.
+- RED con producción previa: las primeras cuatro declaraciones ejecutan
+  21 invocaciones; 17 fallan por ausencia de recuperación y cuatro controles de
+  invalidación pasan. Las dos regresiones sugeridas por revisión independiente
+  añaden siete invocaciones: cuatro fallan por no recuperar el nuevo candidato
+  y tres controles de incompatibilidad/saturación pasan. Ningún fallo es de setup.
+- GREEN focalizado: sin fallos, pero el bridge selecciona parcialmente los
+  argumentos; no se presenta como evidencia completa de la matriz.
+- `RunAllTests` Fast: **359/359 declaraciones, 567 invocaciones**, cero fallos,
+  omisiones o fallos esperados, según `xcresulttool get test-results summary`.
+  La consola nativa confirma los 12 casos de fallo/estado, cuatro de identidad,
+  cuatro de invalidación, uno de retirada ajena, cinco de sustitución fallida y
+  dos de saturación. Los seis tests nuevos recorren el receptor real mediante
+  almacenamiento inyectado; oráculos de visibilidad, reapertura y efectos de I/O.
+  El agregado MCP mezcla resultados previos/selección por tags y no se usa como
+  recuento. Las suites de modelo y cola Watch también pertenecen a Fast.
+- Revisión iOS independiente previa y final: sin hallazgos pendientes. Las
+  seis declaraciones nuevas cumplen las cinco preguntas de tests-de-verdad.
+  Audit de estilo manual y recall: dos Swift, cero candidatos. El diff no añade
+  anotaciones `@MainActor`/`@Sendable` ni escapes de concurrencia.
+- Log de build MCP final inspeccionado completo: 538 líneas sin diagnósticos,
+  warnings ni extracción App Intents. Fast no emite runtime warnings.
+- `MANGALIBRARY_DEVELOPER_DIR=/Applications/Xcode-RC.app/Contents/Developer
+  Scripts/validate-advanced-build.sh --deluxe`: Debug/Release limpios de los cinco
+  targets, cero warnings/errores y sin extracción App Intents. DerivedData temporal
+  propio por configuración; compila los tests pero no los ejecuta.
+- `MANGALIBRARY_DEVELOPER_DIR=/Applications/Xcode-RC.app/Contents/Developer
+  Scripts/validate-docc.sh`: archive generado en `.build/docc/MangaLibrary.doccarchive`,
+  cero warnings/errores y warnings DocC tratados como errores; sin publicación.
+- `git diff --check` y enlaces Markdown locales correctos; Navigator Xcode sin
+  diagnósticos. Proyecto, schemes, test plans y entitlements permanecen intactos.
+
+La evidencia es determinista y local. No se ejecutan Integration ni UI de nuevo:
+las suites afectadas de receptor, modelo y cola son Fast; no cambia presentación,
+navegación, transporte ni almacenamiento de disco. No acredita recepción física,
+background real ni durabilidad cuando escritura y descarte son imposibles.
+H01 y H02/H03/H04 conservan sus límites en #77/#88. El propietario autoriza
+también el 2026-09-11 commit, push, PR, merge, cierre de #94 y borrado de su rama.
+El resultado definitivo de la entrega Git se registra en
+[#94](https://github.com/JFrancoG/MangaLibrary/issues/94).
+A03 y los demás hallazgos no se inician en este corte.
+
 ## A01 — Recuperación Watch autorizada — issue #92
 
 El propietario autoriza el 2026-09-11 abrir issue/rama e implementar A01 de la
