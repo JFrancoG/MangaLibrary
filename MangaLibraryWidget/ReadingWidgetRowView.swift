@@ -1,5 +1,6 @@
 import CoreGraphics
 import SwiftUI
+import WidgetKit
 
 struct ReadingWidgetRowView: View {
     enum Style {
@@ -145,3 +146,11 @@ struct ReadingWidgetRowView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview("Reading row", as: .systemSmall) {
+    ReadingWidgetComponentPreview(component: .readingWidgetRow)
+} timeline: {
+    ReadingWidgetPreview.shortTitle
+}
+#endif

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import WidgetKit
 
 struct CollectionWidgetCountBadgeView: View {
     let totalMangaCount: Int
@@ -39,3 +40,11 @@ struct CollectionWidgetCountBadgeView: View {
         return value
     }
 }
+
+#if DEBUG
+#Preview("Collection count", as: .systemMedium) {
+    ReadingWidgetComponentPreview(component: .collectionWidgetCountBadge, locale: Locale(identifier: "es"))
+} timeline: {
+    CollectionWidgetPreview.maximumCollection
+}
+#endif

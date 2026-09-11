@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 
 struct CollectionWidgetHeaderView: View {
     let totalMangaCount: Int
@@ -30,3 +31,11 @@ struct CollectionWidgetHeaderView: View {
             .accessibilityAddTraits(.isHeader)
     }
 }
+
+#if DEBUG
+#Preview("Collection header", as: .systemMedium) {
+    ReadingWidgetComponentPreview(component: .collectionWidgetHeader, locale: Locale(identifier: "es"))
+} timeline: {
+    CollectionWidgetPreview.twentyFourManga
+}
+#endif

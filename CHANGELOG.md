@@ -106,6 +106,8 @@ All notable changes to this project are documented in this file.
 
 ### Maintenance
 
+- 2026-09-11 | 🔧 chore(previews): add local widget component previews
+
 - 2026-09-11 | 🔧 chore(widget): remove seven retired localization keys
 
 - 2026-09-11 | 📦 build(deluxe): enforce complete release gates

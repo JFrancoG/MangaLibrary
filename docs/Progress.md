@@ -10,6 +10,80 @@ aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
 
+## U01–U03 — Coherencia de color, localización y previews — issue #102
+
+El propietario autoriza el 2026-09-11 implementar el plan conjunto de
+[#102](https://github.com/JFrancoG/MangaLibrary/issues/102), en orden U01 → U02 → U03.
+La rama `codex/102-u01-u03-ui-consistency` parte de `main@cb3dba7`, tras S01.
+Los criterios se conservan separados dentro de esta unidad de UI.
+
+- **U01:** el sello de colección completa usa `brandPrimaryInk`, el rol de
+  contenido definido por Library Red. Sus cuatro variantes coinciden con las
+  de `brandPrimary`; no se cambian valores ni se atribuye un defecto de contraste
+  demostrado al token anterior. Se conservan símbolo y etiqueta accesible.
+  La preview de fila añade una colección completa sintética de 27 tomos junto
+  al ejemplo de título largo, sin mutar la entrada original ni guardar datos.
+- **U02:** el catálogo del widget pasa de 40 a 33 claves. Se retiran exactamente
+  las siete claves manuales enumeradas en #102, sin referencias vigentes de
+  código. La comparación JSON conserva idénticas las demás entradas,
+  traducciones, pluralizaciones y metadatos; el build no las reintroduce.
+- **U03:** los diez archivos View indicados en #102 incorporan una preview
+  propia. El widget pasa de 45 a 55 previews; los archivos que contenían la
+  matriz integrada anterior permanecen idénticos. Se reutilizan los snapshots,
+  fechas y portadas sintéticos existentes.
+
+`ReadingWidgetComponentPreview` centraliza únicamente el host DEBUG que exige
+la extensión: Xcode rechaza previews ordinarias de View en un target widget,
+y `widgetFamily` es de solo lectura. Cada preview selecciona su componente y
+familia mediante WidgetKit, con timeline sintético y un provider inyectado que
+no resuelve App Group ni llama a `loadLive`. No se incorpora SwiftData al widget.
+El idioma queda explícito en la composición: cinco componentes de colección
+usan ES y los cinco restantes EN. El override de idioma de RenderPreview no
+produjo inglés efectivo en las primeras capturas; se verificó el texto real
+tras inyectar el locale. Los controles de Dynamic Type sí se aplicaron.
+
+### Evidencia y límites U01–U03
+
+- Preflight Xcode MCP: MangaLibrary, scheme `MangaLibrary`, iPhone 17 Simulator
+  iOS 27.0, plan Fast y cero diagnósticos. Se conserva configuración efectiva
+  Swift 6, concurrencia estricta, aislamiento nonisolated y warnings como errores.
+- `BuildProject` final correcto; inspección del log completo de 540 líneas,
+  cero diagnósticos warning/error. El proyecto y sus ajustes no cambian.
+- `RenderPreview` e inspección visual de **33 capturas finales**: diez previews
+  nuevas del widget y `CollectionRowView`, cada una en Large, XXX Large y AX 5.
+  El pipeline eligió **iPhone 18 Pro / iOS 27.0**; se distingue del destino de
+  la barra de Xcode. Widget ES/EN efectivo, indicador U01 visible en los tres
+  tamaños, sin solapamientos ni pérdida esencial en estos fixtures.
+- Revisión SwiftUI/accesibilidad independiente del diff, fixtures y las 33
+  imágenes: sin hallazgos pendientes. Audit swift-source-style manual y recall
+  sobre los 13 Swift afectados: cero candidatos pendientes. No se añaden
+  anotaciones de concurrencia, dependencias ni supresiones de warnings.
+- `Scripts/validate-test-plans.sh`: 28 suites Fast y 40 Integration; partición,
+  filtros, targets y plan predeterminado válidos. No hay cambios de comportamiento
+  testeable que justifiquen tests nuevos. Los tests existentes se compilan,
+  sin presentarlo como ejecución de sus casos ni nueva auditoría global de tests.
+- `MANGALIBRARY_DEVELOPER_DIR=/Applications/Xcode-RC.app/Contents/Developer
+  Scripts/validate-advanced-build.sh --deluxe`: compilación limpia de los cinco
+  targets en Debug y Release, con cero warnings/errores y sin extracción de
+  metadata App Intents. Xcode 27 RC `27A266a`, Swift 6.4
+  `swiftlang-6.4.0.34.1`, destino genérico iOS Simulator y plan ReleaseGate.
+  La repetición sobre el fixture final también pasa ambas configuraciones.
+- `MANGALIBRARY_DEVELOPER_DIR=/Applications/Xcode-RC.app/Contents/Developer
+  Scripts/validate-docc.sh`: archive Release generado en
+  `.build/docc/MangaLibrary.doccarchive`, cero warnings/errores y warnings DocC
+  tratados como errores. No cambia el contenido DocC; Views, previews y fixtures
+  mantienen la exclusión semántica de documentación mecánica.
+
+Las capturas no acreditan VoiceOver, Accessibility Inspector, Voice Control,
+Switch Control, teclado ni interacción de scroll. En AX 5 la segunda fila de
+la lista continúa fuera del viewport; no se afirma haber ejecutado su scroll.
+No se repite toda la matriz integrada ni se certifican variantes oscuras,
+hardware o integración live. U01–U03 no resuelven H01 ni H02/H03/H04, no cambian
+el estado 5/7 de #77/#88 ni cierran el Deluxe Release Gate completo. La entrega
+Git de #102 recibe autorización explícita el 2026-09-11 para commit, push, PR,
+merge, cierre de issue y retirada de rama. El resultado definitivo se registra
+en el issue #102 y el plan #77 después de verificarlo en GitHub.
+
 ## S01 — Normalización léxica de Swift — issue #100
 
 El propietario autoriza el 2026-09-11 abrir issue/rama y corregir los archivos

@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import SwiftUI
+import WidgetKit
 
 struct CollectionWidgetContentView: View {
     let item: CollectionWidgetSnapshot.Item
@@ -20,3 +21,11 @@ struct CollectionWidgetContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
+
+#if DEBUG
+#Preview("Collection content", as: .systemMedium) {
+    ReadingWidgetComponentPreview(component: .collectionWidgetContent, locale: Locale(identifier: "es"))
+} timeline: {
+    CollectionWidgetPreview.content
+}
+#endif

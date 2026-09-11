@@ -119,3 +119,11 @@ struct ReadingWidgetStatusView: View {
         state == .redacted ? "Sign in." : "Open Manga Library."
     }
 }
+
+#if DEBUG
+#Preview("Signed-out collection", as: .systemMedium) {
+    ReadingWidgetComponentPreview(component: .readingWidgetStatus)
+} timeline: {
+    CollectionWidgetPreview.redacted
+}
+#endif
