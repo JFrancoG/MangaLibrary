@@ -1,6 +1,22 @@
 import Darwin
 import Foundation
 
+/// Canonical shared files and read/write bounds; the publisher's private recovery ledger is excluded.
+enum ReadingSnapshotSharedFile: String {
+    case fence = "session-fence.json"
+    case snapshot = "reading-snapshot.json"
+    case collection0 = "collection-0.json"
+    case collection1 = "collection-1.json"
+
+    var byteLimit: Int {
+        switch self {
+        case .fence: 1_024
+        case .snapshot: ReadingSnapshotCodec.maximumByteCount
+        case .collection0, .collection1: CollectionWidgetSnapshotCodec.maximumByteCount
+        }
+    }
+}
+
 extension ReadingSnapshotReader {
     /// Opens each canonical file afresh beneath the supplied root, without creating storage.
     ///
@@ -9,16 +25,20 @@ extension ReadingSnapshotReader {
     init(sharedDirectory: URL) {
         self.init(
             readFence: {
-                try ReadingSnapshotFileAccess.read(sharedDirectory, name: "session-fence.json", limit: 1_024)
+                try ReadingSnapshotFileAccess.read(sharedDirectory, file: .fence)
             },
             readSnapshot: {
-                try ReadingSnapshotFileAccess.read(sharedDirectory, name: "reading-snapshot.json", limit: 32_768)
+                try ReadingSnapshotFileAccess.read(sharedDirectory, file: .snapshot)
             }
         )
     }
 }
 
 enum ReadingSnapshotFileAccess {
+    static func read(_ directory: URL, file: ReadingSnapshotSharedFile) throws -> Data? {
+        try read(directory, name: file.rawValue, limit: file.byteLimit)
+    }
+
     static func read(_ directory: URL, name: String, limit: Int) throws -> Data? {
         guard directory.isFileURL else { throw CocoaError(.fileReadUnsupportedScheme) }
         let root = open(directory.standardizedFileURL.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_NONBLOCK)
@@ -42,18 +62,14 @@ extension CollectionWidgetReader {
     init(sharedDirectory: URL) {
         self.init(
             readFence: {
-                try ReadingSnapshotFileAccess.read(sharedDirectory, name: "session-fence.json", limit: 1_024)
+                try ReadingSnapshotFileAccess.read(sharedDirectory, file: .fence)
             },
             readSnapshot: {
-                try ReadingSnapshotFileAccess.read(sharedDirectory, name: "reading-snapshot.json", limit: 32_768)
+                try ReadingSnapshotFileAccess.read(sharedDirectory, file: .snapshot)
             },
             readCollection: { slot in
                 guard (0...1).contains(slot) else { throw CollectionWidgetSnapshotError.invalidReference }
-                return try ReadingSnapshotFileAccess.read(
-                    sharedDirectory,
-                    name: "collection-\(slot).json",
-                    limit: CollectionWidgetSnapshotCodec.maximumByteCount
-                )
+                return try ReadingSnapshotFileAccess.read(sharedDirectory, file: slot == 0 ? .collection0 : .collection1)
             }
         )
     }

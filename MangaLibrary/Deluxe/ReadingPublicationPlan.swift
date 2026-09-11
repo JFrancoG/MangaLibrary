@@ -220,7 +220,7 @@ extension ReadingPublicationPlan {
         )
         do {
             let data = try ReadingSnapshotCodec.encode(budget)
-            return try ReadingSnapshotCodec.contextByteCount(for: data) <= ReadingSnapshotCodec.maximumByteCount
+            return try ReadingSnapshotCodec.contextByteCount(for: data) <= ReadingSnapshotCodec.maximumContextByteCount
         } catch ReadingSnapshotError.payloadTooLarge {
             return false
         }

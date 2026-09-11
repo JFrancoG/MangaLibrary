@@ -30,6 +30,8 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-09-12 | ♻️ refactor(deluxe): centralize shared contract constants
+
 - 2026-09-12 | ♻️ refactor(concurrency): remove redundant annotations
 
 - 2026-09-11 | 💄 style(swift): normalize S01 source layout

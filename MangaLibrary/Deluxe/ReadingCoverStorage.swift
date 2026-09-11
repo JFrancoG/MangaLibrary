@@ -213,7 +213,7 @@ struct ReadingCoverStorage {
             try Task.checkCancellation()
             let staging = stagedURL(resource.identifier, attemptID: attemptID)
             try write(staging, data: resource.data)
-            guard try effects.read(staging, 65_536) == resource.data else {
+            guard try effects.read(staging, ReadingCoverResource.maximumByteCount) == resource.data else {
                 throw ReadingCoverStorageError.conflictingResource
             }
             try requireOwnedDirectories()
@@ -261,14 +261,14 @@ struct ReadingCoverStorage {
             let retained = try hasReceipt(identifier)
             guard !committed || retained else { throw ReadingCoverStorageError.incompatibleStorage }
             let staging = stagedURL(identifier, attemptID: journal.attemptID)
-            if try effects.read(staging, 65_536) != nil {
+            if try effects.read(staging, ReadingCoverResource.maximumByteCount) != nil {
                 removals.append(staging)
             }
             if
                 !committed,
                 !retained,
                 !referencedResources.contains(identifier),
-                try effects.read(coverURL(identifier), 65_536) != nil
+                try effects.read(coverURL(identifier), ReadingCoverResource.maximumByteCount) != nil
             {
                 removals.append(coverURL(identifier))
             }
@@ -317,7 +317,9 @@ struct ReadingCoverStorage {
     }
 
     private func existingResource(_ identifier: String) throws -> ReadingCoverResource? {
-        guard let bytes = try effects.read(coverURL(identifier), 65_536) else { return nil }
+        guard let bytes = try effects.read(coverURL(identifier), ReadingCoverResource.maximumByteCount) else {
+            return nil
+        }
         guard let resource = ReadingCoverResource(jpegData: bytes), resource.identifier == identifier else {
             throw ReadingCoverStorageError.conflictingResource
         }

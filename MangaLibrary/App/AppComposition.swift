@@ -8,6 +8,10 @@ import SwiftData
 import WidgetKit
 
 struct AppComposition {
+    static var readingPublisherDirectory: URL {
+        URL.applicationSupportDirectory.appending(path: "ReadingPublisher", directoryHint: .isDirectory)
+    }
+
     let modelContainer: ModelContainer
     let collectionMutations: CollectionMutationActor
     let collectionSynchronization: CollectionSynchronization
@@ -130,8 +134,7 @@ struct AppComposition {
         watchConnectivity: WatchReadingConnectivity
     ) -> ReadingPublicationComposition {
         let events = ReadingPublicationEvents()
-        let publisherDirectory = URL.applicationSupportDirectory
-            .appending(path: "ReadingPublisher", directoryHint: .isDirectory)
+        let publisherDirectory = readingPublisherDirectory
         let storage = ReadingSnapshotStorage(
             resolvingSharedDirectory: ReadingWidgetBridge.sharedDirectory,
             publisherDirectory: publisherDirectory

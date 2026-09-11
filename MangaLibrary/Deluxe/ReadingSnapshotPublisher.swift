@@ -519,7 +519,7 @@ actor ReadingSnapshotPublisher {
             collectionReference: collectionReference
         )
         let data = try ReadingSnapshotCodec.encode(snapshot)
-        guard try ReadingSnapshotCodec.contextByteCount(for: data) <= 32_768 else {
+        guard try ReadingSnapshotCodec.contextByteCount(for: data) <= ReadingSnapshotCodec.maximumContextByteCount else {
             throw ReadingPublicationError.contextTooLarge
         }
         // A failed read is never evidence that the predecessor manifest was absent.

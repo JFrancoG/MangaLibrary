@@ -63,7 +63,7 @@ actor WatchReadingSnapshotReceiver {
         let snapshot: ReadingSnapshot
         do {
             snapshot = try ReadingSnapshotCodec.decode(data)
-            guard try ReadingSnapshotCodec.contextByteCount(for: data) <= 32_768 else {
+            guard try ReadingSnapshotCodec.contextByteCount(for: data) <= ReadingSnapshotCodec.maximumContextByteCount else {
                 throw WatchReadingSnapshotStorageError.incompatible
             }
         } catch {

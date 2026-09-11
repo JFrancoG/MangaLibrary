@@ -7,19 +7,30 @@ enum ReadingSnapshotStorageError: Error {
 
 /// File effects owned by the single publisher; consumers never receive the private ledger.
 struct ReadingSnapshotStorage {
-    enum File: String {
-        case publisherState = "publisher-state.json"
-        case fence = "session-fence.json"
-        case snapshot = "reading-snapshot.json"
-        case collection0 = "collection-0.json"
-        case collection1 = "collection-1.json"
+    enum File: Hashable {
+        case publisherState
+        case fence
+        case snapshot
+        case collection0
+        case collection1
+
+        var name: String {
+            switch self {
+            case .publisherState: "publisher-state.json"
+            case .fence: ReadingSnapshotSharedFile.fence.rawValue
+            case .snapshot: ReadingSnapshotSharedFile.snapshot.rawValue
+            case .collection0: ReadingSnapshotSharedFile.collection0.rawValue
+            case .collection1: ReadingSnapshotSharedFile.collection1.rawValue
+            }
+        }
 
         var byteLimit: Int {
             switch self {
             case .publisherState: 16_384
-            case .fence: 1_024
-            case .snapshot: 32_768
-            case .collection0, .collection1: CollectionWidgetSnapshotCodec.maximumByteCount
+            case .fence: ReadingSnapshotSharedFile.fence.byteLimit
+            case .snapshot: ReadingSnapshotSharedFile.snapshot.byteLimit
+            case .collection0: ReadingSnapshotSharedFile.collection0.byteLimit
+            case .collection1: ReadingSnapshotSharedFile.collection1.byteLimit
             }
         }
     }
@@ -51,7 +62,7 @@ extension ReadingSnapshotStorage {
                 let root = file == .publisherState ? publisherDirectory : sharedDirectory
                 if file == .collection0 || file == .collection1 {
                     do {
-                        return try ReadingSnapshotFileAccess.read(root, name: file.rawValue, limit: file.byteLimit)
+                        return try ReadingSnapshotFileAccess.read(root, name: file.name, limit: file.byteLimit)
                     } catch let error as CocoaError {
                         switch error.code {
                         case .fileReadTooLarge, .fileReadCorruptFile:
@@ -63,7 +74,7 @@ extension ReadingSnapshotStorage {
                         throw ReadingSnapshotStorageError.unavailable
                     }
                 }
-                return try Self.readFile(root.appending(path: file.rawValue), limit: file.byteLimit)
+                return try Self.readFile(root.appending(path: file.name), limit: file.byteLimit)
             },
             replace: { file, data in
                 guard data.count <= file.byteLimit else { throw ReadingSnapshotStorageError.incompatibleFile }
@@ -73,7 +84,7 @@ extension ReadingSnapshotStorage {
                         try Self.validateCollectionDestination(root, file: file)
                     }
                     try data.write(
-                        to: root.appending(path: file.rawValue),
+                        to: root.appending(path: file.name),
                         options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
                     )
                 } catch {
@@ -89,7 +100,7 @@ extension ReadingSnapshotStorage {
             throw ReadingSnapshotStorageError.incompatibleFile
         }
         do {
-            let destination = directory.appending(path: file.rawValue)
+            let destination = directory.appending(path: file.name)
             let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
             guard attributes[.type] as? FileAttributeType == .typeRegular else {
                 throw ReadingSnapshotStorageError.incompatibleFile

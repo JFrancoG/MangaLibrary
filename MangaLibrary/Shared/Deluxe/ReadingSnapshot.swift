@@ -5,6 +5,11 @@
 
 import Foundation
 
+/// The UTF-8 budget shared by prepared reading and collection titles, including any truncation ellipsis.
+enum ReadingSnapshotTitle {
+    static let maximumByteCount = 512
+}
+
 /// A validated reading projection whose content still requires permission from a stable session fence.
 ///
 /// Initializers and decoding enforce the same invariants. Dates retain the wire's millisecond precision;
@@ -46,7 +51,7 @@ struct ReadingSnapshot: Codable, Equatable {
             if let title {
                 guard
                     !title.isEmpty,
-                    title.utf8.count <= 512,
+                    title.utf8.count <= ReadingSnapshotTitle.maximumByteCount,
                     title == title.trimmingCharacters(in: .whitespacesAndNewlines)
                 else {
                     throw ReadingSnapshotError.invalidTitle
@@ -311,7 +316,7 @@ extension CollectionWidgetSnapshot.Item {
         if let title {
             guard
                 !title.isEmpty,
-                title.utf8.count <= 512,
+                title.utf8.count <= ReadingSnapshotTitle.maximumByteCount,
                 title == title.trimmingCharacters(in: .whitespacesAndNewlines)
             else { throw CollectionWidgetSnapshotError.invalidTitle }
         }

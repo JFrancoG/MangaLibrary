@@ -184,13 +184,13 @@ extension CollectionMutationActor {
 
     private func preparedReadingTitle(_ source: String?) -> String? {
         guard let title = source?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty else { return nil }
-        guard title.utf8.count > 512 else { return title }
+        guard title.utf8.count > ReadingSnapshotTitle.maximumByteCount else { return title }
 
         var prefix = ""
         var byteCount = 3
         for character in title {
             let characterBytes = String(character).utf8.count
-            guard byteCount + characterBytes <= 512 else { break }
+            guard byteCount + characterBytes <= ReadingSnapshotTitle.maximumByteCount else { break }
             prefix.append(character)
             byteCount += characterBytes
         }
