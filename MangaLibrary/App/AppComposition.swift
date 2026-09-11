@@ -143,10 +143,10 @@ struct AppComposition {
             storage: storage,
             now: { Date() },
             makeGeneration: { UUID() },
-            requestReload: { data in
+            requestReload: { _ in
                 WidgetCenter.shared.reloadTimelines(ofKind: ReadingWidgetBridge.kind)
-                try watchConnectivity.send(data)
             },
+            sendWatchContext: watchConnectivity.send,
             coverStorage: covers
         )
         return ReadingPublicationComposition(

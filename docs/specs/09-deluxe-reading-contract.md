@@ -1,8 +1,8 @@
 # SDD 09: Contrato de lectura Deluxe — DX1–DX5
 
 **Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07; texto e ilustración de no disponible y traslado de la prueba física anterior al primer desbloqueo a DX6 aprobados el 2026-09-08; implementación y posterior entrega de DX5 autorizadas el 2026-09-10; DX5 entregada mediante PR #87 ese mismo día. DX6 en curso; entrega del proyecto con validación física de Watch diferida aprobada el 2026-09-10, con los límites de SDD 06 v1.38
-**Versión:** 1.17
-**Fecha:** 2026-09-10
+**Versión:** 1.18
+**Fecha:** 2026-09-11
 **Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), [DX4 — issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84), [DX5 — issue #86](https://github.com/JFrancoG/MangaLibrary/issues/86) y [DX6 — issue #88](https://github.com/JFrancoG/MangaLibrary/issues/88), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
 ## Alcance y aprobación
@@ -513,6 +513,14 @@ envelope aún esté pendiente. En ese último caso se utiliza la revisión ya
 reservada y una fecha informativa del intento, sin escribir el manifest.
 El fallo de WatchConnectivity conserva el estado
 reintentable y no revierte la mutación local ni un logout ya seguro.
+
+La recuperación de reloads WidgetKit y la entrega Watch son efectos separados.
+Recuperar una intención de publicación no autoriza contenido ni `empty` en Watch;
+sin capacidad solo puede ofrecer la redacción verificada. Cada envío de contenido,
+también inmediatamente después del commit, revalida la capacidad. Un fallo Watch
+no conserva artificialmente un reload ya completado; un fallo de manifest redactado
+o reload no impide intentar la redacción reservada bajo el fence cerrado vigente.
+El manifest, fence e intención existentes conservan la autoridad para reintentar.
 
 El receptor del reloj serializa validación, aceptación y escritura. Conserva
 el orden de recepción al reconciliar callbacks y el último contexto disponible

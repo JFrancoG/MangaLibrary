@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.39
+**Versión:** 1.40
 **Fecha:** 2026-09-11
 
 ## Propósito
@@ -462,6 +462,14 @@ sin otra revisión, fecha o recarga de WidgetKit. Una retirada durable todavía
 sin envelope puede usar su revisión ya reservada y una fecha informativa del
 intento, sin escribir otro manifest. La expiración local se revalida antes de
 reenviar y una retirada segura no depende del éxito del transporte.
+
+A01 añade recuperación con reload pendiente y proceso nuevo: sesión ausente,
+caducada, inaccesible o aún sin restaurar no envía contenido ni `empty` al
+transporte Watch inyectado. Una capacidad restaurada válida permite ofrecer el
+manifest sin reservar otra revisión. Se verifica también revocación entre
+commit y envío, redacción reservada con manifest pendiente y fallos independientes
+de escritura de redacción, reload y Watch: un consumidor no bloquea al otro ni
+convierte un reload completado en pendiente por un fallo de transporte.
 
 El modelo de presentación debe reconciliar los eventos en orden antes de
 exponer cache restaurada, sin mostrar contenido retirado durante ese proceso.

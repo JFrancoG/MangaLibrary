@@ -29,10 +29,11 @@ struct ReadingPublicationComposition {
 }
 
 extension AppComposition {
-    /// Composes an isolated bridge with caller-owned storage, time, cover loading and reload delivery.
+    /// Composes an isolated bridge with caller-owned storage, time, cover loading and separate consumer effects.
     ///
     /// The caller must inject these same events and publisher into its session owner. Construction
     /// starts no task or transport. The live root resolves the App Group separately.
+    /// `requestReload` notifies only WidgetKit; `sendWatchContext` runs behind the publisher's authorization barrier.
     static func makeReadingPublication(
         modelContainer: ModelContainer,
         sharedDirectory: URL,
@@ -40,7 +41,8 @@ extension AppComposition {
         now: @escaping @Sendable () -> Date,
         makeGeneration: @escaping @Sendable () -> UUID,
         loadCover: @escaping @Sendable (URL) async throws -> Data?,
-        requestReload: @escaping @Sendable (Data) throws -> Void
+        requestReload: @escaping @Sendable (Data) throws -> Void,
+        sendWatchContext: @escaping @Sendable (Data) throws -> Void = { _ in }
     ) throws -> ReadingPublicationComposition {
         let events = ReadingPublicationEvents()
         let mutations = CollectionMutationActor(modelContainer: modelContainer, readingEvents: events)
@@ -54,6 +56,7 @@ extension AppComposition {
             now: now,
             makeGeneration: makeGeneration,
             requestReload: requestReload,
+            sendWatchContext: sendWatchContext,
             coverStorage: covers
         )
         return ReadingPublicationComposition(

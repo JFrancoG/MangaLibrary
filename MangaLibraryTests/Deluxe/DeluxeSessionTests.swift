@@ -11,6 +11,98 @@ import Testing
 
 @Suite("Deluxe session retirement", .tags(.integration))
 struct DeluxeSessionTests {
+    @Test(arguments: RecoverySession.allCases, [false, true])
+    func `pending widget recovery cannot send watch content before session restoration`(
+        sessionState: RecoverySession,
+        empty: Bool
+    ) async throws {
+        let fixture = try DeluxeSessionFixture()
+        defer {
+            fixture.removeDirectory()
+        }
+        let initial = fixture.makePublisher(requestReload: { _ in
+            throw ReadingSnapshotStorageError.unavailable
+        })
+        let owner = try fixture.makeController(publisher: initial)
+        _ = try await owner.restore()
+        let authorization = try #require(try await owner.commitAuthorization(for: fixture.session.authority))
+        let item = try ReadingSnapshot.Item(
+            mangaID: 42,
+            title: "Persisted reading",
+            readingVolume: 2,
+            totalVolumes: 3,
+            coverResourceID: nil
+        )
+        _ = try await initial.publish(
+            items: empty ? [] : [item],
+            totalEligibleCount: empty ? 0 : 1,
+            authorization: authorization
+        )
+        switch sessionState {
+        case .absent:
+            try fixture.keychain.operations().removeAll()
+        case .expired:
+            fixture.clock.advance(by: 3_601)
+        case .inaccessible:
+            fixture.keychain.failNext(.load, with: .temporarilyUnavailable)
+        case .valid:
+            break
+        }
+        let contexts = Mutex<[Data]>([])
+        let reloads = Mutex(0)
+        let relaunchedPublisher = fixture.makePublisher(
+            requestReload: { _ in
+                reloads.withLock {
+                    $0 += 1
+                }
+            },
+            sendWatchContext: { data in
+                contexts.withLock {
+                    $0.append(data)
+                }
+            }
+        )
+        let relaunched = try fixture.makeController(publisher: relaunchedPublisher)
+        if sessionState == .inaccessible {
+            await #expect(throws: SessionControllerError.temporarilyUnavailable) {
+                try await relaunched.restore()
+            }
+        } else {
+            let result = try await relaunched.restore()
+            switch sessionState {
+            case .absent:
+                #expect(result == .signedOut)
+            case .expired:
+                #expect(result == .authenticationRequired(fixture.session.userID))
+            case .valid:
+                #expect(result == .active(fixture.account))
+            case .inaccessible:
+                Issue.record("An inaccessible session must fail restoration.")
+            }
+        }
+        let snapshots = try contexts.withLock { try $0.map(ReadingSnapshotCodec.decode) }
+        #expect(snapshots.allSatisfy { $0.state == .redacted })
+        #expect(reloads.withLock { $0 } >= 1)
+        if sessionState == .valid {
+            let before = try fixture.storage.read(.snapshot)
+            try await relaunched.deliverWatchContext { data in
+                contexts.withLock {
+                    $0.append(data)
+                }
+            }
+            let delivered = try #require(contexts.withLock { $0.last })
+            let snapshot = try ReadingSnapshotCodec.decode(delivered)
+            #expect(snapshot.state == (empty ? .empty : .content))
+            #expect(snapshot.items.map(\.mangaID) == (empty ? [] : [42]))
+            #expect(snapshot.items.map(\.readingVolume) == (empty ? [] : [2]))
+            #expect(try fixture.storage.read(.snapshot) == before)
+        }
+    }
+
+    enum RecoverySession: CaseIterable {
+        case absent, expired, inaccessible, valid
+    }
+
     @Test(arguments: [false, true])
     func `watch activation revalidates local expiry before offering the persisted context`(expired: Bool) async throws {
         let fixture = try DeluxeSessionFixture()
@@ -63,7 +155,8 @@ struct DeluxeSessionTests {
             storage: fixture.storage,
             now: { fixture.clock.value },
             makeGeneration: { UUID() },
-            requestReload: { data in
+            requestReload: { _ in },
+            sendWatchContext: { data in
                 attempts.withLock { $0.append(data) }
                 throw WatchReadingConnectivityError.deliveryFailed
             }
@@ -647,12 +740,16 @@ private struct DeluxeSessionFixture {
     let clock: DeluxeSessionClock
     let networkRequestCount = DeluxeSessionCounter()
 
-    func makePublisher() -> ReadingSnapshotPublisher {
+    func makePublisher(
+        requestReload: @escaping @Sendable (Data) throws -> Void = { _ in },
+        sendWatchContext: @escaping @Sendable (Data) throws -> Void = { _ in }
+    ) -> ReadingSnapshotPublisher {
         ReadingSnapshotPublisher(
             storage: storage,
             now: { clock.value },
             makeGeneration: { UUID() },
-            requestReload: { _ in }
+            requestReload: requestReload,
+            sendWatchContext: sendWatchContext
         )
     }
 

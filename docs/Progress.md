@@ -8,6 +8,77 @@ el 2026-09-11, en `codex/90-dx7-deluxe-release-gate` desde ese `main` limpio.
 El Deluxe Release Gate completo continúa pendiente; el inicio técnico no aprueba
 los criterios físicos ni amplía el aplazamiento de H02/H03/H04.
 
+## A01 — Recuperación Watch autorizada — issue #92
+
+El propietario autoriza el 2026-09-11 abrir issue/rama e implementar A01 de la
+auditoría previa a la entrega. [#92](https://github.com/JFrancoG/MangaLibrary/issues/92)
+registra el plan Approved. Se parte de `main@5e1fb1435ebbc12b8b23c7efaedd8862e55d79c2`
+(PR #91 integrada), sin cambios previos, en `codex/92-a01-authorized-watch-recovery`.
+El alcance es A01; los demás hallazgos conservan sus cortes separados.
+
+La composición live y el bootstrap sintético separan reload WidgetKit de envío
+Watch. El publicador único conserva manifest, fence y ledger existentes. La
+recuperación sin capacidad solo puede ofrecer redacción verificada; cada envío
+automático de contenido revalida capacidad y expiración mediante
+`deliverWatchContext`, incluso después del commit. Los errores Watch no convierten
+un reload completado en pendiente. La retirada puede ofrecer su redacción
+reservada aunque falle escribir el manifest o solicitar el reload, sin abrir el
+fence ni deshacer el logout. Activación y no-op conservan su vía autorizada.
+
+SDD 06 v1.40 y SDD 09 v1.18 concretan el contrato y sus regresiones. DocC explica
+las fronteras de recuperación, retirada y composición. No se añade otra autoridad,
+cola, contador, dependencia, entitlement, plataforma o escape de concurrencia.
+
+### Evidencia A01
+
+- Preflight Xcode MCP: proyecto MangaLibrary, scheme `MangaLibrary`, destino
+  iPhone 17 Simulator/iOS 27.0, Swift 6, strict complete y aislamiento
+  predeterminado nonisolated. Toolchain confirmado Xcode 27 RC `27A266a`,
+  Apple Swift 6.4 `swiftlang-6.4.0.34.1`.
+- RED: antes de corregir el comportamiento, se separaron los parámetros de los
+  consumidores conservando su encadenamiento original. Las ocho variantes de
+  recuperación fallaron por envío indebido: con contenido/vacío y sesión
+  ausente/caducada/inaccesible/válida aún sin restaurar. Otros cinco casos fallaron
+  por acoplamiento de errores, revocación o redacción pendiente; el control sin
+  fallos pasó. Son ejecuciones reales, no mutaciones hipotéticas.
+- GREEN: cinco declaraciones nuevas, 17 invocaciones, ejercitan recuperación,
+  entrega autorizada, revocación posterior al commit, independencia de errores
+  y retirada con fallo de manifest/reload/Watch. El test existente de Watch no
+  disponible se conecta ahora a la frontera de envío, en lugar de simular ese
+  fallo desde el callback de reload.
+- `RunAllTests` de Integration: **452/452 declaraciones, 627 invocaciones**,
+  cero fallos, omisiones o fallos esperados. La consola confirma los ocho casos
+  de recuperación y los tres de retirada. Fast: **353/353 declaraciones,
+  539 invocaciones**, también sin fallos ni omisiones. Total: 805 declaraciones
+  Swift Testing y 1.166 invocaciones. El último caso añadido es Integration;
+  no cambia la partición ni el código ejercitado por Fast.
+- Los recuentos proceden de `xcresulttool get test-results summary` y consola
+  nativa, no del agregado MCP que mezcla resultados de otros planes. La primera
+  selección individual desde Integration fue rechazada por el bridge al no
+  proyectar tags heredados; ReleaseGate permitió ejecutar el RED focalizado.
+  El GREEN focalizado seleccionó solo un argumento de la matriz; el posterior
+  Integration completo acredita los ocho. El plan activo se restauró a Fast.
+- Revisión iOS independiente y Audit de estilo del diff: sin hallazgos tras
+  corregir bloques con efectos y añadir la regresión directa de retirada.
+  Las cinco declaraciones nuevas superan las preguntas de tests-de-verdad.
+- `MANGALIBRARY_DEVELOPER_DIR=/Applications/Xcode-RC.app/Contents/Developer
+  Scripts/validate-advanced-build.sh --deluxe`: build-for-testing limpio Debug y
+  Release de los cinco targets, cero warnings/errores y sin extracción de App
+  Intents. El script aprobado usa directorios temporales propios y no ejecuta tests.
+- `MANGALIBRARY_DEVELOPER_DIR=/Applications/Xcode-RC.app/Contents/Developer
+  Scripts/validate-docc.sh`: archive generado en `.build/docc/MangaLibrary.doccarchive`,
+  cero warnings/errores y warnings DocC tratados como errores. No se publica el archive.
+- `git diff --check` y enlaces Markdown locales correctos. Sin cambios en
+  configuración, proyecto Xcode, schemes, test plans ni entitlements.
+
+La validación usa persistencia aislada, datos sintéticos y transporte inyectado;
+no acredita recepción física, background ni accesibilidad Watch. No se repiten
+UI tests: no cambia navegación ni presentación. H01 y H02/H03/H04 conservan sus
+límites previos. El propietario autoriza también el 2026-09-11 commit, push, PR,
+merge, cierre de #92 y borrado de su rama. El resultado definitivo de la entrega
+Git se registra en [#92](https://github.com/JFrancoG/MangaLibrary/issues/92).
+A02 y los demás hallazgos no se inician en este corte.
+
 ## DX7 — Deluxe Release Gate — issue #90 (en curso)
 
 La autorización comprende crear issue/rama e implementar DX7. No comprende
