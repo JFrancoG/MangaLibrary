@@ -13,6 +13,7 @@ readonly DEFAULT_DEVELOPER_DIRECTORY="/Applications/Xcode-beta.app/Contents/Deve
 readonly SELECTED_DEVELOPER_DIRECTORY="${MANGALIBRARY_DEVELOPER_DIR:-${DEFAULT_DEVELOPER_DIRECTORY}}"
 readonly XCODEBUILD="${SELECTED_DEVELOPER_DIRECTORY}/usr/bin/xcodebuild"
 readonly SWIFTC="${SELECTED_DEVELOPER_DIRECTORY}/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+readonly GATE_MODE="${1:-advanced}"
 readonly TEMPORARY_DIRECTORY="$(mktemp -d "${TMPDIR:-/tmp}/mangalibrary-advanced-build.XXXXXX")"
 
 fail() {
@@ -48,9 +49,25 @@ validate_output() {
     if grep -Eq 'ExtractAppIntentsMetadata|appintentsmetadataprocessor' <<< "${output}"; then
         fail "El build-for-testing ${configuration} todavía construye la extracción de App Intents."
     fi
+
+    if [[ "${GATE_MODE}" == "--deluxe" ]]; then
+        local target
+        for target in MangaLibrary MangaLibraryTests MangaLibraryUITests \
+            MangaLibraryWidgetExtension "MangaLibraryWatch Watch App"; do
+            grep -Fq "Target '${target}' in project 'MangaLibrary'" <<< "${output}" || \
+                fail "El grafo de build ${configuration} no acredita ${target}."
+        done
+    fi
 }
 
 trap cleanup EXIT
+
+[[ "$#" -le 1 && ( "${GATE_MODE}" == advanced || "${GATE_MODE}" == --deluxe ) ]] || \
+    fail "Uso: Scripts/validate-advanced-build.sh [--deluxe]"
+if [[ "${GATE_MODE}" == "--deluxe" ]]; then
+    "${SCRIPT_DIRECTORY}/validate-test-plans.sh"
+    python3 "${SCRIPT_DIRECTORY}/validate-deluxe-configuration.py"
+fi
 
 [[ -f "${REPOSITORY_ROOT}/AGENTS.md" ]] || fail "No se reconoce la raíz del repositorio."
 [[ -d "${PROJECT_PATH}" ]] || fail "No existe ${PROJECT_RELATIVE_PATH}."
@@ -69,6 +86,7 @@ printf 'Proyecto: %s\n' "${PROJECT_RELATIVE_PATH}"
 printf 'Scheme: %s\n' "${SCHEME}"
 printf 'Plan: %s\n' "${TEST_PLAN}"
 printf 'Destino: %s\n' "${DESTINATION}"
+printf 'Gate: %s\n' "${GATE_MODE}"
 
 for configuration in Debug Release; do
     printf 'Build-for-testing: %s\n' "${configuration}"

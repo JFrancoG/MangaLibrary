@@ -1,7 +1,57 @@
 # Progreso y evidencia
 
 **Última actualización:** 2026-09-11
-**Estado general:** Advanced y DX1–DX5 entregadas (5/7); plan #77 abierto. DX6 está en curso mediante issue #88 y rama `codex/88-dx6-integration-accessibility`, con matriz visual ampliada en widgets/Watch, integración nativa observada y gates del delta aprobados. El recorrido de 40 mm acredita títulos largos, seis estados ES/EN en AX5 y una muestra con Increase Contrast/Reduce Motion activados y restaurados. El widget pequeño ES/Dark mantiene su contenido con esos ajustes activados. Ajustes, sesiones y Xcode restaurados, con build final limpio a las 20:42; DX6.2/DX6.3 cumplidas en su alcance representativo y combinado; los límites se detallan abajo. El Deluxe Release Gate completo sigue pendiente y DX7 no está iniciada. El propietario permite entregar el proyecto con H02/H03/H04 físicas de Watch pendientes para después, anticipables con pareja compatible prestada; H01 del iPhone y los demás criterios no se aplazan.
+**Estado general:** Advanced y DX1–DX5 entregadas (5/7); plan #77 abierto.
+DX6 integra su corte técnico por PR #89 (`681ea6d`), con #88 abierto por H01 y
+las pruebas físicas Watch. DX7 comienza en #90 por autorización del propietario
+el 2026-09-11, en `codex/90-dx7-deluxe-release-gate` desde ese `main` limpio.
+El Deluxe Release Gate completo continúa pendiente; el inicio técnico no aprueba
+los criterios físicos ni amplía el aplazamiento de H02/H03/H04.
+
+## DX7 — Deluxe Release Gate — issue #90 (en curso)
+
+La autorización comprende crear issue/rama e implementar DX7. No comprende
+commit, push, PR, merge, cierre de issues ni borrado de ramas. La rama DX6 se
+conserva. El plan #77 enlaza #90 como subissue y mantiene 5/7 entregadas.
+
+El primer corte añade `Scripts/validate-deluxe-configuration.py` y el modo
+`Scripts/validate-advanced-build.sh --deluxe`. El inventario deja de inferirse
+solo del scheme: contrasta los cinco targets, sus dependencias e identidades,
+selección habilitada de tests y host sintético. Cada build Deluxe exigirá además
+los cinco targets en el grafo Debug/Release. SDD 06 v1.39 concreta el gate y
+SDD 07 v1.5 reconcilia el alcance DocC real de los cinco targets, sin inventar
+archives separados. README recupera el estado actual y enlaza la evidencia.
+
+El [informe DX7](dx7-deluxe-release-gate.md) registra validación y límites. En la
+primera comprobación estática pasan 28 suites Fast y 39 Integration, la
+configuración Deluxe y la sintaxis shell. En copias temporales, un baseline pasa
+y siete derivas se rechazan: target/dependencia omitidos, identidad de test
+incorrecta, target deshabilitado/excluido, argumento de host deshabilitado y
+override por configuración. No se suman como tests de producto.
+
+El preflight inicial de Xcode MCP devuelve `Transport closed`; el propietario
+comunica después la reconexión. La recuperación y el resultado efectivo se
+registran en el informe; ese aviso por sí solo no acredita builds ni tests.
+No se modifica código Swift, UI, el proyecto, schemes, planes o entitlements.
+
+La sesión nueva del bridge oficial confirma MangaLibrary y recupera el MCP.
+`--deluxe` aprueba Debug y Release con cinco targets en ambos grafos y cero
+warnings/errores. `RunAllTests` sobre ReleaseGate aprueba 811 declaraciones y
+1.160 invocaciones (1.149 Swift Testing + 11 UI), sin fallos, skips, expected
+failures o tests no ejecutados; `.xcresult` confirma cero runtime warnings y
+exactamente los 811 identificadores del inventario previo. El log completo del
+build MCP, de 681 líneas, conserva cero warnings/errores. Fast queda restaurado.
+La revisión iOS independiente aprueba scripts y documentación sin hallazgos;
+Swift Source Style y SwiftUI son N/A en este delta sin fuentes Swift.
+DocC termina con exit 0, archive canónico generado y cero warnings/errores;
+se confirman de nuevo Fast y cero issues del navegador. Proyecto, schemes y
+planes permanecen idénticos a HEAD. El corte técnico queda validado localmente,
+con entrega Git y cierre completo pendientes; no se realizan commit/push/PR.
+
+La autorización posterior del propietario permite commit, push, PR y cierre
+de issue/rama del corte DX7. Se prepara la publicación con sus límites físicos
+explícitos y referencia a #90 sin cierre automático. El tracker registra el
+resultado Git efectivo; no se declara superado el Deluxe Release Gate completo.
 
 ## DX6 — integración y accesibilidad — issue #88 (en curso)
 
