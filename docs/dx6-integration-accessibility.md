@@ -1,9 +1,16 @@
 # DX6 — integración y accesibilidad de Deluxe
 
 **Última actualización:** 2026-09-11
-**Estado:** DX6 en curso, con issue y rama abiertos. Matriz visual ampliada en widgets y Watch de 40/49 mm; integración nativa de lectura, propiedad sin lectura y logout observada. Audit de dos Swift y gates Debug/Release/DocC aprobados; límites concretos y evidencia se registran abajo. La ampliación de 40 mm acredita títulos largos, seis estados ES/EN en AX5 y un recorrido con Increase Contrast/Reduce Motion activados y restaurados. El widget pequeño ES/Dark conserva texto y ayuda con ambos ajustes activados. Ajustes, sesiones y entorno Xcode restaurados, con build MCP final limpio a las 20:42. DX6.2/DX6.3 quedan cumplidas en su alcance representativo y combinado; arranque frío nativo y otras exploraciones conservan sus límites. DX1–DX5 permanecen entregadas (5/7), DX7 no está iniciada y el Deluxe Release Gate completo sigue pendiente. La entrega del proyecto se permite con H02/H03/H04 de Watch pendientes para después, anticipables con pareja compatible prestada; H01 y los demás criterios no se aplazan.
+**Estado actual (2026-09-11):** corte técnico integrado mediante [PR #89](https://github.com/JFrancoG/MangaLibrary/pull/89), merge `681ea6d`. #88 sigue abierto y su rama se conserva por los pendientes de validación. El corte técnico DX7 también está entregado por [PR #91](https://github.com/JFrancoG/MangaLibrary/pull/91), con #90 cerrado. DX1–DX5 permanecen entregadas (5/7); el Deluxe Release Gate completo sigue pendiente. H01 conserva el resultado limitado/no observable y no está aplazado; solo H02/H03/H04 de Watch se difieren a después de entregar el proyecto.
+
+**Checkpoint de validación previo a PR #89 (2026-09-11):** DX6 en curso, con issue y rama abiertos. Matriz visual ampliada en widgets y Watch de 40/49 mm; integración nativa de lectura, propiedad sin lectura y logout observada. Audit de dos Swift y gates Debug/Release/DocC aprobados; límites concretos y evidencia se registran abajo. La ampliación de 40 mm acredita títulos largos, seis estados ES/EN en AX5 y un recorrido con Increase Contrast/Reduce Motion activados y restaurados. El widget pequeño ES/Dark conserva texto y ayuda con ambos ajustes activados. Ajustes, sesiones y entorno Xcode restaurados, con build MCP final limpio a las 20:42. DX6.2/DX6.3 quedan cumplidas en su alcance representativo y combinado; arranque frío nativo y otras exploraciones conservan sus límites. DX1–DX5 permanecen entregadas (5/7), DX7 no está iniciada y el Deluxe Release Gate completo sigue pendiente. La entrega del proyecto se permite con H02/H03/H04 de Watch pendientes para después, anticipables con pareja compatible prestada; H01 y los demás criterios no se aplazan.
 **Tracker:** [issue #88](https://github.com/JFrancoG/MangaLibrary/issues/88), subissue del [plan #77](https://github.com/JFrancoG/MangaLibrary/issues/77).
 **Rama:** `codex/88-dx6-integration-accessibility`, desde `main@d2f6963dc2a506589d8b775dc7aaa9bf3589444f` limpio.
+
+## Checkpoints de autorización y validación del corte DX6
+
+Las decisiones siguientes conservan su alcance en el momento indicado. El
+resultado Git posterior es el de la cabecera actual; no amplía la evidencia física.
 
 El propietario autoriza abrir issue y rama e iniciar DX6. El 2026-09-10 permite
 además entregar el proyecto con H02/H03/H04, validación física de Watch,

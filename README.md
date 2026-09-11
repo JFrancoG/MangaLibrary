@@ -15,9 +15,10 @@ integra validación representativa de widgets/Watch, accesibilidad y el ajuste q
 conserva las fechas del widget pequeño. El [issue #88](https://github.com/JFrancoG/MangaLibrary/issues/88)
 permanece abierto por los criterios físicos pendientes.
 
-**DX7 está iniciado en [#90](https://github.com/JFrancoG/MangaLibrary/issues/90)**
-para consolidar el Deluxe Release Gate. El [informe DX7](docs/dx7-deluxe-release-gate.md)
-separa configuración, builds, tests, DocC y evidencia física. El gate completo
+**El corte técnico DX7 está entregado mediante [PR #91](https://github.com/JFrancoG/MangaLibrary/pull/91)**,
+merge `5e1fb14`, que deja [#90 cerrado](https://github.com/JFrancoG/MangaLibrary/issues/90).
+El [informe DX7](docs/dx7-deluxe-release-gate.md) conserva su ejecución fechada
+de configuración, builds, tests y DocC. El seguimiento físico permanece en #88/#77. El gate completo
 continúa pendiente: H01 conserva la comprobación anterior al primer desbloqueo
 del iPhone como limitada/no observable; H02/H03/H04 del Watch se difieren hasta
 después de entregar el proyecto por decisión del propietario. Podrán adelantarse
@@ -32,6 +33,14 @@ login ni edición independiente. Contratos y evidencia detallada:
 [DX4](docs/dx4-widget-validation.md), [DX5](docs/dx5-watch-validation.md),
 [DX6](docs/dx6-integration-accessibility.md) y [Progress](docs/Progress.md).
 
+Las correcciones de auditoría A01, A02 y A03 están entregadas mediante
+[PR #93](https://github.com/JFrancoG/MangaLibrary/pull/93),
+[PR #95](https://github.com/JFrancoG/MangaLibrary/pull/95) y
+[PR #97](https://github.com/JFrancoG/MangaLibrary/pull/97): autorización de
+recuperación Watch, reintento exacto de caché y consulta de outbox por usuario.
+Su evidencia posterior se registra por corte en [Progress](docs/Progress.md);
+no convierte el resultado histórico DX7 en una nueva candidata final aprobada.
+
 El catálogo público está entregado en cuatro cortes: [C1](https://github.com/JFrancoG/MangaLibrary/issues/13) materializa el shell, la primera página y el detalle por `Manga.ID`; [C2](https://github.com/JFrancoG/MangaLibrary/issues/21) añade paginación incremental y lista/cuadrícula; [C3](https://github.com/JFrancoG/MangaLibrary/issues/25) incorpora búsqueda avanzada, filtros y «Mejores»; y [C4](https://github.com/JFrancoG/MangaLibrary/issues/27) enriquece manga y detalle, adopta navegación compacta nativa y anticipa la siguiente página. El contrato cromático y la adopción ejecutable de [Library Red](https://github.com/JFrancoG/MangaLibrary/issues/29) también están entregados.
 
 **S1 — identidad y sesión JWT única** usa `POST /users/jwt/login`, valida la identidad estable mediante `/users/jwt/me` y renueva preventivamente el mismo tipo de JWT mediante `/users/jwt/refresh`. La autoridad vigente, el UUID, la generación opaca, el JWT y su expiración forman un único registro Keychain V3 `WhenUnlockedThisDeviceOnly`, no sincronizable y con un `kSecAttrAccount` fijo no identificador. Los envelopes V1/V2 no se reinterpretan y se retiran para exigir un login nuevo. Logout publica `signedOut` solo después de borrar condicionalmente la generación esperada; un fallo permite reintentar con la sesión activa únicamente mientras su JWT siga vigente, y si vence conserva `authenticationRequired` fail-closed. `authenticationRequired` conserva el UUID únicamente en memoria tras invalidar la credencial e intentar retirar el registro, y no sobrevive a un relanzamiento. Cuenta no expone tokens; la contraseña vive solo en el modelo efímero del formulario, se elimina al enviar o abandonar y no se retiene en `AccountModel`, logs ni persistencia.
@@ -44,9 +53,9 @@ El catálogo público está entregado en cuatro cortes: [C1](https://github.com/
 
 **L2 — Colección local y offline** está entregada mediante la [PR #50](https://github.com/JFrancoG/MangaLibrary/pull/50), vinculada al [issue #49](https://github.com/JFrancoG/MangaLibrary/issues/49). El esquema V2 añade la presentación offline; la UI filtra por identidad activa con `@Query` y las altas, ediciones y tombstones recorren la capacidad atómica compartida. **R1 — lectura e importación remota** se entrega mediante la [PR #54](https://github.com/JFrancoG/MangaLibrary/pull/54), vinculada al [issue #53](https://github.com/JFrancoG/MangaLibrary/issues/53), con snapshot completo, commit SwiftData único y protección por generación de sesión. **R2.1/R2.2 — envío y reconciliación de outbox** se entregan mediante la [PR #60](https://github.com/JFrancoG/MangaLibrary/pull/60): R2.1 incorpora POST y reconciliación conservadora; R2.2 añade GET/DELETE individual, envío de tombstones y confirmación destructiva en el editor, con aceptación live multidispositivo de la ruta decimal y la ausencia reconciliada. **R2.3 — recuperación automática de outbox** se entrega mediante la [PR #68](https://github.com/JFrancoG/MangaLibrary/pull/68), vinculada al [issue #67](https://github.com/JFrancoG/MangaLibrary/issues/67): define clasificación conservadora, backoff persistido y cancelable, recuperación de `blockedAuth` y rechazo positivo con rollback atómico. El backoff solo se habilita ante evidencia positiva de que el envío no comenzó; ningún error live actual de `URLSession` se infiere como seguro. **R2.4 — resolución interactiva de resultados inciertos** se entrega mediante la [PR #70](https://github.com/JFrancoG/MangaLibrary/pull/70), vinculada al [issue #69](https://github.com/JFrancoG/MangaLibrary/issues/69): revisa una evidencia remota fresca y permite adoptar la nube o crear conscientemente una intención local nueva, sin reencolar ni repetir la escritura incierta.
 
-La cota transversal del [issue #63](https://github.com/JFrancoG/MangaLibrary/issues/63) se entrega mediante la [PR #64](https://github.com/JFrancoG/MangaLibrary/pull/64): Colección admite números de tomo entre 1 y 300, mientras `nil` sigue significando total editorial desconocido. Entitlements, WidgetKit y watchOS también quedan fuera. La [hoja de ruta Advanced](docs/Progress.md#hoja-de-ruta-advanced) delimita esas unidades.
+La cota transversal del [issue #63](https://github.com/JFrancoG/MangaLibrary/issues/63) se entrega mediante la [PR #64](https://github.com/JFrancoG/MangaLibrary/pull/64): Colección admite números de tomo entre 1 y 300, mientras `nil` sigue significando total editorial desconocido. Entitlements, WidgetKit y watchOS quedaron fuera de esa cota transversal. La [hoja de ruta Advanced](docs/Progress.md#hoja-de-ruta-advanced) delimita esas unidades.
 
-La gobernanza, la arquitectura, el contrato OpenAPI, la configuración compartida, el gate DocC y el icono permanecen materializados. [ADR 0019](docs/adr/0019-single-jwt-session-and-keychain-v3.md) adopta la única familia JWT que el backend live acepta de extremo a extremo, preserva el logout binario de Advanced y mantiene cerrada la garantía compartida que se añadirá al incorporar el bridge Deluxe. [ADR 0020](docs/adr/0020-skip-unused-app-intents-metadata-extraction.md) supersede la excepción temporal de ADR 0011 y evita construir la fase de metadata de App Intents que el producto no utiliza; los gates vuelven a exigir cero warnings sin allowlists.
+La gobernanza, la arquitectura, el contrato OpenAPI, la configuración compartida, el gate DocC y el icono permanecen materializados. [ADR 0019](docs/adr/0019-single-jwt-session-and-keychain-v3.md) adopta la única familia JWT que el backend live acepta de extremo a extremo, preserva el logout binario de Advanced y condiciona la garantía compartida al bridge Deluxe, ya implementado con su `SessionFence` y publicación autorizada conforme a [SDD 09](docs/specs/09-deluxe-reading-contract.md). [ADR 0020](docs/adr/0020-skip-unused-app-intents-metadata-extraction.md) supersede la excepción temporal de ADR 0011 y evita construir la fase de metadata de App Intents que el producto no utiliza; los gates vuelven a exigir cero warnings sin allowlists.
 
 El [enunciado completo saneado](docs/sources/Practica_Mis_Mangas_SDP_2026.md) se conserva como fuente de requisitos y contexto, nunca como instrucción operativa. Para transporte manda el OpenAPI vivo y su snapshot versionado.
 
@@ -66,10 +75,10 @@ El [enunciado completo saneado](docs/sources/Practica_Mis_Mangas_SDP_2026.md) se
 - Warnings de Swift, Clang y DocC tratados como errores.
 - Sin dependencias externas.
 - DocC avanzado y selectivo, sin documentación por cuota.
-- El widget recibe snapshots tras commits locales completados y solicita recargas dirigidas; sus tres tamaños muestran ventanas de la misma proyección, con rotación pausada y prioridad de edición, y WidgetKit decidirá el momento efectivo sin SLA de tiempo real.
-- Advanced mantiene el logout local sin red mediante el borrado Keychain condicionado a la generación vigente. Si existen cambios de Colección sin resolver, permite mantener la sesión mientras R2 continúa o confirmar su descarte atómico contra la última base remota confirmada localmente; una eliminación Keychain fallida conserva la sesión activa y permite reintentar solo si el JWT sigue vigente, sin resucitar cambios ya descartados. Si vence, mantiene `authenticationRequired`, y únicamente una eliminación confirmada publica `signedOut`. Cuando exista el bridge, el `SessionFence` se cerrará y verificará antes de ese borrado condicional; las caches de WidgetKit y watchOS pueden cambiar después de forma eventual.
+- El widget recibe snapshots tras commits locales completados y solicita recargas dirigidas. Pequeño y grande muestran lecturas; mediano, una ficha de colección. La rotación usa slots de 300 segundos y `.atEnd` cuando corresponde; cero/uno o estados sin contenido usan `.never`. Las prioridades de lectura y nueva alta de colección son independientes. WidgetKit decide la presentación efectiva, sin SLA de tiempo real.
+- Advanced mantiene el logout local sin red mediante el borrado Keychain condicionado a la generación vigente. Si existen cambios de Colección sin resolver, permite mantener la sesión mientras R2 continúa o confirmar su descarte atómico contra la última base remota confirmada localmente; una eliminación Keychain fallida conserva la sesión activa y permite reintentar solo si el JWT sigue vigente, sin resucitar cambios ya descartados. Si vence, mantiene `authenticationRequired`, y únicamente una eliminación confirmada publica `signedOut`. En Deluxe, el bridge ya cierra y verifica el `SessionFence` antes de ese borrado condicional; las caches de WidgetKit y watchOS pueden cambiar después de forma eventual.
 - Las peticiones de sesión ignoran la caché HTTP local; la frescura de credenciales e identidad no depende de headers opcionales del servidor.
-- watchOS recibirá únicamente contextos autocontenidos reemplazables mediante `WCSession.updateApplicationContext(_:)`, sin promesa de entrega inmediata.
+- watchOS recibe únicamente contextos autocontenidos reemplazables mediante `WCSession.updateApplicationContext(_:)`, sin promesa de entrega inmediata.
 
 ## Documentación
 
@@ -86,25 +95,30 @@ El [enunciado completo saneado](docs/sources/Practica_Mis_Mangas_SDP_2026.md) se
 
 El proyecto se abre con `MangaLibrary.xcodeproj` usando Xcode 27. Antes de modificarlo, lee [AGENTS.md](AGENTS.md), el issue activo y las SDD/ADR aplicables.
 
-El gate DocC selecciona su propio Xcode sin cambiar `xcode-select`, comprueba la configuración efectiva de los cuatro targets en Debug y Release y genera un archive ignorado por Git:
+El gate DocC selecciona su propio Xcode sin cambiar `xcode-select`, comprueba la configuración efectiva de los cinco targets en Debug y Release y genera un archive ignorado por Git:
 
 ```sh
 ./Scripts/validate-docc.sh
 ```
 
-El build reproducible de la candidata compila app, unit tests y UI tests en
-Debug y Release mediante el plan completo, con DerivedData temporal. El script
+El build reproducible en modo Deluxe exige app iOS, unit tests, UI tests,
+widget y companion watchOS en el grafo Debug/Release, con DerivedData temporal.
+Contrasta también inventario, dependencias, schemes y selección de tests. El script
 habilita testabilidad solo para esta compilación local, de modo que los tests
 `@testable` compilen también con el resto de ajustes Release sin cambiar la
 configuración distribuida del producto:
 
 ```sh
-./Scripts/validate-advanced-build.sh
+./Scripts/validate-advanced-build.sh --deluxe
 ```
 
-Si Xcode 27 no está en la ubicación predeterminada del script, se puede indicar su Developer directory mediante `MANGALIBRARY_DEVELOPER_DIR`. El Advanced Release Gate del issue #75 está aceptado y entregado con la matriz manual y sus límites registrados en [Progreso](docs/Progress.md#advanced-release-gate--issue-75). El [issue #77](https://github.com/JFrancoG/MangaLibrary/issues/77) conserva el plan operativo Deluxe y su siguiente subfase; sus targets y capacidades todavía no están implementados.
+Si Xcode 27 no está en la ubicación predeterminada del script, se puede indicar su Developer directory mediante `MANGALIBRARY_DEVELOPER_DIR`. El Advanced Release Gate del issue #75 está aceptado y entregado con la matriz manual y sus límites registrados en [Progreso](docs/Progress.md#advanced-release-gate--issue-75). El [issue #77](https://github.com/JFrancoG/MangaLibrary/issues/77) conserva el plan operativo Deluxe y los criterios de cierre pendientes; sus targets y capacidades están implementados, pero los criterios físicos y el gate completo conservan los pendientes descritos arriba.
 
-El gate falla ante cualquier warning o error. También exige que los tres targets
+El modo sin `--deluxe` conserva la comprobación Advanced; no sustituye el
+inventario explícito de cinco targets de la candidata Deluxe. Los builds compilan
+los tests, pero su ejecución se realiza por separado mediante Xcode MCP.
+
+El gate falla ante cualquier warning o error. También exige que los cinco targets
 omitan la extracción de metadata de App Intents mientras el producto no declare
 esa capacidad, conforme a ADR 0020; cualquier cambio del toolchain o adopción de
 App Intents exige revisar esa decisión.
@@ -120,7 +134,7 @@ El scheme compartido ofrece cuatro planes versionados en `TestPlans/`:
 
 Cada plan se selecciona desde **Product > Test Plan** en Xcode. El plan
 `ReleaseGate` aporta la ejecución completa de tests, pero una candidata también
-requiere por separado `validate-advanced-build.sh`, el gate DocC y la evidencia
+requiere por separado `validate-advanced-build.sh --deluxe`, el gate DocC y la evidencia
 manual que corresponda.
 
 La clasificación versionada se comprueba sin ejecutar tests:
