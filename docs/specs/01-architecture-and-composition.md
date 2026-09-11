@@ -1,8 +1,8 @@
 # Arquitectura y composición
 
 - Estado: aprobado
-- Versión: 1.9
-- Última revisión: 2026-09-04
+- Versión: 1.10
+- Última revisión: 2026-09-11
 
 ## Propósito y alcance
 
@@ -120,11 +120,15 @@ La composición live puede cambiar la configuración concreta sin cambiar las fu
 
 ## Navegación
 
-`MainShellView` es la raíz estable del producto. Posee `selectedTab: AppTab` y el
-aviso efímero y opcional de R1 ligado a la identidad autenticada. Ese aviso no
-replica la sesión ni la colección: se limpia al cambiar la identidad o completar
+`MainShellView` es la raíz estable del producto y observa la autoridad autenticada.
+Su hijo estable `MainShellContentView` configura la consulta de outbox por el UUID
+de esa autoridad, o con un predicado siempre falso si no existe. El hijo conserva tipo y
+posición, sin `.id` por usuario, para actualizar el fetch sin reiniciar las pestañas.
+Posee `selectedTab: AppTab` y el aviso efímero y opcional de R1 ligado a la
+identidad autenticada. Ese aviso no replica la sesión ni la colección: se limpia al cambiar la identidad o completar
 una sincronización y solo adapta a presentación el error tipado de autorización.
-Para R2, la raíz observa la outbox mediante `@Query` y deriva exclusivamente de
+Para R2, el contenido del shell observa mediante `@Query` todos los estados de
+outbox del usuario autenticado, incluidos los confirmados, y deriva exclusivamente de
 un `blockedOutcome` persistido el aviso de escritura no confirmada de la identidad
 activa; no copia ese estado a `@State`, sobrevive a fallos anteriores de R1 y
 desaparece al resolver la operación durable. El aviso efímero de R1 y este aviso

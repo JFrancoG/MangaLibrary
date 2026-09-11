@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.41
+**Versión:** 1.42
 **Fecha:** 2026-09-11
 
 ## Propósito
@@ -159,6 +159,14 @@ históricos no satisfacen esa nueva ejecución. El
 ### Integración
 
 - CRUD SwiftData con un `ModelContainer` aislado y verificación desde otro contexto;
+- A03: fetch de outbox del shell A → B → sin autoridad → A sobre el mismo store
+  aislado, con operaciones pendientes y confirmadas de ambas cuentas. El mismo
+  predicado de producción debe excluir usuarios ajenos y devolver vacío sin
+  autoridad. Guardados y refetch desde contextos separados verifican el aviso
+  durable, su resolución y la identidad que activa sincronización: cambios
+  ajenos y `queued → sending → confirmed` no la alteran; resolución de
+  `blockedOutcome`, cambio de cuenta o generación sí. Estas pruebas verifican
+  fetch e identidad; la ejecución del task montado requiere evidencia UI;
 - migración mediante un store temporal en disco creado con el esquema anterior;
 - transporte HTTP mediante un `URLProtocol` limitado a la `URLSession` de test: bytes exactos, respuesta no HTTP, status inesperado, fallo de transporte y cancelación;
 - ciclo JWT único con `/users/jwt/login`, `/users/jwt/refresh` y
@@ -555,7 +563,7 @@ Ambos seleccionan y verifican su Xcode sin modificar `xcode-select`.
 
 Library Red es el contrato cromático aprobado para Manga Library. La [especificación humana](../design/brand-palette.md) define significado, política de uso, accesibilidad y límites; el [JSON canónico](../design/library-color-tokens.json) es la autoridad exacta de valores, roles, modos, umbrales y parejas autorizadas.
 
-La implementación ejecutable materializa los 29 roles como colorsets sRGB opacos, cada uno con Light, Dark, Increased Contrast Light e Increased Contrast Dark. No existe `AccentColor`: Debug y Release declaran `BrandPrimary` como color global del catálogo y `MainShellView` lo aplica directamente mediante `tint`. Swift Testing usa el JSON como oráculo independiente para comprobar inventario fuente, resolución runtime, componentes y las 224 parejas autorizadas sin redondeo previo. La generación de símbolos se limita a SwiftUI para conservar el rol contractual `Link` sin colisionar con `UIColor.link`.
+La implementación ejecutable materializa los 29 roles como colorsets sRGB opacos, cada uno con Light, Dark, Increased Contrast Light e Increased Contrast Dark. No existe `AccentColor`: Debug y Release declaran `BrandPrimary` como color global del catálogo y `MainShellContentView` lo aplica directamente mediante `tint`. Swift Testing usa el JSON como oráculo independiente para comprobar inventario fuente, resolución runtime, componentes y las 224 parejas autorizadas sin redondeo previo. La generación de símbolos se limita a SwiftUI para conservar el rol contractual `Link` sin colisionar con `UIColor.link`.
 
 La prueba de assets no acredita por sí sola la interfaz. Que una pareja opaca supere su ratio no demuestra contraste tras materiales, transparencia, imágenes, estados nativos o composición dinámica, ni conformidad WCAG de la app o soporte de una etiqueta de accesibilidad de App Store. Los estados renderizados continúan requiriendo auditoría proporcional.
 

@@ -37,6 +37,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- 2026-09-11 | 🐛 fix(collection): scope outbox to active user
+
 - 2026-09-11 | 🐛 fix(watch): retry failed cache persistence
 
 - 2026-09-11 | 🐛 fix(deluxe): authorize Watch recovery

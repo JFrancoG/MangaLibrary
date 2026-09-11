@@ -1,8 +1,8 @@
 # Colección local e invariantes
 
 - Estado: aprobado
-- Versión: 1.6
-- Última revisión: 2026-09-04
+- Versión: 1.7
+- Última revisión: 2026-09-11
 
 ## Propósito y alcance
 
@@ -193,6 +193,11 @@ destructiva explícita y cancelar no ejecuta ninguna mutación.
 ## Consultas
 
 - Toda consulta de colección se restringe al usuario activo.
+- La consulta de outbox del shell filtra en SwiftData por el usuario autenticado;
+  sin autoridad devuelve vacío. Conserva los estados confirmados para que las
+  transiciones ordinarias del worker no reinicien la tarea de sincronización.
+  Un cambio de usuario actualiza el predicado; un cambio de generación de la
+  misma cuenta conserva el alcance y cambia la identidad de la tarea.
 - La UI obtiene su estado persistente mediante `@Query` o una proyección derivada de esa consulta.
 - Una tombstone no aparece como elemento activo, pero permanece persistida hasta que el servidor confirme su eliminación o se revierta.
 - Los órdenes de presentación son independientes del orden canónico de `volumesOwned`.
