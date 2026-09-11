@@ -132,9 +132,7 @@ actor CollectionSyncCoordinator {
                         do {
                             remoteEntries = try await fetchRemote(authorization.accessToken)
                         } catch let retryError as CollectionAPIClientError {
-                            guard case let .network(.statusCode(retryStatusCode)) = retryError else {
-                                throw retryError
-                            }
+                            guard case let .network(.statusCode(retryStatusCode)) = retryError else { throw retryError }
                             guard try await validateAuthorization(authorization) else {
                                 throw CollectionSyncError.sessionChanged
                             }
@@ -224,7 +222,9 @@ actor CollectionSyncCoordinator {
     }
 
     private func clear(_ flight: Flight) {
-        if activeFlight?.identity === flight.identity { activeFlight = nil }
+        if activeFlight?.identity === flight.identity {
+            activeFlight = nil
+        }
     }
 
     private static func logAuthorizationDenied(statusCode: Int, attempt: Int) {
@@ -270,14 +270,18 @@ actor CollectionSyncCoordinator {
 extension CollectionSyncCoordinator {
     init(sessionController: SessionController, client: CollectionAPIClient, mutationActor: CollectionMutationActor) {
         self.init(
-            authorize: { try await sessionController.requestAuthorization() },
+            authorize: {
+                try await sessionController.requestAuthorization()
+            },
             validateAuthorization: { authorization in
                 try await sessionController.authorizes(authorization)
             },
             recoverAuthorization: { authorization in
                 try await sessionController.recoverAuthorization(after: authorization)
             },
-            fetchRemote: { accessToken in try await client.fetch(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await client.fetch(accessToken: accessToken)
+            },
             importRemote: { entries, authorization in
                 try await mutationActor.importRemote(entries, authorization: authorization)
             }
@@ -304,7 +308,11 @@ struct CollectionSynchronization {
 
 extension CollectionSynchronization {
     init(coordinator: CollectionSyncCoordinator) {
-        self.init(operation: { try await coordinator.importAuthenticatedCollection() })
+        self.init(
+            operation: {
+                try await coordinator.importAuthenticatedCollection()
+            }
+        )
     }
 
     init(importCoordinator: CollectionSyncCoordinator, outboxCoordinator: CollectionOutboxSyncCoordinator) {

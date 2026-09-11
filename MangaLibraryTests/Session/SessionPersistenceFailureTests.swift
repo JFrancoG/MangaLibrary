@@ -161,22 +161,32 @@ final class ControlledSessionPersistenceStorage: Sendable {
             },
             save: { [self] record in
                 saveGate?.pause()
-                try perform(.save) { $0.record = record }
+                try perform(.save) {
+                    $0.record = record
+                }
             },
-            removeLegacy: { [self] in try perform(.removeLegacy) { _ in } },
+            removeLegacy: { [self] in
+                try perform(.removeLegacy) { _ in }
+            },
             removeAll: { [self] in
                 removeAllGate?.pause()
-                try perform(.removeAll) { $0.record = nil }
+                try perform(.removeAll) {
+                    $0.record = nil
+                }
             }
         )
     }
 
     func failNext(_ operation: SessionPersistenceOperation, with error: SessionStorageError) {
-        state.withLock { $0.failures[operation, default: []].append(error) }
+        state.withLock {
+            $0.failures[operation, default: []].append(error)
+        }
     }
 
     func cancelCurrentTaskAfter(_ operation: SessionPersistenceOperation) {
-        _ = state.withLock { $0.cancellations.insert(operation) }
+        _ = state.withLock {
+            $0.cancellations.insert(operation)
+        }
     }
 
     func snapshot() -> Snapshot {
@@ -196,7 +206,11 @@ final class ControlledSessionPersistenceStorage: Sendable {
             }
             return (body(&state), state.cancellations.remove(operation) != nil)
         }
-        if shouldCancel { withUnsafeCurrentTask { $0?.cancel() } }
+        if shouldCancel {
+            withUnsafeCurrentTask {
+                $0?.cancel()
+            }
+        }
         return value
     }
 }
@@ -207,11 +221,14 @@ final class SynchronousPersistenceGate: Sendable {
 
     func pause() {
         entered.store(true, ordering: .releasing)
-        while isOpen.load(ordering: .acquiring) == false {}
+        while isOpen.load(ordering: .acquiring) == false {
+        }
     }
 
     func waitUntilEntered() async {
-        while entered.load(ordering: .acquiring) == false { await Task.yield() }
+        while entered.load(ordering: .acquiring) == false {
+            await Task.yield()
+        }
     }
 
     func open() {

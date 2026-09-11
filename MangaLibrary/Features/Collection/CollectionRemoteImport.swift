@@ -158,7 +158,9 @@ extension CollectionMutationActor {
         for remoteEntry: CollectionRemoteEntry
     ) throws(CollectionRemoteImportError) -> CollectionSnapshot {
         let knownTotal = remoteEntry.reportedTotalVolumes
-        if let knownTotal, knownTotal <= 0 { throw .nonPositiveKnownTotal(knownTotal) }
+        if let knownTotal, knownTotal <= 0 {
+            throw .nonPositiveKnownTotal(knownTotal)
+        }
         if let knownTotal, CollectionVolumePolicy.contains(knownTotal) == false {
             throw .knownTotalExceedsMaximum(total: knownTotal, maximum: CollectionVolumePolicy.maximum)
         }

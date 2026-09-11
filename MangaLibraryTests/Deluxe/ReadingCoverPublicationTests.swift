@@ -11,7 +11,9 @@ struct ReadingCoverPublicationTests {
         defer { try? FileManager.default.removeItem(at: harness.directory) }
         let events = ReadingPublicationEvents()
         let authorization = harness.authorization
-        let old = try authorization.perform { events.record(authorization: authorization) }
+        let old = try authorization.perform {
+            events.record(authorization: authorization)
+        }
         let armed = Mutex(afterReservation)
         let publisher = try harness.publisher(onStateWrite: { data in
             let state = try JSONDecoder().decode(ReadingPublisherState.self, from: data)
@@ -22,11 +24,15 @@ struct ReadingCoverPublicationTests {
                 return result
             }
             if supersede {
-                _ = try authorization.perform { events.record(authorization: authorization) }
+                _ = try authorization.perform {
+                    events.record(authorization: authorization)
+                }
             }
         })
         if !afterReservation {
-            _ = try authorization.perform { events.record(authorization: authorization) }
+            _ = try authorization.perform {
+                events.record(authorization: authorization)
+            }
         }
         let cover = try resource()
 
@@ -60,13 +66,17 @@ struct ReadingCoverPublicationTests {
         defer { try? FileManager.default.removeItem(at: harness.directory) }
         let cover = try resource()
         let publisher = try harness.publisher()
-        harness.failCleanup.withLock { $0 = true }
+        harness.failCleanup.withLock {
+            $0 = true
+        }
         _ = try await publisher.publish(
             projection: harness.projection(),
             preparedCovers: [1: cover],
             authorization: harness.authorization
         )
-        harness.failCleanup.withLock { $0 = false }
+        harness.failCleanup.withLock {
+            $0 = false
+        }
 
         let changed = try #require(try await publisher.publish(
             projection: harness.projection(reading: 2),
@@ -93,14 +103,20 @@ struct ReadingCoverPublicationTests {
         let first = try resource()
         let second = try resource(blue: true)
         let publisher = try harness.publisher()
-        harness.failCleanup.withLock { $0 = true }
+        harness.failCleanup.withLock {
+            $0 = true
+        }
         _ = try await publisher.publish(
             projection: harness.projection(count: 2),
             preparedCovers: [1: first],
             authorization: harness.authorization
         )
-        harness.failCleanup.withLock { $0 = false }
-        harness.quotaReached.withLock { $0 = true }
+        harness.failCleanup.withLock {
+            $0 = false
+        }
+        harness.quotaReached.withLock {
+            $0 = true
+        }
         harness.clearEffects()
         let previous = try harness.snapshotStorage.read(.snapshot)
 
@@ -125,14 +141,18 @@ struct ReadingCoverPublicationTests {
         defer { try? FileManager.default.removeItem(at: harness.directory) }
         let cover = try resource()
         let publisher = try harness.publisher()
-        harness.failCleanup.withLock { $0 = true }
+        harness.failCleanup.withLock {
+            $0 = true
+        }
         _ = try await publisher.publish(
             projection: harness.projection(),
             preparedCovers: [1: cover],
             authorization: harness.authorization
         )
         let previous = try harness.snapshotStorage.read(.snapshot)
-        harness.failCleanup.withLock { $0 = false }
+        harness.failCleanup.withLock {
+            $0 = false
+        }
         harness.clearEffects()
 
         let repeated = try await publisher.publish(
@@ -229,7 +249,9 @@ struct ReadingCoverPublicationTests {
         )
         let previous = try harness.snapshotStorage.read(.snapshot)
         let cover = try resource()
-        harness.failResource.withLock { $0 = true }
+        harness.failResource.withLock {
+            $0 = true
+        }
 
         await #expect(throws: (any Error).self) {
             try await publisher.publish(
@@ -240,7 +262,9 @@ struct ReadingCoverPublicationTests {
         }
         #expect(try harness.snapshotStorage.read(.snapshot) == previous)
         #expect(try harness.persistedSnapshot()?.revision == 1)
-        harness.failResource.withLock { $0 = false }
+        harness.failResource.withLock {
+            $0 = false
+        }
         #expect(try await publisher.recover() == .ready)
         let next = try #require(try await publisher.publish(
             projection: harness.projection(reading: 2),
@@ -264,7 +288,9 @@ struct ReadingCoverPublicationTests {
         )
         let previous = try harness.snapshotStorage.read(.snapshot)
         let cover = try resource()
-        harness.failManifest.withLock { $0 = true }
+        harness.failManifest.withLock {
+            $0 = true
+        }
 
         await #expect(throws: (any Error).self) {
             try await publisher.publish(
@@ -275,7 +301,9 @@ struct ReadingCoverPublicationTests {
         }
         #expect(try harness.snapshotStorage.read(.snapshot) == previous)
         #expect(harness.reader.read(cover.identifier)?.data == cover.data)
-        harness.failManifest.withLock { $0 = false }
+        harness.failManifest.withLock {
+            $0 = false
+        }
         #expect(try await publisher.recover() == .ready)
         _ = try await publisher.publish(
             projection: harness.projection(reading: 3),
@@ -325,7 +353,9 @@ struct ReadingCoverPublicationTests {
             preparedCovers: [1: resource()],
             authorization: harness.authorization
         )
-        harness.failCoverRead.withLock { $0 = true }
+        harness.failCoverRead.withLock {
+            $0 = true
+        }
         #expect(try await publisher.recover() == .ready)
         #expect(harness.failedCoverReads.withLock { $0 > 0 })
         let logout = try #require(harness.gate.suspendForLogout(harness.authority))
@@ -390,24 +420,32 @@ struct ReadingCoverPublicationTests {
             let effects = ReadingCoverStorage.Effects(
                 read: { url, limit in
                     if self.failCoverRead.withLock({ $0 }) {
-                        self.failedCoverReads.withLock { $0 += 1 }
+                        self.failedCoverReads.withLock {
+                            $0 += 1
+                        }
                         throw ReadingCoverStorageError.unavailable
                     }
                     return try base.read(url, limit)
                 },
                 writeExclusive: { url, data in
-                    self.coverWrites.withLock { $0.append(url.lastPathComponent) }
+                    self.coverWrites.withLock {
+                        $0.append(url.lastPathComponent)
+                    }
                     if url.pathExtension != "json", self.failResource.withLock({ $0 }) {
                         throw ReadingCoverStorageError.unavailable
                     }
                     try base.writeExclusive(url, data)
                 },
                 promoteExclusive: { from, to in
-                    self.coverWrites.withLock { $0.append(to.lastPathComponent) }
+                    self.coverWrites.withLock {
+                        $0.append(to.lastPathComponent)
+                    }
                     try base.promoteExclusive(from, to)
                 },
                 remove: { url in
-                    self.coverWrites.withLock { $0.append(url.lastPathComponent) }
+                    self.coverWrites.withLock {
+                        $0.append(url.lastPathComponent)
+                    }
                     if self.failCleanup.withLock({ $0 }) {
                         throw ReadingCoverStorageError.unavailable
                     }
@@ -425,7 +463,9 @@ struct ReadingCoverPublicationTests {
             let observed = ReadingSnapshotStorage(
                 read: snapshotStorage.read,
                 replace: { file, data in
-                    self.snapshotWrites.withLock { $0.append(file) }
+                    self.snapshotWrites.withLock {
+                        $0.append(file)
+                    }
                     if file == .snapshot {
                         if self.failManifest.withLock({ $0 }) {
                             throw ReadingSnapshotStorageError.unavailable
@@ -434,7 +474,9 @@ struct ReadingCoverPublicationTests {
                         let valid = manifest.items.compactMap(\.coverResourceID).allSatisfy {
                             self.reader.read($0) != nil
                         }
-                        self.manifestChecks.withLock { $0.append(valid) }
+                        self.manifestChecks.withLock {
+                            $0.append(valid)
+                        }
                     }
                     try self.snapshotStorage.replace(file, data)
                     if file == .publisherState {
@@ -446,7 +488,11 @@ struct ReadingCoverPublicationTests {
                 storage: observed,
                 now: { Date(timeIntervalSince1970: 1_788_652_800) },
                 makeGeneration: { UUID() },
-                requestReload: { _ in self.reloads.withLock { $0 += 1 } },
+                requestReload: { _ in
+                    self.reloads.withLock {
+                        $0 += 1
+                    }
+                },
                 coverStorage: covers
             )
         }
@@ -460,10 +506,18 @@ struct ReadingCoverPublicationTests {
         }
 
         func clearEffects() {
-            coverWrites.withLock { $0.removeAll() }
-            snapshotWrites.withLock { $0.removeAll() }
-            manifestChecks.withLock { $0.removeAll() }
-            reloads.withLock { $0 = 0 }
+            coverWrites.withLock {
+                $0.removeAll()
+            }
+            snapshotWrites.withLock {
+                $0.removeAll()
+            }
+            manifestChecks.withLock {
+                $0.removeAll()
+            }
+            reloads.withLock {
+                $0 = 0
+            }
         }
     }
 }

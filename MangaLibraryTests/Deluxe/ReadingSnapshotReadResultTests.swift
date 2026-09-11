@@ -87,7 +87,9 @@ struct ReadingSnapshotReadResultTests {
         let reader = ReadingSnapshotReader(
             readFence: { current.withLock { $0 } },
             readSnapshot: {
-                current.withLock { $0 = replacement }
+                current.withLock {
+                    $0 = replacement
+                }
                 return content
             }
         )

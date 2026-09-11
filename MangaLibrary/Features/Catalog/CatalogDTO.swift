@@ -19,9 +19,7 @@ struct CatalogPageDTO: Decodable {
                 throw CatalogAPIClientError.contractDrift
             }
             let manga = item.manga()
-            guard identities.insert(manga.id).inserted else {
-                throw CatalogAPIClientError.duplicateMangaID(manga.id)
-            }
+            guard identities.insert(manga.id).inserted else { throw CatalogAPIClientError.duplicateMangaID(manga.id) }
             mangas.append(manga)
         }
 

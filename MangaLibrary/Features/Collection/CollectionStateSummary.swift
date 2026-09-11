@@ -102,10 +102,7 @@ struct CollectionStateSummary: View {
     .padding()
 }
 
-#Preview(
-    "Many owned volumes",
-    traits: .modifier(CollectionPreviewModifier<CollectionPreviewScenarios.Controls>())
-) {
+#Preview("Many owned volumes", traits: .modifier(CollectionPreviewModifier<CollectionPreviewScenarios.Controls>())) {
     CollectionStateSummary(
         state: CollectionSnapshot(
             ownedVolumes: [9, 14, 19, 31, 33, 37, 41, 52, 54, 63, 65, 67, 68, 69, 71],

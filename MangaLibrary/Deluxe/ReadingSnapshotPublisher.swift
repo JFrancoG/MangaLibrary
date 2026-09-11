@@ -325,9 +325,15 @@ actor ReadingSnapshotPublisher {
         let previous: CollectionWidgetSnapshot?
         do {
             let result = try CollectionWidgetReader(
-                readFence: { try storage.read(.fence) },
-                readSnapshot: { try storage.read(.snapshot) },
-                readCollection: { try storage.read($0 == 0 ? .collection0 : .collection1) }
+                readFence: {
+                    try storage.read(.fence)
+                },
+                readSnapshot: {
+                    try storage.read(.snapshot)
+                },
+                readCollection: {
+                    try storage.read($0 == 0 ? .collection0 : .collection1)
+                }
             ).readResult()
             if case let .snapshot(manifest, collection) = result,
                manifest.sessionGeneration == authorization.authority.generation {

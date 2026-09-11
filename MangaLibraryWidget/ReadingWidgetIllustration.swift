@@ -17,7 +17,9 @@ enum ReadingWidgetIllustration {
     }
 
     private static func load(maximumPixelSize: Int) -> CGImage? {
-        guard let url = Bundle.main.url(forResource: "WidgetMangaIllustration", withExtension: "png") else { return nil }
+        guard let url = Bundle.main.url(forResource: "WidgetMangaIllustration", withExtension: "png") else {
+            return nil
+        }
         let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithURL(url as CFURL, sourceOptions) else { return nil }
         let thumbnailOptions = [

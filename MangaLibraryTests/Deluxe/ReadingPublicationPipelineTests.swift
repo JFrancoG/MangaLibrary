@@ -12,7 +12,9 @@ struct ReadingPublicationPipelineTests {
         defer { harness.removeFiles() }
         let settled = Mutex<[SessionAuthority]>([])
         let pipeline = try harness.pipeline(onProjectionUnchanged: { authorization in
-            settled.withLock { $0.append(authorization.authority) }
+            settled.withLock {
+                $0.append(authorization.authority)
+            }
         }) { _ in nil }
         _ = try #require(try await pipeline.process(harness.record()))
         let manifest = try harness.storage.read(.snapshot)
@@ -100,7 +102,9 @@ struct ReadingPublicationPipelineTests {
         let source = try ReadingCoverTestImages.jpeg(pattern: .red)
         let fetched = Mutex<[URL]>([])
         let pipeline = try harness.pipeline { url in
-            fetched.withLock { $0.append(url) }
+            fetched.withLock {
+                $0.append(url)
+            }
             return source
         }
 
@@ -219,7 +223,9 @@ struct ReadingPublicationPipelineTests {
             ),
             authorization: harness.authorization
         )
-        harness.failManifest.withLock { $0 = true }
+        harness.failManifest.withLock {
+            $0 = true
+        }
 
         await #expect(throws: ReadingSnapshotStorageError.self) {
             try await pipeline.process(harness.record())
@@ -228,7 +234,9 @@ struct ReadingPublicationPipelineTests {
         #expect(try harness.storage.read(.snapshot) == manifest)
         #expect(try harness.storage.read(.collection0) == original)
         #expect(harness.reloads.withLock { $0 } == 1)
-        harness.failManifest.withLock { $0 = false }
+        harness.failManifest.withLock {
+            $0 = false
+        }
         let retried = try #require(try await pipeline.process(harness.record()))
         #expect(retried.revision == 3)
         #expect(retried.collectionReference?.slot == 1)
@@ -279,7 +287,9 @@ struct ReadingPublicationPipelineTests {
         defer { harness.removeFiles() }
         let fetched = Mutex(0)
         let pipeline = try harness.pipeline { _ in
-            fetched.withLock { $0 += 1 }
+            fetched.withLock {
+                $0 += 1
+            }
             return nil
         }
         let old = harness.record()
@@ -362,7 +372,9 @@ struct ReadingPublicationPipelineTests {
     func `cancelled cover preparation preserves persisted reading without publishing`() async throws {
         let harness = try Harness()
         defer { harness.removeFiles() }
-        let pipeline = try harness.pipeline { _ in throw CancellationError() }
+        let pipeline = try harness.pipeline { _ in
+            throw CancellationError()
+        }
 
         await #expect(throws: CancellationError.self) {
             try await pipeline.process(harness.record())
@@ -378,7 +390,9 @@ struct ReadingPublicationPipelineTests {
         let harness = try Harness()
         defer { harness.removeFiles() }
         try await harness.setReading(3)
-        harness.failManifest.withLock { $0 = true }
+        harness.failManifest.withLock {
+            $0 = true
+        }
         let pipeline = try harness.pipeline { _ in nil }
         let event = harness.record()
 
@@ -390,7 +404,9 @@ struct ReadingPublicationPipelineTests {
         #expect(persisted.items.first?.readingVolume == 3)
         #expect(try ModelContext(harness.container).fetchCount(FetchDescriptor<CollectionOutboxOperation>()) == 1)
         #expect(try harness.snapshot() == nil)
-        harness.failManifest.withLock { $0 = false }
+        harness.failManifest.withLock {
+            $0 = false
+        }
         let retried = try #require(try await pipeline.process(event))
         #expect(retried.items.first?.readingVolume == 3)
         #expect(retried.revision == 2)
@@ -404,7 +420,11 @@ struct ReadingPublicationPipelineTests {
         defer { signals.continuation.finish() }
         let suspension = Suspension()
         let calls = Mutex<[String]>([])
-        let pipeline = try harness.pipeline(onReload: { signals.continuation.yield(.published) }) { url in
+        let pipeline = try harness.pipeline(
+            onReload: {
+                signals.continuation.yield(.published)
+            }
+        ) { url in
             let first = calls.withLock {
                 $0.append(url.lastPathComponent)
                 return $0.count == 1
@@ -461,11 +481,17 @@ struct ReadingPublicationPipelineTests {
         let signals = AsyncStream<Signal>.makeStream()
         defer { signals.continuation.finish() }
         let pipeline = try harness.pipeline(
-            onReload: { signals.continuation.yield(.published) },
-            onManifestFailure: { signals.continuation.yield(.failed) },
+            onReload: {
+                signals.continuation.yield(.published)
+            },
+            onManifestFailure: {
+                signals.continuation.yield(.failed)
+            },
             loadCover: { _ in nil }
         )
-        harness.failManifest.withLock { $0 = true }
+        harness.failManifest.withLock {
+            $0 = true
+        }
         _ = harness.record()
 
         try await withThrowingTaskGroup(of: Bool.self) { group in
@@ -488,7 +514,9 @@ struct ReadingPublicationPipelineTests {
             let unchanged = try await harness.mutations.readingProjection(authorization: harness.authorization)
             #expect(unchanged.items.first?.readingVolume == 2)
             try await harness.setReading(3)
-            harness.failManifest.withLock { $0 = false }
+            harness.failManifest.withLock {
+                $0 = false
+            }
             _ = harness.record()
             #expect(await iterator.next() == .published)
             group.cancelAll()
@@ -544,7 +572,9 @@ struct ReadingPublicationPipelineTests {
 
         #expect(try harness.snapshot() == nil)
         #expect(harness.events.currentEvent()?.ticket === event.ticket)
-        let restarted = try harness.pipeline { _ in throw CancellationError() }
+        let restarted = try harness.pipeline { _ in
+            throw CancellationError()
+        }
         await #expect(throws: CancellationError.self) {
             try await restarted.run()
         }
@@ -560,7 +590,9 @@ struct ReadingPublicationPipelineTests {
         let reconciled = Mutex<[SessionAuthority]>([])
         let pipeline = try harness.pipeline(
             reconcileSession: { authority in
-                reconciled.withLock { $0.append(authority) }
+                reconciled.withLock {
+                    $0.append(authority)
+                }
                 throw ReconciliationFailure.unavailable
             },
             loadCover: { _ in
@@ -663,7 +695,9 @@ private extension ReadingPublicationPipelineTests {
                 now: { Date(timeIntervalSince1970: 1_800_000_000) },
                 makeGeneration: { UUID() },
                 requestReload: { _ in
-                    self.reloads.withLock { $0 += 1 }
+                    self.reloads.withLock {
+                        $0 += 1
+                    }
                     onReload()
                 },
                 coverStorage: try ReadingCoverStorage(
@@ -681,7 +715,9 @@ private extension ReadingPublicationPipelineTests {
             )
         }
 
-        func record() -> ReadingPublicationEvent { events.record(authorization: authorization) }
+        func record() -> ReadingPublicationEvent {
+            events.record(authorization: authorization)
+        }
 
         func setReading(_ volume: Int64) async throws {
             _ = try await mutations.apply(

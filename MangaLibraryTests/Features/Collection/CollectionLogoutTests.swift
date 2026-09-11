@@ -152,7 +152,9 @@ struct CollectionLogoutTests {
             try await actor.discardPendingChangesForLogout(
                 authorization: authorization,
                 afterRestoringPair: { restoredCount in
-                    if restoredCount == 1 { throw LogoutInjectedFailure.expected }
+                    if restoredCount == 1 {
+                        throw LogoutInjectedFailure.expected
+                    }
                 }
             )
         }
@@ -213,7 +215,9 @@ struct CollectionLogoutTests {
             try await actor.discardPendingChangesForLogout(
                 authorization: authorization,
                 afterRestoringPair: { restoredCount in
-                    if restoredCount == 1 { throw CancellationError() }
+                    if restoredCount == 1 {
+                        throw CancellationError()
+                    }
                 }
             )
         }

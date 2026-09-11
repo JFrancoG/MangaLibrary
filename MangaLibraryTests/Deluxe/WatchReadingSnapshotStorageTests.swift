@@ -47,8 +47,12 @@ struct WatchReadingSnapshotStorageTests {
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: actual)
         let redirected = WatchReadingSnapshotStorage(directory: link)
 
-        #expect(throws: (any Error).self) { try redirected.read() }
-        #expect(throws: (any Error).self) { try redirected.replace(Data("replacement".utf8)) }
+        #expect(throws: (any Error).self) {
+            try redirected.read()
+        }
+        #expect(throws: (any Error).self) {
+            try redirected.replace(Data("replacement".utf8))
+        }
     }
 }
 

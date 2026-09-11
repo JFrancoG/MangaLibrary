@@ -7,7 +7,9 @@ enum ReadingWidgetPreview {
     static let unavailable = ReadingWidgetEntry(date: date, state: .unavailable, covers: [:])
     static let shortTitle = entry(titles: ["Alba"])
     static let content = entry(titles: ["The Book of Small Journeys", nil, "A Quiet Library"])
-    static let collection = entry(titles: ["Alba", "Bosque", "Cielo", "Duna", "Estrellas", "Faro", "Girasol", "Horizonte"])
+    static let collection = entry(
+        titles: ["Alba", "Bosque", "Cielo", "Duna", "Estrellas", "Faro", "Girasol", "Horizonte"]
+    )
     static let rotatedCollection = ReadingWidgetEntry(
         date: date.addingTimeInterval(300),
         state: collection.state,
@@ -25,7 +27,10 @@ enum ReadingWidgetPreview {
     static let threeReadings = entry(titles: ["Alba", "Bosque", "Cielo"], totalEligibleCount: 3)
     static let fourReadings = entry(titles: ["Alba", "Bosque", "Cielo", "Duna"], totalEligibleCount: 4)
     static let fiveReadings = entry(titles: ["Alba", "Bosque", "Cielo", "Duna", "Estrellas"], totalEligibleCount: 5)
-    static let sixReadings = entry(titles: ["Alba", "Bosque", "Cielo", "Duna", "Estrellas", "Faro"], totalEligibleCount: 6)
+    static let sixReadings = entry(
+        titles: ["Alba", "Bosque", "Cielo", "Duna", "Estrellas", "Faro"],
+        totalEligibleCount: 6
+    )
     static let fiveLongReadings = entry(
         titles: [
             "Los días tranquilos de una biblioteca junto al mar",

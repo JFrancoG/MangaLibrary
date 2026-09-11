@@ -36,7 +36,9 @@ final class WatchReadingModel {
                 run: { untilContentDrained, receive in
                     try await connectivity.run(untilContentDrained: untilContentDrained, receive: receive)
                 },
-                requestContentDrain: { connectivity.requestContentDrain($0) }
+                requestContentDrain: {
+                    connectivity.requestContentDrain($0)
+                }
             )
         )
     }

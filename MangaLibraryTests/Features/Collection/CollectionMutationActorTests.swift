@@ -183,9 +183,7 @@ struct CollectionMutationActorTests {
         )
         let priorStore = try readStore(container)
 
-        await #expect(
-            throws: CollectionMutationError.knownTotalExceedsMaximum(total: total, maximum: 300)
-        ) {
+        await #expect(throws: CollectionMutationError.knownTotalExceedsMaximum(total: total, maximum: 300)) {
             try await actor.apply(
                 Self.command(
                     userID: Self.userA,
@@ -215,9 +213,7 @@ struct CollectionMutationActorTests {
         )
         let priorStore = try readStore(container)
 
-        await #expect(
-            throws: CollectionMutationError.volumeExceedsMaximum(volume: volume, maximum: 300)
-        ) {
+        await #expect(throws: CollectionMutationError.volumeExceedsMaximum(volume: volume, maximum: 300)) {
             try await actor.apply(
                 Self.command(
                     userID: Self.userA,
@@ -247,9 +243,7 @@ struct CollectionMutationActorTests {
         )
         let priorStore = try readStore(container)
 
-        await #expect(
-            throws: CollectionMutationError.volumeExceedsMaximum(volume: volume, maximum: 300)
-        ) {
+        await #expect(throws: CollectionMutationError.volumeExceedsMaximum(volume: volume, maximum: 300)) {
             try await actor.apply(
                 Self.command(
                     userID: Self.userA,

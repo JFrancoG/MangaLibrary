@@ -112,7 +112,9 @@ struct WatchReadingModelTests {
                     try await transport.run(untilDrained: untilDrained, receive: receive)
                 },
                 requestContentDrain: { identity in
-                    transport.requestedIdentity.withLock { $0 = identity }
+                    transport.requestedIdentity.withLock {
+                        $0 = identity
+                    }
                     transport.signals.continuation.yield(.drainRequested)
                 }
             )
@@ -219,8 +221,16 @@ struct WatchReadingModelTests {
         var storage: WatchReadingSnapshotStorage {
             WatchReadingSnapshotStorage(
                 read: { self.bytes.withLock { $0 } },
-                replace: { data in self.bytes.withLock { $0 = data } },
-                discard: { self.bytes.withLock { $0 = nil } }
+                replace: { data in
+                    self.bytes.withLock {
+                        $0 = data
+                    }
+                },
+                discard: {
+                    self.bytes.withLock {
+                        $0 = nil
+                    }
+                }
             )
         }
     }
@@ -242,7 +252,9 @@ struct WatchReadingModelTests {
             untilDrained: Bool,
             receive: @Sendable (WatchReadingConnectivity.Event) async -> Void
         ) async throws {
-            modes.withLock { $0.append(untilDrained) }
+            modes.withLock {
+                $0.append(untilDrained)
+            }
             signals.continuation.yield(.started)
             for await event in events.stream {
                 try Task.checkCancellation()

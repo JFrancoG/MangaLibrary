@@ -102,12 +102,16 @@ private final class ReadingPublicationIntegrationFixture: Sendable {
             },
             loadCover: { url in
                 #expect(url == self.sourceURL)
-                self.loads.withLock { $0 += 1 }
+                self.loads.withLock {
+                    $0 += 1
+                }
                 return self.source
             },
             requestReload: { data in
                 try self.verifyReadablePublication(atReload: data)
-                self.reloads.withLock { $0 += 1 }
+                self.reloads.withLock {
+                    $0 += 1
+                }
             }
         )
     }
@@ -119,7 +123,9 @@ private final class ReadingPublicationIntegrationFixture: Sendable {
             publisher: composition.publisher,
             loadCover: { url in
                 #expect(url == self.sourceURL)
-                self.loads.withLock { $0 += 1 }
+                self.loads.withLock {
+                    $0 += 1
+                }
                 return self.source
             },
             reconcileSession: { _ in

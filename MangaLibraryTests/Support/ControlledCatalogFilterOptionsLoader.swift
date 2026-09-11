@@ -72,6 +72,8 @@ actor ControlledCatalogFilterOptionsLoader {
         requestWaiters.removeAll {
             requestCount >= $0.expectedCount
         }
-        satisfiedWaiters.forEach { $0.continuation.resume() }
+        satisfiedWaiters.forEach {
+            $0.continuation.resume()
+        }
     }
 }

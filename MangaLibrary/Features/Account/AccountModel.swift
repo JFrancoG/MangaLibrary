@@ -30,9 +30,15 @@ final class AccountModel {
 
         static func live(controller: SessionController, register: @escaping UserRegistrationClient.Operation) -> Self {
             Self(
-                currentSnapshot: { await controller.currentSnapshot() },
-                restore: { try await controller.restore() },
-                login: { email, password in try await controller.login(email: email, password: password) },
+                currentSnapshot: {
+                    await controller.currentSnapshot()
+                },
+                restore: {
+                    try await controller.restore()
+                },
+                login: { email, password in
+                    try await controller.login(email: email, password: password)
+                },
                 register: register,
                 logout: { discardPendingChanges in
                     try await controller.logout(discardPendingChanges: discardPendingChanges)

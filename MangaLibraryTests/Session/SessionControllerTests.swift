@@ -59,7 +59,9 @@ struct SessionControllerTests {
         login.cancel()
         await gate.open()
 
-        await #expect(throws: CancellationError.self) { try await login.value }
+        await #expect(throws: CancellationError.self) {
+            try await login.value
+        }
         #expect(storage.snapshot().record == nil)
         #expect(await controller.currentSnapshot() == .signedOut)
     }
@@ -83,7 +85,9 @@ struct SessionControllerTests {
         clock.advance(by: 2)
         await gate.open()
 
-        await #expect(throws: SessionControllerError.contractDrift) { try await login.value }
+        await #expect(throws: SessionControllerError.contractDrift) {
+            try await login.value
+        }
         #expect(storage.snapshot().record == nil)
         #expect(await controller.currentSnapshot() == .signedOut)
     }
@@ -126,7 +130,9 @@ struct SessionControllerTests {
         clock.advance(by: 2)
         saveGate.open()
 
-        await #expect(throws: SessionControllerError.contractDrift) { try await login.value }
+        await #expect(throws: SessionControllerError.contractDrift) {
+            try await login.value
+        }
         #expect(storage.snapshot().record == nil)
         #expect(await controller.currentSnapshot() == .signedOut)
     }
@@ -155,7 +161,9 @@ struct SessionControllerTests {
         storage.failNext(.removeAll, with: .temporarilyUnavailable)
         saveGate.open()
 
-        await #expect(throws: SessionControllerError.temporarilyUnavailable) { try await firstLogin.value }
+        await #expect(throws: SessionControllerError.temporarilyUnavailable) {
+            try await firstLogin.value
+        }
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record?.access.value == "fixture-short-lived")
 
@@ -186,7 +194,9 @@ struct SessionControllerTests {
         login.cancel()
         saveGate.open()
 
-        await #expect(throws: SessionControllerError.temporarilyUnavailable) { try await login.value }
+        await #expect(throws: SessionControllerError.temporarilyUnavailable) {
+            try await login.value
+        }
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record?.access.value == "fixture-short-lived")
     }
@@ -232,7 +242,9 @@ struct SessionControllerTests {
         let loader = ScriptedSessionDataLoader(replies: [reply], identityGate: gate)
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
 
-        let restore = Task { try await controller.restore() }
+        let restore = Task {
+            try await controller.restore()
+        }
         await gate.waitUntilArrived()
         clock.advance(by: 601)
         await gate.open()
@@ -272,7 +284,9 @@ struct SessionControllerTests {
         )
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
 
-        let restore = Task { try await controller.restore() }
+        let restore = Task {
+            try await controller.restore()
+        }
         await gate.waitUntilArrived()
         clock.advance(by: 2)
         await gate.open()
@@ -312,12 +326,16 @@ struct SessionControllerTests {
         #expect(try await controller.restore() == .active(Self.remoteAccount))
         clock.advance(by: 301)
 
-        let request = Task { try await controller.requestAuthorization() }
+        let request = Task {
+            try await controller.requestAuthorization()
+        }
         await refreshGate.waitUntilArrived()
         clock.advanceAfterNextRead(by: 2)
         await refreshGate.open()
 
-        await #expect(throws: SessionControllerError.contractDrift) { try await request.value }
+        await #expect(throws: SessionControllerError.contractDrift) {
+            try await request.value
+        }
         #expect(await loader.requestPaths() == ["/users/jwt/me", "/users/jwt/refresh"])
         #expect(storage.snapshot().record == session)
         #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
@@ -335,7 +353,9 @@ struct SessionControllerTests {
         )
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
 
-        let restore = Task { try await controller.restore() }
+        let restore = Task {
+            try await controller.restore()
+        }
         await gate.waitUntilArrived()
         clock.advance(by: 2)
         await gate.open()
@@ -357,7 +377,9 @@ struct SessionControllerTests {
         )
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
 
-        let restore = Task { try await controller.restore() }
+        let restore = Task {
+            try await controller.restore()
+        }
         await gate.waitUntilArrived()
         clock.advance(by: 2)
         await gate.open()
@@ -570,7 +592,9 @@ struct SessionControllerTests {
         var didCommit = false
 
         #expect(throws: SessionCommitAuthorizationError.credentialExpired) {
-            try authorization.perform { didCommit = true }
+            try authorization.perform {
+                didCommit = true
+            }
         }
         #expect(didCommit == false)
         #expect(try await controller.commitAuthorization(for: session.authority) == nil)
@@ -590,11 +614,15 @@ struct SessionControllerTests {
         let gate = SessionRequestGate()
         let loader = StaleRestoreIdentityDataLoader(gate: gate, oldReply: oldReply)
         let controller = try makeController(
-            loadData: { request in try await loader.load(request) },
+            loadData: { request in
+                try await loader.load(request)
+            },
             storage: storage
         )
 
-        let restore = Task { try await controller.restore() }
+        let restore = Task {
+            try await controller.restore()
+        }
         await gate.waitUntilArrived()
         let rejectedAuthorization = try await controller.requestAuthorization()
         let renewedAuthorization = try await controller.recoverAuthorization(after: rejectedAuthorization)
@@ -626,7 +654,9 @@ struct SessionControllerTests {
             reusesJWTText: scenario.reusesJWTText
         )
         let controller = try makeController(
-            loadData: { request in try await loader.load(request) },
+            loadData: { request in
+                try await loader.load(request)
+            },
             storage: storage,
             synchronizationObserver: { point in
                 if point == .restorationAwaitingRefresh {
@@ -635,10 +665,14 @@ struct SessionControllerTests {
             }
         )
 
-        let restore = Task { try await controller.restore() }
+        let restore = Task {
+            try await controller.restore()
+        }
         await oldIdentityGate.waitUntilArrived()
         let rejectedAuthorization = try await controller.requestAuthorization()
-        let recovery = Task { try await controller.recoverAuthorization(after: rejectedAuthorization) }
+        let recovery = Task {
+            try await controller.recoverAuthorization(after: rejectedAuthorization)
+        }
         await renewedIdentityGate.waitUntilArrived()
         await oldIdentityGate.open()
         await loader.waitUntilOldReplyWasDelivered()
@@ -671,7 +705,9 @@ struct SessionControllerTests {
             reusesJWTText: true
         )
         let controller = try makeController(
-            loadData: { request in try await loader.load(request) },
+            loadData: { request in
+                try await loader.load(request)
+            },
             storage: storage,
             clock: clock,
             synchronizationObserver: { point in
@@ -681,10 +717,14 @@ struct SessionControllerTests {
             }
         )
 
-        let restore = Task { try await controller.restore() }
+        let restore = Task {
+            try await controller.restore()
+        }
         await oldIdentityGate.waitUntilArrived()
         let rejectedAuthorization = try await controller.requestAuthorization()
-        let recovery = Task { try await controller.recoverAuthorization(after: rejectedAuthorization) }
+        let recovery = Task {
+            try await controller.recoverAuthorization(after: rejectedAuthorization)
+        }
         await renewedIdentityGate.waitUntilArrived()
         clock.advance(by: 601)
         await oldIdentityGate.open()
@@ -713,7 +753,9 @@ struct SessionControllerTests {
         let synchronizationGate = SessionRequestGate()
         let loader = CoincidentRefreshCleanupDataLoader(identityGate: identityGate)
         let controller = try makeController(
-            loadData: { request in try await loader.load(request) },
+            loadData: { request in
+                try await loader.load(request)
+            },
             storage: storage,
             synchronizationObserver: { point in
                 if point == .restorationAwaitingRefresh {
@@ -721,18 +763,26 @@ struct SessionControllerTests {
                 }
             }
         )
-        let restore = Task { try await controller.restore() }
+        let restore = Task {
+            try await controller.restore()
+        }
         await identityGate.waitUntilArrived()
         let rejectedAuthorization = try await controller.requestAuthorization()
-        let recovery = Task { try await controller.recoverAuthorization(after: rejectedAuthorization) }
+        let recovery = Task {
+            try await controller.recoverAuthorization(after: rejectedAuthorization)
+        }
         await deletionGate.waitUntilEntered()
         await identityGate.open()
         await synchronizationGate.waitUntilArrived()
         await synchronizationGate.open()
         deletionGate.open()
 
-        await #expect(throws: SessionControllerError.temporarilyUnavailable) { try await recovery.value }
-        await #expect(throws: SessionControllerError.temporarilyUnavailable) { try await restore.value }
+        await #expect(throws: SessionControllerError.temporarilyUnavailable) {
+            try await recovery.value
+        }
+        await #expect(throws: SessionControllerError.temporarilyUnavailable) {
+            try await restore.value
+        }
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record == session)
     }
@@ -747,12 +797,16 @@ struct SessionControllerTests {
         let controller = try makeController(loader: loader, storage: storage)
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
-        let recovery = Task { try await controller.recoverAuthorization(after: authorization) }
+        let recovery = Task {
+            try await controller.recoverAuthorization(after: authorization)
+        }
         await deletionGate.waitUntilEntered()
         recovery.cancel()
         deletionGate.open()
 
-        await #expect(throws: SessionControllerError.temporarilyUnavailable) { try await recovery.value }
+        await #expect(throws: SessionControllerError.temporarilyUnavailable) {
+            try await recovery.value
+        }
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record == session)
     }
@@ -774,12 +828,16 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
 
-        let recovery = Task { try await controller.recoverAuthorization(after: authorization) }
+        let recovery = Task {
+            try await controller.recoverAuthorization(after: authorization)
+        }
         await saveGate.waitUntilEntered()
         recovery.cancel()
         saveGate.open()
 
-        await #expect(throws: SessionControllerError.temporarilyUnavailable) { try await recovery.value }
+        await #expect(throws: SessionControllerError.temporarilyUnavailable) {
+            try await recovery.value
+        }
         #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
         #expect(storage.snapshot().record == session)
         #expect(await loader.requestPaths() == ["/users/jwt/me", "/users/jwt/refresh", "/users/jwt/me"])
@@ -1049,7 +1107,9 @@ struct SessionControllerTests {
             commitGate.invalidate(authority)
             invalidationFinished.store(true, ordering: .releasing)
         }
-        while invalidationStarted.load(ordering: .acquiring) == false { await Task.yield() }
+        while invalidationStarted.load(ordering: .acquiring) == false {
+            await Task.yield()
+        }
 
         let finishedBeforeCommit = invalidationFinished.load(ordering: .acquiring)
         #expect(finishedBeforeCommit == false)
@@ -1077,7 +1137,9 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         clock.advance(by: 120)
 
-        let authorization = Task { try await controller.requestAuthorization() }
+        let authorization = Task {
+            try await controller.requestAuthorization()
+        }
         await gate.waitUntilArrived()
         #expect(try await controller.logout() == .signedOut)
         await gate.open()
@@ -1116,9 +1178,13 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         clock.advance(by: 120)
 
-        let first = Task { try await controller.accessCredential() }
+        let first = Task {
+            try await controller.accessCredential()
+        }
         await gate.waitUntilArrived()
-        let second = Task { try await controller.accessCredential() }
+        let second = Task {
+            try await controller.accessCredential()
+        }
         await joiningGate.waitUntilArrived()
         await joiningGate.open()
         await gate.open()
@@ -1160,9 +1226,13 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         clock.advance(by: 120)
 
-        let refresh = Task { try await controller.accessCredential() }
+        let refresh = Task {
+            try await controller.accessCredential()
+        }
         await gate.waitUntilArrived()
-        let authorization = Task { try await controller.requestAuthorization() }
+        let authorization = Task {
+            try await controller.requestAuthorization()
+        }
         await joiningGate.waitUntilArrived()
         await joiningGate.open()
         await gate.open()
@@ -1184,7 +1254,9 @@ struct SessionControllerTests {
         let gate = SessionRequestGate()
         let loader = ResidualRefreshDataLoader(gate: gate)
         let controller = try makeController(
-            loadData: { request in try await loader.load(request) },
+            loadData: { request in
+                try await loader.load(request)
+            },
             storage: storage,
             clock: clock,
             generationFactory: { Self.generationB }
@@ -1192,7 +1264,9 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         clock.advance(by: 120)
 
-        let residualRefresh = Task { try await controller.accessCredential() }
+        let residualRefresh = Task {
+            try await controller.accessCredential()
+        }
         await gate.waitUntilArrived()
         #expect(try await controller.logout() == .signedOut)
         #expect(
@@ -1257,7 +1331,9 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         clock.advance(by: 120)
 
-        let staleAccess = Task { try await controller.accessCredential() }
+        let staleAccess = Task {
+            try await controller.accessCredential()
+        }
         await completionGate.waitUntilArrived()
         #expect(try await controller.logout() == .signedOut)
         #expect(
@@ -1266,7 +1342,9 @@ struct SessionControllerTests {
         )
         await completionGate.open()
 
-        await #expect(throws: SessionControllerError.sessionChanged) { try await staleAccess.value }
+        await #expect(throws: SessionControllerError.sessionChanged) {
+            try await staleAccess.value
+        }
         #expect(await controller.currentSnapshot() == .active(Self.remoteAccountB))
         #expect(storage.snapshot().record?.authority == Self.remoteAccountB.authority)
     }
@@ -1280,7 +1358,9 @@ struct SessionControllerTests {
         let secondRefreshGate = SessionRequestGate()
         let loader = RejectedResolvedCredentialDataLoader(secondRefreshGate: secondRefreshGate)
         let controller = try makeController(
-            loadData: { request in try await loader.load(request) },
+            loadData: { request in
+                try await loader.load(request)
+            },
             storage: storage,
             clock: clock,
             synchronizationObserver: { point in
@@ -1292,16 +1372,22 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         clock.advance(by: 120)
 
-        let staleAccess = Task { try await controller.accessCredential() }
+        let staleAccess = Task {
+            try await controller.accessCredential()
+        }
         await completionGate.waitUntilArrived()
         let rejectedAuthorization = try await controller.requestAuthorization()
         #expect(rejectedAuthorization.accessToken == "fixture-access-renewed")
 
-        let recovery = Task { try await controller.recoverAuthorization(after: rejectedAuthorization) }
+        let recovery = Task {
+            try await controller.recoverAuthorization(after: rejectedAuthorization)
+        }
         await secondRefreshGate.waitUntilArrived()
         await completionGate.open()
 
-        await #expect(throws: SessionControllerError.sessionChanged) { try await staleAccess.value }
+        await #expect(throws: SessionControllerError.sessionChanged) {
+            try await staleAccess.value
+        }
 
         await secondRefreshGate.open()
         let recoveredAuthorization = try await recovery.value
@@ -1326,7 +1412,9 @@ struct SessionControllerTests {
         let secondRefreshGate = SessionRequestGate()
         let loader = RejectedResolvedCredentialDataLoader(secondRefreshGate: secondRefreshGate)
         let controller = try makeController(
-            loadData: { request in try await loader.load(request) },
+            loadData: { request in
+                try await loader.load(request)
+            },
             storage: storage,
             synchronizationObserver: { point in
                 switch point {
@@ -1381,7 +1469,9 @@ struct SessionControllerTests {
         let gate = SessionRequestGate()
         let loader = StaleRefreshFailureDataLoader(gate: gate, stage: stage)
         let controller = try makeController(
-            loadData: { request in try await loader.load(request) },
+            loadData: { request in
+                try await loader.load(request)
+            },
             storage: storage,
             clock: clock,
             generationFactory: { Self.generationB }
@@ -1389,7 +1479,9 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         clock.advance(by: 120)
 
-        let staleRefresh = Task { try await controller.accessCredential() }
+        let staleRefresh = Task {
+            try await controller.accessCredential()
+        }
         await gate.waitUntilArrived()
         #expect(try await controller.logout() == .signedOut)
         #expect(
@@ -1464,7 +1556,9 @@ struct SessionControllerTests {
             try await controller.recoverAuthorization(after: rejectedAuthorization)
         }
         await gate.waitUntilArrived()
-        let access = Task { try await controller.accessCredential() }
+        let access = Task {
+            try await controller.accessCredential()
+        }
         await joiningGate.waitUntilArrived()
         await joiningGate.open()
         await gate.open()
@@ -1486,7 +1580,9 @@ struct SessionControllerTests {
         let synchronizationGate = SessionRequestGate()
         let loader = RefreshABADataLoader(refreshGate: refreshGate)
         let controller = try makeController(
-            loadData: { request in try await loader.load(request) },
+            loadData: { request in
+                try await loader.load(request)
+            },
             storage: storage,
             generationFactory: { Self.generationB },
             synchronizationObserver: { point in
@@ -1497,7 +1593,9 @@ struct SessionControllerTests {
         )
         _ = try await controller.restore()
         let rejectedAuthorization = try await controller.requestAuthorization()
-        let recovery = Task { try await controller.recoverAuthorization(after: rejectedAuthorization) }
+        let recovery = Task {
+            try await controller.recoverAuthorization(after: rejectedAuthorization)
+        }
         await refreshGate.waitUntilArrived()
         let localAuthorization = Task {
             try await controller.commitAuthorization(for: rejectedAuthorization.authority)
@@ -1514,8 +1612,12 @@ struct SessionControllerTests {
         await synchronizationGate.open()
         await refreshGate.open()
 
-        await #expect(throws: SessionControllerError.sessionChanged) { try await recovery.value }
-        await #expect(throws: SessionControllerError.sessionChanged) { try await localAuthorization.value }
+        await #expect(throws: SessionControllerError.sessionChanged) {
+            try await recovery.value
+        }
+        await #expect(throws: SessionControllerError.sessionChanged) {
+            try await localAuthorization.value
+        }
         #expect(await controller.currentSnapshot() == .active(Self.remoteAccountGenerationB))
         #expect(storage.snapshot().record?.generation == Self.generationB)
         #expect(storage.snapshot().record?.access.value == "fixture-access-login-B")
@@ -1565,12 +1667,16 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         clock.advance(by: 120)
 
-        let refresh = Task { try await controller.accessCredential() }
+        let refresh = Task {
+            try await controller.accessCredential()
+        }
         await gate.waitUntilArrived()
         clock.advance(by: 241)
         await gate.open()
 
-        await #expect(throws: SessionControllerError.authenticationRequired) { try await refresh.value }
+        await #expect(throws: SessionControllerError.authenticationRequired) {
+            try await refresh.value
+        }
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record == nil)
     }
@@ -1592,12 +1698,16 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
 
-        let recovery = Task { try await controller.recoverAuthorization(after: authorization) }
+        let recovery = Task {
+            try await controller.recoverAuthorization(after: authorization)
+        }
         await saveGate.waitUntilEntered()
         clock.advance(by: 2)
         saveGate.open()
 
-        await #expect(throws: SessionControllerError.authenticationRequired) { try await recovery.value }
+        await #expect(throws: SessionControllerError.authenticationRequired) {
+            try await recovery.value
+        }
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record == nil)
     }
@@ -1618,7 +1728,9 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
 
-        let recovery = Task { try await controller.recoverAuthorization(after: authorization) }
+        let recovery = Task {
+            try await controller.recoverAuthorization(after: authorization)
+        }
         await saveGate.waitUntilEntered()
         await #expect(throws: SessionControllerError.transitionInProgress) {
             try await controller.logout()
@@ -1655,12 +1767,16 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
 
-        let recovery = Task { try await controller.recoverAuthorization(after: authorization) }
+        let recovery = Task {
+            try await controller.recoverAuthorization(after: authorization)
+        }
         await saveGate.waitUntilEntered()
         clock.advance(by: 601)
         saveGate.open()
 
-        await #expect(throws: SessionControllerError.authenticationRequired) { try await recovery.value }
+        await #expect(throws: SessionControllerError.authenticationRequired) {
+            try await recovery.value
+        }
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record == nil)
     }
@@ -1767,8 +1883,12 @@ struct SessionControllerTests {
         let controller = try makeController(
             loader: loader,
             storage: storage,
-            logoutPendingChangesObserver: { authorization in try probe.inspect(authorization) },
-            logoutPendingChangesDiscarder: { authorization in try probe.discard(authorization) }
+            logoutPendingChangesObserver: { authorization in
+                try probe.inspect(authorization)
+            },
+            logoutPendingChangesDiscarder: { authorization in
+                try probe.discard(authorization)
+            }
         )
         _ = try await controller.restore()
         let authorizationBeforeLogout = try await controller.requestAuthorization()
@@ -1806,14 +1926,18 @@ struct SessionControllerTests {
         )
         _ = try await controller.restore()
 
-        let logout = Task { try await controller.logout() }
+        let logout = Task {
+            try await controller.logout()
+        }
         await inspectionGate.waitUntilArrived()
         await #expect(throws: SessionControllerError.transitionInProgress) {
             try await controller.login(email: "b@example.invalid", password: "synthetic-passphrase-b")
         }
         await inspectionGate.open()
 
-        await #expect(throws: SessionControllerError.pendingCollectionChanges) { try await logout.value }
+        await #expect(throws: SessionControllerError.pendingCollectionChanges) {
+            try await logout.value
+        }
         #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
         #expect(storage.snapshot().record == session)
     }
@@ -1836,9 +1960,13 @@ struct SessionControllerTests {
         )
         _ = try await controller.restore()
 
-        let logout = Task { try await controller.logout() }
+        let logout = Task {
+            try await controller.logout()
+        }
 
-        await #expect(throws: CancellationError.self) { try await logout.value }
+        await #expect(throws: CancellationError.self) {
+            try await logout.value
+        }
         #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
         #expect(storage.snapshot().record == session)
         #expect(storage.snapshot().journal.filter { $0 == .removeAll }.isEmpty)
@@ -1902,8 +2030,12 @@ struct SessionControllerTests {
         let controller = try makeController(
             loader: loader,
             storage: storage,
-            logoutPendingChangesObserver: { authorization in try probe.inspect(authorization) },
-            logoutPendingChangesDiscarder: { authorization in try probe.discard(authorization) }
+            logoutPendingChangesObserver: { authorization in
+                try probe.inspect(authorization)
+            },
+            logoutPendingChangesDiscarder: { authorization in
+                try probe.discard(authorization)
+            }
         )
         _ = try await controller.restore()
         await #expect(throws: SessionControllerError.pendingCollectionChanges) {
@@ -1934,7 +2066,9 @@ struct SessionControllerTests {
         let controller = try makeController(
             loader: loader,
             storage: storage,
-            logoutPendingChangesDiscarder: { _ in throw CancellationError() }
+            logoutPendingChangesDiscarder: { _ in
+                throw CancellationError()
+            }
         )
         _ = try await controller.restore()
 
@@ -1977,7 +2111,9 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         storage.failNext(.removeAll, with: .temporarilyUnavailable)
 
-        let logout = Task { try await controller.logout() }
+        let logout = Task {
+            try await controller.logout()
+        }
         await deletionGate.waitUntilEntered()
         clock.advance(by: 601)
         deletionGate.open()
@@ -2009,7 +2145,9 @@ struct SessionControllerTests {
         let authorization = try await controller.requestAuthorization()
         storage.failNext(.removeAll, with: .temporarilyUnavailable)
 
-        let logout = Task { try await controller.logout() }
+        let logout = Task {
+            try await controller.logout()
+        }
         await deletionGate.waitUntilEntered()
         await #expect(throws: SessionControllerError.transitionInProgress) {
             try await controller.recoverAuthorization(after: authorization)
@@ -2050,7 +2188,9 @@ struct SessionControllerTests {
         let renewedAuthorization = try await controller.requestAuthorization()
         storage.failNext(.removeAll, with: .temporarilyUnavailable)
 
-        let logout = Task { try await controller.logout() }
+        let logout = Task {
+            try await controller.logout()
+        }
         await deletionGate.waitUntilEntered()
         await #expect(throws: SessionControllerError.sessionChanged) {
             try await controller.recoverAuthorization(after: staleAuthorization)
@@ -2116,7 +2256,9 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         storage.cancelCurrentTaskAfter(.removeAll)
 
-        let logout = Task { try await controller.logout() }
+        let logout = Task {
+            try await controller.logout()
+        }
 
         #expect(try await logout.value == .signedOut)
         #expect(logout.isCancelled)
@@ -2133,7 +2275,9 @@ struct SessionControllerTests {
         let controller = try makeController(loader: loader, storage: storage)
         _ = try await controller.restore()
 
-        let logout = Task { try await controller.logout() }
+        let logout = Task {
+            try await controller.logout()
+        }
         await deletionGate.waitUntilEntered()
 
         await #expect(throws: SessionControllerError.transitionInProgress) {
@@ -2168,12 +2312,16 @@ struct SessionControllerTests {
         let loader = ScriptedSessionDataLoader(replies: [])
         let controller = try makeController(loader: loader, storage: storage)
 
-        let restore = Task { try await controller.restore() }
+        let restore = Task {
+            try await controller.restore()
+        }
         await deletionGate.waitUntilEntered()
         restore.cancel()
         deletionGate.open()
 
-        await #expect(throws: SessionControllerError.temporarilyUnavailable) { try await restore.value }
+        await #expect(throws: SessionControllerError.temporarilyUnavailable) {
+            try await restore.value
+        }
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record == session)
         #expect(await loader.requestPaths().isEmpty)
@@ -2188,12 +2336,16 @@ struct SessionControllerTests {
         let loader = ScriptedSessionDataLoader(replies: [])
         let controller = try makeController(loader: loader, storage: storage)
 
-        let restore = Task { try await controller.restore() }
+        let restore = Task {
+            try await controller.restore()
+        }
         await loadGate.waitUntilEntered()
         restore.cancel()
         loadGate.open()
 
-        await #expect(throws: SessionControllerError.temporarilyUnavailable) { try await restore.value }
+        await #expect(throws: SessionControllerError.temporarilyUnavailable) {
+            try await restore.value
+        }
         #expect(await controller.currentSnapshot() == .notRestored)
         #expect(storage.snapshot().record == session)
         #expect(await loader.requestPaths().isEmpty)
@@ -2227,13 +2379,19 @@ struct SessionControllerTests {
         let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)], identityGate: gate)
         let controller = try makeController(loader: loader, storage: storage)
 
-        let cancelled = Task { try await controller.restore() }
+        let cancelled = Task {
+            try await controller.restore()
+        }
         await gate.waitUntilArrived()
-        let remaining = Task { try await controller.restore() }
+        let remaining = Task {
+            try await controller.restore()
+        }
         cancelled.cancel()
         await gate.open()
 
-        await #expect(throws: CancellationError.self) { try await cancelled.value }
+        await #expect(throws: CancellationError.self) {
+            try await cancelled.value
+        }
         #expect(try await remaining.value == .active(Self.remoteAccount))
         #expect(storage.snapshot().journal.filter { $0 == .load }.count == 1)
     }
@@ -2244,7 +2402,9 @@ struct SessionControllerTests {
         let gate = SessionRequestGate()
         let loader = ConcurrentLoginDataLoader(gate: gate)
         let controller = try makeController(
-            loadData: { request in try await loader.load(request) },
+            loadData: { request in
+                try await loader.load(request)
+            },
             storage: storage,
             generationFactory: { Self.generation }
         )
@@ -2258,7 +2418,9 @@ struct SessionControllerTests {
         await gate.open()
 
         #expect(accountB == .active(Self.remoteAccountBGenerationA))
-        await #expect(throws: SessionControllerError.sessionChanged) { try await loginA.value }
+        await #expect(throws: SessionControllerError.sessionChanged) {
+            try await loginA.value
+        }
         #expect(storage.snapshot().record?.userID == Self.userB)
     }
 
@@ -2273,7 +2435,9 @@ struct SessionControllerTests {
         authenticationInvalidationObserver: @escaping SessionController.AuthenticationInvalidationObserver = { _ in }
     ) throws(any Error) -> SessionController {
         try makeController(
-            loadData: { request in try await loader.load(request) },
+            loadData: { request in
+                try await loader.load(request)
+            },
             storage: storage,
             clock: clock,
             generationFactory: generationFactory,
@@ -2298,12 +2462,16 @@ struct SessionControllerTests {
         let apiClient = SessionAPIClient(
             configuration: try APIConfiguration(baseURL: baseURL),
             loadData: loadData,
-            now: { clock.value() }
+            now: {
+                clock.value()
+            }
         )
         return SessionController(
             apiClient: apiClient,
             persistence: SessionPersistenceActor(operations: storage.operations()),
-            now: { clock.value() },
+            now: {
+                clock.value()
+            },
             makeGeneration: generationFactory,
             synchronizationObserver: synchronizationObserver,
             logoutPendingChangesObserver: logoutPendingChangesObserver,
@@ -2492,7 +2660,9 @@ private final class SessionPendingLogoutProbe: Sendable {
     private let state = Mutex(State())
 
     func install(_ authorization: SessionCommitAuthorization) {
-        state.withLock { $0.normalAuthorization = authorization }
+        state.withLock {
+            $0.normalAuthorization = authorization
+        }
     }
 
     func inspect(_ authorization: SessionLogoutAuthorization) throws -> Bool {
@@ -2511,8 +2681,12 @@ private final class SessionPendingLogoutProbe: Sendable {
 
         return state.withLock { state in
             state.inspections += 1
-            if logoutCommitSucceeded { state.successfulLogoutCommits += 1 }
-            if normalCommitWasRejected { state.rejectedNormalCommits += 1 }
+            if logoutCommitSucceeded {
+                state.successfulLogoutCommits += 1
+            }
+            if normalCommitWasRejected {
+                state.rejectedNormalCommits += 1
+            }
             return state.hasPendingChanges
         }
     }
@@ -2522,7 +2696,9 @@ private final class SessionPendingLogoutProbe: Sendable {
         state.withLock { state in
             state.hasPendingChanges = false
             state.discards += 1
-            if logoutCommitSucceeded { state.successfulLogoutCommits += 1 }
+            if logoutCommitSucceeded {
+                state.successfulLogoutCommits += 1
+            }
         }
     }
 
@@ -2691,12 +2867,16 @@ private actor StaleRestoreIdentityDataLoader {
 
     func waitUntilOldReplyWasDelivered() async {
         guard oldReplyWasDelivered == false else { return }
-        await withCheckedContinuation { oldReplyDeliveryWaiters.append($0) }
+        await withCheckedContinuation {
+            oldReplyDeliveryWaiters.append($0)
+        }
     }
 
     private func markOldReplyWasDelivered() {
         oldReplyWasDelivered = true
-        oldReplyDeliveryWaiters.forEach { $0.resume() }
+        oldReplyDeliveryWaiters.forEach {
+            $0.resume()
+        }
         oldReplyDeliveryWaiters.removeAll()
     }
 
@@ -2980,20 +3160,28 @@ private actor SessionRequestGate {
 
     func suspendUntilOpen() async {
         arrived = true
-        arrivalWaiters.forEach { $0.resume() }
+        arrivalWaiters.forEach {
+            $0.resume()
+        }
         arrivalWaiters.removeAll()
         guard isOpen == false else { return }
-        await withCheckedContinuation { openWaiters.append($0) }
+        await withCheckedContinuation {
+            openWaiters.append($0)
+        }
     }
 
     func waitUntilArrived() async {
         guard arrived == false else { return }
-        await withCheckedContinuation { arrivalWaiters.append($0) }
+        await withCheckedContinuation {
+            arrivalWaiters.append($0)
+        }
     }
 
     func open() {
         isOpen = true
-        openWaiters.forEach { $0.resume() }
+        openWaiters.forEach {
+            $0.resume()
+        }
         openWaiters.removeAll()
     }
 }
@@ -3022,10 +3210,14 @@ private final class TestSessionClock: Sendable {
     }
 
     func advance(by interval: TimeInterval) {
-        state.withLock { $0.now = $0.now.addingTimeInterval(interval) }
+        state.withLock {
+            $0.now = $0.now.addingTimeInterval(interval)
+        }
     }
 
     func advanceAfterNextRead(by interval: TimeInterval) {
-        state.withLock { $0.advanceAfterRead = interval }
+        state.withLock {
+            $0.advanceAfterRead = interval
+        }
     }
 }

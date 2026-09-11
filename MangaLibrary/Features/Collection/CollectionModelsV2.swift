@@ -337,7 +337,12 @@ private extension MangaLibrarySchema.V2.MangaSnapshot.Author {
     }
 
     var mangaAuthor: Manga.Author {
-        Manga.Author(id: id, firstName: firstName, lastName: lastName, role: role.mangaRole)
+        Manga.Author(
+            id: id,
+            firstName: firstName,
+            lastName: lastName,
+            role: role.mangaRole
+        )
     }
 }
 

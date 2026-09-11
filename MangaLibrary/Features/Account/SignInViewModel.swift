@@ -149,8 +149,12 @@ final class SignInViewModel {
     }
 
     private func firstInvalidFocus(for validation: AccountModel.CredentialValidation) -> FocusedField? {
-        if validation.emailFailure != nil { return .email }
-        if validation.passwordFailure != nil { return passwordFocus }
+        if validation.emailFailure != nil {
+            return .email
+        }
+        if validation.passwordFailure != nil {
+            return passwordFocus
+        }
         return nil
     }
 
@@ -162,6 +166,8 @@ final class SignInViewModel {
     }
 
     private func suppressFocusValidationIfNeeded(_ currentFocus: FocusedField?) {
-        if currentFocus != nil { suppressNextFocusValidation = true }
+        if currentFocus != nil {
+            suppressNextFocusValidation = true
+        }
     }
 }

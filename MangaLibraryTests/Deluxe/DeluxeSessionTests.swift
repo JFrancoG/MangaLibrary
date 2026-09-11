@@ -115,7 +115,9 @@ struct DeluxeSessionTests {
         let contexts = Mutex<[Data]>([])
 
         try await controller.deliverWatchContext { data in
-            contexts.withLock { $0.append(data) }
+            contexts.withLock {
+                $0.append(data)
+            }
         }
 
         let bytes = try #require(contexts.withLock { $0.last })
@@ -132,14 +134,20 @@ struct DeluxeSessionTests {
         try await fixture.restoreAndPublishEmpty(using: controller)
         let contexts = Mutex<[Data]>([])
         try await controller.deliverWatchContext { data in
-            contexts.withLock { $0.append(data) }
+            contexts.withLock {
+                $0.append(data)
+            }
         }
         try #require(contexts.withLock { $0.count } == 1)
-        contexts.withLock { $0.removeAll() }
+        contexts.withLock {
+            $0.removeAll()
+        }
 
         let relaunched = try fixture.makeController()
         try await relaunched.deliverWatchContext { data in
-            contexts.withLock { $0.append(data) }
+            contexts.withLock {
+                $0.append(data)
+            }
         }
 
         #expect(contexts.withLock { $0.isEmpty })
@@ -157,7 +165,9 @@ struct DeluxeSessionTests {
             makeGeneration: { UUID() },
             requestReload: { _ in },
             sendWatchContext: { data in
-                attempts.withLock { $0.append(data) }
+                attempts.withLock {
+                    $0.append(data)
+                }
                 throw WatchReadingConnectivityError.deliveryFailed
             }
         )
@@ -171,7 +181,9 @@ struct DeluxeSessionTests {
         #expect(try ReadingSnapshotCodec.decode(attempted).state == .redacted)
         let delivered = Mutex<[Data]>([])
         try await controller.deliverWatchContext { data in
-            delivered.withLock { $0.append(data) }
+            delivered.withLock {
+                $0.append(data)
+            }
         }
         let retried = try #require(delivered.withLock { $0.last })
         #expect(try ReadingSnapshotCodec.decode(retried).state == .redacted)
@@ -842,7 +854,9 @@ private struct DeluxeSessionFixture {
             publisherDirectory: directory.appending(path: "publisher"),
             now: { clock.value },
             makeGeneration: { UUID() },
-            loadCover: { _ in throw DeluxeSessionFixtureError.unexpectedCoverRequest },
+            loadCover: { _ in
+                throw DeluxeSessionFixtureError.unexpectedCoverRequest
+            },
             requestReload: { _ in }
         )
     }

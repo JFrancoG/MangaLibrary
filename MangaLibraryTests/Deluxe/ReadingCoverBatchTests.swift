@@ -49,7 +49,9 @@ struct ReadingCoverBatchTests {
             projection: projection,
             preferredCollectionStartMangaID: focusNewAddition ? 260 : nil
         ) { url in
-            fetched.withLock { $0.append(url.lastPathComponent) }
+            fetched.withLock {
+                $0.append(url.lastPathComponent)
+            }
             return source
         }
 
@@ -70,7 +72,9 @@ struct ReadingCoverBatchTests {
         let fetched = Mutex<[Int]>([])
 
         let covers = try await ReadingCoverBatch.prepare(projection: projection, preferredStartMangaID: 100) { url in
-            fetched.withLock { $0.append(Int(url.lastPathComponent) ?? 0) }
+            fetched.withLock {
+                $0.append(Int(url.lastPathComponent) ?? 0)
+            }
             return source
         }
 
@@ -85,7 +89,9 @@ struct ReadingCoverBatchTests {
         let fetched = Mutex<[Int]>([])
 
         let covers = try await ReadingCoverBatch.prepare(projection: projection) { url in
-            fetched.withLock { $0.append(Int(url.lastPathComponent) ?? 0) }
+            fetched.withLock {
+                $0.append(Int(url.lastPathComponent) ?? 0)
+            }
             return source
         }
 
@@ -103,7 +109,9 @@ struct ReadingCoverBatchTests {
         let fetched = Mutex<[URL]>([])
 
         let covers = try await ReadingCoverBatch.prepare(projection: projection) { url in
-            fetched.withLock { $0.append(url) }
+            fetched.withLock {
+                $0.append(url)
+            }
             return source
         }
 
@@ -128,7 +136,9 @@ struct ReadingCoverBatchTests {
         let fetched = Mutex<[URL]>([])
 
         let covers = try await ReadingCoverBatch.prepare(projection: projection) { url in
-            fetched.withLock { $0.append(url) }
+            fetched.withLock {
+                $0.append(url)
+            }
             switch url.lastPathComponent {
             case "nil": return nil
             case "error": throw SourceFailure.unavailable
@@ -161,7 +171,9 @@ struct ReadingCoverBatchTests {
 
         await #expect(throws: ReadingSnapshotError.self) {
             try await ReadingCoverBatch.prepare(projection: projection) { _ in
-                fetched.withLock { $0 += 1 }
+                fetched.withLock {
+                    $0 += 1
+                }
                 return nil
             }
         }
@@ -176,7 +188,9 @@ struct ReadingCoverBatchTests {
 
         await #expect(throws: CancellationError.self) {
             try await ReadingCoverBatch.prepare(projection: projection) { _ in
-                fetched.withLock { $0 += 1 }
+                fetched.withLock {
+                    $0 += 1
+                }
                 throw CancellationError()
             }
         }
@@ -194,7 +208,9 @@ struct ReadingCoverBatchTests {
             group.addTask {
                 await #expect(throws: CancellationError.self) {
                     try await ReadingCoverBatch.prepare(projection: projection) { _ in
-                        fetched.withLock { $0 += 1 }
+                        fetched.withLock {
+                            $0 += 1
+                        }
                         return nil
                     }
                 }

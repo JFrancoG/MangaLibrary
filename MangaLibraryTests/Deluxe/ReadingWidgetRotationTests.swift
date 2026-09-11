@@ -108,7 +108,9 @@ struct ReadingWidgetRotationTests {
     ) throws {
         let rotation = ReadingWidgetRotation(snapshot: try Self.snapshot(ids: Array(1...20), preferred: 15))
 
-        #expect(rotation.coverResourceIDs(at: Self.date(317), maximumVisibleCount: capacity) == expected.map(Self.cover))
+        #expect(
+            rotation.coverResourceIDs(at: Self.date(317), maximumVisibleCount: capacity) == expected.map(Self.cover)
+        )
     }
 
     @Test
@@ -117,7 +119,9 @@ struct ReadingWidgetRotationTests {
         let rotation = ReadingWidgetRotation(snapshot: snapshot)
 
         #expect(rotation.items(at: Self.date(300)).prefix(2).map(\.mangaID) == [20, 30])
-        #expect(rotation.coverResourceIDs(at: Self.date(300), maximumVisibleCount: 3) == [Self.cover(10), Self.cover(40)])
+        #expect(
+            rotation.coverResourceIDs(at: Self.date(300), maximumVisibleCount: 3) == [Self.cover(10), Self.cover(40)]
+        )
     }
 }
 

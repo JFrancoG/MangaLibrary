@@ -41,7 +41,9 @@ struct CollectionOutboxPipelineTests {
         let baseURL = try #require(URL(string: "https://collection.example.test/api"))
         let client = CollectionAPIClient(
             configuration: try APIConfiguration(baseURL: baseURL),
-            loadData: { request in try await loader.load(request) }
+            loadData: { request in
+                try await loader.load(request)
+            }
         )
         let requestAuthorization = SessionRequestAuthorization(
             authority: authority,
@@ -51,7 +53,9 @@ struct CollectionOutboxPipelineTests {
         let importCoordinator = CollectionSyncCoordinator(
             authorize: { requestAuthorization },
             validateAuthorization: { authorization in authorization.authority == authority },
-            fetchRemote: { accessToken in try await client.fetch(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await client.fetch(accessToken: accessToken)
+            },
             importRemote: { entries, authorization in
                 try await mutationActor.importRemote(entries, authorization: authorization)
             }
@@ -71,7 +75,9 @@ struct CollectionOutboxPipelineTests {
                     accessToken: accessToken
                 )
             },
-            fetchRemote: { accessToken in try await client.fetch(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await client.fetch(accessToken: accessToken)
+            },
             importRemote: { entries, authorization in
                 try await mutationActor.importRemote(entries, authorization: authorization)
             },
@@ -221,8 +227,12 @@ struct CollectionOutboxPipelineTests {
         let importCoordinator = CollectionSyncCoordinator(
             authorize: { requestAuthorization },
             validateAuthorization: { authorization in authorization.authority == authority },
-            fetchRemote: { accessToken in try await probe.fetch(accessToken: accessToken) },
-            importRemote: { _, _ in throw scenario.error }
+            fetchRemote: { accessToken in
+                try await probe.fetch(accessToken: accessToken)
+            },
+            importRemote: { _, _ in
+                throw scenario.error
+            }
         )
         let synchronization = CollectionSynchronization(
             importCoordinator: importCoordinator,
@@ -362,7 +372,9 @@ struct CollectionOutboxPipelineTests {
             claimNextUpload: { authorization, now in
                 try await mutationActor.claimNextUpload(authorization: authorization, now: now)
             },
-            submit: { _, _ in await submissionCounter.record() },
+            submit: { _, _ in
+                await submissionCounter.record()
+            },
             fetchRemote: { _ in [] },
             importRemote: { _, _ in },
             confirmUpload: { _, _ in },
@@ -412,7 +424,9 @@ struct CollectionOutboxPipelineTests {
         let importCoordinator = CollectionSyncCoordinator(
             authorize: { requestAuthorization },
             validateAuthorization: { _ in true },
-            fetchRemote: { _ in throw CollectionAPIClientError.unavailable },
+            fetchRemote: { _ in
+                throw CollectionAPIClientError.unavailable
+            },
             importRemote: { _, _ in }
         )
         let submissionCounter = SubmissionCounter()
@@ -422,7 +436,9 @@ struct CollectionOutboxPipelineTests {
             claimNextUpload: { authorization, now in
                 try await mutationActor.claimNextUpload(authorization: authorization, now: now)
             },
-            submit: { _, _ in await submissionCounter.record() },
+            submit: { _, _ in
+                await submissionCounter.record()
+            },
             fetchRemote: { _ in [] },
             importRemote: { entries, authorization in
                 try await mutationActor.importRemote(entries, authorization: authorization)
@@ -905,7 +921,9 @@ struct CollectionOutboxPipelineTests {
         let importCoordinator = CollectionSyncCoordinator(
             authorize: { requestAuthorization },
             validateAuthorization: { authorization in authorization.authority == requestAuthorization.authority },
-            fetchRemote: { accessToken in try await probe.fetch(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await probe.fetch(accessToken: accessToken)
+            },
             importRemote: { entries, authorization in
                 try await mutationActor.importRemote(entries, authorization: authorization)
             }
@@ -937,7 +955,9 @@ struct CollectionOutboxPipelineTests {
             submit: { workItem, accessToken in
                 try await probe.submit(workItem, accessToken: accessToken)
             },
-            fetchRemote: { accessToken in try await probe.fetch(accessToken: accessToken) },
+            fetchRemote: { accessToken in
+                try await probe.fetch(accessToken: accessToken)
+            },
             importRemote: { entries, authorization in
                 try await mutationActor.importRemote(entries, authorization: authorization)
             },
@@ -1103,9 +1123,7 @@ private actor RecoveredPipelineProbe {
     }
 
     func submit(_ workItem: CollectionOutboxUploadWorkItem, accessToken: String) throws {
-        guard workItem.mangaID == 42, accessToken == "synthetic-access" else {
-            throw Failure.readFailed
-        }
+        guard workItem.mangaID == 42, accessToken == "synthetic-access" else { throw Failure.readFailed }
         submitCount += 1
     }
 

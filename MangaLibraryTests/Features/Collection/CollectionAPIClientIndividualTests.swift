@@ -80,7 +80,11 @@ struct CollectionAPIClientIndividualTests {
 
     @Test("Individual GET preserves task cancellation")
     func individualGetPropagatesCancellation() async throws(any Error) {
-        let client = try makeClient(loadResponse: { _ in throw CancellationError() })
+        let client = try makeClient(
+            loadResponse: { _ in
+                throw CancellationError()
+            }
+        )
 
         await #expect(throws: CancellationError.self) {
             _ = try await client.fetch(mangaID: 42, accessToken: "fixture-access")
@@ -142,7 +146,11 @@ struct CollectionAPIClientIndividualTests {
 
     @Test("DELETE preserves task cancellation")
     func deletePropagatesCancellation() async throws(any Error) {
-        let client = try makeClient(loadData: { _ in throw CancellationError() })
+        let client = try makeClient(
+            loadData: { _ in
+                throw CancellationError()
+            }
+        )
 
         await #expect(throws: CancellationError.self) {
             _ = try await client.remove(mangaID: 42, accessToken: "fixture-access")
@@ -166,7 +174,9 @@ struct CollectionAPIClientIndividualTests {
         let baseURL = try #require(URL(string: "https://collection.example.test/api"))
         return CollectionAPIClient(
             configuration: try APIConfiguration(baseURL: baseURL),
-            loadData: { _ in throw CollectionAPIClientError.unavailable },
+            loadData: { _ in
+                throw CollectionAPIClientError.unavailable
+            },
             loadResponse: loadResponse
         )
     }
