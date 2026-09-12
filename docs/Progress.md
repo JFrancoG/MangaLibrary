@@ -10,6 +10,78 @@ aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
 
+## M02 — Persistencia de blockedOutcome — issue #112
+
+El propietario autoriza el 2026-09-12 abrir
+[#112](https://github.com/JFrancoG/MangaLibrary/issues/112) e implementar la segunda
+unidad M02. La rama `codex/112-m02-blocked-outcome` parte de `main@d9ab7f6`, tras
+bootstrap DEBUG. Se conservan SDD 01/03/04 R2.4/06 y la política DocC selectiva.
+
+`CollectionOutboxUpload.swift` pasa de 1.042 a 729 líneas. El nuevo
+`CollectionOutboxBlockedOutcome.swift` tiene 319 y agrupa el checkpoint,
+`blockedOutcomeContext`, `blockedOutcomeEvidence`, `resolveBlockedOutcome` y
+sus helpers privados en otra extensión del mismo `CollectionMutationActor`.
+La extracción conserva literalmente las 314 líneas del bloque original,
+incluidas firmas, cuerpos y DocC. No se crea otro actor, store o coordinador.
+
+La única ampliación de acceso es `removeOlderConfirmedUploads`, de privado a
+interno. Mantiene su implementación en upload y el aislamiento del actor;
+los tres llamadores de upload y el de blockedOutcome comparten esa operación.
+Todos confirman primero la fila y llaman dentro de la transacción autorizada.
+Su nuevo DocC explicita esas precondiciones y que el helper no abre otra
+transacción ni guarda por su cuenta. Ningún otro miembro privado se expone.
+Se descartan duplicar el borrado o añadir otro propietario para evitar esa
+ampliación mínima de acceso.
+
+Las barreras de autoridad y estado, N+1, cancelación, transacción, rollback y
+evento posterior al commit permanecen intactas. No cambia UI, esquema,
+configuración, test, oráculo ni plan; tampoco se añaden atributos de concurrencia.
+
+### Validación M02 blockedOutcome
+
+- Xcode MCP: MangaLibrary, iPhone 17 Simulator / iOS 27.0, plan Fast; Swift 6,
+  concurrencia complete, aislamiento nonisolated y deployment iOS 27.
+- `BuildProject(buildForTesting: true)` correcto y `GetBuildLog` sin warnings.
+- Audit swift-source-style manual y recall sobre ambos Swift, incluido el nuevo
+  no versionado: cero candidatos; `git diff --check` limpio.
+- Comparación literal del bloque y revisión iOS independiente: sin hallazgos.
+  Confirma identidad de las operaciones, cuatro llamadores válidos de la
+  limpieza compartida y ausencia de transferencias nuevas de modelos vivos.
+- La regresión existente cubre N+1, contexto obsoleto, UUID duplicado, secuencia
+  agotada, fallo de guardado y cancelación. No se añaden tests estructurales
+  ni se repite la validación visual/UI de una presentación que no cambia.
+- `Scripts/validate-test-plans.sh`: 28 suites Fast / 40 Integration; filtros,
+  partición, targets y host sintético correctos.
+
+- `Scripts/validate-advanced-build.sh --deluxe`, con Xcode 27 RC `27A266a`
+  y Swift 6.4 `swiftlang-6.4.0.34.1`: cinco targets, Debug/Release, cero
+  warnings/errores y cero tareas de metadata App Intents. Gate limpio posterior
+  al Audit y anterior a los tests, sobre el diff final.
+- `RunAllTests` Fast a las 09:43:11: **358 declaraciones / 568 invocaciones**;
+  Integration a las 09:43:29: **454 / 629**. Total disjunto **812 / 1.197**,
+  sin fallos, skips, fallos esperados ni runtime warnings. iPhone 17 Simulator,
+  iOS 27.0; horas Europe/Madrid del 2026-09-12.
+- Resúmenes y árboles nativos de ambos `.xcresult` confirman 812 identificadores
+  únicos aprobados, sin intersección entre planes. Incluyen las cinco
+  declaraciones de la suite de revisión y las 19 de resolución blockedOutcome.
+  No se usan agregados históricos MCP ni ejecuciones de la unidad bootstrap.
+- Bundles `Test-MangaLibrary-2026.09.12_09-43-11-+0200.xcresult` y
+  `Test-MangaLibrary-2026.09.12_09-43-29-+0200.xcresult`, fuera de Git.
+  Plan devuelto a Fast; diagnósticos MCP finales sin warnings.
+- `Scripts/validate-docc.sh`: archive nuevo para iOS genérico en Release,
+  cero warnings/errores. Verificadas las páginas de las tres operaciones y
+  del helper compartido. Salida ignorada en
+  `.build/docc/MangaLibrary.doccarchive`, sin publicación.
+
+Implementación y validación local completas. El propietario autoriza el
+2026-09-12 commit, push, PR, merge, cierre de #112 y borrado de la rama.
+Se reutilizan los gates anteriores: ambos Swift coinciden por SHA-256 con el
+contenido validado y el Audit del diff se repite antes de la PR. Los enlaces
+definitivos de entrega se registran en #112. Se excluyen ejecución UI,
+hardware, backend y otras reorganizaciones. #77/#88 mantienen 5/7 y sus
+pendientes físicos.
+
+
 ## M02 — Bootstrap DEBUG — issue #110
 
 El propietario autoriza el 2026-09-12 abrir
