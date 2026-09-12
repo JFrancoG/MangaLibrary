@@ -39,7 +39,5 @@ enum NetworkError: Error, Equatable {
 }
 
 extension NetworkError: LocalizedError {
-    var errorDescription: String? {
-        String(localized: errorDescriptionResource)
-    }
+    var errorDescription: String? { String(localized: errorDescriptionResource) }
 }

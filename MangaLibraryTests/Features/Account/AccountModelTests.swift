@@ -1039,9 +1039,7 @@ private actor ControlledAccountSession {
         registrationPlans[email] = RegistrationPlan(submission: submission, gate: gate)
     }
 
-    func remoteCalls() -> [AccountRemoteCall] {
-        recordedRemoteCalls
-    }
+    func remoteCalls() -> [AccountRemoteCall] { recordedRemoteCalls }
 
     func setLogoutResult(
         _ result: Result<SessionSnapshot, SessionControllerError>,
@@ -1050,9 +1048,7 @@ private actor ControlledAccountSession {
         logoutResults[discardPendingChanges] = result
     }
 
-    func logoutCalls() -> [Bool] {
-        recordedLogoutCalls
-    }
+    func logoutCalls() -> [Bool] { recordedLogoutCalls }
 
     func cancelNextLogoutBeforeReturning() {
         cancelsNextLogoutBeforeReturning = true

@@ -8,41 +8,21 @@ import SwiftData
 
 enum MangaLibrarySchema {
     enum V1: VersionedSchema {
-        static var versionIdentifier: Schema.Version {
-            Schema.Version(1, 0, 0)
-        }
+        static var versionIdentifier: Schema.Version { Schema.Version(1, 0, 0) }
 
-        static var models: [any PersistentModel.Type] {
-            [
-                CollectionEntry.self,
-                CollectionOutboxOperation.self
-            ]
-        }
+        static var models: [any PersistentModel.Type] { [CollectionEntry.self, CollectionOutboxOperation.self] }
     }
 
     enum V2: VersionedSchema {
-        static var versionIdentifier: Schema.Version {
-            Schema.Version(2, 0, 0)
-        }
+        static var versionIdentifier: Schema.Version { Schema.Version(2, 0, 0) }
 
-        static var models: [any PersistentModel.Type] {
-            [
-                CollectionEntry.self,
-                CollectionOutboxOperation.self
-            ]
-        }
+        static var models: [any PersistentModel.Type] { [CollectionEntry.self, CollectionOutboxOperation.self] }
     }
 
     enum MigrationPlan: SchemaMigrationPlan {
-        static var schemas: [any VersionedSchema.Type] {
-            [V1.self, V2.self]
-        }
+        static var schemas: [any VersionedSchema.Type] { [V1.self, V2.self] }
 
-        static var stages: [MigrationStage] {
-            [
-                .lightweight(fromVersion: V1.self, toVersion: V2.self)
-            ]
-        }
+        static var stages: [MigrationStage] { [.lightweight(fromVersion: V1.self, toVersion: V2.self)] }
     }
 
     /// Creates a container with the app's complete versioned product-data schema.

@@ -39,9 +39,7 @@ actor ControlledCatalogLoader {
         }
     }
 
-    func requests() -> [CatalogPageRequest] {
-        recordedRequests
-    }
+    func requests() -> [CatalogPageRequest] { recordedRequests }
 
     func waitForRequestCount(_ expectedCount: Int) async {
         guard recordedRequests.count < expectedCount else { return }
@@ -59,9 +57,7 @@ actor ControlledCatalogLoader {
         continuations.removeValue(forKey: requestIndex)?.resume(throwing: error)
     }
 
-    func wasCancelled(at requestIndex: Int) -> Bool {
-        cancelledRequestIndices.contains(requestIndex)
-    }
+    func wasCancelled(at requestIndex: Int) -> Bool { cancelledRequestIndices.contains(requestIndex) }
 
     func waitForCancellation(at requestIndex: Int) async {
         guard !cancelledRequestIndices.contains(requestIndex) else { return }

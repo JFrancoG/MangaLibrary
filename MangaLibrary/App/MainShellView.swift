@@ -41,9 +41,7 @@ extension AccountCollectionNotice {
         userID: UUID?,
         operations: [CollectionOutboxOperation]
     ) -> AccountCollectionNotice? {
-        guard
-            let userID,
-            operations.contains(where: { $0.userID == userID && $0.state == .blockedOutcome })
+        guard let userID, operations.contains(where: { $0.userID == userID && $0.state == .blockedOutcome })
         else { return nil }
 
         return AccountCollectionNotice(userID: userID, reason: .uploadOutcomeUnconfirmed)

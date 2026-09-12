@@ -102,9 +102,7 @@ struct CollectionWidgetRowView: View {
             .accessibilityLabel(Text(completionLabel))
     }
 
-    private var completionTitle: LocalizedStringResource {
-        item.isComplete ? "Complete" : "Incomplete"
-    }
+    private var completionTitle: LocalizedStringResource { item.isComplete ? "Complete" : "Incomplete" }
 
     private var completionLabel: LocalizedStringResource {
         item.isComplete ? "Collection complete" : "Collection incomplete"

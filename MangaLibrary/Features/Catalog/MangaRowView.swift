@@ -48,15 +48,9 @@ struct MangaRowView: View {
     private var formattedAuthors: String {
         manga.authors
             .map { author in
-                author.nameComponents.formatted(
-                    .name(style: .medium)
-                        .locale(locale)
-                )
+                author.nameComponents.formatted(.name(style: .medium).locale(locale))
             }
-            .formatted(
-                .list(type: .and)
-                    .locale(locale)
-            )
+            .formatted(.list(type: .and).locale(locale))
     }
 }
 

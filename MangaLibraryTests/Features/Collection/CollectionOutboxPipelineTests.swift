@@ -1067,9 +1067,7 @@ private actor SubmissionCounter {
         submissionCount += 1
     }
 
-    func count() -> Int {
-        submissionCount
-    }
+    func count() -> Int { submissionCount }
 }
 
 private actor RetryPipelineProbe {
@@ -1088,9 +1086,7 @@ private actor RetryPipelineProbe {
         }
     }
 
-    func attemptRetryCounts() -> [Int] {
-        retryCounts
-    }
+    func attemptRetryCounts() -> [Int] { retryCounts }
 }
 
 private struct RecoveredPipelineEvidence: Equatable {
@@ -1154,7 +1150,5 @@ private actor GetThenPostLoader {
         }
     }
 
-    func methods() -> [String] {
-        loadedMethods
-    }
+    func methods() -> [String] { loadedMethods }
 }

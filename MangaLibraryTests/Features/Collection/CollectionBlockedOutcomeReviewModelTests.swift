@@ -239,9 +239,7 @@ private actor ReviewModelProbe {
         }
     }
 
-    func evidence() -> ReviewModelEvidence {
-        ReviewModelEvidence(reviewCalls: reviewCalls, decisions: decisions)
-    }
+    func evidence() -> ReviewModelEvidence { ReviewModelEvidence(reviewCalls: reviewCalls, decisions: decisions) }
 }
 
 private actor ReviewModelGate {

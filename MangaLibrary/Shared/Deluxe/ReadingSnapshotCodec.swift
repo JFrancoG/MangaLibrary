@@ -73,9 +73,7 @@ enum CollectionWidgetSnapshotCodec {
         return try JSONDecoder().decode(CollectionWidgetSnapshot.self, from: data)
     }
 
-    static func digest(_ data: Data) -> String {
-        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-    }
+    static func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
 
     static func matches(_ data: Data, reference: CollectionWidgetSnapshot.Reference) -> Bool {
         guard data.count == reference.byteCount, data.count <= maximumByteCount else { return false }

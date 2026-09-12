@@ -10,7 +10,5 @@ import SwiftUI
 
 @main
 struct MangaLibraryWidgetBundle: WidgetBundle {
-    var body: some Widget {
-        MangaLibraryWidget()
-    }
+    var body: some Widget { MangaLibraryWidget() }
 }

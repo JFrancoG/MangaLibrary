@@ -378,21 +378,15 @@ struct ReadingCoverStorage {
         }
     }
 
-    private func coverURL(_ identifier: String) -> URL {
-        coversDirectory.appending(path: identifier + ".jpg")
-    }
+    private func coverURL(_ identifier: String) -> URL { coversDirectory.appending(path: identifier + ".jpg") }
 
-    private func receiptURL(_ identifier: String) -> URL {
-        receiptsDirectory.appending(path: identifier + ".json")
-    }
+    private func receiptURL(_ identifier: String) -> URL { receiptsDirectory.appending(path: identifier + ".json") }
 
     private func stagedURL(_ identifier: String, attemptID: UUID) -> URL {
         stagingDirectory.appending(path: attemptID.uuidString + "-" + identifier + ".jpg")
     }
 
-    private static func digest(_ data: Data) -> Data {
-        Data(SHA256.hash(data: data))
-    }
+    private static func digest(_ data: Data) -> Data { Data(SHA256.hash(data: data)) }
 }
 
 extension ReadingCoverStorage {

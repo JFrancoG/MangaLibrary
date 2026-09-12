@@ -61,11 +61,7 @@ struct CatalogAPIClientTests {
         _ = try await client.fetch(CatalogPageRequest(query: .best, page: 2))
 
         let request = try #require(await recorder.requests().first)
-        let components = try #require(
-            request.url.flatMap {
-                URLComponents(url: $0, resolvingAgainstBaseURL: false)
-            }
-        )
+        let components = try #require(request.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) })
         #expect(request.httpMethod == "GET")
         #expect(components.path == "/list/bestMangas")
         #expect(
@@ -97,11 +93,7 @@ struct CatalogAPIClientTests {
         _ = try await client.fetch(CatalogPageRequest(query: .advanced(search)))
 
         let request = try #require(await recorder.requests().first)
-        let components = try #require(
-            request.url.flatMap {
-                URLComponents(url: $0, resolvingAgainstBaseURL: false)
-            }
-        )
+        let components = try #require(request.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) })
         let body = try #require(request.httpBody)
         let payload = String(decoding: body, as: UTF8.self)
         #expect(request.httpMethod == "POST")
@@ -167,16 +159,8 @@ struct CatalogAPIClientTests {
         #expect(requests.allSatisfy { $0.httpMethod == "GET" })
         #expect(requests.allSatisfy { $0.url?.query == nil })
         #expect(requests.allSatisfy { $0.httpBody == nil })
-        #expect(
-            requests.allSatisfy {
-                $0.value(forHTTPHeaderField: "Authorization") == nil
-            }
-        )
-        #expect(
-            requests.allSatisfy {
-                $0.value(forHTTPHeaderField: "App-Token") == nil
-            }
-        )
+        #expect(requests.allSatisfy { $0.value(forHTTPHeaderField: "Authorization") == nil })
+        #expect(requests.allSatisfy { $0.value(forHTTPHeaderField: "App-Token") == nil })
     }
 
     @Test("Filter option network failures preserve their safe category")
@@ -456,9 +440,7 @@ struct CatalogAPIClientTests {
         try makeClient { _ in data }
     }
 
-    private func makeClient(
-        loadData: @escaping CatalogAPIClient.DataLoader
-    ) throws -> CatalogAPIClient {
+    private func makeClient(loadData: @escaping CatalogAPIClient.DataLoader) throws -> CatalogAPIClient {
         let baseURL = try #require(URL(string: "https://catalog.example.test"))
 
         return CatalogAPIClient(configuration: try APIConfiguration(baseURL: baseURL), loadData: loadData)
@@ -501,9 +483,7 @@ enum CatalogAuthorRoleMapping: CaseIterable, CustomTestStringConvertible {
         }
     }
 
-    var testDescription: String {
-        wireValue
-    }
+    var testDescription: String { wireValue }
 }
 
 enum CatalogStatusMapping: CaseIterable, CustomTestStringConvertible {
@@ -533,9 +513,7 @@ enum CatalogStatusMapping: CaseIterable, CustomTestStringConvertible {
         }
     }
 
-    var testDescription: String {
-        wireValue
-    }
+    var testDescription: String { wireValue }
 }
 
 private actor RecordedDataLoader {
@@ -551,9 +529,7 @@ private actor RecordedDataLoader {
         return data
     }
 
-    func requests() -> [URLRequest] {
-        recordedRequests
-    }
+    func requests() -> [URLRequest] { recordedRequests }
 }
 
 private actor RoutedDataLoader {
@@ -574,9 +550,7 @@ private actor RoutedDataLoader {
         return response
     }
 
-    func requests() -> [URLRequest] {
-        recordedRequests
-    }
+    func requests() -> [URLRequest] { recordedRequests }
 }
 
 enum MetadataMismatch: CaseIterable, CustomTestStringConvertible {

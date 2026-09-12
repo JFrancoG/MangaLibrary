@@ -84,7 +84,6 @@ struct ReadingPublisherState: Codable {
     }
 
     private func valid(_ fence: SessionFence) -> Bool {
-        fence.publicationGeneration == publicationGeneration
-            && fence.fenceRevision <= lastReservedFenceRevision
+        fence.publicationGeneration == publicationGeneration && fence.fenceRevision <= lastReservedFenceRevision
     }
 }

@@ -167,9 +167,7 @@ actor UITestingReadingWidget {
     }
 
     private var allowsPublication: Bool {
-        snapshot == .active(account)
-            && !loggingOut
-            && gate.authorizes(account.authority)
+        snapshot == .active(account) && !loggingOut && gate.authorizes(account.authority)
     }
 
     private func deliverWatchContext() async throws {

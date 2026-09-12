@@ -165,9 +165,7 @@ struct SessionAPIClientTests {
         try makeClient { _ in data }
     }
 
-    private func makeClient(
-        loadData: @escaping SessionAPIClient.DataLoader
-    ) throws(any Error) -> SessionAPIClient {
+    private func makeClient(loadData: @escaping SessionAPIClient.DataLoader) throws(any Error) -> SessionAPIClient {
         let baseURL = try #require(URL(string: "https://session.example.test"))
 
         return SessionAPIClient(
@@ -223,7 +221,5 @@ private actor SessionRecordedDataLoader {
         return data
     }
 
-    func requests() -> [URLRequest] {
-        recordedRequests
-    }
+    func requests() -> [URLRequest] { recordedRequests }
 }

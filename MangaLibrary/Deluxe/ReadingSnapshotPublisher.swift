@@ -335,8 +335,10 @@ actor ReadingSnapshotPublisher {
                     try storage.read($0 == 0 ? .collection0 : .collection1)
                 }
             ).readResult()
-            if case let .snapshot(manifest, collection) = result,
-               manifest.sessionGeneration == authorization.authority.generation {
+            if
+                case let .snapshot(manifest, collection) = result,
+                manifest.sessionGeneration == authorization.authority.generation
+            {
                 previous = collection
             } else {
                 previous = nil
@@ -649,9 +651,7 @@ actor ReadingSnapshotPublisher {
         }
     }
 
-    private func collectionFile(slot: Int) -> ReadingSnapshotStorage.File {
-        slot == 0 ? .collection0 : .collection1
-    }
+    private func collectionFile(slot: Int) -> ReadingSnapshotStorage.File { slot == 0 ? .collection0 : .collection1 }
 
     private func publicationPredecessor(
         authorization: SessionCommitAuthorization,

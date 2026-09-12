@@ -14,7 +14,6 @@ struct MainShellContentView: View {
     let collectionSynchronization: CollectionSynchronization
     let collectionBlockedOutcomeResolution: CollectionBlockedOutcomeResolution
     var readingPublication: ReadingPublicationLifecycle? = nil
-
     let authenticatedAuthority: SessionAuthority?
 
     @Environment(\.scenePhase) private var scenePhase
@@ -91,9 +90,7 @@ struct MainShellContentView: View {
                 return
             } catch {
                 await accountModel.reconcileSession(expectedAuthority: authenticatedAuthority, cause: error)
-                guard
-                    !Task.isCancelled,
-                    accountModel.state.authenticatedAuthority == authenticatedAuthority
+                guard !Task.isCancelled, accountModel.state.authenticatedAuthority == authenticatedAuthority
                 else { return }
 
                 transientCollectionNotice = Self.transientCollectionNotice(
@@ -155,6 +152,5 @@ extension MainShellContentView {
 
 #Preview("Scoped shell", traits: .modifier(CollectionPreviewModifier<CollectionPreviewScenarios.Shell>())) {
     @Previewable @Environment(\.modelContext) var modelContext
-
     CollectionPreviewSupport.shell(container: modelContext.container)
 }

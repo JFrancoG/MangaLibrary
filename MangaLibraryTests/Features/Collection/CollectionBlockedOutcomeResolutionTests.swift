@@ -856,9 +856,7 @@ private actor R24SubmitProbe {
         operationIDs.append(item.operationID)
     }
 
-    func submittedOperationIDs() -> [UUID] {
-        operationIDs
-    }
+    func submittedOperationIDs() -> [UUID] { operationIDs }
 }
 
 private enum R24Failure: Error {

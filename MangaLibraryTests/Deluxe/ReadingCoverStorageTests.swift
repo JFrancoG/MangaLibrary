@@ -524,13 +524,9 @@ private extension ReadingCoverStorageTests {
             try ReadingCoverStorage(sharedDirectory: shared, publisherDirectory: publisher, effects: effects)
         }
 
-        func cover(_ image: ReadingCoverResource) -> URL {
-            covers.appending(path: image.identifier + ".jpg")
-        }
+        func cover(_ image: ReadingCoverResource) -> URL { covers.appending(path: image.identifier + ".jpg") }
 
-        func receipt(_ image: ReadingCoverResource) -> URL {
-            receipts.appending(path: image.identifier + ".json")
-        }
+        func receipt(_ image: ReadingCoverResource) -> URL { receipts.appending(path: image.identifier + ".json") }
 
         func files() throws -> [String: Data] {
             var result: [String: Data] = [:]

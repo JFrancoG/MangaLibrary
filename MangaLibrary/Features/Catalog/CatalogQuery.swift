@@ -48,9 +48,7 @@ struct CatalogSearch: Hashable {
         case contains
         case beginsWith
 
-        var searchContains: Bool {
-            self == .contains
-        }
+        var searchContains: Bool { self == .contains }
     }
 
     let matchMode: MatchMode
@@ -62,29 +60,17 @@ struct CatalogSearch: Hashable {
     private let normalizedThemes: [String]
     private let normalizedDemographics: [String]
 
-    var title: String? {
-        normalizedTitle
-    }
+    var title: String? { normalizedTitle }
 
-    var authorFirstName: String? {
-        normalizedAuthorFirstName
-    }
+    var authorFirstName: String? { normalizedAuthorFirstName }
 
-    var authorLastName: String? {
-        normalizedAuthorLastName
-    }
+    var authorLastName: String? { normalizedAuthorLastName }
 
-    var genres: [String] {
-        normalizedGenres
-    }
+    var genres: [String] { normalizedGenres }
 
-    var themes: [String] {
-        normalizedThemes
-    }
+    var themes: [String] { normalizedThemes }
 
-    var demographics: [String] {
-        normalizedDemographics
-    }
+    var demographics: [String] { normalizedDemographics }
 
     var hasCriteria: Bool {
         title != nil

@@ -1305,13 +1305,9 @@ private actor R1SessionDataLoader {
         }
     }
 
-    func requestPaths() -> [String] {
-        requests.compactMap(\.url?.path)
-    }
+    func requestPaths() -> [String] { requests.compactMap(\.url?.path) }
 
-    func recordedRequests() -> [URLRequest] {
-        requests
-    }
+    func recordedRequests() -> [URLRequest] { requests }
 }
 
 private actor R1CollectionDataLoader {
@@ -1348,13 +1344,9 @@ private actor R1CollectionDataLoader {
         }
     }
 
-    func requestCount() -> Int {
-        requests.count
-    }
+    func requestCount() -> Int { requests.count }
 
-    func authorizationHeaders() -> [String] {
-        requests.compactMap { $0.value(forHTTPHeaderField: "Authorization") }
-    }
+    func authorizationHeaders() -> [String] { requests.compactMap { $0.value(forHTTPHeaderField: "Authorization") } }
 }
 
 private actor R1RequestGate {
@@ -1400,17 +1392,13 @@ private actor ControlledSessionAuthority {
         self.current = current
     }
 
-    func isCurrent(_ authority: SessionAuthority) -> Bool {
-        current == authority
-    }
+    func isCurrent(_ authority: SessionAuthority) -> Bool { current == authority }
 
     func replace(with authority: SessionAuthority) {
         current = authority
     }
 
-    func currentAuthority() -> SessionAuthority {
-        current
-    }
+    func currentAuthority() -> SessionAuthority { current }
 }
 
 private actor CollectionFetchRecorder {
@@ -1420,9 +1408,7 @@ private actor CollectionFetchRecorder {
         recordedAccessTokens.append(accessToken)
     }
 
-    func accessTokens() -> [String] {
-        recordedAccessTokens
-    }
+    func accessTokens() -> [String] { recordedAccessTokens }
 }
 
 private actor ControlledSessionAuthorization {
@@ -1471,9 +1457,7 @@ private actor ScriptedCollectionFetch {
         }
     }
 
-    func accessTokens() -> [String] {
-        recordedAccessTokens
-    }
+    func accessTokens() -> [String] { recordedAccessTokens }
 }
 
 private actor CollectionAuthorizationSequence {
@@ -1539,13 +1523,9 @@ private actor ReplacingCollectionFetch {
         }
     }
 
-    func accessTokens() -> [String] {
-        recordedAccessTokens
-    }
+    func accessTokens() -> [String] { recordedAccessTokens }
 
-    func firstRequestWasCancelled() -> Bool {
-        firstCancelled
-    }
+    func firstRequestWasCancelled() -> Bool { firstCancelled }
 
     func succeedFirstRequest() {
         firstContinuation?.resume(returning: [remoteEntry])
@@ -1627,9 +1607,7 @@ private actor CollectionImportRecorder {
         recordedEvents.append(Event(userID: userID, mangaIDs: entries.map(\.manga.id)))
     }
 
-    func events() -> [Event] {
-        recordedEvents
-    }
+    func events() -> [Event] { recordedEvents }
 }
 
 private actor CollectionAuthorizationRecoveryRecorder {
@@ -1639,11 +1617,7 @@ private actor CollectionAuthorizationRecoveryRecorder {
         recordedRequests.append(authorization)
     }
 
-    func requests() -> [SessionRequestAuthorization] {
-        recordedRequests
-    }
+    func requests() -> [SessionRequestAuthorization] { recordedRequests }
 
-    func accessTokens() -> [String] {
-        recordedRequests.map(\.accessToken)
-    }
+    func accessTokens() -> [String] { recordedRequests.map(\.accessToken) }
 }

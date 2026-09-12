@@ -497,9 +497,7 @@ struct ReadingCoverPublicationTests {
             )
         }
 
-        func coverURL(_ identifier: String) -> URL {
-            shared.appending(path: "covers/\(identifier).jpg")
-        }
+        func coverURL(_ identifier: String) -> URL { shared.appending(path: "covers/\(identifier).jpg") }
 
         func persistedSnapshot() throws -> ReadingSnapshot? {
             try ReadingSnapshotReader(storage: snapshotStorage).read()

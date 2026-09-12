@@ -126,9 +126,7 @@ struct ReadingWidgetRotationTests {
 }
 
 private extension ReadingWidgetRotationTests {
-    static func date(_ offset: TimeInterval) -> Date {
-        Date(timeIntervalSince1970: 1_800_000_000 + offset)
-    }
+    static func date(_ offset: TimeInterval) -> Date { Date(timeIntervalSince1970: 1_800_000_000 + offset) }
 
     static func cover(_ id: Int64) -> String {
         let suffix = String(id, radix: 16)

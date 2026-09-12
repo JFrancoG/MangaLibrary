@@ -391,8 +391,7 @@ actor SessionController {
             try await requireAuthentication(expected: authorization.authority)
             return false
         }
-        return rejectedRequest != request
-            && commitGate.authorizes(authorization.commitAuthorization)
+        return rejectedRequest != request && commitGate.authorizes(authorization.commitAuthorization)
     }
 
     /// Reconciles a rejected reading attempt without allowing it to retire a replacement authority.
@@ -834,8 +833,7 @@ actor SessionController {
         do {
             identity = try await apiClient.fetchIdentity(accessToken: accessToken)
         } catch let error as SessionAPIClientError {
-            if case let .network(.statusCode(statusCode)) = error,
-               statusCode == 401 || statusCode == 403 {
+            if case let .network(.statusCode(statusCode)) = error, statusCode == 401 || statusCode == 403 {
                 throw SessionAuthorizationRecoveryError.identityRejected(statusCode: statusCode)
             }
             throw error

@@ -86,7 +86,10 @@ actor WatchReadingSnapshotReceiver {
         }
 
         var proposed = cache
-        if snapshot.state == .redacted, let session = snapshot.sessionGeneration, let current = cache.session,
+        if
+            snapshot.state == .redacted,
+            let session = snapshot.sessionGeneration,
+            let current = cache.session,
             session != current
         {
             // An unrelated redaction supplies a retirement barrier, never a replacement display.

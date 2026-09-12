@@ -42,13 +42,9 @@ final class FixtureURLProtocol: URLProtocol {
         return URLSession(configuration: configuration)
     }
 
-    override class func canInit(with request: URLRequest) -> Bool {
-        route(for: request.url) != nil
-    }
+    override class func canInit(with request: URLRequest) -> Bool { route(for: request.url) != nil }
 
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
-        request
-    }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
         guard let url = request.url, let route = Self.route(for: url) else {

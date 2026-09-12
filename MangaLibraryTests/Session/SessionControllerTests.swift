@@ -1053,11 +1053,7 @@ struct SessionControllerTests {
                 .data(Self.identityResponse),
             ]
         )
-        let controller = try makeController(
-            loader: loader,
-            storage: storage,
-            generationFactory: { Self.generationB }
-        )
+        let controller = try makeController(loader: loader, storage: storage, generationFactory: { Self.generationB })
         _ = try await controller.restore()
         let staleAuthorization = try await controller.requestAuthorization()
         _ = try await controller.logout()
@@ -2772,9 +2768,7 @@ private actor ScriptedSessionDataLoader {
         }
     }
 
-    func requestPaths() -> [String] {
-        requests.compactMap(\.url?.path)
-    }
+    func requestPaths() -> [String] { requests.compactMap(\.url?.path) }
 }
 
 private enum StaleRestoreIdentityReply: CaseIterable, CustomTestStringConvertible {
@@ -2809,13 +2803,9 @@ private enum StaleRestoreRefreshScenario: CaseIterable, CustomTestStringConverti
         }
     }
 
-    var expectedAccessToken: String {
-        reusesJWTText ? "fixture-access" : "fixture-access-renewed"
-    }
+    var expectedAccessToken: String { reusesJWTText ? "fixture-access" : "fixture-access-renewed" }
 
-    var testDescription: String {
-        "\(oldReply.testDescription), \(reusesJWTText ? "same JWT text" : "new JWT text")"
-    }
+    var testDescription: String { "\(oldReply.testDescription), \(reusesJWTText ? "same JWT text" : "new JWT text")" }
 }
 
 private enum RestoreIdentityCompletion: CaseIterable, CustomTestStringConvertible {
@@ -2883,9 +2873,7 @@ private actor StaleRestoreIdentityDataLoader {
         }
     }
 
-    func requestPaths() -> [String] {
-        requests.compactMap(\.url?.path)
-    }
+    func requestPaths() -> [String] { requests.compactMap(\.url?.path) }
 
     func waitUntilOldReplyWasDelivered() async {
         guard oldReplyWasDelivered == false else { return }
@@ -2977,9 +2965,7 @@ private actor RejectedResolvedCredentialDataLoader {
         }
     }
 
-    func requestPaths() -> [String] {
-        requests.compactMap(\.url?.path)
-    }
+    func requestPaths() -> [String] { requests.compactMap(\.url?.path) }
 
     private static let firstRenewedAccess = Data(
         #"{"token":"fixture-access-renewed","tokenType":"Bearer","expiresIn":86400}"#.utf8
@@ -3017,9 +3003,7 @@ private actor RefreshABADataLoader {
         }
     }
 
-    func requestPaths() -> [String] {
-        requests.compactMap(\.url?.path)
-    }
+    func requestPaths() -> [String] { requests.compactMap(\.url?.path) }
 
     private static let renewedAccess = Data(
         #"{"token":"fixture-access-renewed","tokenType":"Bearer","expiresIn":86400}"#.utf8
@@ -3098,9 +3082,7 @@ private actor ResidualRefreshDataLoader {
         }
     }
 
-    func requestPaths() -> [String] {
-        requests.compactMap(\.url?.path)
-    }
+    func requestPaths() -> [String] { requests.compactMap(\.url?.path) }
 
     private static let basicB = "Basic \(Data("b@example.invalid:synthetic-passphrase-b".utf8).base64EncodedString())"
     private static let renewedAccessA = Data(

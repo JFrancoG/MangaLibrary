@@ -44,9 +44,7 @@ struct MangaDTO: Decodable {
         )
     }
 
-    private func validatedTotalVolumes() -> Int64? {
-        CollectionVolumePolicy.supportedKnownTotal(volumes)
-    }
+    private func validatedTotalVolumes() -> Int64? { CollectionVolumePolicy.supportedKnownTotal(volumes) }
 
     private func validatedCoverURL() -> URL? {
         guard let mainPicture else { return nil }
@@ -119,25 +117,19 @@ private struct DemographicDTO: Decodable {
     let id: UUID
     let demographic: String
 
-    var classification: Manga.Classification {
-        Manga.Classification(id: id, name: demographic)
-    }
+    var classification: Manga.Classification { Manga.Classification(id: id, name: demographic) }
 }
 
 private struct GenreDTO: Decodable {
     let id: UUID
     let genre: String
 
-    var classification: Manga.Classification {
-        Manga.Classification(id: id, name: genre)
-    }
+    var classification: Manga.Classification { Manga.Classification(id: id, name: genre) }
 }
 
 private struct ThemeDTO: Decodable {
     let id: UUID
     let theme: String
 
-    var classification: Manga.Classification {
-        Manga.Classification(id: id, name: theme)
-    }
+    var classification: Manga.Classification { Manga.Classification(id: id, name: theme) }
 }

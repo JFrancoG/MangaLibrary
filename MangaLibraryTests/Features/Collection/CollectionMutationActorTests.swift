@@ -1219,15 +1219,9 @@ private func readStore(_ container: ModelContainer, userID: UUID? = nil) throws(
     let operations: [CollectionOutboxOperation]
 
     if let userID {
-        entries = try context.fetch(
-            FetchDescriptor<CollectionEntry>(
-                predicate: #Predicate { $0.userID == userID }
-            )
-        )
+        entries = try context.fetch(FetchDescriptor<CollectionEntry>(predicate: #Predicate { $0.userID == userID }))
         operations = try context.fetch(
-            FetchDescriptor<CollectionOutboxOperation>(
-                predicate: #Predicate { $0.userID == userID }
-            )
+            FetchDescriptor<CollectionOutboxOperation>(predicate: #Predicate { $0.userID == userID })
         )
     } else {
         entries = try context.fetch(FetchDescriptor<CollectionEntry>())

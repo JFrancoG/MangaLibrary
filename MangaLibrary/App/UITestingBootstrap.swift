@@ -37,12 +37,11 @@ struct UITestingBootstrap {
         let testsBlockedOutcomeResolution = processArguments.contains("-ui-testing-blocked-outcome-resolution")
         let testsPendingLogout = processArguments.contains("-ui-testing-pending-logout")
         let testsReadingWidget = processArguments.contains("-ui-testing-reading-widget")
-        let disablesCollectionSynchronization =
-            testsCollectionDetailProjection
-            || testsMountedCollectionDetail
-            || testsBlockedOutcomeResolution
-            || testsPendingLogout
-            || testsReadingWidget
+        let disablesCollectionSynchronization = testsCollectionDetailProjection
+                                                || testsMountedCollectionDetail
+                                                || testsBlockedOutcomeResolution
+                                                || testsPendingLogout
+                                                || testsReadingWidget
         let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
         if testsMountedCollectionDetail {
             try UITestingCollectionScenarios.seedUITestingMountedCollectionDetail(in: container)

@@ -16,9 +16,7 @@ enum CollectionVolumePolicy {
     static let maximum: Int64 = 300
     static let supportedRange: ClosedRange<Int64> = 1...maximum
 
-    static func contains(_ volume: Int64) -> Bool {
-        supportedRange.contains(volume)
-    }
+    static func contains(_ volume: Int64) -> Bool { supportedRange.contains(volume) }
 
     static func supportedKnownTotal(_ total: Int64?) -> Int64? {
         guard let total, contains(total) else { return nil }

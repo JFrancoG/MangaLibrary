@@ -36,9 +36,7 @@ actor ControlledCatalogFilterOptionsLoader {
         }
     }
 
-    func requests() -> Int {
-        requestCount
-    }
+    func requests() -> Int { requestCount }
 
     func waitForRequestCount(_ expectedCount: Int) async {
         guard requestCount < expectedCount else { return }
@@ -56,9 +54,7 @@ actor ControlledCatalogFilterOptionsLoader {
         continuations.removeValue(forKey: requestIndex)?.resume(throwing: error)
     }
 
-    func wasCancelled(at requestIndex: Int) -> Bool {
-        cancelledRequestIndices.contains(requestIndex)
-    }
+    func wasCancelled(at requestIndex: Int) -> Bool { cancelledRequestIndices.contains(requestIndex) }
 
     private func cancelRequest(at requestIndex: Int) {
         cancelledRequestIndices.insert(requestIndex)

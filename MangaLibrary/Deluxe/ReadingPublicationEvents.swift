@@ -18,9 +18,7 @@ final class ReadingPublicationTicket: Sendable {
     }
 
     func validate(authority: SessionAuthority) throws {
-        guard self.authority == authority, valid.withLock({ $0 }) else {
-            throw ReadingPublicationError.staleProjection
-        }
+        guard self.authority == authority, valid.withLock({ $0 }) else { throw ReadingPublicationError.staleProjection }
     }
 
     fileprivate func invalidate() {

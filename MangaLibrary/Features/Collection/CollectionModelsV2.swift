@@ -372,7 +372,5 @@ private extension MangaLibrarySchema.V2.MangaSnapshot.Classification {
         name = classification.name
     }
 
-    var mangaClassification: Manga.Classification {
-        Manga.Classification(id: id, name: name)
-    }
+    var mangaClassification: Manga.Classification { Manga.Classification(id: id, name: name) }
 }

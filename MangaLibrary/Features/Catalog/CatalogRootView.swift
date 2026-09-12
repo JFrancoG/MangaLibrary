@@ -61,9 +61,7 @@ struct CatalogRootView: View {
         }
     }
 
-    private var filters: some View {
-        CatalogFiltersView(model: model, searchText: $searchText)
-    }
+    private var filters: some View { CatalogFiltersView(model: model, searchText: $searchText) }
 
     @ViewBuilder
     private var navigation: some View {

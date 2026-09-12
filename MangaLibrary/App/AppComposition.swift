@@ -161,10 +161,7 @@ struct AppComposition {
     }
 
     private static func requiredURL(_ value: String) -> URL {
-        guard let url = URL(string: value) else {
-            preconditionFailure("The bundled API endpoint is invalid.")
-        }
-
+        guard let url = URL(string: value) else { preconditionFailure("The bundled API endpoint is invalid.") }
         return url
     }
 }

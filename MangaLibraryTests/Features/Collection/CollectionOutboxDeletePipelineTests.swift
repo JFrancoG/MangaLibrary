@@ -483,7 +483,5 @@ private actor DeletePipelineProbe {
         throw Failure.unexpectedRequest
     }
 
-    func events() -> [Event] {
-        recordedEvents
-    }
+    func events() -> [Event] { recordedEvents }
 }

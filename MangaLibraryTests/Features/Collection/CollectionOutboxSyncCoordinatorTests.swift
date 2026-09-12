@@ -709,9 +709,7 @@ private actor ControlledSingleFlightProbe {
         )
     }
 
-    func authorization() -> SessionRequestAuthorization {
-        requestAuthorization
-    }
+    func authorization() -> SessionRequestAuthorization { requestAuthorization }
 
     func activateReplacementGeneration() -> SessionRequestAuthorization {
         let authority = SessionAuthority(
@@ -990,9 +988,7 @@ private actor WorkerProbe {
         self.storeFailure = storeFailure
     }
 
-    func authorization() -> SessionRequestAuthorization {
-        requestAuthorization
-    }
+    func authorization() -> SessionRequestAuthorization { requestAuthorization }
 
     func validates(_ authorization: SessionRequestAuthorization) -> Bool {
         let remainsValid = invalidatesAfterSubmit == false || submitCount == 0

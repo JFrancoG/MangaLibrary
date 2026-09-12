@@ -123,9 +123,7 @@ struct MangaDetailView<AdditionalContent: View>: View {
         }
     }
 
-    private var shouldAnimateCover: Bool {
-        horizontalSizeClass == .compact && accessibilityReduceMotion == false
-    }
+    private var shouldAnimateCover: Bool { horizontalSizeClass == .compact && accessibilityReduceMotion == false }
 
     private func animateCover() {
         guard shouldAnimateCover else {
@@ -134,10 +132,7 @@ struct MangaDetailView<AdditionalContent: View>: View {
         }
 
         coverScale = 0.1
-        withAnimation(
-            .easeIn(duration: 0.3),
-            completionCriteria: .removed
-        ) {
+        withAnimation(.easeIn(duration: 0.3), completionCriteria: .removed) {
             coverScale = 1.25
         } completion: {
             withAnimation(.easeOut(duration: 0.08)) {
@@ -151,10 +146,7 @@ struct MangaDetailView<AdditionalContent: View>: View {
     }
 
     private func formattedName(for author: Manga.Author) -> String {
-        author.nameComponents.formatted(
-            .name(style: .medium)
-                .locale(locale)
-        )
+        author.nameComponents.formatted(.name(style: .medium).locale(locale))
     }
 
     @ViewBuilder
@@ -164,14 +156,7 @@ struct MangaDetailView<AdditionalContent: View>: View {
                 Text(title)
                     .font(.subheadline)
                     .foregroundStyle(.textSecondary)
-                Text(
-                    values
-                        .map(\.name)
-                        .formatted(
-                            .list(type: .and)
-                                .locale(locale)
-                        )
-                )
+                Text(values.map(\.name).formatted(.list(type: .and).locale(locale)))
                 .font(.body)
                 .foregroundStyle(.textPrimary)
             }

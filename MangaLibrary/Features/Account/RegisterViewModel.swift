@@ -56,9 +56,7 @@ final class RegisterViewModel {
         return validation.passwordFailure
     }
 
-    var passwordVisibilityLabel: LocalizedStringResource {
-        isPasswordVisible ? "Hide password" : "Show password"
-    }
+    var passwordVisibilityLabel: LocalizedStringResource { isPasswordVisible ? "Hide password" : "Show password" }
 
     var isBusy: Bool {
         switch registrationState {
@@ -135,9 +133,7 @@ final class RegisterViewModel {
         accountModel.registrationValidation(email: email, password: password)
     }
 
-    private var passwordFocus: FocusedField {
-        isPasswordVisible ? .revealedPassword : .concealedPassword
-    }
+    private var passwordFocus: FocusedField { isPasswordVisible ? .revealedPassword : .concealedPassword }
 
     private var canStartRegistration: Bool {
         switch registrationState {

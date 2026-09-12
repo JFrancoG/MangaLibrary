@@ -53,9 +53,7 @@ struct CatalogGridView: View {
     }
 
     private var columns: [GridItem] {
-        [
-            GridItem(.adaptive(minimum: min(minimumItemWidth, 240)), spacing: 16, alignment: .top)
-        ]
+        [GridItem(.adaptive(minimum: min(minimumItemWidth, 240)), spacing: 16, alignment: .top)]
     }
 }
 

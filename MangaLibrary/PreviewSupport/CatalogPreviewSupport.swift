@@ -48,15 +48,9 @@ enum CatalogPreviewSupport {
                     role: .storyAndArt
                 )
             ],
-            demographics: [
-                Manga.Classification(id: demographicID, name: "Shounen")
-            ],
-            genres: [
-                Manga.Classification(id: genreID, name: "Adventure")
-            ],
-            themes: [
-                Manga.Classification(id: themeID, name: "Military")
-            ],
+            demographics: [Manga.Classification(id: demographicID, name: "Shounen")],
+            genres: [Manga.Classification(id: genreID, name: "Adventure")],
+            themes: [Manga.Classification(id: themeID, name: "Military")],
             totalVolumes: 27,
             coverURL: nil
         ),

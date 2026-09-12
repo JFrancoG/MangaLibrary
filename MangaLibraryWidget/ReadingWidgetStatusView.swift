@@ -89,13 +89,9 @@ struct ReadingWidgetStatusView: View {
 
     private var usesLeadingText: Bool { family == .systemMedium }
 
-    private var titleFont: Font {
-        family == .systemLarge ? .title2.weight(.semibold) : .headline
-    }
+    private var titleFont: Font { family == .systemLarge ? .title2.weight(.semibold) : .headline }
 
-    private var messageFont: Font {
-        family == .systemLarge ? .body : .caption
-    }
+    private var messageFont: Font { family == .systemLarge ? .body : .caption }
 
     private var title: LocalizedStringResource {
         switch (content, state) {
@@ -115,9 +111,7 @@ struct ReadingWidgetStatusView: View {
         }
     }
 
-    private var compactMessage: LocalizedStringResource {
-        state == .redacted ? "Sign in." : "Open Manga Library."
-    }
+    private var compactMessage: LocalizedStringResource { state == .redacted ? "Sign in." : "Open Manga Library." }
 }
 
 #if DEBUG

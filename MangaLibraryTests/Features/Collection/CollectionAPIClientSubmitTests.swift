@@ -291,7 +291,5 @@ private actor CollectionSubmitRequestRecorder {
         return data
     }
 
-    func requests() -> [URLRequest] {
-        recordedRequests
-    }
+    func requests() -> [URLRequest] { recordedRequests }
 }

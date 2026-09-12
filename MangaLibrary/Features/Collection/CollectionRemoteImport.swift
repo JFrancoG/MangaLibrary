@@ -48,9 +48,7 @@ extension CollectionRemoteImportError {
         }
     }
 
-    var isUnsupportedVolumeData: Bool {
-        isUnsupportedRemoteVolumeData || self == .incompatibleStoredVolumeState
-    }
+    var isUnsupportedVolumeData: Bool { isUnsupportedRemoteVolumeData || self == .incompatibleStoredVolumeState }
 }
 
 private struct CollectionValidatedRemoteSnapshot {

@@ -270,9 +270,7 @@ private struct ReadingEventFixture {
     let authorization: SessionCommitAuthorization
     let work: CollectionOutboxUploadWorkItem?
 
-    func command(reading: Int64) -> CollectionMutationCommand {
-        Self.command(authority: authority, reading: reading)
-    }
+    func command(reading: Int64) -> CollectionMutationCommand { Self.command(authority: authority, reading: reading) }
 
     func recordPrevious() throws -> ReadingPublicationEvent {
         try authorization.perform {

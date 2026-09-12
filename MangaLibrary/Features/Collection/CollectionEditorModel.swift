@@ -72,9 +72,7 @@ final class CollectionEditorModel {
 
     var knownTotalVolumes: Int64? { seed.state.knownTotalVolumes }
 
-    var knownVolumeNumbers: [Int64]? {
-        CollectionVolumePolicy.completeVolumes(for: knownTotalVolumes)
-    }
+    var knownVolumeNumbers: [Int64]? { CollectionVolumePolicy.completeVolumes(for: knownTotalVolumes) }
 
     var isComplete: Bool {
         guard let knownVolumeNumbers else { return false }
@@ -91,17 +89,11 @@ final class CollectionEditorModel {
         }
     }
 
-    var canSave: Bool {
-        isVolumeStateEditable && isSubmitting == false
-    }
+    var canSave: Bool { isVolumeStateEditable && isSubmitting == false }
 
-    var sortedOwnedVolumes: [Int64] {
-        ownedVolumes.sorted()
-    }
+    var sortedOwnedVolumes: [Int64] { ownedVolumes.sorted() }
 
-    func owns(volume: Int64) -> Bool {
-        ownedVolumes.contains(volume)
-    }
+    func owns(volume: Int64) -> Bool { ownedVolumes.contains(volume) }
 
     func setOwned(_ ownsVolume: Bool, volume: Int64) {
         guard isVolumeStateEditable, CollectionVolumePolicy.contains(volume) else {

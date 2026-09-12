@@ -10,6 +10,45 @@ aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
 
+## Revisión local de estilo y organización — 2026-09-12
+
+El propietario solicita continuar sus cinco cambios locales de estilo y ordenar
+los archivos sueltos de la app. La revisión inventaría los 205 Swift sobre
+`main@698770f` y aplica `swift-source-style` Normalize, seguida de Audit
+independiente y una segunda pasada sobre propiedades, guard, expresiones
+booleanas, llamadas anidadas, previews, builders y tests.
+
+La continuación compacta 63 archivos; con los cambios previos conservados,
+67 Swift tienen diferencias de contenido exclusivamente léxicas. Los 44
+candidatos restantes del detector se adjudican por construcción: callbacks,
+firmas con tipos función, tuplas densas, cuatro o más argumentos y secuencias
+cuyo orden necesita lectura vertical. No se modifican literales, comentarios,
+tipos, comportamiento, contratos ni contenido de DocC.
+
+Xcode MCP mueve `MangaLibraryApp.swift` a `MangaLibrary/App/`, `Info.plist` a
+`MangaLibrary/Resources/` y `MangaLibrary.entitlements` a `Configuration/`.
+Actualiza ambas configuraciones de build y la exclusión del plist como recurso.
+Los tres archivos movidos conservan contenido binario idéntico. El catálogo
+continúa en `MangaLibrary/Documentation/MangaLibrary.docc/MangaLibrary.md`,
+conforme a SDD 07.
+
+Validación local: 67/67 fuentes alteradas conservan caracteres no blancos y
+salida canónica equivalente con `swift-format` de Xcode 27, usado únicamente
+sobre stdout; las únicas diferencias canónicas son líneas vacías retiradas
+por el propietario. Cero diagnósticos de parseo. `plutil`,
+`validate-deluxe-configuration.py`, `validate-test-plans.sh` y
+`git diff --check` pasan. Las revisiones independientes de estilo, invariancia,
+configuración y semántica SwiftUI no conservan hallazgos.
+
+Xcode 27 RC `27A266a`: `BuildProject(buildForTesting: true)` mediante el MCP
+oficial, scheme MangaLibrary, iPhone 17 Simulator / iOS 27.0, plan ReleaseGate,
+correcto en 24,25 s; log completo de 2.160 líneas sin warnings ni errores.
+El plan vuelve a Fast. No se ejecutan tests, DocC, previews ni accesibilidad
+runtime para este cambio de layout y rutas; no se amplía evidencia física.
+El propietario autoriza a continuación commit y push de esta revisión sobre
+la rama `main` actual. Se conserva la validación anterior, sin cambios Swift
+posteriores; PR, merge y cierre de issues quedan fuera de esta autorización.
+
 ## M02 — Persistencia de blockedOutcome — issue #112
 
 El propietario autoriza el 2026-09-12 abrir

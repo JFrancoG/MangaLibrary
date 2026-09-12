@@ -417,9 +417,7 @@ private actor DeleteSyncProbe {
         self.resolutionFailure = resolutionFailure
     }
 
-    func authorization() -> SessionRequestAuthorization {
-        requestAuthorization
-    }
+    func authorization() -> SessionRequestAuthorization { requestAuthorization }
 
     func validates(_ authorization: SessionRequestAuthorization) -> Bool {
         authorization.authority == requestAuthorization.authority

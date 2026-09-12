@@ -11,9 +11,7 @@ struct CollectionPreviewModifier<Scenario: CollectionPreviewScenario>: PreviewMo
         try CollectionPreviewSupport.makeContainer(seed: Scenario.seed)
     }
 
-    func body(content: Content, context: ModelContainer) -> some View {
-        content.modelContainer(context)
-    }
+    func body(content: Content, context: ModelContainer) -> some View { content.modelContainer(context) }
 }
 
 protocol CollectionPreviewScenario {

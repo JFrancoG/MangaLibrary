@@ -26,9 +26,7 @@ struct SessionPersistedSession: Equatable {
     var generation: UUID { storedGeneration }
     var access: SessionCredential { storedAccess }
 
-    var authority: SessionAuthority {
-        SessionAuthority(userID: userID, generation: generation)
-    }
+    var authority: SessionAuthority { SessionAuthority(userID: userID, generation: generation) }
 
     func replacingAccess(with access: SessionCredential) throws(SessionStorageError) -> Self {
         try Self(userID: userID, generation: generation, access: access)

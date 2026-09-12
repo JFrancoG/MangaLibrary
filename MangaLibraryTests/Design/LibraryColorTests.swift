@@ -32,9 +32,7 @@ struct LibraryColorTests {
             #expect(asset.colors.count == LibraryAppearance.allCases.count)
 
             for appearance in LibraryAppearance.allCases {
-                let entry = try #require(
-                    asset.colors.first { $0.traits == appearance.assetTraits }
-                )
+                let entry = try #require(asset.colors.first { $0.traits == appearance.assetTraits })
                 let expected = try contract.components(for: name, appearance: appearance)
                 let actual = try entry.color.sRGBComponents()
 
@@ -254,11 +252,7 @@ private struct ColorAsset: Decodable {
         let idiom: String
 
         var traits: [String: String] {
-            Dictionary(
-                uniqueKeysWithValues: (appearances ?? []).map {
-                    ($0.appearance, $0.value)
-                }
-            )
+            Dictionary(uniqueKeysWithValues: (appearances ?? []).map { ($0.appearance, $0.value) })
         }
     }
 

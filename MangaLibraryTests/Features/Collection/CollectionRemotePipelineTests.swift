@@ -231,9 +231,7 @@ struct CollectionAPIClientTests {
         return CollectionAPIClient(configuration: try APIConfiguration(baseURL: baseURL)) { _ in data }
     }
 
-    private static func snapshot(_ entries: String...) -> Data {
-        Data("[\(entries.joined(separator: ","))]".utf8)
-    }
+    private static func snapshot(_ entries: String...) -> Data { Data("[\(entries.joined(separator: ","))]".utf8) }
 
     private static func entry(
         remoteID: UUID,
@@ -296,7 +294,5 @@ private actor ExactCollectionRequestLoader {
         return fixture
     }
 
-    func loadedRequestCount() -> Int {
-        requestCount
-    }
+    func loadedRequestCount() -> Int { requestCount }
 }

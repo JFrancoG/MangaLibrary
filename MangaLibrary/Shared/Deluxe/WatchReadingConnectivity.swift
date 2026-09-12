@@ -375,9 +375,7 @@ final class WatchReadingEventQueue: Sendable {
         try Task.checkCancellation()
     }
 
-    private func isCurrent(_ input: Input) -> Bool {
-        state.withLock { $0.deliveryVersion === input.deliveryVersion }
-    }
+    private func isCurrent(_ input: Input) -> Bool { state.withLock { $0.deliveryVersion === input.deliveryVersion } }
 
     private func rearm(
         _ event: WatchReadingConnectivity.Event,

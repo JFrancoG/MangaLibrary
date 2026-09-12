@@ -557,9 +557,7 @@ final class AccountModel {
         return identity
     }
 
-    private func isCurrent(_ identity: OperationIdentity) -> Bool {
-        activeOperationIdentity === identity
-    }
+    private func isCurrent(_ identity: OperationIdentity) -> Bool { activeOperationIdentity === identity }
 
     private func finish(_ identity: OperationIdentity) {
         guard activeOperationIdentity === identity else { return }

@@ -471,9 +471,7 @@ extension CollectionMutationActor {
         userID: UUID
     ) throws(any Error) -> CollectionOutboxUploadWorkItem? {
         let candidates = try uploadCandidates(from: operations, userID: userID)
-        guard let operation = candidates.first(where: { $0.state == .sending }) else {
-            return nil
-        }
+        guard let operation = candidates.first(where: { $0.state == .sending }) else { return nil }
 
         return CollectionOutboxUploadWorkItem(operation: operation)
     }

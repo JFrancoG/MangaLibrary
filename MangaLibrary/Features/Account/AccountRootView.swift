@@ -422,9 +422,7 @@ struct AccountRootView: View {
         .background(.canvas)
     }
 
-    private var authenticatedAuthority: SessionAuthority? {
-        model.state.accountNavigationAuthority
-    }
+    private var authenticatedAuthority: SessionAuthority? { model.state.accountNavigationAuthority }
 
     private var pendingLogoutConfirmationBinding: Binding<Bool> {
         Binding(

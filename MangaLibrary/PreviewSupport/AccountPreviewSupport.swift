@@ -80,9 +80,7 @@ private actor AccountPreviewSession {
         )
     }
 
-    private func currentSnapshot() -> SessionSnapshot {
-        snapshot
-    }
+    private func currentSnapshot() -> SessionSnapshot { snapshot }
 
     private func restore() -> SessionSnapshot {
         if snapshot == .notRestored {

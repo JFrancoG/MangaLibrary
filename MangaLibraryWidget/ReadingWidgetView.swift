@@ -61,9 +61,7 @@ struct ReadingWidgetView: View {
         .privacySensitive()
     }
 
-    private var statusContent: ReadingWidgetStatusView.Content {
-        family == .systemMedium ? .collection : .reading
-    }
+    private var statusContent: ReadingWidgetStatusView.Content { family == .systemMedium ? .collection : .reading }
 
     private var maximumItemCount: Int {
         switch family {

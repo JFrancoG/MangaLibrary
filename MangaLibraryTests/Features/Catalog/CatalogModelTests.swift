@@ -798,9 +798,7 @@ private actor ReentrantCatalogFilterOptionsLoader {
         }
     }
 
-    func requestCount() -> Int {
-        count
-    }
+    func requestCount() -> Int { count }
 
     func waitForRequestCount(_ expectedCount: Int) async {
         guard count < expectedCount else { return }
@@ -810,9 +808,7 @@ private actor ReentrantCatalogFilterOptionsLoader {
         }
     }
 
-    func firstRequestWasCancelled() -> Bool {
-        firstCancelled
-    }
+    func firstRequestWasCancelled() -> Bool { firstCancelled }
 
     private func cancelFirstRequest() {
         firstCancelled = true

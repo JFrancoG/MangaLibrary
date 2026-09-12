@@ -294,20 +294,14 @@ private extension RegisterView {
 
 #Preview("Register") {
     NavigationStack {
-        RegisterView(
-            model: AccountPreviewSupport.model(state: .signedOut(failure: nil)),
-            onSignIn: {}
-        )
+        RegisterView(model: AccountPreviewSupport.model(state: .signedOut(failure: nil)), onSignIn: {})
     }
     .environment(\.locale, Locale(identifier: "en"))
 }
 
 #Preview("Register Spanish") {
     NavigationStack {
-        RegisterView(
-            model: AccountPreviewSupport.model(state: .signedOut(failure: nil)),
-            onSignIn: {}
-        )
+        RegisterView(model: AccountPreviewSupport.model(state: .signedOut(failure: nil)), onSignIn: {})
     }
     .environment(\.locale, Locale(identifier: "es"))
 }

@@ -27,9 +27,7 @@ actor UITestingPendingLogoutSession {
         )
     }
 
-    private func currentSnapshot() -> SessionSnapshot {
-        snapshot
-    }
+    private func currentSnapshot() -> SessionSnapshot { snapshot }
 
     private func logout(discardPendingChanges: Bool) async throws(any Error) -> SessionSnapshot {
         guard case .active = snapshot else { throw SessionControllerError.notAuthenticated }

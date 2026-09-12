@@ -192,9 +192,7 @@ private actor RegistrationRecordedResponseLoader {
         return response
     }
 
-    func requests() -> [URLRequest] {
-        recordedRequests
-    }
+    func requests() -> [URLRequest] { recordedRequests }
 }
 
 private actor RegistrationOperationGate {

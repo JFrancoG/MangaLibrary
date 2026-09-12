@@ -63,9 +63,7 @@ final class SignInViewModel {
         return validation.passwordFailure
     }
 
-    var passwordVisibilityLabel: LocalizedStringResource {
-        isPasswordVisible ? "Hide password" : "Show password"
-    }
+    var passwordVisibilityLabel: LocalizedStringResource { isPasswordVisible ? "Hide password" : "Show password" }
 
     var failure: AccountModel.Failure? {
         switch accountModel.state {
@@ -135,9 +133,7 @@ final class SignInViewModel {
         accountModel.signInValidation(email: email, password: password)
     }
 
-    private var passwordFocus: FocusedField {
-        isPasswordVisible ? .revealedPassword : .concealedPassword
-    }
+    private var passwordFocus: FocusedField { isPasswordVisible ? .revealedPassword : .concealedPassword }
 
     private func validationField(for focusedField: FocusedField) -> Field {
         switch focusedField {
