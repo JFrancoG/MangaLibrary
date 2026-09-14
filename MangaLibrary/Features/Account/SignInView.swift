@@ -77,22 +77,7 @@ struct SignInView: View {
                     focusedField = viewModel.emailSubmitted()
                 }
                 .accessibilityIdentifier("account.sign-in.email")
-                .padding(.horizontal, 16)
-                .frame(minHeight: 48)
-                .background(.surface, in: .rect(cornerRadius: 12, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(.controlBorder, lineWidth: 1)
-                }
-                .listRowInsets(
-                    EdgeInsets(
-                        top: 4,
-                        leading: 4,
-                        bottom: 4,
-                        trailing: 4
-                    )
-                )
-                .listRowBackground(Color.canvas)
+                .modifier(AccountCredentialFieldModifier())
         } footer: {
             if let emailFailure = viewModel.emailFailure {
                 Label(emailFailure.errorDescriptionResource, systemImage: "exclamationmark.circle.fill")
@@ -141,22 +126,7 @@ struct SignInView: View {
                 .tint(Color.brandPrimary)
                 .accessibilityIdentifier("account.sign-in.password-visibility")
             }
-            .padding(.horizontal, 16)
-            .frame(minHeight: 48)
-            .background(.surface, in: .rect(cornerRadius: 12, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(.controlBorder, lineWidth: 1)
-            }
-            .listRowInsets(
-                EdgeInsets(
-                    top: 4,
-                    leading: 4,
-                    bottom: 4,
-                    trailing: 4
-                )
-            )
-            .listRowBackground(Color.canvas)
+            .modifier(AccountCredentialFieldModifier())
         } footer: {
             if let passwordFailure = viewModel.passwordFailure {
                 Label(passwordFailure.errorDescriptionResource, systemImage: "exclamationmark.circle.fill")

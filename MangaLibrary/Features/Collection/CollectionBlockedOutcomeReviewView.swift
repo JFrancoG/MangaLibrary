@@ -16,7 +16,6 @@ struct CollectionBlockedOutcomeReviewView: View {
     @State private var model: CollectionBlockedOutcomeReviewModel
     @State private var request: Request?
     @State private var proposedDecision: CollectionBlockedOutcomeDecision?
-    @State private var showsDecisionConfirmation = false
 
     init(
         operationID: UUID,
@@ -54,11 +53,7 @@ struct CollectionBlockedOutcomeReviewView: View {
                     }
                 }
             }
-            .alert(
-                "Confirm your choice",
-                isPresented: $showsDecisionConfirmation,
-                presenting: proposedDecision
-            ) { decision in
+            .alert("Confirm your choice", item: $proposedDecision) { decision in
                 Button(decision.actionTitle, role: .destructive) {
                     request = .resolve(UUID(), decision)
                 }
@@ -158,14 +153,14 @@ struct CollectionBlockedOutcomeReviewView: View {
                 Section {
                     if review.context.hasLaterIntent == false {
                         Button("Use cloud version", role: .destructive) {
-                            requestConfirmation(.useRemote)
+                            proposedDecision = .useRemote
                         }
                         .disabled(isResolving)
                         .accessibilityIdentifier("collection.blocked-outcome.use-cloud")
                     }
 
                     Button(deviceActionTitle(for: review)) {
-                        requestConfirmation(.keepDevice)
+                        proposedDecision = .keepDevice
                     }
                     .disabled(isResolving)
                     .accessibilityIdentifier("collection.blocked-outcome.keep-device")
@@ -212,11 +207,6 @@ struct CollectionBlockedOutcomeReviewView: View {
         case .idle, .loading, .failed(_, nil), .resolved:
             nil
         }
-    }
-
-    private func requestConfirmation(_ decision: CollectionBlockedOutcomeDecision) {
-        proposedDecision = decision
-        showsDecisionConfirmation = true
     }
 
     private func mangaTitle(in review: CollectionBlockedOutcomeReview) -> String? {

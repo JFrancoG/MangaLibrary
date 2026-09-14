@@ -129,22 +129,7 @@ struct RegisterView: View {
                     focusedField = viewModel.emailSubmitted()
                 }
                 .accessibilityIdentifier("account.register.email")
-                .padding(.horizontal, 16)
-                .frame(minHeight: 48)
-                .background(.surface, in: .rect(cornerRadius: 12, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(.controlBorder, lineWidth: 1)
-                }
-                .listRowInsets(
-                    EdgeInsets(
-                        top: 4,
-                        leading: 4,
-                        bottom: 4,
-                        trailing: 4
-                    )
-                )
-                .listRowBackground(Color.canvas)
+                .modifier(AccountCredentialFieldModifier())
         } footer: {
             if let emailFailure = viewModel.emailFailure {
                 Label(emailFailure.errorDescriptionResource, systemImage: "exclamationmark.circle.fill")
@@ -194,22 +179,7 @@ struct RegisterView: View {
                 .tint(Color.brandPrimary)
                 .accessibilityIdentifier("account.register.password-visibility")
             }
-            .padding(.horizontal, 16)
-            .frame(minHeight: 48)
-            .background(.surface, in: .rect(cornerRadius: 12, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(.controlBorder, lineWidth: 1)
-            }
-            .listRowInsets(
-                EdgeInsets(
-                    top: 4,
-                    leading: 4,
-                    bottom: 4,
-                    trailing: 4
-                )
-            )
-            .listRowBackground(Color.canvas)
+            .modifier(AccountCredentialFieldModifier())
         } footer: {
             if let passwordFailure = viewModel.passwordFailure {
                 Label(passwordFailure.errorDescriptionResource, systemImage: "exclamationmark.circle.fill")
@@ -294,14 +264,14 @@ private extension RegisterView {
 
 #Preview("Register") {
     NavigationStack {
-        RegisterView(model: AccountPreviewSupport.model(state: .signedOut(failure: nil)), onSignIn: {})
+        RegisterView(model: AccountPreviewSupport.model(state: .signedOut(failure: nil))) {}
     }
     .environment(\.locale, Locale(identifier: "en"))
 }
 
 #Preview("Register Spanish") {
     NavigationStack {
-        RegisterView(model: AccountPreviewSupport.model(state: .signedOut(failure: nil)), onSignIn: {})
+        RegisterView(model: AccountPreviewSupport.model(state: .signedOut(failure: nil))) {}
     }
     .environment(\.locale, Locale(identifier: "es"))
 }
@@ -322,9 +292,8 @@ private extension RegisterView {
 #Preview("Register submitting") {
     NavigationStack {
         RegisterView(
-            model: AccountPreviewSupport.model(state: .signedOut(failure: nil), registrationState: .submitting),
-            onSignIn: {}
-        )
+            model: AccountPreviewSupport.model(state: .signedOut(failure: nil), registrationState: .submitting)
+        ) {}
     }
 }
 
@@ -334,9 +303,8 @@ private extension RegisterView {
             model: AccountPreviewSupport.model(
                 state: .signedOut(failure: nil),
                 registrationState: .failed(.configurationUnavailable)
-            ),
-            onSignIn: {}
-        )
+            )
+        ) {}
     }
 }
 
@@ -346,9 +314,8 @@ private extension RegisterView {
             model: AccountPreviewSupport.model(
                 state: .signedOut(failure: nil),
                 registrationState: .unconfirmed(.network(.transport(.timedOut)))
-            ),
-            onSignIn: {}
-        )
+            )
+        ) {}
     }
     .environment(\.locale, Locale(identifier: "es"))
 }
@@ -356,9 +323,8 @@ private extension RegisterView {
 #Preview("Register signing in") {
     NavigationStack {
         RegisterView(
-            model: AccountPreviewSupport.model(state: .signedOut(failure: nil), registrationState: .signingIn),
-            onSignIn: {}
-        )
+            model: AccountPreviewSupport.model(state: .signedOut(failure: nil), registrationState: .signingIn)
+        ) {}
     }
 }
 
@@ -368,8 +334,7 @@ private extension RegisterView {
             model: AccountPreviewSupport.model(
                 state: .signedOut(failure: nil),
                 registrationState: .created(loginFailure: .invalidCredentials)
-            ),
-            onSignIn: {}
-        )
+            )
+        ) {}
     }
 }
