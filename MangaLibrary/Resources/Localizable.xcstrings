@@ -1,6 +1,57 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Opening your library" : {
+      "comment" : "Progress label while opening the app's local library at startup.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening your library"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abriendo tu biblioteca"
+          }
+        }
+      }
+    },
+    "Your library couldn’t be opened" : {
+      "comment" : "Safe title when the app cannot open its local library at startup.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your library couldn’t be opened"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se ha podido abrir tu biblioteca"
+          }
+        }
+      }
+    },
+    "Try again to open your saved library." : {
+      "comment" : "Recovery instruction for a local library startup failure without exposing storage details.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again to open your saved library."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuelve a intentarlo para abrir tu biblioteca guardada."
+          }
+        }
+      }
+    },
     "Try again" : {
       "comment" : "Retries an unsuccessful operation.",
       "localizations" : {

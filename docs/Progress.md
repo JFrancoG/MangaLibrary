@@ -10,6 +10,134 @@ aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
 
+## C3 — Arranque recuperable — issue #118
+
+El propietario autoriza el 2026-09-14 abrir
+[#118](https://github.com/JFrancoG/MangaLibrary/issues/118), crear la rama
+`codex/118-recoverable-startup` e implementar el ajuste 2. Parte de
+`main@fd17361`, limpio tras entregar C2. Las SDD 01 v1.11 y 06 v1.44 concretan
+el contrato antes de cambiar la composición. Tras completar la implementación,
+el propietario autoriza commit, push, PR, merge, cierre del issue y borrado de
+la rama. La entrega sigue vinculada a #118 y a la PR que lo cierre.
+
+`AppStartupModel` conserva el estado y una sola apertura de ámbito app.
+SwiftData se abre fuera del actor principal mediante `@concurrent`; únicamente
+el resultado completo permite crear el shell. El fallo operativo presenta un
+mensaje seguro y un reintento explícito sobre la misma configuración. No se
+borra, reemplaza ni sustituye el almacén por memoria. La cancelación de la
+escena no cancela la tarea finita de apertura compartida.
+
+`AppRuntime` reúne las dependencias de presentación que antes duplicaban App y
+el bootstrap. La composición live conserva como invariantes los errores de
+configuración estática, separados de los errores del opener. Las fixtures Debug
+mantienen sus escenarios y añaden un fallo sintético inicial; Release rechaza
+los argumentos de automatización. La inicialización de `@State` usa el accessor
+moderno de SwiftUI en iOS 27. No cambian esquema, migración ni políticas de
+sesión, sincronización o publicación.
+
+Validación con Xcode MCP oficial, Xcode 27 RC `27A266a`, Swift 6.4
+`swiftlang-6.4.0.34.1`, scheme MangaLibrary e iPhone 17 Simulator / iOS 27.0:
+
+- RED compilable: dos tests fallan por ausencia del estado recuperable, tras
+  build limpio de los cinco targets en Debug y Release. GREEN focal: **3/3**.
+  Los oráculos cubren fallo inicial y persistente, reintento explícito,
+  coalescencia, cancelación de la escena y retención de la composición. La
+  integración conserva el archivo V2 temporal, colección, snapshot, outbox e
+  identidades, verificados desde otro contexto.
+- Fast completo: **361 declaraciones / 572 invocaciones** aprobadas.
+- Integration completo: **458 declaraciones / 633 invocaciones** aprobadas,
+  incluidos los tres tests nuevos de arranque. Sus dos suites pertenecen a
+  Integration porque su composición utiliza SwiftData real. La partición
+  estática queda en 28 suites Fast y 42 Integration.
+- UI completo: **13/13** aprobados, incluidos los once escenarios anteriores del
+  bootstrap y la recuperación EN/ES con AX5. La llamada MCP alcanza su límite
+  de 300 segundos; se espera el cierre de su `.xcresult`, sin duplicar el run.
+  Tras el ajuste final de colores, los dos recorridos afectados vuelven a
+  aprobar **2/2**, incluida apertura del detalle después del reintento.
+- Los resultados nativos cerrados acreditan cero fallos, omisiones, fallos
+  esperados y warnings de runtime en los tres planes y el focal final. El
+  agregado MCP conserva resultados de otros planes; las cifras anteriores
+  provienen exclusivamente del resumen y árbol nativos de cada ejecución.
+  Los logs Fast/Integration no contienen avisos de continuaciones o concurrencia.
+- `validate-advanced-build.sh --deluxe` sobre la versión final: build limpio de
+  los cinco targets en Debug y Release, cero warnings y errores, con DerivedData
+  nuevos. `validate-docc.sh`: archive Release nuevo y cero warnings Swift,
+  Clang y DocC. Ambos usan `MANGALIBRARY_DEVELOPER_DIR` explícito y verificado;
+  `xcode-select` se conserva. Se restaura Fast e iPhone 17 en Xcode.
+- Las revisiones iOS, SwiftUI/accesibilidad y Audit léxico independientes cierran
+  sus hallazgos. El Audit inspecciona los 14 Swift y revisa de nuevo las dos
+  Views tras aplicar Library Red; `git diff --check` pasa.
+
+Los renders MCP de error y carga cubren Large, XXX Large y AX5; las previews de
+Startup y Ready usan exclusivamente fixtures. El canvas elige iPhone 18 Pro /
+iOS 27.0, distinto del destino de tests. La revisión visual detecta el gris
+nativo de 3,44:1 y lo sustituye por los pares semánticos de Library Red. Los
+nueve renders finales verifican las cuatro apariencias y AX5: el texto
+secundario alcanza al menos 8,07:1; el botón, 6,38:1 normal y 9,86:1 con contraste
+alto. No hay truncado horizontal ni solapamiento; el contenido AX5 permite
+scroll. Los recorridos UI confirman la activación y recuperación. Las previews
+de carga/error no instalan persistencia innecesaria; la de arranque conserva la
+ausencia de container provisional y Ready instala el de su propio runtime.
+
+Bundles fuera de Git: `Test-MangaLibrary-2026.09.14_16-23-43-+0200.xcresult`
+(RED), `Test-MangaLibrary-2026.09.14_16-33-29-+0200.xcresult` (GREEN),
+`Test-MangaLibrary-2026.09.14_16-33-58-+0200.xcresult` (UI completo),
+`Test-MangaLibrary-2026.09.14_16-44-20-+0200.xcresult` (Fast),
+`Test-MangaLibrary-2026.09.14_16-45-06-+0200.xcresult` (Integration) y
+`Test-MangaLibrary-2026.09.14_16-46-06-+0200.xcresult` (UI final).
+
+Durante la entrega, el primer `ReleaseGate` sobre el simulador habitual
+(`Test-MangaLibrary-2026.09.14_17-53-26-+0200.xcresult`) aprueba los 819 tests
+Swift Testing y seis de los trece UI. Los siete fallos esperan `tab.account` o
+`tab.collection`: el árbol accesible muestra Catálogo y las tres pestañas
+completas, pero sus botones no exponen `tab.*`. La misma incidencia figura en
+C2 y #65, anteriores a este cambio. No se demuestra el desencadenante ni se
+declara corregida. Se conserva el resultado y se prepara un destino temporal
+limpio conforme a ADR-0005, sin cambiar UI, tests ni timeouts.
+
+El primer run en ese destino limpio
+(`Test-MangaLibrary-2026.09.14_18-00-47-+0200.xcresult`) aprueba **829/832
+declaraciones y 1.215/1.218 invocaciones**. Persisten tres fallos iniciales de
+`tab.account`; el árbol vuelve a mostrar las tres pestañas sin identificadores.
+La espera MCP agota 300 segundos y se consulta el bundle solo tras su cierre.
+Se realiza un último contraste tras un nuevo arranque completo del simulador
+temporal, conservando el mismo runtime iOS 27 `24A434` y el código validado.
+
+Ese contraste (`Test-MangaLibrary-2026.09.14_18-07-46-+0200.xcresult`) reproduce
+los siete fallos iniciales de pestañas. No se realizan más repeticiones sin
+cambios. La revisión independiente del harness confirma que los contratos
+exigen navegar y completar cada flujo, no recibir un identificador técnico.
+Se corrige exclusivamente el localizador: botón nativo dentro de `TabBar`,
+nombre accesible exacto ES/EN y coincidencia única. Permanecen las esperas,
+los trece recorridos, todos sus asserts de comportamiento y los identificadores
+de producción. Esta corrección no acredita reparar la pérdida de metadata de
+SwiftUI ni sustituye pruebas físicas de accesibilidad.
+
+La revisión independiente final y el Audit abarcan **20 archivos / 15 Swift**.
+Verifican una transformación exacta de los once localizadores y el helper:
+se conservan los once tests anteriores, sus 226 aserciones y 141 usos de timeout,
+además de los dos recorridos nuevos. `BuildProject(buildForTesting: true)`
+posterior a esa revisión aprueba; `GetBuildLog(severity: warning)` devuelve cero
+diagnósticos. Los builds limpios de producto Debug/Release, DocC y los renders
+anteriores siguen siendo válidos porque esta corrección modifica solo el
+harness UI.
+
+La candidata corregida supera `ReleaseGate` completo mediante Xcode MCP en el
+destino temporal iPhone 17 / iOS 27 `24A434`: **832 declaraciones / 1.218
+invocaciones**, incluidos los **13 UI**, con cero fallos, omisiones, fallos
+esperados y warnings de runtime. Bundle nativo cerrado:
+`Test-MangaLibrary-2026.09.14_18-15-20-+0200.xcresult`. La llamada MCP alcanza
+300 segundos; se espera el cierre de la misma ejecución y se usa su resultado
+nativo. Se restauran Fast e iPhone 17 en Xcode y se elimina únicamente el
+simulador creado para esta entrega. El resultado Git definitivo se enlaza en
+#118 y la PR que lo cierre.
+
+El fallo de integración es inyectado antes de abrir el store; no demuestra
+reparación de corrupción ni de una migración incompatible. Las capturas y la
+semántica estática no acreditan VoiceOver físico, foco ni otras tecnologías de
+asistencia. #77/#88 conservan sus pendientes físicos. C4–C6 quedan fuera de
+este corte.
+
 ## C2 — Tests deterministas y selección de toolchain — issue #116
 
 El propietario autoriza el 2026-09-14 abrir

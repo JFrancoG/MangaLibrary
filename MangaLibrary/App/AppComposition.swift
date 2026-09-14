@@ -22,12 +22,26 @@ struct AppComposition {
     let readingPublication: ReadingPublicationComposition
     let watchConnectivity: WatchReadingConnectivity
 
-    /// Builds only the dependencies used by a production launch.
-    ///
-    /// Previews and tests compose their deterministic loaders outside this root,
-    /// so a fixture can never replace the live transport here.
-    static func live() throws -> AppComposition {
-        let modelContainer = try MangaLibrarySchema.makeContainer()
+    /// Opens the persistent store before constructing live resources, with no fallback.
+    @MainActor
+    static func makeStartup() -> AppStartupModel {
+        AppStartupModel(openStore: {
+            try await openPersistentStore()
+        }) { container in
+            do {
+                return AppRuntime(composition: try live(modelContainer: container))
+            } catch {
+                preconditionFailure("Manga Library has invalid bundled app configuration.")
+            }
+        }
+    }
+
+    @concurrent
+    private static func openPersistentStore() async throws -> ModelContainer {
+        try MangaLibrarySchema.makeContainer()
+    }
+
+    private static func live(modelContainer: ModelContainer) throws -> AppComposition {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.waitsForConnectivity = true
         configuration.timeoutIntervalForRequest = 30

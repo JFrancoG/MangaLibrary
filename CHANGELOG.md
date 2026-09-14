@@ -51,6 +51,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- 2026-09-14 | 🐛 fix(app): recover from storage startup failures
+
 - 2026-09-14 | 🐛 fix(catalog): recover loading after cancelled reentry
 
 - 2026-09-11 | 🐛 fix(ui): use brand ink for collection completion
