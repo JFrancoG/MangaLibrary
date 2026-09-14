@@ -104,6 +104,81 @@ struct CatalogModelTests {
         #expect(model.state == .idle)
     }
 
+    @Test(arguments: [false, true])
+    func reentryDuringCancellationLoadsFreshContent(returnsStalePage: Bool) async throws {
+        let currentPage = page(items: [manga(id: 4, title: "Current")])
+        let loader = ReentrantCatalogPageLoader(subsequentPage: currentPage)
+        let model = CatalogModel { request in
+            try await loader.load(request)
+        }
+        let expectedRequest = try CatalogPageRequest()
+
+        let firstTask = Task {
+            await model.loadIfNeeded()
+        }
+        await loader.waitForFirstRequest()
+        firstTask.cancel()
+
+        await model.loadIfNeeded()
+
+        #expect(await loader.requests == [expectedRequest, expectedRequest])
+        #expect(model.state == terminalContent(currentPage.items))
+
+        let completion: Result<CatalogPage, any Error> = returnsStalePage
+            ? .success(page(items: [manga(id: 3, title: "Stale")]))
+            : .failure(CancellationError())
+        await loader.completeFirstRequest(with: completion)
+        await firstTask.value
+
+        #expect(model.state == terminalContent(currentPage.items))
+    }
+
+    @Test
+    func cancellingReloadDuringInitialLoadAllowsAnotherEntry() async throws {
+        let loader = ControlledCatalogLoader()
+        let model = makeModel(loader: loader)
+        let currentPage = page(items: [manga(id: 4, title: "Current")])
+
+        let firstTask = Task {
+            await model.loadIfNeeded()
+        }
+        await loader.waitForRequestCount(1)
+        let reloadTask = Task {
+            await model.reload()
+        }
+        await loader.waitForRequestCount(2)
+
+        reloadTask.cancel()
+        await loader.waitForCancellation(at: 1)
+        await reloadTask.value
+        #expect(model.state == .idle)
+
+        await loader.succeed(page(items: [manga(id: 3, title: "Stale")]), at: 0)
+        await firstTask.value
+        try #require(model.state == .idle)
+
+        let recoveryTask = Task {
+            await model.loadIfNeeded()
+        }
+        await loader.waitForRequestCount(3)
+        await loader.succeed(currentPage, at: 2)
+        await recoveryTask.value
+
+        #expect(model.state == terminalContent(currentPage.items))
+    }
+
+    @Test
+    func preparedLoadingStateDoesNotStartARequest() async {
+        let model = CatalogModel(initialState: .loading) { _ in
+            Issue.record("A prepared loading state must not start a request")
+            return CatalogPage(items: [], metadata: .init(page: 1, per: 20, total: 0))
+        }
+
+        await model.loadIfNeeded()
+
+        #expect(model.state == .loading)
+    }
+
     @Test
     func lateSupersededResponseCannotReplaceCurrentContent() async {
         let loader = ControlledCatalogLoader()
@@ -757,6 +832,42 @@ struct CatalogModelTests {
             themes: [],
             coverURL: nil
         )
+    }
+}
+
+private actor ReentrantCatalogPageLoader {
+    private let subsequentPage: CatalogPage
+    private(set) var requests: [CatalogPageRequest] = []
+    private var firstContinuation: CheckedContinuation<CatalogPage, any Error>?
+    private var firstRequestWaiter: CheckedContinuation<Void, Never>?
+
+    init(subsequentPage: CatalogPage) {
+        self.subsequentPage = subsequentPage
+    }
+
+    func load(_ request: CatalogPageRequest) async throws -> CatalogPage {
+        requests.append(request)
+        guard requests.count == 1 else { return subsequentPage }
+
+        // Retain the first completion even after cancellation until the test releases it.
+        return try await withCheckedThrowingContinuation { continuation in
+            firstContinuation = continuation
+            firstRequestWaiter?.resume()
+            firstRequestWaiter = nil
+        }
+    }
+
+    func waitForFirstRequest() async {
+        guard requests.isEmpty else { return }
+
+        await withCheckedContinuation { continuation in
+            firstRequestWaiter = continuation
+        }
+    }
+
+    func completeFirstRequest(with result: Result<CatalogPage, any Error>) {
+        firstContinuation?.resume(with: result)
+        firstContinuation = nil
     }
 }
 
