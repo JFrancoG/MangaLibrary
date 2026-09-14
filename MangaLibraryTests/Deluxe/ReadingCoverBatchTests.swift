@@ -1,8 +1,6 @@
-import CoreGraphics
 import Foundation
 import Synchronization
 import Testing
-import UniformTypeIdentifiers
 @testable import MangaLibrary
 
 @Suite(.tags(.integration))
@@ -225,7 +223,7 @@ struct ReadingCoverBatchTests {
         let projection = projection(count: 300)
 
         let covers = try await ReadingCoverBatch.prepare(projection: projection) { url in
-            try noisySource(seed: UInt32(url.lastPathComponent) ?? 0)
+            try ReadingCoverTestImages.noisySource(seed: UInt32(url.lastPathComponent) ?? 0)
         }
 
         let unique = Dictionary(covers.values.map { ($0.identifier, $0.data) }, uniquingKeysWith: { first, _ in first })
@@ -256,34 +254,5 @@ struct ReadingCoverBatchTests {
                 )
             }
         )
-    }
-
-    private func noisySource(seed: UInt32) throws -> Data {
-        let dimension = 352
-        var state = seed
-        var bytes = Data(capacity: dimension * dimension * 4)
-        for _ in 0..<(dimension * dimension) {
-            state = state &* 1_664_525 &+ 1_013_904_223
-            let level = UInt8(truncatingIfNeeded: state >> 24)
-            bytes.append(level)
-            bytes.append(level)
-            bytes.append(level)
-            bytes.append(255)
-        }
-        let provider = try #require(CGDataProvider(data: bytes as CFData))
-        let image = try #require(CGImage(
-            width: dimension,
-            height: dimension,
-            bitsPerComponent: 8,
-            bitsPerPixel: 32,
-            bytesPerRow: dimension * 4,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
-            provider: provider,
-            decode: nil,
-            shouldInterpolate: false,
-            intent: .defaultIntent
-        ))
-        return try ReadingCoverTestImages.encoded([image], type: .png)
     }
 }

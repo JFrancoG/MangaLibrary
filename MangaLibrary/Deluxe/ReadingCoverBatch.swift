@@ -5,6 +5,8 @@ import Foundation
 /// Input is fetched sequentially outside the caller's actor. Supply bounded bytes, such as
 /// `ReadingCoverSource.data(from:)`; source buffers are not cached. Repeated URLs, including
 /// failures, are resolved once and identical JPEGs share one retained value within eight MiB.
+/// The supplied cache can reuse transformations between batches within its separate two-MiB limit;
+/// each distinct URL still loads its current source before that lookup.
 /// Collection contributes at most 128 additional distinct URLs, prioritizing its local-addition focus. Its text
 /// remains complete even when images are omitted. Failed sources are placeholders, cancellation
 /// aborts the batch, and no resource is admitted here. Publication still selects its final items
@@ -15,6 +17,7 @@ enum ReadingCoverBatch {
         projection: CollectionReadingProjection,
         preferredStartMangaID: Manga.ID? = nil,
         preferredCollectionStartMangaID: Manga.ID? = nil,
+        cache: ReadingCoverCache = ReadingCoverCache(),
         loadSource: @Sendable (URL) async throws -> Data?
     ) async throws -> [Manga.ID: ReadingCoverResource] {
         let plan = try ReadingPublicationPlan(
@@ -65,7 +68,7 @@ enum ReadingCoverBatch {
                     try Task.checkCancellation()
                     continue
                 }
-                prepared = try ReadingCoverPreparation.prepare(source)
+                prepared = try await cache.prepare(source)
             } catch is CancellationError {
                 throw CancellationError()
             } catch {

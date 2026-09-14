@@ -1,8 +1,8 @@
 # SDD 09: Contrato de lectura Deluxe — DX1–DX5
 
 **Estado:** Aprobada por el propietario el 2026-09-06; ampliaciones de rotación, tamaño grande, colección mediana y prioridad de altas locales autorizadas el 2026-09-07; texto e ilustración de no disponible y traslado de la prueba física anterior al primer desbloqueo a DX6 aprobados el 2026-09-08; implementación y posterior entrega de DX5 autorizadas el 2026-09-10; DX5 entregada mediante PR #87 ese mismo día. Cortes técnicos DX6 y DX7 integrados mediante PR #89/#91; #88/#77 abiertos y Deluxe completo pendiente; entrega del proyecto con validación física de Watch diferida aprobada el 2026-09-10, con los límites de SDD 06, establecidos en v1.38
-**Versión:** 1.20
-**Fecha:** 2026-09-11
+**Versión:** 1.21
+**Fecha:** 2026-09-14
 **Tracker:** [DX1 — issue #78](https://github.com/JFrancoG/MangaLibrary/issues/78), [DX2 — issue #79](https://github.com/JFrancoG/MangaLibrary/issues/79), [DX3 — issue #82](https://github.com/JFrancoG/MangaLibrary/issues/82), [DX4 — issue #84](https://github.com/JFrancoG/MangaLibrary/issues/84), [DX5 — issue #86](https://github.com/JFrancoG/MangaLibrary/issues/86) y [DX6 — issue #88](https://github.com/JFrancoG/MangaLibrary/issues/88), hijos del [plan aprobado #77](https://github.com/JFrancoG/MangaLibrary/issues/77)
 
 ## Alcance y aprobación
@@ -681,6 +681,30 @@ cola original y los mangas de colección que no se leen. Omite URLs ausentes y m
 No conserva los buffers de origen. Deduplica JPEG por digest y retiene hasta
 8.388.608 bytes únicos de JPEG en memoria; la fuente y la operación nativa en curso
 son transitorias. Este presupuesto no representa un límite del proceso Image I/O.
+
+El propietario aprueba en C6 el 2026-09-14 una caché adicional, exclusivamente en
+memoria y propiedad del pipeline, de hasta **2.097.152 bytes de JPEG y 128
+entradas**. En el consumo secuencial de `run()`, la cota conservadora de JPEG
+retenidos es **10.485.760 bytes**: los 8 MiB del lote y los 2 MiB de caché.
+No es una cota global para invocaciones independientes de varios lotes.
+No amplía la admisión durable, la caché HTTP
+existente ni los límites de entrada o transformación; los buffers de fuente y
+las operaciones nativas continúan siendo transitorios.
+
+La clave es el SHA-256 de los bytes de origen, nunca la URL. Cada evento sigue
+cargando la fuente y revalidando sesión/ticket alrededor de esa suspensión; bytes
+nuevos bajo la misma URL se preparan de nuevo. Solo se retienen recursos JPEG
+validados, sin originales, URLs ni resultados fallidos. La reutilización evita
+la transformación Image I/O, no autoriza una publicación ni sustituye la
+validación durable del publicador. Cancelación se comprueba también al reutilizar.
+
+La expulsión prioriza las entradas menos recientemente utilizadas y respeta
+ambos límites. Los bytes se contabilizan por entrada, incluso si distintas
+fuentes producen un mismo JPEG; es una cota conservadora. La caché no altera el
+orden de candidatos, prioridades, cuotas ni comparación final de igualdad. No
+introduce tareas autónomas, plazos, publicaciones textuales anticipadas ni otro
+commit/reload por evento. Reduce el trabajo repetido en caliente; no promete
+acotar la espera de una fuente lenta ni la latencia visible de WidgetKit.
 
 Image I/O valida tamaño de entrada, dimensiones positivas y hasta 64 millones
 de píxeles antes de crear el thumbnail del primer frame completo. Aplica la

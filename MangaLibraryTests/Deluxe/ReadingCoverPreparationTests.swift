@@ -226,6 +226,35 @@ struct ReadingCoverPreparationTests {
 }
 
 enum ReadingCoverTestImages {
+    static func noisySource(seed: UInt32) throws -> Data {
+        let dimension = 352
+        var state = seed
+        var bytes = Data(capacity: dimension * dimension * 4)
+        for _ in 0..<(dimension * dimension) {
+            state = state &* 1_664_525 &+ 1_013_904_223
+            let level = UInt8(truncatingIfNeeded: state >> 24)
+            bytes.append(level)
+            bytes.append(level)
+            bytes.append(level)
+            bytes.append(255)
+        }
+        let provider = try #require(CGDataProvider(data: bytes as CFData))
+        let image = try #require(CGImage(
+            width: dimension,
+            height: dimension,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: dimension * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: false,
+            intent: .defaultIntent
+        ))
+        return try encoded([image], type: .png)
+    }
+
     static func jpeg(pattern: Pattern = .split) throws -> Data {
         try encoded([image(width: 64, height: 32, pattern: pattern)])
     }

@@ -121,6 +121,102 @@ struct ReadingPublicationPipelineTests {
     }
 
     @Test
+    func `identical cover bytes preserve the manifest revision and widget reload count`() async throws {
+        let harness = try Harness()
+        defer {
+            harness.removeFiles()
+        }
+        let source = try ReadingCoverTestImages.jpeg(pattern: .red)
+        let pipeline = try harness.pipeline { _ in source }
+        let baseline = try #require(try await pipeline.process(harness.record()))
+        let identifier = try #require(baseline.items.first?.coverResourceID)
+        let cover = try #require(harness.coverReader.read(identifier))
+        let manifest = try #require(try harness.storage.read(.snapshot))
+        #expect(baseline.revision == 1)
+
+        #expect(try await pipeline.process(harness.record()) == nil)
+
+        #expect(try harness.storage.read(.snapshot) == manifest)
+        #expect(try harness.snapshot()?.revision == 1)
+        #expect(harness.coverReader.read(identifier)?.data == cover.data)
+        #expect(harness.reloads.withLock { $0 } == 1)
+    }
+
+    @Test
+    func `changed bytes at the same cover URL publish the new image pixels`() async throws {
+        let harness = try Harness()
+        defer {
+            harness.removeFiles()
+        }
+        let red = try ReadingCoverTestImages.jpeg(pattern: .red)
+        let blue = try ReadingCoverTestImages.jpeg(pattern: .blue)
+        let source = Mutex(red)
+        let pipeline = try harness.pipeline { _ in
+            source.withLock { $0 }
+        }
+        let baseline = try #require(try await pipeline.process(harness.record()))
+        let originalIdentifier = try #require(baseline.items.first?.coverResourceID)
+        let originalCover = try #require(harness.coverReader.read(originalIdentifier))
+        let originalImage = try ReadingCoverTestImages.decoded(originalCover.data)
+        let originalPixel = try ReadingCoverTestImages.pixel(originalImage, x: 32, y: 16)
+        let manifest = try #require(try harness.storage.read(.snapshot))
+        #expect(originalPixel[0] > 200 && originalPixel[2] < 60)
+        source.withLock {
+            $0 = blue
+        }
+
+        let updated = try #require(try await pipeline.process(harness.record()))
+
+        let identifier = try #require(updated.items.first?.coverResourceID)
+        let cover = try #require(harness.coverReader.read(identifier))
+        let image = try ReadingCoverTestImages.decoded(cover.data)
+        let pixel = try ReadingCoverTestImages.pixel(image, x: 32, y: 16)
+        #expect(pixel[2] > 200 && pixel[0] < 60)
+        #expect(identifier != originalIdentifier)
+        #expect(updated.revision == 2)
+        #expect(try harness.storage.read(.snapshot) != manifest)
+        #expect(try harness.snapshot()?.items.first?.coverResourceID == identifier)
+        #expect(harness.reloads.withLock { $0 } == 2)
+    }
+
+    @Test(arguments: [false, true])
+    func `an unavailable cover is retried on the next committed event`(throwsFailure: Bool) async throws {
+        let harness = try Harness()
+        defer {
+            harness.removeFiles()
+        }
+        let source = try ReadingCoverTestImages.jpeg(pattern: .blue)
+        let isAvailable = Mutex(false)
+        let pipeline = try harness.pipeline { _ in
+            if isAvailable.withLock({ $0 }) {
+                return source
+            }
+            if throwsFailure {
+                throw URLError(.notConnectedToInternet)
+            }
+            return nil
+        }
+        let baseline = try #require(try await pipeline.process(harness.record()))
+        #expect(baseline.items.map(\.mangaID) == [10])
+        #expect(baseline.items.first?.coverResourceID == nil)
+        #expect(baseline.revision == 1)
+        isAvailable.withLock {
+            $0 = true
+        }
+
+        let updated = try #require(try await pipeline.process(harness.record()))
+
+        let identifier = try #require(updated.items.first?.coverResourceID)
+        let cover = try #require(harness.coverReader.read(identifier))
+        let image = try ReadingCoverTestImages.decoded(cover.data)
+        let pixel = try ReadingCoverTestImages.pixel(image, x: 32, y: 16)
+        #expect(pixel[2] > 200 && pixel[0] < 60)
+        #expect(updated.revision == 2)
+        #expect(try harness.snapshot()?.items.first?.coverResourceID == identifier)
+        #expect(harness.reloads.withLock { $0 } == 2)
+    }
+
+    @Test
     func `ownership changes for a manga without reading publish a new widget revision`() async throws {
         let harness = try Harness()
         defer { harness.removeFiles() }

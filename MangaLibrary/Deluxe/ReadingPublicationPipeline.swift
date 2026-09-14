@@ -17,6 +17,7 @@ actor ReadingPublicationPipeline {
     private let events: ReadingPublicationEvents
     private let mutations: CollectionMutationActor
     private let publisher: ReadingSnapshotPublisher
+    private let coverCache = ReadingCoverCache()
     private let loadCover: @Sendable (URL) async throws -> Data?
     private let reconcileSession: @Sendable (SessionAuthority) async throws -> Void
     /// Offers the persisted watch context after a no-op, without reserving a revision or reloading widgets.
@@ -109,7 +110,8 @@ actor ReadingPublicationPipeline {
         let covers = try await ReadingCoverBatch.prepare(
             projection: projection,
             preferredStartMangaID: preferred,
-            preferredCollectionStartMangaID: collectionPreferred
+            preferredCollectionStartMangaID: collectionPreferred,
+            cache: coverCache
         ) { url in
             try Task.checkCancellation()
             try Self.validate(event)
