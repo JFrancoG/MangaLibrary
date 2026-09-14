@@ -128,21 +128,9 @@ extension CollectionMutationActor {
         for operation in operations {
             guard
                 operation.userID == userID,
-                operation.mangaID > 0,
-                operation.sequence > 0,
-                operation.retryCount >= 0,
-                operation.isTombstone == operation.desiredState.isTombstone,
+                hasValidOutboxStructure(operation),
                 sequencesByMangaID[operation.mangaID, default: []].insert(operation.sequence).inserted
             else { throw .persistenceConflict }
-
-            if operation.state == .retry {
-                guard
-                    let nextRetryAt = operation.nextRetryAt,
-                    nextRetryAt.timeIntervalSinceReferenceDate.isFinite
-                else { throw .persistenceConflict }
-            } else if operation.state != .confirmed {
-                guard operation.nextRetryAt == nil else { throw .persistenceConflict }
-            }
         }
     }
 }

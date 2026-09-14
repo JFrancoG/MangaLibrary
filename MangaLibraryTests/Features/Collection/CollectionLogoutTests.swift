@@ -24,12 +24,36 @@ struct CollectionLogoutTests {
                 )
             ]
         )
+        let priorStore = try readStore(container)
         let actor = CollectionMutationActor(modelContainer: container)
         let authorization = try Self.logoutAuthorization()
 
         let hasPendingChanges = try await actor.hasPendingChangesForLogout(authorization: authorization)
 
         #expect(hasPendingChanges == scenario.isPending)
+        #expect(try readStore(container) == priorStore)
+    }
+
+    @Test("A negative retry counter prevents logout inspection and discard")
+    func invalidRetryCountPreservesTheSessionCollection() async throws(any Error) {
+        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        try seed(
+            container,
+            entries: [Self.entry(state: Self.localState, confirmedState: Self.confirmedState)],
+            operations: [Self.operation(state: .queued, retryCount: -1)]
+        )
+        let priorStore = try readStore(container)
+        let actor = CollectionMutationActor(modelContainer: container)
+        let authorization = try Self.logoutAuthorization()
+
+        await #expect(throws: CollectionLogoutError.persistenceConflict) {
+            try await actor.hasPendingChangesForLogout(authorization: authorization)
+        }
+        await #expect(throws: CollectionLogoutError.persistenceConflict) {
+            try await actor.discardPendingChangesForLogout(authorization: authorization)
+        }
+
+        #expect(try readStore(container) == priorStore)
     }
 
     @Test("Discard restores confirmed bases, removes optimistic additions and retains monotonic cursors")
@@ -358,6 +382,13 @@ private struct LogoutOutboxScenario: CustomTestStringConvertible {
         ),
         Self(testDescription: "rejected", state: .rejected, retryCount: 0, nextRetryAt: nil, isPending: true),
         Self(testDescription: "confirmed", state: .confirmed, retryCount: 0, nextRetryAt: nil, isPending: false),
+        Self(
+            testDescription: "confirmed with residual retry metadata",
+            state: .confirmed,
+            retryCount: 2,
+            nextRetryAt: Date(timeIntervalSince1970: 1_800_000_030),
+            isPending: false
+        ),
     ]
 }
 

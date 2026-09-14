@@ -223,6 +223,43 @@ struct CollectionOutcomeResolutionCoordinatorTests {
         #expect(evidence.fetchTokens.count == 2)
         #expect(evidence.resolvedDecisions.isEmpty)
     }
+
+    @Test(arguments: R24SessionFailureScenario.all, R24SessionFailurePoint.allCases)
+    private func `session failure prevents confirmation`(
+        _ scenario: R24SessionFailureScenario,
+        point: R24SessionFailurePoint
+    ) async throws(any Error) {
+        let probe = R24CoordinatorProbe(fetchResults: point.fetchResults)
+        await probe.failSession(at: point, with: scenario.error)
+        let coordinator = Self.coordinator(probe: probe)
+        let review = CollectionBlockedOutcomeReview(context: Self.context, evidence: Self.remoteEvidence)
+
+        await #expect(throws: scenario.expectedError) {
+            try await coordinator.resolve(review, decision: .keepDevice)
+        }
+
+        let evidence = await probe.evidence()
+        #expect(evidence.fetchTokens == point.expectedFetchTokens)
+        #expect(evidence.recoveryCount == (point == .recover ? 1 : 0))
+        #expect(evidence.resolvedDecisions.isEmpty)
+    }
+
+    @Test(arguments: R24SessionFailurePoint.allCases)
+    private func `session cancellation prevents confirmation`(_ point: R24SessionFailurePoint) async throws(any Error) {
+        let probe = R24CoordinatorProbe(fetchResults: point.fetchResults)
+        await probe.failSession(at: point, with: CancellationError())
+        let coordinator = Self.coordinator(probe: probe)
+        let review = CollectionBlockedOutcomeReview(context: Self.context, evidence: Self.remoteEvidence)
+
+        await #expect(throws: CancellationError.self) {
+            try await coordinator.resolve(review, decision: .keepDevice)
+        }
+
+        let evidence = await probe.evidence()
+        #expect(evidence.fetchTokens == point.expectedFetchTokens)
+        #expect(evidence.recoveryCount == (point == .recover ? 1 : 0))
+        #expect(evidence.resolvedDecisions.isEmpty)
+    }
 }
 
 private extension CollectionOutcomeResolutionCoordinatorTests {
@@ -302,12 +339,14 @@ private extension CollectionOutcomeResolutionCoordinatorTests {
         )
 
         return CollectionOutcomeResolutionCoordinator(
-            authorize: { authorizationA },
+            authorize: {
+                try await probe.authorize(authorizationA)
+            },
             validateAuthorization: { candidate in
-                await probe.validate(candidate)
+                try await probe.validate(candidate)
             },
             recoverAuthorization: { candidate in
-                await probe.recordRecovery(candidate)
+                try await probe.recordRecovery(candidate)
                 return authorizationB
             },
             loadContext: { operationID, _ in
@@ -353,6 +392,7 @@ private actor R24CoordinatorProbe {
     private var fetchTokens: [String] = []
     private var recoveryCount = 0
     private var resolvedDecisions: [CollectionBlockedOutcomeDecision] = []
+    private var sessionFailure: (point: R24SessionFailurePoint, error: any Error)?
 
     init(
         fetchResults: [FetchResult],
@@ -370,7 +410,17 @@ private actor R24CoordinatorProbe {
         invalidatesAfterNextFetch = true
     }
 
-    func validate(_ authorization: SessionRequestAuthorization) -> Bool {
+    func failSession(at point: R24SessionFailurePoint, with error: any Error) {
+        sessionFailure = (point, error)
+    }
+
+    func authorize(_ authorization: SessionRequestAuthorization) throws(any Error) -> SessionRequestAuthorization {
+        try throwSessionFailure(at: .authorize)
+        return authorization
+    }
+
+    func validate(_ authorization: SessionRequestAuthorization) throws(any Error) -> Bool {
+        try throwSessionFailure(at: .validate)
         guard isAuthorized else { return false }
         guard authorization.authority == CollectionOutcomeResolutionCoordinatorTests.authority else { return false }
         guard validationResults.isEmpty == false else { return true }
@@ -396,9 +446,10 @@ private actor R24CoordinatorProbe {
         }
     }
 
-    func recordRecovery(_ authorization: SessionRequestAuthorization) {
+    func recordRecovery(_ authorization: SessionRequestAuthorization) throws(any Error) {
         guard authorization.authority == CollectionOutcomeResolutionCoordinatorTests.authority else { return }
         recoveryCount += 1
+        try throwSessionFailure(at: .recover)
     }
 
     func validate(_ remoteEntry: CollectionRemoteEntry) throws(any Error) -> CollectionBlockedOutcomeEvidence {
@@ -433,10 +484,57 @@ private actor R24CoordinatorProbe {
             resolvedDecisions: resolvedDecisions
         )
     }
+
+    private func throwSessionFailure(at point: R24SessionFailurePoint) throws(any Error) {
+        if let sessionFailure, sessionFailure.point == point {
+            throw sessionFailure.error
+        }
+    }
 }
 
 private struct R24CoordinatorEvidence: Equatable {
     let fetchTokens: [String]
     let recoveryCount: Int
     let resolvedDecisions: [CollectionBlockedOutcomeDecision]
+}
+
+private enum R24SessionFailurePoint: CaseIterable {
+    case authorize
+    case validate
+    case recover
+
+    var fetchResults: [R24CoordinatorProbe.FetchResult] {
+        switch self {
+        case .authorize:
+            []
+        case .validate:
+            [.success(CollectionOutcomeResolutionCoordinatorTests.remoteEntry)]
+        case .recover:
+            [.failure(.network(.statusCode(401)))]
+        }
+    }
+
+    var expectedFetchTokens: [String] {
+        self == .authorize ? [] : ["access-a"]
+    }
+}
+
+private struct R24SessionFailureScenario {
+    let error: SessionControllerError
+    let expectedError: CollectionBlockedOutcomeError
+
+    static let all: [Self] = [
+        Self(error: .temporarilyUnavailable, expectedError: .unavailable),
+        Self(error: .persistenceUnavailable, expectedError: .unavailable),
+        Self(error: .pendingCollectionPersistenceUnavailable, expectedError: .unavailable),
+        Self(error: .unavailable, expectedError: .unavailable),
+        Self(error: .network(.transport(.notConnectedToInternet)), expectedError: .unavailable),
+        Self(error: .contractDrift, expectedError: .unavailable),
+        Self(error: .invalidCredentials, expectedError: .sessionChanged),
+        Self(error: .authenticationRequired, expectedError: .sessionChanged),
+        Self(error: .pendingCollectionChanges, expectedError: .sessionChanged),
+        Self(error: .transitionInProgress, expectedError: .sessionChanged),
+        Self(error: .sessionChanged, expectedError: .sessionChanged),
+        Self(error: .notAuthenticated, expectedError: .sessionChanged),
+    ]
 }

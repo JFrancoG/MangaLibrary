@@ -10,6 +10,23 @@ import Testing
 
 @Suite("Collection blocked outcome resolution", .tags(.integration))
 struct CollectionBlockedOutcomeResolutionTests {
+    @Test("A nonpositive blocked sequence cannot expose a reviewable context")
+    func invalidBlockedSequencePreservesTheStore() async throws(any Error) {
+        let fixture = try Self.makeFixture(localState: Self.localState, blockedSequence: 0)
+        let priorStore = try Self.read(fixture.container)
+        let priorFence = try Self.readOperationFence(fixture.container)
+
+        await #expect(throws: CollectionBlockedOutcomeError.persistenceConflict) {
+            try await fixture.actor.blockedOutcomeContext(
+                operationID: Self.blockedOperationID,
+                authorization: fixture.authorization
+            )
+        }
+
+        #expect(try Self.read(fixture.container) == priorStore)
+        #expect(try Self.readOperationFence(fixture.container) == priorFence)
+    }
+
     @Test("Using remote presence resolves a blocked POST without creating work")
     func usingRemotePresenceResolvesBlockedPost() async throws(any Error) {
         let fixture = try Self.makeFixture(localState: Self.localState)

@@ -229,14 +229,7 @@ actor CollectionOutcomeResolutionCoordinator {
                 throw CollectionBlockedOutcomeError.authenticationIncompatible(statusCode: statusCode)
             }
         } catch let error as SessionControllerError {
-            switch error {
-            case .temporarilyUnavailable, .persistenceUnavailable, .pendingCollectionPersistenceUnavailable,
-                 .unavailable, .network, .contractDrift:
-                throw CollectionBlockedOutcomeError.unavailable
-            case .invalidCredentials, .authenticationRequired, .pendingCollectionChanges,
-                 .transitionInProgress, .sessionChanged, .notAuthenticated:
-                throw CollectionBlockedOutcomeError.sessionChanged
-            }
+            throw mapSessionError(error)
         } catch {
             throw CollectionBlockedOutcomeError.unavailable
         }
@@ -312,14 +305,7 @@ actor CollectionOutcomeResolutionCoordinator {
         } catch let error as CollectionBlockedOutcomeError {
             throw error
         } catch let error as SessionControllerError {
-            switch error {
-            case .temporarilyUnavailable, .persistenceUnavailable, .pendingCollectionPersistenceUnavailable,
-                 .unavailable, .network, .contractDrift:
-                throw CollectionBlockedOutcomeError.unavailable
-            case .invalidCredentials, .authenticationRequired, .pendingCollectionChanges,
-                 .transitionInProgress, .sessionChanged, .notAuthenticated:
-                throw CollectionBlockedOutcomeError.sessionChanged
-            }
+            throw mapSessionError(error)
         } catch {
             throw CollectionBlockedOutcomeError.unavailable
         }
@@ -344,16 +330,20 @@ actor CollectionOutcomeResolutionCoordinator {
                 throw CollectionBlockedOutcomeError.authenticationIncompatible(statusCode: statusCode)
             }
         } catch let error as SessionControllerError {
-            switch error {
-            case .temporarilyUnavailable, .persistenceUnavailable, .pendingCollectionPersistenceUnavailable,
-                 .unavailable, .network, .contractDrift:
-                throw CollectionBlockedOutcomeError.unavailable
-            case .invalidCredentials, .authenticationRequired, .pendingCollectionChanges,
-                 .transitionInProgress, .sessionChanged, .notAuthenticated:
-                throw CollectionBlockedOutcomeError.sessionChanged
-            }
+            throw mapSessionError(error)
         } catch {
             throw CollectionBlockedOutcomeError.unavailable
+        }
+    }
+
+    private func mapSessionError(_ error: SessionControllerError) -> CollectionBlockedOutcomeError {
+        switch error {
+        case .temporarilyUnavailable, .persistenceUnavailable, .pendingCollectionPersistenceUnavailable,
+             .unavailable, .network, .contractDrift:
+            .unavailable
+        case .invalidCredentials, .authenticationRequired, .pendingCollectionChanges,
+             .transitionInProgress, .sessionChanged, .notAuthenticated:
+            .sessionChanged
         }
     }
 

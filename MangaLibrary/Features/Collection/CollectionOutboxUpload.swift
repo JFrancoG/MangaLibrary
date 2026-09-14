@@ -541,21 +541,7 @@ extension CollectionMutationActor {
         _ operation: CollectionOutboxOperation,
         userID: UUID
     ) throws(CollectionOutboxUploadError) {
-        guard
-            operation.userID == userID,
-            operation.mangaID > 0,
-            operation.sequence > 0,
-            operation.retryCount >= 0,
-            operation.isTombstone == operation.desiredState.isTombstone
-        else { throw .persistenceConflict }
-        if operation.state == .retry {
-            guard
-                let nextRetryAt = operation.nextRetryAt,
-                nextRetryAt.timeIntervalSinceReferenceDate.isFinite
-            else { throw .persistenceConflict }
-        } else if operation.state != .confirmed {
-            guard operation.nextRetryAt == nil else { throw .persistenceConflict }
-        }
+        guard operation.userID == userID, hasValidOutboxStructure(operation) else { throw .persistenceConflict }
     }
 
     private func resolveUpload(

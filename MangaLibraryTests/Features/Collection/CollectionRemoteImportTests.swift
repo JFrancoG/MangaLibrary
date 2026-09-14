@@ -134,6 +134,54 @@ struct CollectionRemoteImportTests {
         #expect(try readRemoteStore(container) == priorStore)
     }
 
+    @Test("A retry without a deadline prevents every remote snapshot change")
+    func missingRetryDeadlinePreservesThePriorStore() async throws(any Error) {
+        let container = try makeContainer()
+        let actor = CollectionMutationActor(modelContainer: container)
+        try await actor.importRemote(
+            [
+                remoteEntry(
+                    mangaID: 42,
+                    title: "Committed base",
+                    ownedVolumes: [1],
+                    readingVolume: nil
+                )
+            ],
+            authorization: Self.authorization(for: Self.userID)
+        )
+        let context = ModelContext(container)
+        let entry = try #require(try context.fetch(FetchDescriptor<CollectionEntry>()).first)
+        context.insert(
+            CollectionOutboxOperation(
+                operationID: Self.operationID,
+                userID: Self.userID,
+                mangaID: 42,
+                sequence: 1,
+                desiredState: entry.state,
+                state: .retry,
+                retryCount: 1
+            )
+        )
+        try context.save()
+        let priorStore = try readRemoteStore(container)
+
+        await #expect(throws: CollectionRemoteImportError.persistenceConflict) {
+            try await actor.importRemote(
+                [
+                    remoteEntry(
+                        mangaID: 42,
+                        title: "Would replace",
+                        ownedVolumes: [2],
+                        readingVolume: 2
+                    )
+                ],
+                authorization: Self.authorization(for: Self.userID)
+            )
+        }
+
+        #expect(try readRemoteStore(container) == priorStore)
+    }
+
     @Test("Cancellation after the first mutation rolls the complete transaction back")
     func cancellationAfterPartialMutationRestoresThePriorStore() async throws(any Error) {
         let container = try makeContainer()
@@ -544,7 +592,9 @@ struct CollectionRemoteImportTests {
                 mangaID: 42,
                 sequence: 1,
                 desiredState: historicalState,
-                state: .confirmed
+                state: .confirmed,
+                retryCount: 2,
+                nextRetryAt: Date(timeIntervalSince1970: 1_700_000_000)
             )
         )
         context.insert(
@@ -557,6 +607,7 @@ struct CollectionRemoteImportTests {
             )
         )
         try context.save()
+        let priorOperations = try readRemoteStore(container).operations.sorted { $0.sequence < $1.sequence }
         let actor = CollectionMutationActor(modelContainer: container)
         let remote = remoteEntry(
             mangaID: 42,
@@ -582,6 +633,7 @@ struct CollectionRemoteImportTests {
         )
         #expect(operations.map(\.state) == [.confirmed, .queued])
         #expect(operations.map(\.desiredState) == [historicalState, tombstone])
+        #expect(operations == priorOperations)
     }
 
     @Test("R1 keeps a recoverable historical deletion opaque", arguments: [CollectionOutboxState.retry, .blockedAuth])

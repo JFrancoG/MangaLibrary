@@ -106,10 +106,17 @@ struct CollectionOutboxTransitionTests {
             container,
             entry: Self.entry(state: tombstone, confirmedState: historicalState),
             operations: [
-                Self.operation(sequence: 1, desiredState: historicalState, state: .confirmed),
+                Self.operation(
+                    sequence: 1,
+                    desiredState: historicalState,
+                    state: .confirmed,
+                    retryCount: 2,
+                    nextRetryAt: Self.retryScheduledAt
+                ),
                 Self.operation(operationID: Self.operationB, sequence: 2, desiredState: tombstone),
             ]
         )
+        let priorCursor = try #require(try readStore(container).operations.first)
 
         let actor = CollectionMutationActor(modelContainer: container)
         let claim = try #require(try await actor.claimNextUpload(authorization: Self.authorization(for: Self.userA)))
@@ -119,6 +126,7 @@ struct CollectionOutboxTransitionTests {
         #expect(workItem.sequence == 2)
         #expect(workItem.isTombstone)
         #expect(try readStore(container).operations.map(\.state) == [.confirmed, .sending])
+        #expect(try readStore(container).operations.first == priorCursor)
     }
 
     @Test("A queued POST at the global boundary remains claimable")
@@ -464,6 +472,27 @@ struct CollectionOutboxTransitionTests {
         #expect(operation.state == .retry)
         #expect(operation.retryCount == 1)
         #expect(operation.nextRetryAt == nil)
+    }
+
+    @Test("A queued upload with a residual deadline cannot be claimed")
+    func queuedDeadlineFailsWithoutChangingTheStore() async throws(any Error) {
+        let container = try makeContainer()
+        let desiredState = Self.state(ownedVolumes: [1, 2], readingVolume: 2)
+        try seed(
+            container,
+            entry: Self.entry(state: desiredState, confirmedState: Self.baseState),
+            operations: [
+                Self.operation(sequence: 1, desiredState: desiredState, nextRetryAt: Self.retryScheduledAt)
+            ]
+        )
+        let priorStore = try readStore(container)
+        let actor = CollectionMutationActor(modelContainer: container)
+
+        await #expect(throws: CollectionOutboxUploadError.persistenceConflict) {
+            try await actor.claimNextUpload(authorization: Self.authorization(for: Self.userA))
+        }
+
+        #expect(try readStore(container) == priorStore)
     }
 
     @Test("A future retry cannot delay actionable work for another manga")
