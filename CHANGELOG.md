@@ -30,6 +30,8 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-09-14 | ⚡️ perf(deluxe): reuse prepared cover images
+
 - 2026-09-14 | ♻️ refactor(ui): simplify forms and confirmations
 
 - 2026-09-14 | ♻️ refactor(collection): simplify outbox validation and flight cleanup

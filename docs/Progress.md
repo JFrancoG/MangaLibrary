@@ -10,6 +10,138 @@ aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
 
+## C6 — Reutilización acotada de portadas — issue #124
+
+El propietario autoriza el 2026-09-14 abrir
+[#124](https://github.com/JFrancoG/MangaLibrary/issues/124), crear la rama
+`codex/124-reuse-prepared-covers` e implementar el ajuste 3. Parte de
+`main@c138290`, limpio tras entregar C5. Después de medir y revisar alternativas,
+aprueba expresamente una caché de 2 MiB / 128 entradas adicional al lote de
+8 MiB. SDD 09 v1.21 registra la cota conservadora de 10 MiB de JPEG retenidos
+durante el consumo secuencial del pipeline, no como límite global de varios lotes.
+Tras validar la implementación, el propietario autoriza commit, push, PR,
+merge, cierre del issue y borrado de la rama. La entrega conserva el alcance C6.
+
+`ReadingCoverCache` es un actor propiedad de cada pipeline. Identifica fuentes
+por SHA-256 de sus bytes, prepara JPEG con Image I/O fuera del actor principal
+y expulsa las entradas menos recientemente utilizadas al alcanzar cualquiera
+de sus dos límites. Conserva únicamente digest y JPEG validado: no originales,
+URLs, fallos, plazos ni tareas autónomas. El lote sigue cargando cada URL y
+respetando selección, prioridades y 8 MiB propios. La caché no amplía la cuota
+durable ni participa en la autoridad de sesión o en el commit final.
+
+Se descartan una caché por URL, que podría ocultar nuevas imágenes, y un no-op
+previo a resolver portadas, que cambiaría la igualdad del contenido publicable.
+Publicación textual anticipada y presupuesto temporal cambiarían el contrato
+de rotación y commits; no se introducen. La revisión independiente considera
+desproporcionado coordinar préstamos y resultados de varios lotes solo para
+mantener una unión exacta de 8 MiB. Un array LRU de 128 entradas basta; sus
+bytes se cuentan por entrada de forma conservadora.
+
+Se contrastan [SHA-256 de CryptoKit](https://developer.apple.com/documentation/cryptokit/sha256)
+y [SE-0461](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0461-async-function-isolation.md)
+con documentación primaria y el toolchain activo. `@concurrent` conserva la
+salida del actor del llamador en el lote; la nueva preparación síncrona aislada
+pertenece al actor de caché. No se eleva plataforma ni se atribuyen estas APIs
+en exclusiva a iOS 27 / Swift 6.4.
+
+### Medición antes y después
+
+Exploración local mediante `RunCodeSnippet` del Xcode MCP oficial: Xcode 27 RC
+`27A266a`, Swift 6.4 `swiftlang-6.4.0.34.1`, iPhone 17 Simulator / iOS 27.
+48 PNG diferentes de 800×400, generados antes del cronómetro, suman 336.732
+bytes; producen 48 JPEG distintos / 119.286 bytes. `ContinuousClock` informa
+duraciones sin aserciones temporales. Fuentes locales controladas y URLProtocol,
+SwiftData aislada y directorios temporales; ninguna llamada a red real.
+
+| Tramo | Muestras por versión | Antes | Después |
+| --- | ---: | ---: | ---: |
+| Fuente URLProtocol de 1 MiB, posteriores | 9 | 59,39 ms | 59,67 ms |
+| Preparación directa de una imagen, posteriores | 19 | 1,63 ms | 1,50 ms |
+| Lote de 48 portadas repetido | 9 | 72,33 ms | 0,70 ms |
+| Pipeline de 48, proyección idéntica | 9 | 83,26 ms | 10,75 ms |
+| Publicador solo, 48 ya preparadas, no-op | 9 | 5,45 ms | 5,53 ms |
+| Cambio de lectura entre eventos hasta commit, 48 portadas | 1 | 146,86 ms | 82,37 ms |
+
+Las filas con varias muestras muestran medianas. La reducción observada del
+pipeline idéntico es aproximadamente 87 %. El pipeline de 48 usa exactamente
+el mismo diagnóstico antes/después; el lote posterior recibe la caché que ahora
+conserva producción entre lotes. Los diez lotes efectúan las mismas 480 cargas,
+y los nueve no-op del pipeline no añaden escrituras de snapshot ni reloads.
+La primera publicación de 48 cambia de 870,56 a 856,17 ms (una muestra por
+versión): no se presenta como mejora en frío. El contador de escrituras mide
+reemplazos de `ReadingSnapshotStorage`, no admisiones de archivos JPEG.
+
+El diagnóstico de un piloto temporal previo dio 75,40 ms frente a 0,14 ms solo
+para preparación de 48 fuentes; esos números no sustituyen los resultados
+posteriores del producto. «Primera» significa primera invocación del diagnóstico,
+no caché fría del sistema operativo. No se miden RSS, buffers nativos, energía,
+latencia CDN ni hardware; no son tests de rendimiento ni presupuestos de
+Instruments. El ahorro depende de que las fuentes reutilizadas quepan en los
+2 MiB / 128 entradas; un recorrido mayor puede expulsarlas y volver a prepararlas.
+Una fuente lenta sigue retrasando el lote. Los diagnósticos también
+acreditan píxeles azules tras cambiar bytes bajo la misma URL, recuperación
+tras nil y descarte de un ticket sustituido durante una fuente suspendida.
+
+### Pruebas y validación
+
+Antes de integrar la caché pasan **3 declaraciones / 4 invocaciones** de
+caracterización: JPEG idéntico conserva manifest/revisión/reload; rojo→azul
+bajo la misma URL publica píxeles nuevos; nil o error opcional se recuperan en
+un evento posterior. No se presenta ese GREEN previo como TDD de comportamiento
+nuevo. Bundle nativo cerrado `Test-MangaLibrary-2026.09.14_20-31-26-+0200.xcresult`.
+
+La retención nueva sigue RED/GREEN: un stub compilable que prepara JPEG sin
+retenerlos falla los tres oráculos de retención, LRU y cuota, sin errores de
+setup o compilación. La implementación pasa **5 declaraciones / 8 invocaciones**:
+reutilización con píxeles, 128 entradas, 2 MiB con imágenes ruidosas reales,
+fuentes inválidas y cancelación de acierto/fallo sin alterar retención ni orden.
+Bundles nativos cerrados `Test-MangaLibrary-2026.09.14_20-33-44-+0200.xcresult`
+(RED) y `Test-MangaLibrary-2026.09.14_20-34-46-+0200.xcresult` (GREEN).
+Estos tests comprueban el contrato de retención; el ahorro de Image I/O procede
+de la medición, no de comparar identidad de Data ni de contadores artificiales.
+El generador de ruido existente se traslada a `ReadingCoverTestImages` y se
+comparte con la prueba de lote, sin duplicarlo ni cambiar su algoritmo.
+
+La revisión iOS independiente y Audit de los **7 Swift** (incluidos los dos
+nuevos) no encuentran hallazgos. El recall del script señala únicamente una
+closure preexistente fuera del diff. Una segunda revisión contrasta cifras y
+limitaciones contra las salidas reales; `git diff --check` y la partición de
+planes son correctos.
+
+Validación final sobre los siete Swift sin cambios posteriores:
+
+- `validate-advanced-build.sh --deluxe`, con Xcode RC seleccionado mediante
+  `MANGALIBRARY_DEVELOPER_DIR`: builds limpios Debug/Release de los cinco
+  targets, cero warnings/errores Swift y Clang.
+- `RunAllTests` MCP, Fast: **368 declaraciones / 619 invocaciones**; Integration:
+  **465 / 642**. Resúmenes y árboles nativos cerrados
+  `Test-MangaLibrary-2026.09.14_20-42-20-+0200.xcresult` y
+  `Test-MangaLibrary-2026.09.14_20-42-49-+0200.xcresult`: cero fallos,
+  omisiones, fallos esperados y warnings de runtime. Los agregados MCP mezclan
+  ejecuciones anteriores y no se usan para esos recuentos.
+- `validate-docc.sh`, mismo Xcode RC, destino genérico iOS y Release: archive
+  nuevo `.build/docc/MangaLibrary.doccarchive`, fuera de Git, cero warnings y
+  errores Swift/Clang/DocC.
+
+- `RunAllTests` MCP, ReleaseGate: **846 declaraciones / 1.274 invocaciones**,
+  incluidos los **13 UI** (11 de `MangaLibraryUITests` y 2 de `AppStartupUITests`).
+  Bundle nativo cerrado `Test-MangaLibrary-2026.09.14_20-47-01-+0200.xcresult`,
+  resumen y árbol íntegros: cero fallos, omisiones, fallos esperados y warnings
+  de runtime. Ejecutado en un iPhone 17 Simulator nuevo y limpio, iOS 27
+  `24A434`; duración nativa 438,36 segundos. La llamada MCP alcanza su límite
+  de 300 segundos mientras Xcode continúa; se espera al cierre nativo y no se
+  repite la ejecución.
+
+Los siete Swift conservan los mismos bytes entre medición, revisión y gates
+finales. Se restaura Xcode a Fast / iPhone 17 y se elimina únicamente el
+simulador temporal creado para C6. Para la entrega se vuelven a comprobar los
+hashes de los siete Swift y Audit sobre el diff: coinciden con la candidata
+validada y no hay hallazgos. Se reutilizan sus builds, planes y archive DocC;
+solo se actualizan el registro de entrega y el changelog. El resultado definitivo
+del commit, la PR y el merge se registra en #124. H01 y los pendientes físicos de Watch conservan
+su estado y límites en #88/#77; este corte no modifica UI ni añade evidencia física.
+
 ## C5 — Formularios y confirmaciones — issue #122
 
 El propietario autoriza el 2026-09-14 abrir
