@@ -10,6 +10,119 @@ aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
 
+## C5 — Formularios y confirmaciones — issue #122
+
+El propietario autoriza el 2026-09-14 abrir
+[#122](https://github.com/JFrancoG/MangaLibrary/issues/122), crear la rama
+`codex/122-simplify-forms-and-confirmation` e implementar los ajustes 8, 9 y
+la parte de estilo del 11. Parte de `main@3c23198`, limpio tras entregar C4.
+Tras validar la implementación, el propietario autoriza commit, push, PR,
+merge, cierre del issue y borrado de rama. La entrega conserva el alcance C5.
+
+El alcance conserva AUTH-007/008/013 y R2.4 de SDD 04, SDD 06 y ADR 0002/0005.
+La propuesta independiente no encuentra bloqueos: una única decisión opcional
+para la confirmación, un modificador de apariencia de Cuenta sin estado y un
+helper de interacción UI que conserva los escenarios de login y registro.
+No cambia contratos, arquitectura, persistencia ni política de credenciales.
+
+La [API de Apple `alert(_:item:actions:message:)`](https://developer.apple.com/documentation/swiftui/view/alert(_:item:actions:message:))
+se verifica en documentación primaria y en el SDK de Xcode 27 RC. El binding
+opcional se vuelve `nil` al cerrar; la acción recibe y conserva su decisión.
+El overload no exige `Identifiable` y declara disponibilidad desde iOS 15,
+por lo que no se presenta como exclusivo de iOS 27 ni exige elevar plataforma.
+
+Antes del refactor se amplía el UI existente con nube/cancelar,
+dispositivo/cancelar y nube/confirmar. El oráculo final inspecciona la colección
+real: lectura 1 en el resumen y, en el editor, volumen 1 activado y volumen 3
+desactivado.
+Conservar dispositivo habría dejado lectura 2 y volúmenes 1 y 3. Se mantienen
+las aserciones previas sobre tombstone y aviso durable. Es caracterización
+de comportamiento existente, sin RED ficticio de una extracción.
+
+El primer intento descubre un selector incorrecto en la ampliación del test:
+busca botones de quitar volumen propios del total desconocido, pero la fixture
+publica 27 tomos y el editor ofrece toggles. El árbol nativo acredita el estado
+esperado y se corrige únicamente el harness para consultar esos controles;
+este fallo no se presenta como RED de producto.
+
+La caracterización corregida pasa **1/1** antes de modificar producción, en el
+bundle nativo cerrado `Test-MangaLibrary-2026.09.14_19-36-36-+0200.xcresult`:
+cero fallos, omisiones, fallos esperados y warnings de runtime. El build previo
+de cinco targets en Debug y Release tiene cero warnings; tras ajustar los
+selectores, `BuildProject` MCP vuelve a compilar los tests sin diagnósticos.
+
+La implementación retira el booleano y el helper trivial de confirmación.
+`AccountCredentialFieldModifier` concentra las cuatro cadenas de apariencia
+sin transportar estado, bindings, foco, validación ni `textContentType`.
+Las trailing closures de Cuenta y de las previews mantienen sus acciones.
+El helper de contraseña conserva **19 aserciones y 10 esperas por ejecución**:
+login mantiene 52 aserciones/23 esperas y registro 34/20; expandir ambas llamadas
+reconstruye el archivo anterior a la extracción byte a byte. La preparación
+específica del autofill de registro continúa en su escenario.
+
+La revisión independiente del diff final cierra sin hallazgos de iOS, testing,
+SwiftUI/accesibilidad estática o estilo. Audit cubre los seis Swift, incluido
+el modificador nuevo: tres candidatos adjudicados y ninguna infracción. El
+`EdgeInsets` de cuatro argumentos conserva su estructura vertical; los otros
+dos candidatos pertenecen a contexto intacto. Se comprueban manualmente
+closures, declaraciones, guards, cadenas y previews. `git diff --check` pasa.
+
+El build final estricto de cinco targets en Debug y Release termina con cero
+warnings o errores. `BuildProject` MCP compila además la candidata para testing
+y `GetBuildLog` no devuelve diagnósticos. No cambia `project.pbxproj`.
+
+Validación final mediante Xcode MCP oficial, Xcode 27 RC `27A266a`, Swift 6.4
+`swiftlang-6.4.0.34.1`, scheme MangaLibrary e iPhone 17 Simulator / iOS 27.0
+`24A434`:
+
+- Fast completo: **363 declaraciones / 611 invocaciones** aprobadas.
+- Integration completo: **462 declaraciones / 638 invocaciones** aprobadas.
+  Los árboles nativos conservan las 28 suites Fast y 42 Integration. La suma
+  es **825 declaraciones / 1.249 invocaciones**, sin nuevos tests unitarios
+  estructurales. Las cifras agregadas mezcladas del MCP no se usan como evidencia.
+- UI focal: **4/4** aprobados: login, registro, revisión de resultados bloqueados
+  y decisión explícita de logout. La caracterización vuelve a pasar con
+  `alert(item:)` y ambos recorridos de contraseña pasan con el helper compartido.
+  Los tres bundles nativos cerrados acreditan cero fallos, omisiones, fallos
+  esperados y warnings de runtime.
+- Nueve previews de login, registro y revisión de cambios en **Large, XXX Large
+  y AX5**, con variantes EN/ES; render real en iPhone 18 Pro / iOS 27.0.
+  La inspección muestra disposición, textos y escalado conservados. La captura
+  de revisión en XXX Large/AX5 cubre el primer viewport del Form desplazable;
+  no acredita interacción con acciones situadas más abajo. Los controles de
+  confirmación sí se ejercitan en el UI focal a tamaño normal.
+- La partición estática de planes y `git diff --check` vuelven a pasar.
+  Xcode queda con Fast e iPhone 17, sin cambios de configuración versionada.
+- La inspección independiente de las nueve imágenes cierra sin regresiones
+  observables y conserva los límites del primer viewport. Su recuento de los
+  tres árboles nativos confirma las cifras anteriores.
+- `validate-docc.sh` genera un archive Release nuevo, con cero warnings y
+  errores Swift, Clang y DocC. Ambos scripts verifican y usan el Developer
+  directory explícito de Xcode 27 RC, sin cambiar `xcode-select`.
+
+Bundles fuera de Git: `Test-MangaLibrary-2026.09.14_19-42-52-+0200.xcresult`
+(UI focal final), `Test-MangaLibrary-2026.09.14_19-46-37-+0200.xcresult`
+(Fast final) y `Test-MangaLibrary-2026.09.14_19-46-52-+0200.xcresult`
+(Integration final).
+
+Para la entrega se confirma que los seis Swift coinciden exactamente con la
+candidata validada. Se reutilizan los builds, DocC, previews y revisiones
+recientes, se repite Audit sin hallazgos y se ejecuta el ReleaseGate completo
+en un iPhone 17 Simulator nuevo y limpio, iOS 27.0 `24A434`.
+
+El ReleaseGate final acredita **838 declaraciones / 1.262 invocaciones**,
+incluidos los **13 UI**, todo aprobado. El resumen y árbol nativos cerrados de
+`Test-MangaLibrary-2026.09.14_19-59-14-+0200.xcresult` registran cero fallos,
+omisiones, fallos esperados y warnings de runtime. El build de esta ejecución
+tampoco emite diagnósticos. La llamada MCP alcanza su límite de 300 segundos;
+se espera el cierre nativo sin duplicar la suite. Se restauran Fast e iPhone 17
+y se elimina únicamente el simulador temporal creado para este gate.
+
+La entrega de C5 queda vinculada a #122 y a la PR que lo cierre.
+
+AutoFill real, hardware, accesibilidad física y los gates Deluxe #77/#88
+conservan su alcance pendiente.
+
 ## C4 — Validaciones y coordinadores de Colección — issue #120
 
 El propietario autoriza el 2026-09-14 abrir

@@ -104,12 +104,9 @@ struct AccountRootView: View {
                     case .signIn:
                         SignInView(model: model)
                     case .register:
-                        RegisterView(
-                            model: model,
-                            onSignIn: {
-                                path = [.signIn]
-                            }
-                        )
+                        RegisterView(model: model) {
+                            path = [.signIn]
+                        }
                     case .reviewBlockedOutcomes:
                         if let authenticatedAuthority {
                             CollectionBlockedOutcomesView(
@@ -425,14 +422,13 @@ struct AccountRootView: View {
     private var authenticatedAuthority: SessionAuthority? { model.state.accountNavigationAuthority }
 
     private var pendingLogoutConfirmationBinding: Binding<Bool> {
-        Binding(
-            get: { model.showsPendingLogoutConfirmation },
-            set: { isPresented in
-                if isPresented == false {
-                    model.staySignedInWithPendingChanges()
-                }
+        Binding {
+            model.showsPendingLogoutConfirmation
+        } set: { isPresented in
+            if isPresented == false {
+                model.staySignedInWithPendingChanges()
             }
-        )
+        }
     }
 }
 
