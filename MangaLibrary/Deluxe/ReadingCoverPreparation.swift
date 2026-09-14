@@ -27,9 +27,7 @@ private extension ReadingCoverPreparation {
         guard
             let source = CGImageSourceCreateWithData(data as CFData, sourceOptions),
             let identifier = CGImageSourceGetType(source) as String?,
-            let type = UTType(identifier),
-            type.conforms(to: .image),
-            CGImageSourceGetCount(source) > 0,
+            let type = UTType(identifier), type.conforms(to: .image), CGImageSourceGetCount(source) > 0,
             let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, sourceOptions) as? [CFString: Any],
             let width = properties[kCGImagePropertyPixelWidth] as? Int,
             let height = properties[kCGImagePropertyPixelHeight] as? Int,

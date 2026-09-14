@@ -30,6 +30,8 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-09-14 | 💄 style(deluxe): compact image type validation
+
 - 2026-09-12 | ♻️ refactor(project): organize files and compact Swift
 
 - 2026-09-12 | ♻️ refactor(collection): extract blocked outcome persistence
