@@ -260,19 +260,9 @@ extension CollectionMutationActor {
         _ operation: CollectionOutboxOperation
     ) throws(CollectionBlockedOutcomeError) {
         guard
-            operation.mangaID > 0,
-            operation.sequence > 0,
-            operation.retryCount >= 0,
-            operation.isTombstone == operation.desiredState.isTombstone
+            hasValidOutboxStructure(operation),
+            operation.state != .confirmed || operation.nextRetryAt == nil
         else { throw .persistenceConflict }
-        if operation.state == .retry {
-            guard
-                let nextRetryAt = operation.nextRetryAt,
-                nextRetryAt.timeIntervalSinceReferenceDate.isFinite
-            else { throw .persistenceConflict }
-        } else {
-            guard operation.nextRetryAt == nil else { throw .persistenceConflict }
-        }
         guard CollectionVolumePolicy.isValid(
             operation.desiredState,
             allowingHistoricalTombstone: true

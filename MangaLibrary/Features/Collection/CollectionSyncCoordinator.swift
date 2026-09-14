@@ -207,17 +207,13 @@ actor CollectionSyncCoordinator {
         let flight = Flight(identity: identity, task: task)
         activeFlight = flight
 
-        do {
-            let importedSnapshot = try await withTaskCancellationHandler {
-                try await task.value
-            } onCancel: {
-                task.cancel()
-            }
+        defer {
             clear(flight)
-            return importedSnapshot
-        } catch {
-            clear(flight)
-            throw error
+        }
+        return try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
         }
     }
 

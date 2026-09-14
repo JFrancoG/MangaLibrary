@@ -10,6 +10,98 @@ aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
 
+## C4 — Validaciones y coordinadores de Colección — issue #120
+
+El propietario autoriza el 2026-09-14 abrir
+[#120](https://github.com/JFrancoG/MangaLibrary/issues/120), crear la rama
+`codex/120-simplify-collection-validation` e implementar los ajustes 5 y 10
+del plan de auditoría. Parte de `main@644ad91`, limpio tras C3. Tras validar la
+implementación, el propietario autoriza commit, push, PR, merge, cierre del
+issue y borrado de la rama. La entrega mantiene el mismo alcance de C4.
+
+El corte comparte únicamente la estructura común de la outbox, el mapeo de
+errores de sesión de R2.4 y la limpieza síncrona de los vuelos. Conserva las
+condiciones de cada operación, el único actor de mutación y la transacción
+Colección/outbox de SDD 03/04. No cambia la verdad normativa, el esquema ni
+la política de autenticación, reintentos o resultados inciertos. La tolerancia
+de fechas residuales en cursores confirmados permanece localmente distinguida
+de la regla más estricta de resolución incierta.
+
+La caracterización añade seis declaraciones de Swift Testing y refuerza tres
+escenarios existentes. Rechaza metadatos inválidos a través de las operaciones
+públicas y comprueba que otro contexto conserva la colección, outbox y cercas
+previas. Los cursores confirmados con deadline residual siguen permitiendo
+envío, importación e inspección de logout. Los doce errores de sesión se
+inyectan en autorización, validación y recuperación de R2.4, con error público
+exacto, ausencia de commit y límite de requests; tres casos adicionales
+conservan la cancelación. No se prueban directamente el helper ni `clear`.
+
+Antes de cambiar producción, el build estricto de cinco targets en Debug y
+Release pasa con cero warnings. La primera compilación detecta dos nombres
+duplicados entre `@Test` y funciones con identificador descriptivo, diagnóstico
+de Swift Testing 6.4 corregido retirando solo el nombre explícito del atributo.
+No se presenta ese fallo de compilación como RED de comportamiento.
+
+El focal previo acredita **9 declaraciones / 46 invocaciones**, incluidos los
+39 casos nuevos del coordinador. El bridge no permite `RunSomeTests` bajo los
+filtros heredados de Fast y limita la selección parametrizada de logout a un
+caso; se registra ese límite y se ejecuta Integration completo sobre producción
+intacta: **462 declaraciones / 638 invocaciones**, incluidos los ocho escenarios
+de logout y su cursor confirmado residual. Los dos resultados nativos cerrados
+acreditan cero fallos, omisiones, fallos esperados y warnings de runtime. Es
+caracterización de un refactor que conserva comportamiento, no una nueva regla
+de producto que requiera RED/GREEN.
+
+Fuentes: SDD 03/04/06/07, ADR 0003/0004/0005/0012 y
+[semántica de `defer` en TSPL](https://github.com/swiftlang/swift-book/blob/main/TSPL.docc/ReferenceManual/Statements.md#defer-statement).
+La revisión iOS independiente previa aprueba la propuesta.
+
+Validación posterior al refactor con Xcode MCP oficial, Xcode 27 RC `27A266a`,
+Swift 6.4 `swiftlang-6.4.0.34.1`, scheme MangaLibrary e iPhone 17 Simulator /
+iOS 27.0 `24A434`:
+
+- Fast completo: **363 declaraciones / 611 invocaciones** aprobadas.
+- Integration completo: **462 declaraciones / 638 invocaciones** aprobadas.
+  La suma es **825 declaraciones / 1.249 invocaciones**; C4 añade seis
+  declaraciones y 44 invocaciones respecto a C3. Los árboles nativos cerrados
+  acreditan todos los casos aprobados y cero omisiones, fallos esperados o
+  warnings de runtime. Los logs no muestran avisos de continuaciones ni
+  aislamiento. Las cifras mezcladas del agregado MCP no se usan como evidencia.
+- `validate-advanced-build.sh --deluxe`: cinco targets con DerivedData nuevos,
+  Debug y Release limpios, cero warnings o errores. Tras la última corrección
+  exclusivamente léxica de dos llamadas del test de importación, `BuildProject`
+  MCP vuelve a compilar el diff final para testing sin diagnósticos. La partición
+  estática conserva las 28 suites Fast y 42 Integration.
+- La revisión iOS independiente del diff y su evidencia cierra sin hallazgos.
+  Audit léxico independiente sobre los **13 Swift**, incluido el archivo nuevo,
+  cierra tras corregir las dos llamadas de cuatro argumentos. `git diff --check`
+  pasa. Los modelos persistidos, configuración, UI y transacciones no cambian.
+- `validate-docc.sh`: archive Release nuevo, cero warnings y errores Swift,
+  Clang y DocC. Ambos scripts verifican y usan el Developer directory explícito
+  de Xcode 27 RC. Se conserva `xcode-select` y se confirma Fast e iPhone 17
+  restaurados en Xcode.
+
+Bundles fuera de Git: `Test-MangaLibrary-2026.09.14_18-40-51-+0200.xcresult`
+(focal previo), `Test-MangaLibrary-2026.09.14_18-42-03-+0200.xcresult`
+(Integration previo), `Test-MangaLibrary-2026.09.14_18-49-23-+0200.xcresult`
+(Fast final) y `Test-MangaLibrary-2026.09.14_18-49-38-+0200.xcresult`
+(Integration final).
+
+Tras autorizar la entrega, se verifica que los 13 Swift coinciden con los
+validados, se reutilizan los builds y DocC recientes y se repite Audit sobre el
+diff sin hallazgos. `ReleaseGate` se ejecuta mediante Xcode MCP en un destino
+iPhone 17 nuevo y limpio, conforme a ADR 0005: **838 declaraciones / 1.262
+invocaciones**, incluidos los **13 UI**, todo aprobado. El resumen y árbol
+nativos de `Test-MangaLibrary-2026.09.14_18-56-16-+0200.xcresult` acreditan cero
+fallos, omisiones, fallos esperados y warnings de runtime. La llamada MCP no
+devuelve un resumen válido antes del cierre; se espera el bundle nativo sin
+duplicar la ejecución. El build de esta ejecución tampoco emite diagnósticos.
+Se restauran Fast e iPhone 17 y se retira únicamente el simulador temporal
+creado para este gate.
+
+La entrega de C4 queda vinculada a #120 y a la PR que lo cierre. Hardware,
+integración live y los gates físicos #77/#88 conservan su alcance pendiente.
+
 ## C3 — Arranque recuperable — issue #118
 
 El propietario autoriza el 2026-09-14 abrir

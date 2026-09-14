@@ -178,16 +178,13 @@ actor CollectionOutboxSyncCoordinator {
         let flight = Flight(identity: identity, task: task)
         activeFlight = flight
 
-        do {
-            try await withTaskCancellationHandler {
-                try await task.value
-            } onCancel: {
-                task.cancel()
-            }
+        defer {
             clear(flight)
-        } catch {
-            clear(flight)
-            throw error
+        }
+        try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
         }
     }
 
@@ -216,16 +213,13 @@ actor CollectionOutboxSyncCoordinator {
         let flight = Flight(identity: identity, task: task)
         activeFlight = flight
 
-        do {
-            try await withTaskCancellationHandler {
-                try await task.value
-            } onCancel: {
-                task.cancel()
-            }
+        defer {
             clear(flight)
-        } catch {
-            clear(flight)
-            throw error
+        }
+        try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
         }
     }
 

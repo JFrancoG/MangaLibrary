@@ -30,6 +30,8 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- 2026-09-14 | ♻️ refactor(collection): simplify outbox validation and flight cleanup
+
 - 2026-09-14 | 💄 style(deluxe): compact image type validation
 
 - 2026-09-12 | ♻️ refactor(project): organize files and compact Swift
