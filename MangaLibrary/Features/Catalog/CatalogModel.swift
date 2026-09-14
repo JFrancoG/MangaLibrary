@@ -123,10 +123,21 @@ final class CatalogModel {
     }
 
     /// Loads the first page only while the feature has not resolved an initial state.
+    ///
+    /// Reentry replaces an active initial load, including one whose view task is
+    /// still cancelling. Prepared loading states without an active request remain
+    /// unchanged, and results from a replaced load cannot update the presentation.
     func loadIfNeeded() async {
-        guard state == .idle else { return }
+        switch state {
+        case .idle:
+            await loadInitialPage()
+        case .loading:
+            guard activePageLoadIdentity != nil else { return }
 
-        await loadInitialPage()
+            await loadInitialPage()
+        case .content, .empty, .failure:
+            return
+        }
     }
 
     /// Reloads the first page of the current query and invalidates older page responses.
@@ -244,7 +255,7 @@ final class CatalogModel {
     }
 
     private func loadInitialPage() async {
-        let previousState = state
+        let previousState: State = state == .loading ? .idle : state
         state = .loading
 
         do {

@@ -1,6 +1,6 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-09-12
+**Última actualización:** 2026-09-14
 **Estado general:** Advanced y DX1–DX5 entregadas (5/7); plan #77 abierto.
 DX6 integra su corte técnico por PR #89 (`681ea6d`), con #88 abierto por H01 y
 las pruebas físicas Watch. DX7 entrega su corte técnico mediante PR #91
@@ -9,6 +9,92 @@ El Deluxe Release Gate completo continúa pendiente en #88/#77; H01 no está
 aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
+
+## C1 — Reentrada del catálogo durante cancelación — issue #114
+
+El propietario autoriza el 2026-09-14 abrir
+[#114](https://github.com/JFrancoG/MangaLibrary/issues/114), crear la rama
+`codex/114-catalog-reentry` e implementar C1 de la auditoría. La rama parte de
+`main@195c841` en un worktree aislado. El cambio previo de formato en
+`ReadingCoverPreparation.swift` permanece en el checkout original; su commit
+y push posteriores reciben autorización separada durante la implementación.
+
+`CatalogModel.loadIfNeeded()` permite sustituir una carga inicial activa al
+reentrar, incluso si la tarea anterior sigue cancelándose. Conserva el no-op
+de estados resueltos y de cargas preparadas sin request activo. La identidad
+existente descarta los desenlaces antiguos. Cancelar una recarga iniciada desde
+otra carga inicial restaura `.idle`, permitiendo una nueva entrada. No cambian
+Views, composición, transporte, esquema, toolchain ni planes de test.
+
+Validación con Xcode MCP oficial, Xcode 27 RC `27A266a`, Swift 6.4
+`swiftlang-6.4.0.34.1`, scheme MangaLibrary, iPhone 18 Pro Simulator / iOS 27.0:
+
+- RED: tres invocaciones fallan por comportamiento antes de modificar producción
+  (dos desenlaces de reentrada y recarga cancelada); el control de carga
+  preparada aprueba. Las continuaciones retienen la respuesta antigua hasta
+  su liberación explícita, sin sleeps ni red real.
+- GREEN focal: 27 declaraciones de `CatalogModelTests` aprobadas. El árbol
+  nativo muestra solo un argumento en esta selección MCP; por ello se valida
+  después el plan Fast completo para acreditar ambos desenlaces.
+- Fast completo: **361 declaraciones / 572 invocaciones** aprobadas. El
+  `.xcresult` confirma `false` y `true` en la regresión parametrizada, cero
+  fallos, skips, fallos esperados y runtime warnings. Las 454 declaraciones
+  Integration quedan fuera de este plan; el agregado MCP no las convierte en
+  fallos ni en pruebas ejecutadas.
+- UI focal: **2/2** aprobadas, apertura del detalle desde catálogo y reapertura
+  de filtros tras descarte. Son recorridos sintéticos en simulador; la carrera
+  de cancelación se acredita con los tests del modelo, no con estos recorridos.
+- `BuildProject(buildForTesting: true)` correcto; logs completos sin warnings
+  ni errores. `validate-test-plans.sh` y `git diff --check` correctos.
+- Revisión iOS independiente y Audit de estilo del diff Swift: sin hallazgos.
+  El detector de estilo devuelve tres candidatos preexistentes ajenos al diff,
+  justificados por closures. No se requiere revisión visual por cambio de UI.
+- `Scripts/validate-docc.sh`, con `MANGALIBRARY_DEVELOPER_DIR` apuntando al
+  mismo Xcode RC verificado: archive nuevo en Release para iOS genérico,
+  cero warnings y errores. No se publica el archive.
+
+Bundles fuera de Git: `Test-MangaLibrary-2026.09.14_13-27-51-+0200.xcresult`
+(RED), `Test-MangaLibrary-2026.09.14_13-31-30-+0200.xcresult` (Fast) y
+`Test-MangaLibrary-2026.09.14_13-29-48-+0200.xcresult` (UI). El plan activo
+vuelve a Fast. `GetTestList` no reconoce los tags en este worktree y marca
+Fast deshabilitado; `RunAllTests` sí ejecuta correctamente su selección,
+contrastada con el resultado nativo.
+
+La revisión identifica un borde preexistente: cancelar `reload()` durante una
+página adicional puede restaurar su paginación `.loading`. `reload()` solo
+tiene llamadores en tests; este borde no se introduce ni se agrava en C1 y
+debe revisarse antes de conectarlo a producto. No se amplía el corte a él.
+La validación inicial excluye Integration completo y ReleaseGate completo;
+el gate de entrega siguiente amplía esa evidencia. Hardware, backend, C2–C6
+y los pendientes físicos de #77/#88 mantienen su estado.
+
+Implementación y validación local de C1 completas. El propietario autoriza a
+continuación, el 2026-09-14, commit, push, PR, merge, cierre de #114 y borrado
+de la rama. Se reutilizan los gates anteriores al conservarse el diff Swift
+validado; el Audit de estilo se repite antes de abrir la PR. Los enlaces y
+estados definitivos de entrega se registran en #114.
+
+Gate de entrega posterior a la autorización:
+
+- `validate-advanced-build.sh --deluxe` con Xcode RC verificado: builds limpios
+  Debug/Release de los cinco targets, cero warnings/errores y ninguna tarea de
+  metadata de App Intents. Configuración y partición de planes correctas.
+- `RunAllTests`, plan ReleaseGate, en un iPhone 18 Pro Simulator nuevo con
+  iOS 27.0 `24A434`: **826 declaraciones / 1.212 invocaciones** aprobadas,
+  incluidas las 11 pruebas UI. Cero fallos, skips, fallos esperados o warnings
+  de runtime; ambos argumentos de la regresión de C1 figuran aprobados.
+- El MCP agota su espera de 300 segundos, pero Xcode continúa la misma
+  ejecución. El resultado nativo cerrado acredita su éxito en 426,9 segundos,
+  sin repetir los tests. Bundle fuera de Git:
+  `Test-MangaLibrary-2026.09.14_14-00-59-+0200.xcresult`.
+- El diff Swift coincide con el revisado y validado: blobs `7aeff44` y
+  `2a88e9b`. Se reutiliza el archive DocC anterior, sin cambios posteriores en
+  su fuente. Plan y destino originales se restauran tras el gate.
+
+El ajuste de formato se entrega después en `main` mediante `2ce170f`,
+verificado en `origin/main`, junto a su entrada de Changelog. La comparación
+léxica independiente confirma equivalencia; el build MCP del checkout original
+también aprueba sin warnings. Este commit separado se conserva al integrar C1.
 
 ## Revisión local de estilo y organización — 2026-09-12
 

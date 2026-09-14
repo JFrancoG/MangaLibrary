@@ -51,6 +51,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- 2026-09-14 | 🐛 fix(catalog): recover loading after cancelled reentry
+
 - 2026-09-11 | 🐛 fix(ui): use brand ink for collection completion
 
 - 2026-09-11 | 🐛 fix(collection): scope outbox to active user

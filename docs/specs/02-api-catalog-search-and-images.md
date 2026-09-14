@@ -1,8 +1,8 @@
 # API, catálogo, búsqueda e imágenes
 
 - Estado: aprobado
-- Versión: 1.13
-- Última revisión: 2026-08-28
+- Versión: 1.14
+- Última revisión: 2026-09-14
 
 ## Propósito y alcance
 
@@ -184,6 +184,7 @@ La carga usa APIs de Apple y no introduce una dependencia externa. La caché HTT
 ## Errores y cancelación
 
 - Cancelar o sustituir una consulta no se presenta como error al usuario.
+- Reentrar durante una carga inicial activa sustituye su identidad, aunque la tarea anterior siga cancelándose. Su desenlace tardío no modifica la carga vigente. Cancelar una recarga que sustituyó otra carga inicial devuelve la feature a reposo recuperable, sin restaurar un indicador de carga huérfano.
 - Un fallo de una página adicional conserva los resultados ya visibles y ofrece reintento de esa página.
 - Un fallo de la página inicial muestra un estado recuperable sin fabricar resultados.
 - `NetworkError` conserva una categoría segura y una descripción localizable; nunca retiene body, URL, credenciales o error subyacente.
@@ -199,6 +200,7 @@ La carga usa APIs de Apple y no introduce una dependencia externa. La caché HTT
 | Página siguiente | Mantiene búsqueda y filtros de la consulta inicial; no inventa una ordenación ausente. |
 | Precarga | La aparición de cualquiera de los dos últimos resultados agenda una sola petición de la siguiente página y presenta progreso mientras está pendiente. |
 | Cambio de consulta | Reinicia la página, limpia la selección anterior y una respuesta tardía de la consulta sustituida se ignora. |
+| Reentrada durante cancelación | Inicia otra primera página; la respuesta o cancelación anterior no reemplaza el contenido nuevo. Una recarga cancelada durante la carga inicial permite volver a cargar. |
 | Búsqueda avanzada | Construye el `POST` paginado exacto y omite del body las dimensiones sin valor. |
 | Varios filtros | El request construido conserva todas las dimensiones que el servidor combina con semántica AND. |
 | Mejores | Usa su `GET` paginado exclusivo y no presenta texto, filtros u ordenación configurable como combinables. |
