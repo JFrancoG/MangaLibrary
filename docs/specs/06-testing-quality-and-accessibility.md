@@ -1,8 +1,8 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.42
-**Fecha:** 2026-09-11
+**Versión:** 1.43
+**Fecha:** 2026-09-14
 
 ## Propósito
 
@@ -16,6 +16,16 @@ Definir evidencia proporcional al riesgo para entregar Advanced y Deluxe con cer
 - El comportamiento nuevo testeable seguirá RED/GREEN. Documentación, configuración y exploración visual registrarán validación proporcional con TDD marcado como no aplicable.
 - Ningún test automatizado llamará al servicio de producción.
 - No se probarán conformidades exigidas por el compilador, inicializadores triviales ni wiring sin ramas solo para aumentar la cantidad de tests.
+
+Las pruebas concurrentes coordinan llegada, liberación y cancelación mediante
+continuaciones o eventos por instancia, sin polling ni bloqueo del executor.
+La expiración y los fallos se activan en fronteras semánticas observables, no en
+la llamada número N de una validación interna. Las intervenciones síncronas del
+almacenamiento controlado no suspenden las operaciones atómicas de persistencia.
+Para probar reentrada durante una transición de sesión, el observer existente
+permite esperar antes del efecto durable con la cerca del propietario instalada;
+el refresh comprueba además la exclusión después de persistir y antes de publicar.
+Esta evidencia no representa una suspensión dentro de Keychain.
 
 ## Planes previstos
 
@@ -168,7 +178,11 @@ históricos no satisfacen esa nueva ejecución. El
   `blockedOutcome`, cambio de cuenta o generación sí. Estas pruebas verifican
   fetch e identidad; la ejecución del task montado requiere evidencia UI;
 - migración mediante un store temporal en disco creado con el esquema anterior;
-- transporte HTTP mediante un `URLProtocol` limitado a la `URLSession` de test: bytes exactos, respuesta no HTTP, status inesperado, fallo de transporte y cancelación;
+- transporte HTTP mediante un `URLProtocol` limitado a la `URLSession` de test:
+  bytes exactos, respuesta no HTTP, status inesperado y fallo de transporte;
+  cancelación después de observar `startLoading`, con `stopLoading` y
+  `CancellationError` acreditados, y una petición posterior correcta mediante
+  el mismo cliente y sesión;
 - ciclo JWT único con `/users/jwt/login`, `/users/jwt/refresh` y
   `/users/jwt/me`, un único envelope Keychain V3 sustituible y sin credenciales
   reales; cada refresh validado rota una revisión opaca no persistida, incluso si
@@ -542,7 +556,11 @@ app, unit tests, UI tests, widget y companion watchOS en ambas configuraciones
 antes de construir documentación Release. Comprueba el companion con el SDK
 watchOS y los demás targets con iOS; el archive de MangaLibrary incluye los
 contratos compartidos, sin afirmar que exista un archive separado del reloj.
-Ambos seleccionan y verifican su Xcode sin modificar `xcode-select`.
+Ambos exigen `MANGALIBRARY_DEVELOPER_DIR` con el Developer directory verificado
+mediante Xcode MCP en el preflight. Comprueban Xcode 27 y Swift 6.4 y propagan esa
+selección a sus herramientas mediante `DEVELOPER_DIR`, sin modificar
+`xcode-select`. Una selección ausente, vacía, inexistente o incompatible hace
+fallar el gate; no hay una ruta predeterminada ni selección implícita del sistema.
 
 ## Calidad de producto
 

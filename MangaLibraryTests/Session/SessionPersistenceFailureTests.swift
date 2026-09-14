@@ -134,33 +134,21 @@ final class ControlledSessionPersistenceStorage: Sendable {
         var journal: [SessionPersistenceOperation] = []
         var failures: [SessionPersistenceOperation: [SessionStorageError]] = [:]
         var cancellations: Set<SessionPersistenceOperation> = []
+        var interventions: [SessionPersistenceOperation: @Sendable () -> Void] = [:]
     }
 
     private let state: Mutex<State>
-    private let loadGate: SynchronousPersistenceGate?
-    private let removeAllGate: SynchronousPersistenceGate?
-    private let saveGate: SynchronousPersistenceGate?
 
-    init(
-        record: SessionPersistedSession? = nil,
-        loadGate: SynchronousPersistenceGate? = nil,
-        removeAllGate: SynchronousPersistenceGate? = nil,
-        saveGate: SynchronousPersistenceGate? = nil
-    ) {
+    init(record: SessionPersistedSession? = nil) {
         state = Mutex(State(record: record))
-        self.loadGate = loadGate
-        self.removeAllGate = removeAllGate
-        self.saveGate = saveGate
     }
 
     func operations() -> SessionPersistenceActor.Operations {
         SessionPersistenceActor.Operations(
             load: { [self] in
-                loadGate?.pause()
-                return try perform(.load) { $0.record }
+                try perform(.load) { $0.record }
             },
             save: { [self] record in
-                saveGate?.pause()
                 try perform(.save) {
                     $0.record = record
                 }
@@ -169,7 +157,6 @@ final class ControlledSessionPersistenceStorage: Sendable {
                 try perform(.removeLegacy) { _ in }
             },
             removeAll: { [self] in
-                removeAllGate?.pause()
                 try perform(.removeAll) {
                     $0.record = nil
                 }
@@ -180,6 +167,15 @@ final class ControlledSessionPersistenceStorage: Sendable {
     func failNext(_ operation: SessionPersistenceOperation, with error: SessionStorageError) {
         state.withLock {
             $0.failures[operation, default: []].append(error)
+        }
+    }
+
+    func beforeNext(
+        _ operation: SessionPersistenceOperation,
+        perform intervention: @escaping @Sendable () -> Void
+    ) {
+        state.withLock {
+            $0.interventions[operation] = intervention
         }
     }
 
@@ -197,6 +193,11 @@ final class ControlledSessionPersistenceStorage: Sendable {
         _ operation: SessionPersistenceOperation,
         body: (inout State) -> Value
     ) throws(any Error) -> Value {
+        let intervention = state.withLock {
+            $0.interventions.removeValue(forKey: operation)
+        }
+        intervention?()
+
         let (value, shouldCancel) = try state.withLock { state in
             state.journal.append(operation)
             if var failures = state.failures[operation], failures.isEmpty == false {
@@ -212,26 +213,5 @@ final class ControlledSessionPersistenceStorage: Sendable {
             }
         }
         return value
-    }
-}
-
-final class SynchronousPersistenceGate: Sendable {
-    private let entered = Atomic(false)
-    private let isOpen = Atomic(false)
-
-    func pause() {
-        entered.store(true, ordering: .releasing)
-        while isOpen.load(ordering: .acquiring) == false {
-        }
-    }
-
-    func waitUntilEntered() async {
-        while entered.load(ordering: .acquiring) == false {
-            await Task.yield()
-        }
-    }
-
-    func open() {
-        isOpen.store(true, ordering: .releasing)
     }
 }

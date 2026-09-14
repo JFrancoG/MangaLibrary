@@ -199,18 +199,20 @@ struct CollectionOutboxSyncCoordinatorTests {
         failure: OutboxSessionPersistenceFailure
     ) async throws(any Error) {
         let probe = WorkerProbe(actions: [.send(Self.workItem)])
-        let validationCount = Mutex(0)
+        let pendingFailure = Mutex<SessionControllerError?>(failure.error)
         let coordinator = Self.makeCoordinator(
             probe: probe,
-            validateAuthorization: { _ in
-                let invocation = validationCount.withLock {
-                    $0 += 1
-                    return $0
+            validateAuthorization: { authorization in
+                if await probe.evidence().submitCount > 0 {
+                    let error = pendingFailure.withLock { pending in
+                        defer { pending = nil }
+                        return pending
+                    }
+                    if let error {
+                        throw error
+                    }
                 }
-                if invocation == 4 {
-                    throw failure.error
-                }
-                return invocation < 5
+                return await probe.validates(authorization)
             }
         )
 
@@ -219,7 +221,6 @@ struct CollectionOutboxSyncCoordinatorTests {
         }
 
         let evidence = await probe.evidence()
-        #expect(validationCount.withLock { $0 } == 4)
         #expect(evidence.submitCount == 1)
         #expect(evidence.fetchCount == 0)
         #expect(evidence.confirmedItems.isEmpty)
@@ -234,18 +235,20 @@ struct CollectionOutboxSyncCoordinatorTests {
         failure: OutboxSessionPersistenceFailure
     ) async throws(any Error) {
         let probe = WorkerProbe(actions: [.reconcile(Self.workItem)], remoteEntries: [Self.matchingRemoteEntry])
-        let validationCount = Mutex(0)
+        let pendingFailure = Mutex<SessionControllerError?>(failure.error)
         let coordinator = Self.makeCoordinator(
             probe: probe,
-            validateAuthorization: { _ in
-                let invocation = validationCount.withLock {
-                    $0 += 1
-                    return $0
+            validateAuthorization: { authorization in
+                if await probe.evidence().fetchCount > 0 {
+                    let error = pendingFailure.withLock { pending in
+                        defer { pending = nil }
+                        return pending
+                    }
+                    if let error {
+                        throw error
+                    }
                 }
-                if invocation == 5 {
-                    throw failure.error
-                }
-                return true
+                return await probe.validates(authorization)
             }
         )
 
@@ -254,7 +257,6 @@ struct CollectionOutboxSyncCoordinatorTests {
         }
 
         let evidence = await probe.evidence()
-        #expect(validationCount.withLock { $0 } == 5)
         #expect(evidence.submitCount == 0)
         #expect(evidence.fetchCount == 1)
         #expect(evidence.importCount == 0)

@@ -806,27 +806,23 @@ struct CollectionSyncCoordinatorTests {
             authorization: authorization.commitAuthorization,
             newOperationID: Self.pendingOperationID
         )
-        let validationCount = Mutex(0)
+        let claimCount = Mutex(0)
         let submitCount = Mutex(0)
         let coordinator = CollectionOutboxSyncCoordinator(
             authorize: {
                 try await controller.requestAuthorization()
             },
             validateAuthorization: { requestAuthorization in
-                let isValid = try await controller.authorizes(requestAuthorization)
-                let invocation = validationCount.withLock { count in
-                    count += 1
-                    return count
-                }
-                if invocation == 3 {
-                    clock.withLock {
-                        $0 = $0.addingTimeInterval(601)
-                    }
-                }
-                return isValid
+                try await controller.authorizes(requestAuthorization)
             },
             claimNextUpload: { commitAuthorization, now in
-                try await mutationActor.claimNextUpload(authorization: commitAuthorization, now: now)
+                claimCount.withLock {
+                    $0 += 1
+                }
+                clock.withLock {
+                    $0 = Self.now.addingTimeInterval(601)
+                }
+                return try await mutationActor.claimNextUpload(authorization: commitAuthorization, now: now)
             },
             submit: { _, _ in
                 submitCount.withLock {
@@ -856,13 +852,19 @@ struct CollectionSyncCoordinatorTests {
         let context = ModelContext(container)
         let operation = try #require(try context.fetch(FetchDescriptor<CollectionOutboxOperation>()).first)
         #expect(operation.state == .blockedAuth)
+        #expect(claimCount.withLock { $0 } == 1)
         #expect(submitCount.withLock { $0 } == 0)
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userA))
         #expect(storage.snapshot().record == nil)
     }
 
-    @Test("JWT expiry before an R2 flight is reserved blocks safe work and converges session state", arguments: [1, 2])
-    func expirationBeforeOutboxFlightRequiresAuthentication(expirationAfterValidation: Int) async throws(any Error) {
+    @Test(
+        "JWT expiry before an R2 flight is reserved blocks safe work and converges session state",
+        arguments: OutboxFlightExpirationBoundary.allCases
+    )
+    private func expirationBeforeOutboxFlightRequiresAuthentication(
+        boundary: OutboxFlightExpirationBoundary
+    ) async throws(any Error) {
         let clock = Mutex(Self.now)
         let session = try makePersistedSession()
         let storage = ControlledSessionPersistenceStorage(record: session)
@@ -890,7 +892,10 @@ struct CollectionSyncCoordinatorTests {
             authorization: authorization.commitAuthorization,
             newOperationID: Self.pendingOperationID
         )
-        let validationCount = Mutex(0)
+        let priorFlightGate = R1RequestGate()
+        let priorFlightWasCancelled = Mutex(false)
+        let reactivationCount = Mutex(0)
+        let claimCount = Mutex(0)
         let submitCount = Mutex(0)
         let coordinator = CollectionOutboxSyncCoordinator(
             authorize: {
@@ -898,19 +903,19 @@ struct CollectionSyncCoordinatorTests {
             },
             validateAuthorization: { requestAuthorization in
                 let isValid = try await controller.authorizes(requestAuthorization)
-                let invocation = validationCount.withLock { count in
-                    count += 1
-                    return count
-                }
-                if invocation == expirationAfterValidation {
+                let replacedPriorFlight = priorFlightWasCancelled.withLock { $0 }
+                if boundary == .initialValidation || replacedPriorFlight {
                     clock.withLock {
-                        $0 = $0.addingTimeInterval(601)
+                        $0 = Self.now.addingTimeInterval(601)
                     }
                 }
                 return isValid
             },
             claimNextUpload: { commitAuthorization, now in
-                try await mutationActor.claimNextUpload(authorization: commitAuthorization, now: now)
+                claimCount.withLock {
+                    $0 += 1
+                }
+                return try await mutationActor.claimNextUpload(authorization: commitAuthorization, now: now)
             },
             submit: { _, _ in
                 submitCount.withLock {
@@ -926,20 +931,52 @@ struct CollectionSyncCoordinatorTests {
                 try await mutationActor.blockUploadOutcome(item, authorization: commitAuthorization)
             },
             reactivateBlockedUploads: { commitAuthorization in
+                reactivationCount.withLock {
+                    $0 += 1
+                }
                 try await mutationActor.reactivateBlockedUploads(authorization: commitAuthorization)
+                if boundary == .replacementValidation {
+                    await withTaskCancellationHandler {
+                        await priorFlightGate.suspendUntilOpen()
+                    } onCancel: {
+                        priorFlightWasCancelled.withLock {
+                            $0 = true
+                        }
+                        Task {
+                            await priorFlightGate.open()
+                        }
+                    }
+                    try Task.checkCancellation()
+                }
             },
             hasBlockedOutcome: { commitAuthorization in
                 try await mutationActor.hasBlockedUploadOutcome(authorization: commitAuthorization)
             }
         )
+        let priorFlight: Task<Void, any Error>?
+        if boundary == .replacementValidation {
+            priorFlight = Task {
+                try await coordinator.synchronizeAuthenticatedOutbox()
+            }
+            await priorFlightGate.waitUntilArrived()
+        } else {
+            priorFlight = nil
+        }
 
         await #expect(throws: CollectionOutboxSyncError.sessionChanged) {
             try await coordinator.synchronizeAuthenticatedOutbox()
+        }
+        if let priorFlight {
+            await #expect(throws: CancellationError.self) {
+                try await priorFlight.value
+            }
         }
 
         let context = ModelContext(container)
         let operation = try #require(try context.fetch(FetchDescriptor<CollectionOutboxOperation>()).first)
         #expect(operation.state == .blockedAuth)
+        #expect(reactivationCount.withLock { $0 } == (boundary == .replacementValidation ? 1 : 0))
+        #expect(claimCount.withLock { $0 } == 0)
         #expect(submitCount.withLock { $0 } == 0)
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userA))
         #expect(storage.snapshot().record == nil)
@@ -947,10 +984,10 @@ struct CollectionSyncCoordinatorTests {
 
     @Test("A 401 observed during failed logout forces refresh before the session is reused")
     func unauthorizedDuringFailedLogoutForcesRefresh() async throws(any Error) {
-        let deletionGate = SynchronousPersistenceGate()
+        let deletionGate = R1RequestGate()
         let responseGate = R1RequestGate()
         let session = try makePersistedSession()
-        let storage = ControlledSessionPersistenceStorage(record: session, removeAllGate: deletionGate)
+        let storage = ControlledSessionPersistenceStorage(record: session)
         let sessionLoader = R1SessionDataLoader(
             replies: [
                 .data(Self.identityResponse),
@@ -958,7 +995,15 @@ struct CollectionSyncCoordinatorTests {
                 .data(Self.identityResponse),
             ]
         )
-        let controller = try makeSessionController(loader: sessionLoader, storage: storage)
+        let controller = try makeSessionController(
+            loader: sessionLoader,
+            storage: storage,
+            synchronizationObserver: { point in
+                if point == .logoutRemovingSession {
+                    await deletionGate.suspendUntilOpen()
+                }
+            }
+        )
         _ = try await controller.restore()
         let rejectedAuthorization = try await controller.requestAuthorization()
         let collectionLoader = R1CollectionDataLoader(replies: [.network(.statusCode(401))], responseGate: responseGate)
@@ -977,13 +1022,13 @@ struct CollectionSyncCoordinatorTests {
         let logoutTask = Task {
             try await controller.logout()
         }
-        await deletionGate.waitUntilEntered()
+        await deletionGate.waitUntilArrived()
 
         await responseGate.open()
         await #expect(throws: SessionControllerError.transitionInProgress) {
             try await importTask.value
         }
-        deletionGate.open()
+        await deletionGate.open()
         await #expect(throws: SessionControllerError.temporarilyUnavailable) {
             try await logoutTask.value
         }
@@ -1217,6 +1262,7 @@ struct CollectionSyncCoordinatorTests {
         loader: R1SessionDataLoader,
         storage: ControlledSessionPersistenceStorage,
         now: @escaping @Sendable () -> Date = { Self.now },
+        synchronizationObserver: @escaping SessionController.SynchronizationObserver = { _ in },
         authenticationInvalidationObserver: @escaping SessionController.AuthenticationInvalidationObserver = { _ in }
     ) throws(any Error) -> SessionController {
         let baseURL = try #require(URL(string: "https://session.example.test"))
@@ -1231,6 +1277,7 @@ struct CollectionSyncCoordinatorTests {
             persistence: SessionPersistenceActor(operations: storage.operations()),
             now: now,
             makeGeneration: { Self.generationA },
+            synchronizationObserver: synchronizationObserver,
             logoutPendingChangesObserver: { _ in false },
             logoutPendingChangesDiscarder: { _ in },
             authenticationInvalidationObserver: authenticationInvalidationObserver
@@ -1274,6 +1321,11 @@ struct CollectionSyncCoordinatorTests {
             isComplete: false
         )
     }
+}
+
+private enum OutboxFlightExpirationBoundary: CaseIterable {
+    case initialValidation
+    case replacementValidation
 }
 
 private actor R1SessionDataLoader {

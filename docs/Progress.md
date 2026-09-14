@@ -10,6 +10,102 @@ aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
 
+## C2 — Tests deterministas y selección de toolchain — issue #116
+
+El propietario autoriza el 2026-09-14 abrir
+[#116](https://github.com/JFrancoG/MangaLibrary/issues/116), crear la rama
+`codex/116-deterministic-tests` e implementar los ajustes 4, 6, 7 y la parte de
+toolchain del 11. Parte de `main@0e2da2b`, limpio tras entregar C1.
+
+Se retira `SynchronousPersistenceGate` y sus 17 usos: diez se expresan mediante
+intervenciones síncronas de un solo uso en el almacenamiento controlado; siete
+usan continuaciones en el observador existente del propietario de sesión.
+Cuatro puntos tipados permiten comprobar las transiciones antes de persistir y,
+en el refresh, después del reemplazo y antes de publicar. El actor de
+persistencia conserva sus operaciones síncronas y atómicas. Los tests del
+propietario acreditan esas fronteras, no una suspensión dentro de Keychain.
+También se retiran los bucles `Task.yield` de Recovery y Review, manteniendo
+cancelación, espera de llegada y reloj virtual mediante eventos por instancia.
+
+Las ocho inyecciones por ordinal de validación de Colección pasan a depender de
+POST, DELETE, GET, claim o drenaje del vuelo previo. Conservan los 13 casos
+concretos y sus resultados de autoridad, persistencia y ausencia de efectos.
+La cancelación HTTP añade una petición real de `URLSession` retenida por un
+`URLProtocol` local: observa inicio, cancela, observa detención y comprueba
+`CancellationError`, seguido de una respuesta correcta con el mismo cliente.
+
+Los scripts de build y DocC requieren `MANGALIBRARY_DEVELOPER_DIR`, verifican
+Xcode 27 / Swift 6.4 y propagan la selección mediante `DEVELOPER_DIR`. README y
+SDD 06 reflejan este contrato. Ocho escenarios negativos —variable ausente,
+vacía, instalación inexistente e incompatible en ambos scripts— fallan con un
+diagnóstico explícito; `xcode-select` se conserva.
+
+Validación con Xcode MCP oficial, Xcode 27 RC `27A266a`, Swift 6.4
+`swiftlang-6.4.0.34.1`, scheme MangaLibrary e iPhone 17 Simulator / iOS 27.0:
+
+- `validate-advanced-build.sh --deluxe`: build limpio de los cinco targets en
+  Debug y Release, cero warnings y errores, con DerivedData nuevos. Los scripts
+  usan el RC seleccionado incluso con un `DEVELOPER_DIR` ambiental distinto.
+- Sensibilidad de tests: los dos focales aprueban inicialmente. Cambiar
+  temporalmente la cancelación HTTP por `.transport(.cancelled)` hace fallar su
+  oráculo de `CancellationError`; liberar temporalmente la cerca antes del
+  reemplazo durable hace fallar la segunda expectativa de logout, que devuelve
+  `signedOut`. Ambas mutaciones compilan sin warnings. Después se restauran
+  los dos archivos byte a byte; ningún mutante forma parte del diff final.
+  Es evidencia de sensibilidad sobre comportamiento existente, no un RED de
+  un bug nuevo de producto.
+- Integration completo: **455 declaraciones / 630 invocaciones** aprobadas,
+  incluidos ambos argumentos `.initialValidation` y `.replacementValidation`.
+- Fast completo: **361 declaraciones / 572 invocaciones** aprobadas, incluido
+  el test de exclusión del refresh después de restaurar producción.
+- Los `.xcresult` cerrados acreditan cero fallos, skips, fallos esperados y
+  warnings de runtime en ambos planes. Los logs no contienen avisos de
+  continuaciones ni diagnósticos de concurrencia. El agregado MCP conserva
+  resultados de otros planes y llegó a mostrar el fallo del mutante Fast
+  durante Integration; el resultado nativo de esa ejecución es `Passed`.
+- `validate-docc.sh`: archive Release nuevo en `.build/docc`, cero warnings
+  Swift, Clang y DocC; no se publica. `xcode-select` no cambia.
+- Revisión iOS independiente y Audit del diff Swift: sin hallazgos pendientes.
+  El detector inspecciona nueve archivos y devuelve cuatro candidatos verticales
+  justificados por closures o tipos función. `git diff --check` correcto.
+
+Bundles fuera de Git: `Test-MangaLibrary-2026.09.14_15-24-45-+0200.xcresult`
+(focal inicial), `Test-MangaLibrary-2026.09.14_15-25-32-+0200.xcresult`
+(mutaciones), `Test-MangaLibrary-2026.09.14_15-26-03-+0200.xcresult`
+(Integration) y `Test-MangaLibrary-2026.09.14_15-26-33-+0200.xcresult` (Fast).
+El plan activo vuelve a Fast. No se modifica UI, plataforma, esquema ni
+transporte de producto. UI, ReleaseGate completo, hardware y live quedan fuera
+de la fase de implementación inicial, que termina con los cambios locales.
+
+El propietario autoriza posteriormente commit, push, PR, merge, cierre del
+issue y borrado de rama. Para esta entrega se ejecuta `ReleaseGate` mediante
+Xcode MCP en un simulador iPhone 17 / iOS 27 recién creado, conforme a ADR 0005.
+Se reutilizan los builds limpios Debug/Release y DocC anteriores: fuentes,
+configuración y catálogo conservan el snapshot validado. La revisión independiente
+de entrega y Audit del diff Swift confirman que no hay hallazgos pendientes.
+
+ReleaseGate final: **827 declaraciones / 1.213 invocaciones** aprobadas,
+incluidos los **11 tests UI**, cero fallos, skips, fallos esperados y warnings de
+runtime. Bundle cerrado:
+`Test-MangaLibrary-2026.09.14_15-54-22-+0200.xcresult`. El MCP agota su espera
+de cinco minutos; Xcode termina la ejecución y el resultado nativo acredita
+su cierre. Se restauran Fast e iPhone 17 y se elimina solo el simulador temporal.
+
+Se conserva una incidencia de la primera ejecución
+(`Test-MangaLibrary-2026.09.14_15-43-26-+0200.xcresult`): 826/827 declaraciones
+aprueban; el primer assert de `testCatalogDetailSavesAndDeletesMangaFromCollection`
+no encuentra `tab.account`. La jerarquía adjunta muestra la app y las tres
+pestañas visibles, sin los identificadores `tab.*`; otros dos recorridos con
+la misma consulta aprueban. La repetición focal sin cambios aprueba
+(`Test-MangaLibrary-2026.09.14_15-50-53-+0200.xcresult`). Después se reinicia
+el simulador temporal, se espera su arranque completo y se obtiene el ReleaseGate
+íntegro aprobado. No se cambian timeouts, UI ni tests para superar el gate.
+La evidencia apunta a una exposición intermitente del identificador de
+accesibilidad, sin atribuir una causa al framework ni afirmar que esté corregida.
+
+El resultado Git definitivo queda enlazado en el issue #116. Esta entrega no
+cierra los pendientes físicos de #77/#88.
+
 ## C1 — Reentrada del catálogo durante cancelación — issue #114
 
 El propietario autoriza el 2026-09-14 abrir

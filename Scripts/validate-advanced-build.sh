@@ -9,8 +9,7 @@ readonly PROJECT_RELATIVE_PATH="MangaLibrary.xcodeproj"
 readonly SCHEME="MangaLibrary"
 readonly TEST_PLAN="ReleaseGate"
 readonly DESTINATION="generic/platform=iOS Simulator"
-readonly DEFAULT_DEVELOPER_DIRECTORY="/Applications/Xcode-beta.app/Contents/Developer"
-readonly SELECTED_DEVELOPER_DIRECTORY="${MANGALIBRARY_DEVELOPER_DIR:-${DEFAULT_DEVELOPER_DIRECTORY}}"
+readonly SELECTED_DEVELOPER_DIRECTORY="${MANGALIBRARY_DEVELOPER_DIR:-}"
 readonly XCODEBUILD="${SELECTED_DEVELOPER_DIRECTORY}/usr/bin/xcodebuild"
 readonly SWIFTC="${SELECTED_DEVELOPER_DIRECTORY}/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
 readonly GATE_MODE="${1:-advanced}"
@@ -64,6 +63,10 @@ trap cleanup EXIT
 
 [[ "$#" -le 1 && ( "${GATE_MODE}" == advanced || "${GATE_MODE}" == --deluxe ) ]] || \
     fail "Uso: Scripts/validate-advanced-build.sh [--deluxe]"
+[[ -n "${SELECTED_DEVELOPER_DIRECTORY}" ]] || \
+    fail "Indica MANGALIBRARY_DEVELOPER_DIR con el Developer directory de Xcode 27 verificado en el preflight."
+export DEVELOPER_DIR="${SELECTED_DEVELOPER_DIRECTORY}"
+
 if [[ "${GATE_MODE}" == "--deluxe" ]]; then
     "${SCRIPT_DIRECTORY}/validate-test-plans.sh"
     python3 "${SCRIPT_DIRECTORY}/validate-deluxe-configuration.py"

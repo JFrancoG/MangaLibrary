@@ -95,7 +95,17 @@ El [enunciado completo saneado](docs/sources/Practica_Mis_Mangas_SDP_2026.md) se
 
 El proyecto se abre con `MangaLibrary.xcodeproj` usando Xcode 27. Antes de modificarlo, lee [AGENTS.md](AGENTS.md), el issue activo y las SDD/ADR aplicables.
 
-El gate DocC selecciona su propio Xcode sin cambiar `xcode-select`, comprueba la configuración efectiva de los cinco targets en Debug y Release y genera un archive ignorado por Git:
+Los gates requieren indicar el Developer directory del Xcode 27 verificado en el
+preflight con Xcode MCP. Sustituye la ruta del ejemplo por esa instalación. Los
+scripts comprueban Xcode 27 y Swift 6.4, aplican la selección a sus herramientas y
+no modifican `xcode-select` ni usan una instalación predeterminada:
+
+```sh
+export MANGALIBRARY_DEVELOPER_DIR="/ruta/verificada/Xcode.app/Contents/Developer"
+```
+
+El gate DocC comprueba la configuración efectiva de los cinco targets en Debug y
+Release y genera un archive ignorado por Git:
 
 ```sh
 ./Scripts/validate-docc.sh
@@ -112,7 +122,7 @@ configuración distribuida del producto:
 ./Scripts/validate-advanced-build.sh --deluxe
 ```
 
-Si Xcode 27 no está en la ubicación predeterminada del script, se puede indicar su Developer directory mediante `MANGALIBRARY_DEVELOPER_DIR`. El Advanced Release Gate del issue #75 está aceptado y entregado con la matriz manual y sus límites registrados en [Progreso](docs/Progress.md#advanced-release-gate--issue-75). El [issue #77](https://github.com/JFrancoG/MangaLibrary/issues/77) conserva el plan operativo Deluxe y los criterios de cierre pendientes; sus targets y capacidades están implementados, pero los criterios físicos y el gate completo conservan los pendientes descritos arriba.
+El Advanced Release Gate del issue #75 está aceptado y entregado con la matriz manual y sus límites registrados en [Progreso](docs/Progress.md#advanced-release-gate--issue-75). El [issue #77](https://github.com/JFrancoG/MangaLibrary/issues/77) conserva el plan operativo Deluxe y los criterios de cierre pendientes; sus targets y capacidades están implementados, pero los criterios físicos y el gate completo conservan los pendientes descritos arriba.
 
 El modo sin `--deluxe` conserva la comprobación Advanced; no sustituye el
 inventario explícito de cinco targets de la candidata Deluxe. Los builds compilan

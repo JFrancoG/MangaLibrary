@@ -124,26 +124,22 @@ struct SessionControllerTests {
         #expect(await controller.currentSnapshot() == .signedOut)
     }
 
-    @Test("Login removes a JWT that expires while Keychain activation is suspended")
+    @Test("Login removes a JWT that expires before Keychain activation completes")
     func loginJWTExpiringDuringPersistenceDoesNotPublish() async throws(any Error) {
         let clock = TestSessionClock(now: Self.now)
-        let saveGate = SynchronousPersistenceGate()
-        let storage = ControlledSessionPersistenceStorage(saveGate: saveGate)
+        let storage = ControlledSessionPersistenceStorage()
         let loader = ScriptedSessionDataLoader(
             replies: [.data(Self.shortLivedAccessResponse), .data(Self.identityResponse)]
         )
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
         _ = try await controller.restore()
 
-        let login = Task {
-            try await controller.login(email: "reader@example.invalid", password: "synthetic-passphrase")
+        storage.beforeNext(.save) {
+            clock.advance(by: 2)
         }
-        await saveGate.waitUntilEntered()
-        clock.advance(by: 2)
-        saveGate.open()
 
         await #expect(throws: SessionControllerError.contractDrift) {
-            try await login.value
+            try await controller.login(email: "reader@example.invalid", password: "synthetic-passphrase")
         }
         #expect(storage.snapshot().record == nil)
         #expect(await controller.currentSnapshot() == .signedOut)
@@ -152,8 +148,7 @@ struct SessionControllerTests {
     @Test("A failed cleanup of an expired login JWT remains replaceable")
     func expiredLoginCleanupFailureAllowsAnotherLogin() async throws(any Error) {
         let clock = TestSessionClock(now: Self.now)
-        let saveGate = SynchronousPersistenceGate()
-        let storage = ControlledSessionPersistenceStorage(saveGate: saveGate)
+        let storage = ControlledSessionPersistenceStorage()
         let loader = ScriptedSessionDataLoader(
             replies: [
                 .data(Self.shortLivedAccessResponse),
@@ -165,16 +160,13 @@ struct SessionControllerTests {
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
         _ = try await controller.restore()
 
-        let firstLogin = Task {
-            try await controller.login(email: "reader@example.invalid", password: "synthetic-passphrase")
+        storage.beforeNext(.save) {
+            clock.advance(by: 2)
+            storage.failNext(.removeAll, with: .temporarilyUnavailable)
         }
-        await saveGate.waitUntilEntered()
-        clock.advance(by: 2)
-        storage.failNext(.removeAll, with: .temporarilyUnavailable)
-        saveGate.open()
 
         await #expect(throws: SessionControllerError.temporarilyUnavailable) {
-            try await firstLogin.value
+            try await controller.login(email: "reader@example.invalid", password: "synthetic-passphrase")
         }
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record?.access.value == "fixture-short-lived")
@@ -189,26 +181,29 @@ struct SessionControllerTests {
     @Test("A cancelled login still reports failed cleanup of its expired JWT")
     func cancelledLoginPreservesExpiredCredentialCleanupFailure() async throws(any Error) {
         let clock = TestSessionClock(now: Self.now)
-        let saveGate = SynchronousPersistenceGate()
-        let storage = ControlledSessionPersistenceStorage(saveGate: saveGate)
+        let storage = ControlledSessionPersistenceStorage()
         let loader = ScriptedSessionDataLoader(
             replies: [.data(Self.shortLivedAccessResponse), .data(Self.identityResponse)]
         )
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
         _ = try await controller.restore()
 
+        let startGate = SessionRequestGate()
         let login = Task {
-            try await controller.login(email: "reader@example.invalid", password: "synthetic-passphrase")
+            await startGate.suspendUntilOpen()
+            return try await controller.login(email: "reader@example.invalid", password: "synthetic-passphrase")
         }
-        await saveGate.waitUntilEntered()
-        clock.advance(by: 2)
-        storage.failNext(.removeAll, with: .temporarilyUnavailable)
-        login.cancel()
-        saveGate.open()
+        storage.beforeNext(.save) {
+            clock.advance(by: 2)
+            storage.failNext(.removeAll, with: .temporarilyUnavailable)
+            login.cancel()
+        }
+        await startGate.open()
 
         await #expect(throws: SessionControllerError.temporarilyUnavailable) {
             try await login.value
         }
+        #expect(login.isCancelled)
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record?.access.value == "fixture-short-lived")
     }
@@ -758,8 +753,8 @@ struct SessionControllerTests {
     @Test("A coincident refresh cleanup failure remains visible to restoration")
     func coincidentRefreshCleanupFailurePropagatesFromRestore() async throws(any Error) {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
-        let deletionGate = SynchronousPersistenceGate()
-        let storage = ControlledSessionPersistenceStorage(record: session, removeAllGate: deletionGate)
+        let deletionGate = SessionRequestGate()
+        let storage = ControlledSessionPersistenceStorage(record: session)
         storage.failNext(.removeAll, with: .temporarilyUnavailable)
         let identityGate = SessionRequestGate()
         let synchronizationGate = SessionRequestGate()
@@ -772,6 +767,8 @@ struct SessionControllerTests {
             synchronizationObserver: { point in
                 if point == .restorationAwaitingRefresh {
                     await synchronizationGate.suspendUntilOpen()
+                } else if point == .authenticationInvalidationRemovingSession {
+                    await deletionGate.suspendUntilOpen()
                 }
             }
         )
@@ -783,11 +780,11 @@ struct SessionControllerTests {
         let recovery = Task {
             try await controller.recoverAuthorization(after: rejectedAuthorization)
         }
-        await deletionGate.waitUntilEntered()
+        await deletionGate.waitUntilArrived()
         await identityGate.open()
         await synchronizationGate.waitUntilArrived()
         await synchronizationGate.open()
-        deletionGate.open()
+        await deletionGate.open()
 
         await #expect(throws: SessionControllerError.temporarilyUnavailable) {
             try await recovery.value
@@ -802,23 +799,26 @@ struct SessionControllerTests {
     @Test("A cancelled refresh waiter still receives an authoritative cleanup failure")
     func cancelledRefreshWaiterPreservesCleanupFailure() async throws(any Error) {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
-        let deletionGate = SynchronousPersistenceGate()
-        let storage = ControlledSessionPersistenceStorage(record: session, removeAllGate: deletionGate)
+        let storage = ControlledSessionPersistenceStorage(record: session)
         storage.failNext(.removeAll, with: .temporarilyUnavailable)
         let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse), .network(.statusCode(401))])
         let controller = try makeController(loader: loader, storage: storage)
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
+        let startGate = SessionRequestGate()
         let recovery = Task {
-            try await controller.recoverAuthorization(after: authorization)
+            await startGate.suspendUntilOpen()
+            return try await controller.recoverAuthorization(after: authorization)
         }
-        await deletionGate.waitUntilEntered()
-        recovery.cancel()
-        deletionGate.open()
+        storage.beforeNext(.removeAll) {
+            recovery.cancel()
+        }
+        await startGate.open()
 
         await #expect(throws: SessionControllerError.temporarilyUnavailable) {
             try await recovery.value
         }
+        #expect(recovery.isCancelled)
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record == session)
     }
@@ -826,8 +826,7 @@ struct SessionControllerTests {
     @Test("A cancelled refresh waiter still receives an authoritative replacement failure")
     func cancelledRefreshWaiterPreservesReplacementFailure() async throws(any Error) {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
-        let saveGate = SynchronousPersistenceGate()
-        let storage = ControlledSessionPersistenceStorage(record: session, saveGate: saveGate)
+        let storage = ControlledSessionPersistenceStorage(record: session)
         storage.failNext(.save, with: .temporarilyUnavailable)
         let loader = ScriptedSessionDataLoader(
             replies: [
@@ -840,16 +839,20 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
 
+        let startGate = SessionRequestGate()
         let recovery = Task {
-            try await controller.recoverAuthorization(after: authorization)
+            await startGate.suspendUntilOpen()
+            return try await controller.recoverAuthorization(after: authorization)
         }
-        await saveGate.waitUntilEntered()
-        recovery.cancel()
-        saveGate.open()
+        storage.beforeNext(.save) {
+            recovery.cancel()
+        }
+        await startGate.open()
 
         await #expect(throws: SessionControllerError.temporarilyUnavailable) {
             try await recovery.value
         }
+        #expect(recovery.isCancelled)
         #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
         #expect(storage.snapshot().record == session)
         #expect(await loader.requestPaths() == ["/users/jwt/me", "/users/jwt/refresh", "/users/jwt/me"])
@@ -1678,9 +1681,8 @@ struct SessionControllerTests {
     @Test("A renewed JWT expiring during Keychain replacement is never published")
     func renewedJWTExpiringDuringPersistenceRequiresAuthentication() async throws(any Error) {
         let clock = TestSessionClock(now: Self.now)
-        let saveGate = SynchronousPersistenceGate()
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
-        let storage = ControlledSessionPersistenceStorage(record: session, saveGate: saveGate)
+        let storage = ControlledSessionPersistenceStorage(record: session)
         let loader = ScriptedSessionDataLoader(
             replies: [
                 .data(Self.identityResponse),
@@ -1692,25 +1694,23 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
 
-        let recovery = Task {
-            try await controller.recoverAuthorization(after: authorization)
+        storage.beforeNext(.save) {
+            clock.advance(by: 2)
         }
-        await saveGate.waitUntilEntered()
-        clock.advance(by: 2)
-        saveGate.open()
 
         await #expect(throws: SessionControllerError.authenticationRequired) {
-            try await recovery.value
+            try await controller.recoverAuthorization(after: authorization)
         }
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record == nil)
     }
 
-    @Test("Logout cannot cross the durable JWT replacement")
+    @Test("Logout cannot cross a committed refresh while JWT replacement is pending")
     func logoutWaitsForTheRefreshCommitBoundary() async throws(any Error) {
-        let saveGate = SynchronousPersistenceGate()
+        let saveGate = SessionRequestGate()
+        let publicationGate = SessionRequestGate()
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
-        let storage = ControlledSessionPersistenceStorage(record: session, saveGate: saveGate)
+        let storage = ControlledSessionPersistenceStorage(record: session)
         let loader = ScriptedSessionDataLoader(
             replies: [
                 .data(Self.identityResponse),
@@ -1718,18 +1718,35 @@ struct SessionControllerTests {
                 .data(Self.identityResponse),
             ]
         )
-        let controller = try makeController(loader: loader, storage: storage)
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            synchronizationObserver: { point in
+                if point == .refreshCommittingAccess {
+                    await saveGate.suspendUntilOpen()
+                } else if point == .refreshPersistenceCompleted {
+                    await publicationGate.suspendUntilOpen()
+                }
+            }
+        )
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
 
         let recovery = Task {
             try await controller.recoverAuthorization(after: authorization)
         }
-        await saveGate.waitUntilEntered()
+        await saveGate.waitUntilArrived()
         await #expect(throws: SessionControllerError.transitionInProgress) {
             try await controller.logout()
         }
-        saveGate.open()
+        await saveGate.open()
+
+        await publicationGate.waitUntilArrived()
+        #expect(storage.snapshot().record?.access.value == "fixture-access-renewed")
+        await #expect(throws: SessionControllerError.transitionInProgress) {
+            try await controller.logout()
+        }
+        await publicationGate.open()
 
         let renewedAuthorization = try await recovery.value
         #expect(renewedAuthorization.accessToken == "fixture-access-renewed")
@@ -1746,9 +1763,8 @@ struct SessionControllerTests {
     @Test("A failed JWT replacement cannot retain an original credential that expired in flight")
     func failedPersistenceAfterOriginalExpiryRequiresAuthentication() async throws(any Error) {
         let clock = TestSessionClock(now: Self.now)
-        let saveGate = SynchronousPersistenceGate()
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
-        let storage = ControlledSessionPersistenceStorage(record: session, saveGate: saveGate)
+        let storage = ControlledSessionPersistenceStorage(record: session)
         storage.failNext(.save, with: .temporarilyUnavailable)
         let loader = ScriptedSessionDataLoader(
             replies: [
@@ -1761,15 +1777,12 @@ struct SessionControllerTests {
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
 
-        let recovery = Task {
-            try await controller.recoverAuthorization(after: authorization)
+        storage.beforeNext(.save) {
+            clock.advance(by: 601)
         }
-        await saveGate.waitUntilEntered()
-        clock.advance(by: 601)
-        saveGate.open()
 
         await #expect(throws: SessionControllerError.authenticationRequired) {
-            try await recovery.value
+            try await controller.recoverAuthorization(after: authorization)
         }
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record == nil)
@@ -1859,19 +1872,27 @@ struct SessionControllerTests {
     @Test("Logout publishes signed out only after deleting Keychain")
     func logoutDeletesTheCurrentSession() async throws(any Error) {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
-        let deletionGate = SynchronousPersistenceGate()
-        let storage = ControlledSessionPersistenceStorage(record: session, removeAllGate: deletionGate)
+        let deletionGate = SessionRequestGate()
+        let storage = ControlledSessionPersistenceStorage(record: session)
         let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
-        let controller = try makeController(loader: loader, storage: storage)
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            synchronizationObserver: { point in
+                if point == .logoutRemovingSession {
+                    await deletionGate.suspendUntilOpen()
+                }
+            }
+        )
         _ = try await controller.restore()
 
         let logout = Task {
             try await controller.logout()
         }
-        await deletionGate.waitUntilEntered()
+        await deletionGate.waitUntilArrived()
         #expect(storage.snapshot().record == session)
         #expect(await controller.currentSnapshot() == .active(Self.remoteAccount))
-        deletionGate.open()
+        await deletionGate.open()
         #expect(try await logout.value == .signedOut)
         #expect(storage.snapshot().record == nil)
     }
@@ -2105,23 +2126,19 @@ struct SessionControllerTests {
     @Test("A failed logout cannot reactivate a JWT that expired during Keychain deletion")
     func failedLogoutAfterExpirationRequiresAuthentication() async throws(any Error) {
         let clock = TestSessionClock(now: Self.now)
-        let deletionGate = SynchronousPersistenceGate()
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
-        let storage = ControlledSessionPersistenceStorage(record: session, removeAllGate: deletionGate)
+        let storage = ControlledSessionPersistenceStorage(record: session)
         let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
         let controller = try makeController(loader: loader, storage: storage, clock: clock)
         _ = try await controller.restore()
         storage.failNext(.removeAll, with: .temporarilyUnavailable)
 
-        let logout = Task {
-            try await controller.logout()
+        storage.beforeNext(.removeAll) {
+            clock.advance(by: 601)
         }
-        await deletionGate.waitUntilEntered()
-        clock.advance(by: 601)
-        deletionGate.open()
 
         await #expect(throws: SessionControllerError.temporarilyUnavailable) {
-            try await logout.value
+            try await controller.logout()
         }
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record == session)
@@ -2132,9 +2149,9 @@ struct SessionControllerTests {
 
     @Test("A credential rejected during failed logout forces refresh before reuse")
     func rejectionDuringFailedLogoutForcesRefresh() async throws(any Error) {
-        let deletionGate = SynchronousPersistenceGate()
+        let deletionGate = SessionRequestGate()
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
-        let storage = ControlledSessionPersistenceStorage(record: session, removeAllGate: deletionGate)
+        let storage = ControlledSessionPersistenceStorage(record: session)
         let loader = ScriptedSessionDataLoader(
             replies: [
                 .data(Self.identityResponse),
@@ -2142,7 +2159,15 @@ struct SessionControllerTests {
                 .data(Self.identityResponse),
             ]
         )
-        let controller = try makeController(loader: loader, storage: storage)
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            synchronizationObserver: { point in
+                if point == .logoutRemovingSession {
+                    await deletionGate.suspendUntilOpen()
+                }
+            }
+        )
         _ = try await controller.restore()
         let authorization = try await controller.requestAuthorization()
         storage.failNext(.removeAll, with: .temporarilyUnavailable)
@@ -2150,11 +2175,11 @@ struct SessionControllerTests {
         let logout = Task {
             try await controller.logout()
         }
-        await deletionGate.waitUntilEntered()
+        await deletionGate.waitUntilArrived()
         await #expect(throws: SessionControllerError.transitionInProgress) {
             try await controller.recoverAuthorization(after: authorization)
         }
-        deletionGate.open()
+        await deletionGate.open()
 
         await #expect(throws: SessionControllerError.temporarilyUnavailable) {
             try await logout.value
@@ -2172,9 +2197,9 @@ struct SessionControllerTests {
     @Test("A stale rejection during failed logout preserves the renewed access")
     func staleRejectionDuringFailedLogoutPreservesRenewedAccess() async throws(any Error) {
         let clock = TestSessionClock(now: Self.now)
-        let deletionGate = SynchronousPersistenceGate()
+        let deletionGate = SessionRequestGate()
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(360))
-        let storage = ControlledSessionPersistenceStorage(record: session, removeAllGate: deletionGate)
+        let storage = ControlledSessionPersistenceStorage(record: session)
         let loader = ScriptedSessionDataLoader(
             replies: [
                 .data(Self.identityResponse),
@@ -2182,7 +2207,16 @@ struct SessionControllerTests {
                 .data(Self.identityResponse),
             ]
         )
-        let controller = try makeController(loader: loader, storage: storage, clock: clock)
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            clock: clock,
+            synchronizationObserver: { point in
+                if point == .logoutRemovingSession {
+                    await deletionGate.suspendUntilOpen()
+                }
+            }
+        )
         _ = try await controller.restore()
         let staleAuthorization = try await controller.requestAuthorization()
         clock.advance(by: 120)
@@ -2193,11 +2227,11 @@ struct SessionControllerTests {
         let logout = Task {
             try await controller.logout()
         }
-        await deletionGate.waitUntilEntered()
+        await deletionGate.waitUntilArrived()
         await #expect(throws: SessionControllerError.sessionChanged) {
             try await controller.recoverAuthorization(after: staleAuthorization)
         }
-        deletionGate.open()
+        await deletionGate.open()
 
         await #expect(throws: SessionControllerError.temporarilyUnavailable) {
             try await logout.value
@@ -2268,19 +2302,27 @@ struct SessionControllerTests {
         #expect(storage.snapshot().record == nil)
     }
 
-    @Test("A second session cannot begin while logout deletes the current generation")
+    @Test("A second session cannot begin while logout awaits deletion of the current generation")
     func loginCannotActivateDuringLogoutDeletion() async throws(any Error) {
-        let deletionGate = SynchronousPersistenceGate()
+        let deletionGate = SessionRequestGate()
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
-        let storage = ControlledSessionPersistenceStorage(record: session, removeAllGate: deletionGate)
+        let storage = ControlledSessionPersistenceStorage(record: session)
         let loader = ScriptedSessionDataLoader(replies: [.data(Self.identityResponse)])
-        let controller = try makeController(loader: loader, storage: storage)
+        let controller = try makeController(
+            loader: loader,
+            storage: storage,
+            synchronizationObserver: { point in
+                if point == .logoutRemovingSession {
+                    await deletionGate.suspendUntilOpen()
+                }
+            }
+        )
         _ = try await controller.restore()
 
         let logout = Task {
             try await controller.logout()
         }
-        await deletionGate.waitUntilEntered()
+        await deletionGate.waitUntilArrived()
 
         await #expect(throws: SessionControllerError.transitionInProgress) {
             try await controller.login(email: "b@example.invalid", password: "synthetic-passphrase-b")
@@ -2288,7 +2330,7 @@ struct SessionControllerTests {
         #expect(storage.snapshot().record == session)
         #expect(await loader.requestPaths() == ["/users/jwt/me"])
 
-        deletionGate.open()
+        await deletionGate.open()
         #expect(try await logout.value == .signedOut)
         #expect(storage.snapshot().record == nil)
     }
@@ -2308,22 +2350,25 @@ struct SessionControllerTests {
     @Test("A cancelled restore still reports failed cleanup of an expired JWT")
     func cancelledRestorePreservesExpiredCredentialCleanupFailure() async throws(any Error) {
         let session = try makeSession(accessExpiresAt: Self.now)
-        let deletionGate = SynchronousPersistenceGate()
-        let storage = ControlledSessionPersistenceStorage(record: session, removeAllGate: deletionGate)
+        let storage = ControlledSessionPersistenceStorage(record: session)
         storage.failNext(.removeAll, with: .temporarilyUnavailable)
         let loader = ScriptedSessionDataLoader(replies: [])
         let controller = try makeController(loader: loader, storage: storage)
 
+        let startGate = SessionRequestGate()
         let restore = Task {
-            try await controller.restore()
+            await startGate.suspendUntilOpen()
+            return try await controller.restore()
         }
-        await deletionGate.waitUntilEntered()
-        restore.cancel()
-        deletionGate.open()
+        storage.beforeNext(.removeAll) {
+            restore.cancel()
+        }
+        await startGate.open()
 
         await #expect(throws: SessionControllerError.temporarilyUnavailable) {
             try await restore.value
         }
+        #expect(restore.isCancelled)
         #expect(await controller.currentSnapshot() == .authenticationRequired(Self.userID))
         #expect(storage.snapshot().record == session)
         #expect(await loader.requestPaths().isEmpty)
@@ -2332,22 +2377,25 @@ struct SessionControllerTests {
     @Test("A cancelled restore waiter still receives an authoritative load failure")
     func cancelledRestoreWaiterPreservesLoadFailure() async throws(any Error) {
         let session = try makeSession(accessExpiresAt: Self.now.addingTimeInterval(600))
-        let loadGate = SynchronousPersistenceGate()
-        let storage = ControlledSessionPersistenceStorage(record: session, loadGate: loadGate)
+        let storage = ControlledSessionPersistenceStorage(record: session)
         storage.failNext(.load, with: .temporarilyUnavailable)
         let loader = ScriptedSessionDataLoader(replies: [])
         let controller = try makeController(loader: loader, storage: storage)
 
+        let startGate = SessionRequestGate()
         let restore = Task {
-            try await controller.restore()
+            await startGate.suspendUntilOpen()
+            return try await controller.restore()
         }
-        await loadGate.waitUntilEntered()
-        restore.cancel()
-        loadGate.open()
+        storage.beforeNext(.load) {
+            restore.cancel()
+        }
+        await startGate.open()
 
         await #expect(throws: SessionControllerError.temporarilyUnavailable) {
             try await restore.value
         }
+        #expect(restore.isCancelled)
         #expect(await controller.currentSnapshot() == .notRestored)
         #expect(storage.snapshot().record == session)
         #expect(await loader.requestPaths().isEmpty)

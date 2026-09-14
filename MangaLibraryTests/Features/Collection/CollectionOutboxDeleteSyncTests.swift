@@ -115,15 +115,12 @@ struct CollectionOutboxDeleteSyncTests {
     @Test("A session invalidated after DELETE cannot resolve or reconcile the tombstone")
     func sessionChangeAfterDeletePreventsAnyLaterEffect() async throws(any Error) {
         let probe = DeleteSyncProbe(claim: .send(Self.workItem))
-        let validationCount = Mutex(0)
         let coordinator = Self.coordinator(
             probe: probe,
-            validateAuthorization: { _ in
-                let invocation = validationCount.withLock {
-                    $0 += 1
-                    return $0
-                }
-                return invocation < 4
+            validateAuthorization: { authorization in
+                let isCurrent = await probe.validates(authorization)
+                let evidence = await probe.evidence()
+                return isCurrent && evidence.deleteCount == 0
             }
         )
 
@@ -132,7 +129,6 @@ struct CollectionOutboxDeleteSyncTests {
         }
 
         let evidence = await probe.evidence()
-        #expect(validationCount.withLock { $0 } == 4)
         #expect(evidence.deleteCount == 1)
         #expect(evidence.individualGetCount == 0)
         #expect(evidence.resolutions.isEmpty)
@@ -147,18 +143,20 @@ struct CollectionOutboxDeleteSyncTests {
         failure: DeleteSessionPersistenceFailure
     ) async throws(any Error) {
         let probe = DeleteSyncProbe(claim: .send(Self.workItem))
-        let validationCount = Mutex(0)
+        let pendingFailure = Mutex<SessionControllerError?>(failure.error)
         let coordinator = Self.coordinator(
             probe: probe,
-            validateAuthorization: { _ in
-                let invocation = validationCount.withLock {
-                    $0 += 1
-                    return $0
+            validateAuthorization: { authorization in
+                if await probe.evidence().deleteCount > 0 {
+                    let error = pendingFailure.withLock { pending in
+                        defer { pending = nil }
+                        return pending
+                    }
+                    if let error {
+                        throw error
+                    }
                 }
-                if invocation == 4 {
-                    throw failure.error
-                }
-                return true
+                return await probe.validates(authorization)
             }
         )
 
@@ -167,7 +165,6 @@ struct CollectionOutboxDeleteSyncTests {
         }
 
         let evidence = await probe.evidence()
-        #expect(validationCount.withLock { $0 } == 4)
         #expect(evidence.deleteCount == 1)
         #expect(evidence.individualGetCount == 0)
         #expect(evidence.resolutions.isEmpty)
@@ -177,15 +174,12 @@ struct CollectionOutboxDeleteSyncTests {
     @Test("A session invalidated after individual GET cannot resolve or block the tombstone")
     func sessionChangeAfterIndividualGetPreventsAnyCommit() async throws(any Error) {
         let probe = DeleteSyncProbe(claim: .send(Self.workItem), deleteFails: true, lookup: .absent)
-        let validationCount = Mutex(0)
         let coordinator = Self.coordinator(
             probe: probe,
-            validateAuthorization: { _ in
-                let invocation = validationCount.withLock {
-                    $0 += 1
-                    return $0
-                }
-                return invocation < 5
+            validateAuthorization: { authorization in
+                let isCurrent = await probe.validates(authorization)
+                let evidence = await probe.evidence()
+                return isCurrent && evidence.individualGetCount == 0
             }
         )
 
@@ -194,7 +188,6 @@ struct CollectionOutboxDeleteSyncTests {
         }
 
         let evidence = await probe.evidence()
-        #expect(validationCount.withLock { $0 } == 5)
         #expect(evidence.deleteCount == 1)
         #expect(evidence.individualGetCount == 1)
         #expect(evidence.resolutions.isEmpty)
@@ -209,18 +202,20 @@ struct CollectionOutboxDeleteSyncTests {
         failure: DeleteSessionPersistenceFailure
     ) async throws(any Error) {
         let probe = DeleteSyncProbe(claim: .send(Self.workItem), deleteFails: true, lookup: .absent)
-        let validationCount = Mutex(0)
+        let pendingFailure = Mutex<SessionControllerError?>(failure.error)
         let coordinator = Self.coordinator(
             probe: probe,
-            validateAuthorization: { _ in
-                let invocation = validationCount.withLock {
-                    $0 += 1
-                    return $0
+            validateAuthorization: { authorization in
+                if await probe.evidence().individualGetCount > 0 {
+                    let error = pendingFailure.withLock { pending in
+                        defer { pending = nil }
+                        return pending
+                    }
+                    if let error {
+                        throw error
+                    }
                 }
-                if invocation == 5 {
-                    throw failure.error
-                }
-                return true
+                return await probe.validates(authorization)
             }
         )
 
@@ -229,7 +224,6 @@ struct CollectionOutboxDeleteSyncTests {
         }
 
         let evidence = await probe.evidence()
-        #expect(validationCount.withLock { $0 } == 5)
         #expect(evidence.deleteCount == 1)
         #expect(evidence.individualGetCount == 1)
         #expect(evidence.resolutions.isEmpty)
