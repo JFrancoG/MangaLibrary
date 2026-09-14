@@ -64,6 +64,14 @@ actor SessionController {
         case localAuthorizationAwaitingRefresh
         case restorationAwaitingRestore
         case restorationAwaitingRefresh
+
+        // The owner has fenced the transition; its durable operation has not started.
+        case refreshCommittingAccess
+        case logoutRemovingSession
+        case authenticationInvalidationRemovingSession
+
+        // Persistence has returned; the owner still holds its refresh fence.
+        case refreshPersistenceCompleted
     }
 
     private struct AuthenticatedState {
@@ -559,6 +567,7 @@ actor SessionController {
                 return try await completeDeluxeRetirement()
             }
 
+            await synchronizationObserver(.logoutRemovingSession)
             guard try await persistence.remove(expected: authenticated.session.authority) else {
                 throw SessionControllerError.sessionChanged
             }
@@ -803,7 +812,9 @@ actor SessionController {
         committingRefreshIdentity = commitIdentity
         let replacement: SessionPersistedSession?
         do {
+            await synchronizationObserver(.refreshCommittingAccess)
             replacement = try await persistence.replaceAccess(access, expected: authenticated.session.authority)
+            await synchronizationObserver(.refreshPersistenceCompleted)
             clearRefreshCommit(commitIdentity)
         } catch {
             clearRefreshCommit(commitIdentity)
@@ -886,6 +897,7 @@ actor SessionController {
                 _ = try await completeDeluxeRetirement()
                 return
             }
+            await synchronizationObserver(.authenticationInvalidationRemovingSession)
             guard try await persistence.remove(expected: authority) else { throw SessionControllerError.sessionChanged }
             guard pendingTransition == transition, isActive(authority: authority) else {
                 clearPendingTransition(transition)

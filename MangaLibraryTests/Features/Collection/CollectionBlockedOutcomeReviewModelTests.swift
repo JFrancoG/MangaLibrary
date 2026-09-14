@@ -244,18 +244,26 @@ private actor ReviewModelProbe {
 
 private actor ReviewModelGate {
     private var continuation: CheckedContinuation<Void, Never>?
+    private var arrivalWaiters: [CheckedContinuation<Void, Never>] = []
     private var hasArrived = false
 
     func suspend() async {
         await withCheckedContinuation { continuation in
             self.continuation = continuation
             hasArrived = true
+            let waiters = arrivalWaiters
+            arrivalWaiters.removeAll()
+            for waiter in waiters {
+                waiter.resume()
+            }
         }
     }
 
     func waitUntilArrived() async {
-        while hasArrived == false {
-            await Task.yield()
+        guard hasArrived == false else { return }
+
+        await withCheckedContinuation {
+            arrivalWaiters.append($0)
         }
     }
 

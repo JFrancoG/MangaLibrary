@@ -208,7 +208,7 @@ struct CollectionOutboxRecoveryCoordinatorTests {
         let authorizationCount = Mutex(0)
         let claimCount = Mutex(0)
         let submitCount = Mutex(0)
-        let sleepStarted = Atomic(false)
+        let retryWait = OutboxRetryCancellationGate()
         let deadline = Self.now.addingTimeInterval(30)
         let coordinator = CollectionOutboxSyncCoordinator(
             authorize: {
@@ -243,19 +243,13 @@ struct CollectionOutboxRecoveryCoordinatorTests {
             },
             now: { Self.now },
             sleep: { _ in
-                sleepStarted.store(true, ordering: .releasing)
-                while Task.isCancelled == false {
-                    await Task.yield()
-                }
-                throw CancellationError()
+                try await retryWait.suspendUntilCancelled()
             }
         )
         let task = Task {
             try await coordinator.synchronizeAuthenticatedOutbox()
         }
-        while sleepStarted.load(ordering: .acquiring) == false {
-            await Task.yield()
-        }
+        await retryWait.waitUntilSuspended()
 
         task.cancel()
 
@@ -307,8 +301,7 @@ struct CollectionOutboxRecoveryCoordinatorTests {
         let authorizationCount = Mutex(0)
         let currentDate = Mutex(Self.now)
         let sleepDurations = Mutex<[TimeInterval]>([])
-        let sleepCount = Mutex(0)
-        let firstSleepStarted = Atomic(false)
+        let retryWait = OutboxRetryCancellationGate()
         let submittedItems = Mutex<[CollectionOutboxUploadWorkItem]>([])
         let coordinator = CollectionOutboxSyncCoordinator(
             authorize: {
@@ -349,16 +342,8 @@ struct CollectionOutboxRecoveryCoordinatorTests {
                 sleepDurations.withLock {
                     $0.append(delay)
                 }
-                let invocation = sleepCount.withLock { count in
-                    count += 1
-                    return count
-                }
-                if invocation == 1 {
-                    firstSleepStarted.store(true, ordering: .releasing)
-                    while Task.isCancelled == false {
-                        await Task.yield()
-                    }
-                    throw CancellationError()
+                if await retryWait.wasCancelled == false {
+                    try await retryWait.suspendUntilCancelled()
                 }
                 currentDate.withLock {
                     $0 = deadline
@@ -368,9 +353,7 @@ struct CollectionOutboxRecoveryCoordinatorTests {
         let firstFlight = Task {
             try await coordinator.synchronizeAuthenticatedOutbox()
         }
-        while firstSleepStarted.load(ordering: .acquiring) == false {
-            await Task.yield()
-        }
+        await retryWait.waitUntilSuspended()
         #expect(submittedItems.withLock { $0 }.isEmpty)
 
         try await coordinator.synchronizeAuthenticatedOutbox()
@@ -464,6 +447,50 @@ struct CollectionOutboxRecoveryCoordinatorTests {
     }
 
     private static let now = Date(timeIntervalSince1970: 1_800_000_000)
+}
+
+private actor OutboxRetryCancellationGate {
+    private(set) var wasCancelled = false
+    private var hasSuspended = false
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var suspensionWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func suspendUntilCancelled() async throws(any Error) {
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                hasSuspended = true
+                if wasCancelled {
+                    continuation.resume()
+                } else {
+                    self.continuation = continuation
+                }
+                let waiters = suspensionWaiters
+                suspensionWaiters.removeAll()
+                for waiter in waiters {
+                    waiter.resume()
+                }
+            }
+        } onCancel: {
+            Task {
+                await self.cancel()
+            }
+        }
+        try Task.checkCancellation()
+    }
+
+    func waitUntilSuspended() async {
+        guard hasSuspended == false else { return }
+
+        await withCheckedContinuation {
+            suspensionWaiters.append($0)
+        }
+    }
+
+    private func cancel() {
+        wasCancelled = true
+        continuation?.resume()
+        continuation = nil
+    }
 }
 
 private enum RetryDelayScenario: CaseIterable, CustomTestStringConvertible {

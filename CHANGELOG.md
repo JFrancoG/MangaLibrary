@@ -116,6 +116,8 @@ All notable changes to this project are documented in this file.
 
 ### Tests
 
+- 2026-09-14 | ✅ test(quality): make test gates deterministic
+
 - 2026-09-11 | ✅ test(quality): remove structural tests and strengthen T02 oracles
 
 - 2026-09-06 | ✅ test(deluxe): verify the complete publication pipeline

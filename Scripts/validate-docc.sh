@@ -11,8 +11,7 @@ readonly SHARED_SCHEME_PATH="${PROJECT_PATH}/xcshareddata/xcschemes/${SCHEME}.xc
 readonly DESTINATION="generic/platform=iOS"
 readonly OUTPUT_DIRECTORY="${REPOSITORY_ROOT}/.build/docc"
 readonly OUTPUT_ARCHIVE="${OUTPUT_DIRECTORY}/MangaLibrary.doccarchive"
-readonly DEFAULT_DEVELOPER_DIRECTORY="/Applications/Xcode-beta.app/Contents/Developer"
-readonly SELECTED_DEVELOPER_DIRECTORY="${MANGALIBRARY_DEVELOPER_DIR:-${DEFAULT_DEVELOPER_DIRECTORY}}"
+readonly SELECTED_DEVELOPER_DIRECTORY="${MANGALIBRARY_DEVELOPER_DIR:-}"
 readonly XCODEBUILD="${SELECTED_DEVELOPER_DIRECTORY}/usr/bin/xcodebuild"
 
 fail() {
@@ -74,6 +73,8 @@ validate_diagnostics() {
     printf 'Diagnósticos: cero warnings y cero errores.\n'
 }
 
+[[ -n "${SELECTED_DEVELOPER_DIRECTORY}" ]] || \
+    fail "Indica MANGALIBRARY_DEVELOPER_DIR con el Developer directory de Xcode 27 verificado en el preflight."
 [[ -f "${REPOSITORY_ROOT}/AGENTS.md" ]] || fail "No se reconoce la raíz del repositorio."
 [[ -d "${PROJECT_PATH}" ]] || fail "No existe ${PROJECT_RELATIVE_PATH}."
 [[ -f "${SHARED_SCHEME_PATH}" ]] || fail "No existe el scheme compartido ${SCHEME}."
