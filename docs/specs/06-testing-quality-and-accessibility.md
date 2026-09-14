@@ -1,7 +1,7 @@
 # SDD 06: Testing, calidad y accesibilidad
 
 **Estado:** Aprobada
-**Versión:** 1.43
+**Versión:** 1.44
 **Fecha:** 2026-09-14
 
 ## Propósito
@@ -119,6 +119,10 @@ históricos no satisfacen esa nueva ejecución. El
 
 ### Unidad
 
+- arranque: fallo inicial, fallo repetido y recuperación tras un reintento
+  explícito; ausencia de composición lista mientras falla, coalescencia de
+  solicitudes coincidentes y conservación de la misma composición tras el
+  éxito, sin reintento automático ni apertura adicional por una nueva escena;
 - invariantes de colección y transiciones de edición;
 - política única de números de tomo: `nil` conserva total desconocido, 299 y 300
   son válidos, y 301 e `Int64.max` se rechazan antes de construir rangos tanto
@@ -168,6 +172,11 @@ históricos no satisfacen esa nueva ejecución. El
 
 ### Integración
 
+- recuperación del arranque sobre un store V2 real en un directorio temporal
+  aislado: un fallo controlado de apertura no borra ni reemplaza el almacén, y
+  el reintento abre la misma ubicación y conserva colección, outbox e
+  identidades, verificadas desde otro contexto; un error sintético no acredita
+  reparación de corrupción ni de una migración incompatible;
 - CRUD SwiftData con un `ModelContainer` aislado y verificación desde otro contexto;
 - A03: fetch de outbox del shell A → B → sin autoridad → A sobre el mismo store
   aislado, con operaciones pendientes y confirmadas de ambas cuentas. El mismo
@@ -404,9 +413,14 @@ históricos no satisfacen esa nueva ejecución. El
 ### Interfaz
 
 XCUITest se limita a los menores recorridos deterministas que demuestren wiring
-crítico no cubierto con Swift Testing. En el alcance actual ejecuta once; el
-recorrido de Colección cubre tanto alta como eliminación confirmada:
+crítico no cubierto con Swift Testing. El alcance exige los siguientes
+recorridos; el de Colección cubre tanto alta como eliminación confirmada:
 
+- bootstrap sintético Debug → error de apertura seguro sin shell → reintento
+  explícito → shell con el container sintético previsto, sin red, Keychain ni
+  disco live. La presentación de carga y error se verifica en español e inglés,
+  con Dynamic Type y semántica VoiceOver; la automatización y las previews no
+  sustituyen una comprobación física de accesibilidad;
 - bootstrap mock Debug → primera fila de Catálogo → detalle de la misma
   `Manga.ID`;
 - bootstrap mock Debug → abrir Filtros → descartar la sheet compacta con el

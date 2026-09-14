@@ -2,21 +2,16 @@
 import Foundation
 import SwiftData
 
-struct UITestingBootstrap {
-    let modelContainer: ModelContainer
-    let collectionMutation: CollectionMutation
-    let collectionSynchronization: CollectionSynchronization
-    let collectionBlockedOutcomeResolution: CollectionBlockedOutcomeResolution
-    let loadCatalogPage: CatalogModel.PageLoader
-    let loadCatalogFilterOptions: CatalogModel.FilterOptionsLoader
-    let accountModel: AccountModel
-    let readingPublication: ReadingPublicationLifecycle?
-    let presentsCollectionDetailProjection: Bool
-    let presentsMountedCollectionDetail: Bool
-    let collectionDetailUpdate: CollectionSynchronization
-
+enum UITestingBootstrap {
     @MainActor
-    static func makeIfRequested(processArguments: [String]) throws -> Self? {
+    static func makeIfRequested(processArguments: [String]) -> AppStartupModel? {
+        let testsStartupRecovery = processArguments.contains("-ui-testing-startup-recovery")
+        if testsStartupRecovery {
+            precondition(
+                processArguments.contains("-ui-testing"),
+                "Startup recovery requires the explicit synthetic fixture flag."
+            )
+        }
         let testsWatchConnectivity = processArguments.contains("-ui-testing-watch-connectivity")
         let testsEmptyReadings = processArguments.contains("-ui-testing-reading-empty")
         if testsWatchConnectivity || testsEmptyReadings {
@@ -30,6 +25,35 @@ struct UITestingBootstrap {
         }
         guard processArguments.contains("-ui-testing") else { return nil }
 
+        let store = UITestingStartupStore(failsFirstOpening: testsStartupRecovery)
+        return AppStartupModel(openStore: {
+            try await store.open()
+        }) { container in
+            do {
+                return try makeRuntime(processArguments: processArguments, modelContainer: container)
+            } catch {
+                preconditionFailure("Manga Library could not create its UI testing fixtures.")
+            }
+        }
+    }
+
+    @MainActor
+    static func previewRuntime() -> AppRuntime {
+        do {
+            return try makeRuntime(
+                processArguments: ["-ui-testing"],
+                modelContainer: MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+            )
+        } catch {
+            preconditionFailure("Manga Library could not create its preview fixtures.")
+        }
+    }
+
+    @MainActor
+    private static func makeRuntime(processArguments: [String], modelContainer: ModelContainer) throws -> AppRuntime {
+        let testsWatchConnectivity = processArguments.contains("-ui-testing-watch-connectivity")
+        let testsEmptyReadings = processArguments.contains("-ui-testing-reading-empty")
+
         // Automated runs own deterministic scenarios. Native watch transport requires an
         // additional Simulator-only characterization flag that no automated test plan supplies.
         let testsCollectionDetailProjection = processArguments.contains("-ui-testing-collection-detail-projection")
@@ -42,7 +66,7 @@ struct UITestingBootstrap {
                                                 || testsBlockedOutcomeResolution
                                                 || testsPendingLogout
                                                 || testsReadingWidget
-        let container = try MangaLibrarySchema.makeContainer(isStoredInMemoryOnly: true)
+        let container = modelContainer
         if testsMountedCollectionDetail {
             try UITestingCollectionScenarios.seedUITestingMountedCollectionDetail(in: container)
         }
@@ -97,7 +121,7 @@ struct UITestingBootstrap {
             ? UITestingCollectionScenarios.uiTestingCollectionDetailUpdate(actor: mutationActor)
             : .disabled
 
-        return Self(
+        return AppRuntime(
             modelContainer: container,
             collectionMutation: mutation,
             collectionSynchronization: synchronization,

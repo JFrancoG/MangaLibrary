@@ -1,8 +1,8 @@
 # Arquitectura y composición
 
 - Estado: aprobado
-- Versión: 1.10
-- Última revisión: 2026-09-11
+- Versión: 1.11
+- Última revisión: 2026-09-14
 
 ## Propósito y alcance
 
@@ -92,6 +92,7 @@ Las dependencias locales obligatorias se pasan por inicializador o factory. Envi
 | ARCH-019 | No se crea un router global mientras no exista una necesidad aprobada de deep links, restauración o navegación transversal programática. |
 | ARCH-020 | Un cambio de identidad completado invalida la selección y rutas de Colección de la sesión anterior; un intento de logout cancelado no las borra. |
 | ARCH-021 | Cada presencia en pantalla de un formulario de credenciales crea un modelo `@Observable @MainActor` y su View lo retiene con `@State`; `AccountRoute` continúa siendo solo un valor de navegación. Ese modelo conserva borradores, validación presentada, visibilidad de contraseña, intención de foco, tarea y limpieza; `AccountModel` sigue siendo la única autoridad compartida de sesión y workflow remoto, y la View se limita a renderizar, enlazar y adaptar `@FocusState`. |
+| ARCH-022 | Un único propietario de arranque `@Observable @MainActor`, de ámbito app, representa la apertura, el fallo operativo recuperable y la composición lista. Coalesce las solicitudes coincidentes, conserva la composición tras el éxito y permite crear el shell únicamente con el `ModelContainer` persistente abierto. El reintento explícito conserva ubicación, configuración y datos; nunca borra, reemplaza ni sustituye el store por uno en memoria. |
 
 ## Propiedad del estado y flujo por feature
 
@@ -117,6 +118,36 @@ El composition root selecciona únicamente las implementaciones live y construye
 - Navigation y selección permanecen como estado local de presentación; no se inyectan como servicios.
 
 La composición live puede cambiar la configuración concreta sin cambiar las funciones públicas de la feature, pero nunca selecciona datos mock. Catálogo recibe un loader de página directo en previews y UI tests; sus pruebas de cliente inyectan bytes en la frontera tipada y las del transporte reservan `URLProtocol` para `HTTPClient`. Para SwiftData, el reemplazo continúa siendo un `ModelContainer` en memoria con el mismo esquema.
+
+### Apertura y recuperación del arranque
+
+El arranque live abre primero el almacén persistente con el esquema V2, el plan
+de migración y la configuración vigentes. Solo después construye los demás
+recursos de aplicación. Mientras no existe una composición completa, no se
+monta el shell, no se instala un container provisional ni se inician los flujos
+de sesión, sincronización o publicación Deluxe.
+
+El propietario de arranque conserva un único estado observable de apertura,
+fallo o composición lista. Las solicitudes coincidentes de las escenas y los
+reintentos no abren almacenes en paralelo. Tras el éxito se retiene esa misma
+composición durante la vida de la app; volver a presentar una escena no crea
+otros recursos. La View representa el estado y delega la intención de reintentar
+sin construir dependencias ni operar sobre SwiftData.
+
+Un error operativo al abrir o migrar el almacén permite permanecer en la app y
+reintentar explícitamente. La presentación usa un mensaje seguro localizado en
+español e inglés, sin rutas, datos de usuario ni descripciones crudas del error.
+El reintento vuelve a la misma ubicación persistente con la misma configuración;
+no ejecuta recuperación destructiva, no sustituye archivos y no cae a memoria.
+Un fallo repetido conserva ese estado sin bucles automáticos. Esta recuperación
+no promete reparar por sí sola un almacén corrupto o una migración incompatible.
+
+La configuración estática inválida y una solicitud de automatización mal formada
+siguen siendo violaciones de invariantes, no indisponibilidad recuperable del
+almacén. El bootstrap Debug mantiene su selección fuera de `AppComposition`;
+una fixture no disponible o fallida nunca deriva al arranque live. Sus containers
+aislados en memoria son exclusivamente datos sintéticos solicitados de forma
+explícita, no un fallback de producción.
 
 ## Navegación
 

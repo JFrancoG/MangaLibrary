@@ -104,7 +104,7 @@ final class MangaLibraryUITests: XCTestCase {
         app.launchArguments.append("-ui-testing")
         app.launch()
 
-        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
+        let accountTab = tabButton(in: app, named: ["Account", "Cuenta"])
         XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
         accountTab.tap()
 
@@ -129,7 +129,7 @@ final class MangaLibraryUITests: XCTestCase {
         signInSubmit.tap()
         XCTAssertTrue(app.descendants(matching: .any)["account.authenticated"].waitForExistence(timeout: 2))
 
-        let collectionTab = app.buttons.matching(identifier: "tab.collection").firstMatch
+        let collectionTab = tabButton(in: app, named: ["Collection", "Colección"])
         XCTAssertTrue(collectionTab.waitForExistence(timeout: 2))
         collectionTab.tap()
 
@@ -139,7 +139,7 @@ final class MangaLibraryUITests: XCTestCase {
         XCTAssertTrue(importedManga.waitForExistence(timeout: 5))
         XCTAssertTrue(importedManga.label.contains("A deliberately long manga title"))
 
-        let catalogTab = app.buttons.matching(identifier: "tab.catalog").firstMatch
+        let catalogTab = tabButton(in: app, named: ["Catalog", "Catálogo"])
         XCTAssertTrue(catalogTab.waitForExistence(timeout: 2))
         catalogTab.tap()
 
@@ -350,7 +350,7 @@ final class MangaLibraryUITests: XCTestCase {
         ])
         app.launch()
 
-        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
+        let accountTab = tabButton(in: app, named: ["Account", "Cuenta"])
         XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
         accountTab.tap()
 
@@ -378,7 +378,7 @@ final class MangaLibraryUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["account.authentication-required"].exists)
         XCTAssertFalse(signInAction.exists)
 
-        let collectionTab = app.buttons.matching(identifier: "tab.collection").firstMatch
+        let collectionTab = tabButton(in: app, named: ["Collection", "Colección"])
         XCTAssertTrue(collectionTab.waitForExistence(timeout: 2))
         collectionTab.tap()
         XCTAssertTrue(app.descendants(matching: .any)["collection.empty"].waitForExistence(timeout: 2))
@@ -394,7 +394,7 @@ final class MangaLibraryUITests: XCTestCase {
         ])
         app.launch()
 
-        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
+        let accountTab = tabButton(in: app, named: ["Account", "Cuenta"])
         XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
         accountTab.tap()
 
@@ -462,7 +462,7 @@ final class MangaLibraryUITests: XCTestCase {
         ])
         app.launch()
 
-        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
+        let accountTab = tabButton(in: app, named: ["Account", "Cuenta"])
         XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
         accountTab.tap()
 
@@ -483,7 +483,7 @@ final class MangaLibraryUITests: XCTestCase {
         app.launchArguments.append("-ui-testing")
         app.launch()
 
-        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
+        let accountTab = tabButton(in: app, named: ["Account", "Cuenta"])
         XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
         accountTab.tap()
 
@@ -598,7 +598,7 @@ final class MangaLibraryUITests: XCTestCase {
         ])
         app.launch()
 
-        let collectionTab = app.buttons.matching(identifier: "tab.collection").firstMatch
+        let collectionTab = tabButton(in: app, named: ["Collection", "Colección"])
         XCTAssertTrue(collectionTab.waitForExistence(timeout: 5))
         collectionTab.tap()
         let pendingEntry = app.descendants(matching: .any)
@@ -609,7 +609,7 @@ final class MangaLibraryUITests: XCTestCase {
         let selectedDetail = app.buttons["collection.entry.edit.1"]
         XCTAssertTrue(selectedDetail.waitForExistence(timeout: 2))
 
-        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
+        let accountTab = tabButton(in: app, named: ["Account", "Cuenta"])
         XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
         accountTab.tap()
 
@@ -654,7 +654,7 @@ final class MangaLibraryUITests: XCTestCase {
         app.launchArguments.append("-ui-testing")
         app.launch()
 
-        let accountTab = app.buttons.matching(identifier: "tab.account").firstMatch
+        let accountTab = tabButton(in: app, named: ["Account", "Cuenta"])
         XCTAssertTrue(accountTab.waitForExistence(timeout: 5))
         accountTab.tap()
 
@@ -737,5 +737,11 @@ final class MangaLibraryUITests: XCTestCase {
         XCTAssertTrue(identityEmail.waitForExistence(timeout: 2))
         XCTAssertTrue(identityEmail.label.contains("reader@example.invalid"))
         XCTAssertFalse(identityEmail.label.contains("ui-new-account@example.invalid"))
+    }
+
+    @MainActor
+    private func tabButton(in app: XCUIApplication, named labels: [String]) -> XCUIElement {
+        // Native tabs can omit SwiftUI identifiers; require one labeled button inside the tab bar.
+        app.tabBars.buttons.matching(NSPredicate(format: "label IN %@", labels)).element
     }
 }
