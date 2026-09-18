@@ -50,4 +50,11 @@ respuesta cruda no se versiona.
 
 ## Privacidad y trazabilidad
 
-Las notas privadas pueden registrar ubicaciones y observaciones de estudio fuera de Git. Nunca contienen credenciales reales. El repositorio privado conserva únicamente la fuente completa aprobada y saneada; no incluye el original, otras transcripciones completas ni rutas locales. La privacidad del repositorio no autoriza secretos ni redistribución y cualquier ampliación de acceso requiere una acción separada.
+Las notas privadas pueden registrar ubicaciones y observaciones de estudio fuera
+de Git. Nunca contienen credenciales reales. El repositorio conserva únicamente
+la fuente completa aprobada y saneada; no incluye el original, otras transcripciones
+completas ni rutas locales. Está público temporalmente para la corrección académica
+por decisión del propietario confirmada el 2026-09-18, conforme a
+[ADR 0023](adr/0023-temporary-public-access-for-assessment.md). Esa excepción
+conserva los límites de fuentes, secretos y artefactos de ADR 0012; no autoriza
+nuevo material docente, una licencia de reutilización ni otras publicaciones.

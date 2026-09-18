@@ -1,8 +1,8 @@
 # Autenticación y sincronización
 
 - Estado: aprobado
-- Versión: 1.27
-- Última revisión: 2026-09-04
+- Versión: 1.28
+- Última revisión: 2026-09-18
 
 ## Propósito y alcance
 
@@ -226,9 +226,10 @@ Una operación remota de revocación solo se usa si el OpenAPI vivo la define. L
 
 ### Extensión Deluxe del logout
 
-Cuando una unidad posterior incorpore el bridge Deluxe, el protocolo de
-[ADR-0010](../adr/0010-widgetkit-event-driven-freshness.md) se intercala antes
-del borrado Keychain de Advanced:
+Con el bridge Deluxe implementado, el protocolo de
+[SDD 09](09-deluxe-reading-contract.md), ADR 0019 y
+[ADR-0022](../adr/0022-widget-collection-projection-and-adaptive-reading.md)
+se intercala antes del borrado Keychain de Advanced:
 
 1. cierra y verifica atómicamente el `SessionFence` para la generación esperada —`allowedSessionGeneration == nil`—, sin alterar un fence que ya pertenezca a una sesión posterior;
 2. aborta el logout y conserva sesión y Keychain si el fence no puede cerrarse o verificarse;
@@ -965,7 +966,7 @@ La política explícita es:
 - no se promete mezcla campo a campo, CRDT ni conservación automática de dos ediciones incompatibles;
 - un conflicto no resoluble sin perder intención debe hacerse visible o conservarse bloqueado, no resolverse con datos inventados.
 
-WatchOS y WidgetKit consumen proyecciones y no abren nuevos escritores autoritativos. El orden de snapshot y recarga de WidgetKit sigue [ADR-0010](../adr/0010-widgetkit-event-driven-freshness.md); cualquier mutación futura desde una superficie Deluxe requeriría otra decisión explícita.
+WatchOS y WidgetKit consumen proyecciones y no abren nuevos escritores autoritativos. El orden de snapshot y recarga de WidgetKit sigue [ADR-0022](../adr/0022-widget-collection-projection-and-adaptive-reading.md); cualquier mutación futura desde una superficie Deluxe requeriría otra decisión explícita.
 
 ## Fuera de alcance y riesgos
 
@@ -989,8 +990,8 @@ WatchOS y WidgetKit consumen proyecciones y no abren nuevos escritores autoritat
 - [Colección local e invariantes](03-local-collection-and-invariants.md)
 - [ADR-0003: concurrencia y aislamiento](../adr/0003-concurrency-and-default-isolation.md)
 - [ADR-0004: SwiftData local-first y model actors](../adr/0004-swiftdata-local-first-and-model-actors.md)
-- [ADR-0006: autenticación, Keychain y sincronización](../adr/0006-authentication-keychain-and-sync.md)
+- [ADR-0006: autenticación, Keychain y sincronización, superseded](../adr/0006-authentication-keychain-and-sync.md)
 - [ADR-0017: flujos nativos y respuesta HTTP con status validado](../adr/0017-validated-http-status-response-boundary.md)
-- [ADR-0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
-- [ADR-0018: bundle único de sesión en Keychain y logout atómico](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)
+- [ADR-0022: proyecciones y frescura del widget](../adr/0022-widget-collection-projection-and-adaptive-reading.md)
+- [ADR-0018: bundle único de sesión en Keychain y logout atómico, superseded](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)
 - [ADR-0019: JWT único de sesión y envelope Keychain V3](../adr/0019-single-jwt-session-and-keychain-v3.md)

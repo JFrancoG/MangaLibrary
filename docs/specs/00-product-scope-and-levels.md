@@ -1,8 +1,8 @@
 # Alcance de producto y niveles
 
 - Estado: aprobado
-- Versión: 1.9
-- Última revisión: 2026-09-02
+- Versión: 1.10
+- Última revisión: 2026-09-18
 
 ## Propósito
 
@@ -58,10 +58,10 @@ Advanced debe superar su puerta de aceptación antes de que Deluxe pueda conside
 Deluxe es acumulativo: conserva íntegramente Advanced y añade:
 
 1. una experiencia complementaria para watchOS;
-2. un widget estático —no interactivo ni configurable en 1.0— que muestre los mangas que el usuario está leyendo y el volumen de lectura con la misma proyección publicada para todas sus instancias;
+2. un widget estático —no interactivo ni configurable en 1.0— con lectura y volumen en pequeño/grande, y una ficha de colección en mediano, conforme a ADR 0022; todas las instancias de una familia consumen la misma proyección publicada;
 3. los puentes de datos mínimos entre la app principal, watchOS y WidgetKit sin introducir una segunda autoridad de persistencia.
 
-La fecha objetivo de Deluxe es anterior al 15 de septiembre de 2026. Sus puentes y su política de frescura se deciden en [ADR-0007](../adr/0007-watchos-widgetkit-and-data-bridges.md) y [ADR-0010](../adr/0010-widgetkit-event-driven-freshness.md).
+La fecha objetivo original de Deluxe era anterior al 15 de septiembre de 2026; [Progress](../Progress.md) registra el estado y los pendientes reales. Sus puentes se definen en [ADR-0007](../adr/0007-watchos-widgetkit-and-data-bridges.md), y las proyecciones por familia y la política de frescura vigente, en [ADR-0022](../adr/0022-widget-collection-projection-and-adaptive-reading.md). Esta revisión reconcilia el resumen con el contrato ya aprobado, sin añadir alcance.
 
 ## Requisitos de producto
 
@@ -139,8 +139,9 @@ Deluxe se considera aceptado solo cuando Advanced continúa pasando y, además:
 - [ADR-0001: toolchain, plataforma y warnings](../adr/0001-toolchain-platform-and-warning-policy.md)
 - [ADR-0005: estrategia híbrida de testing](../adr/0005-hybrid-testing-strategy.md)
 - [ADR-0007: watchOS, WidgetKit y puentes de datos](../adr/0007-watchos-widgetkit-and-data-bridges.md)
-- [ADR-0012: repositorio privado y fuente docente saneada](../adr/0012-private-repository-and-sanitized-practice-source.md)
+- [ADR-0012: repositorio privado y fuente docente saneada, superseded](../adr/0012-private-repository-and-sanitized-practice-source.md)
 - [ADR-0017: flujos nativos y respuesta HTTP con status validado](../adr/0017-validated-http-status-response-boundary.md)
-- [ADR-0010: frescura dirigida por eventos para WidgetKit](../adr/0010-widgetkit-event-driven-freshness.md)
-- [ADR-0018: bundle único de sesión en Keychain y logout atómico](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)
+- [ADR-0022: proyecciones y frescura del widget](../adr/0022-widget-collection-projection-and-adaptive-reading.md)
+- [ADR-0018: bundle único de sesión en Keychain y logout atómico, superseded](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)
 - [ADR-0019: JWT único de sesión y envelope Keychain V3](../adr/0019-single-jwt-session-and-keychain-v3.md)
+- [ADR-0023: acceso público temporal para la corrección](../adr/0023-temporary-public-access-for-assessment.md)

@@ -1,14 +1,66 @@
 # Progreso y evidencia
 
-**Última actualización:** 2026-09-14
+**Última actualización:** 2026-09-18
 **Estado general:** Advanced y DX1–DX5 entregadas (5/7); plan #77 abierto.
 DX6 integra su corte técnico por PR #89 (`681ea6d`), con #88 abierto por H01 y
 las pruebas físicas Watch. DX7 entrega su corte técnico mediante PR #91
-(`5e1fb14`), con #90 cerrado. A01–A03 están entregados por PR #93/#95/#97.
+(`5e1fb14`), con #90 cerrado. La implementación técnica DX1–DX7 está integrada.
+El mantenimiento posterior llega hasta C6, PR #125 (`6dfc59d`), con #124 cerrado.
 El Deluxe Release Gate completo continúa pendiente en #88/#77; H01 no está
 aplazado y solo H02/H03/H04 de Watch conservan el aplazamiento postentrega.
 Los apartados fechados conservan evidencia histórica; no representan por sí
 solos una nueva ejecución de la candidata final.
+
+## Revisión documental bilingüe — issue #126
+
+Revisión del 2026-09-18 solicitada por el propietario, contra `main@6dfc59d`,
+limpio y coincidente con el HEAD remoto al inicio. Se abre
+[#126](https://github.com/JFrancoG/MangaLibrary/issues/126) y la rama
+`codex/126-bilingual-readme-docs`. La revisión documental anterior #98 está
+entregada; esta unidad recoge el mantenimiento posterior y el README bilingüe.
+
+El README inglés y [su versión española](../README.es.md) resumen producto,
+arranque, arquitectura y límites equivalentes. Los comandos detallados pasan a
+[desarrollo y validación](development.md). Índice, outline y storyboard enlazan
+el último checkpoint C6: 846 declaraciones / 1.274 invocaciones, incluidos 13 UI,
+del 14 de septiembre. Se conservan sus fechas y los pendientes físicos #77/#88.
+SDD 00 reconcilia la familia mediana y las SDD 00/04/05 enlazan la autoridad
+vigente de ADR 0022, sin cambiar el producto; la fecha objetivo original no se
+interpreta como entrega.
+
+GitHub informa de acceso público. El propietario confirma que ha puesto el
+repositorio público mientras se corrige. [ADR 0023](adr/0023-temporary-public-access-for-assessment.md)
+registra la excepción temporal y supersede ADR 0012 conservando los límites de
+fuentes, secretos y artefactos. AGENTS y SDD 07/08 reflejan esa decisión.
+Esta unidad no cambia la visibilidad ni añade un canal docente no confirmado.
+
+AGENTS corrige el descubrimiento MCP: la conexión actual anuncia
+`XcodeListWorkspaces` y `workspaceIdentifier`, no `XcodeListWindows`. La llamada
+de listado responde que el agente aún no está autorizado. Se registra ese límite;
+no se abre un workspace ni se solicita acceso para esta revisión documental.
+La disponibilidad del esquema no se presenta como preflight de build completado.
+
+Validación editorial y estática completada:
+
+- Comprobación local con Python de 55 Markdown externos a DocC: 427 enlaces
+  locales y 25 anchors, sin destinos ni fragmentos rotos.
+- `Scripts/validate-test-plans.sh`: 29 suites Fast y 42 Integration; filtros,
+  targets, partición y plan predeterminado válidos, sin ejecutar tests.
+- `python3 Scripts/validate-deluxe-configuration.py`: cinco targets,
+  dependencias, schemes y selección habilitada coherentes, solo lectura estática.
+- `shasum -a 256 -c SHA256SUMS` desde `Contracts/OpenAPI`: `openapi.json: OK`.
+- Equivalencia de cifras, límites y enlaces entre README EN/ES; revisión de
+  privacidad del texto añadido y `git diff --check` sin hallazgos. Los 18 archivos
+  nuevos/modificados son Markdown; código, proyecto, scripts, tests, catálogo DocC
+  y fuente docente saneada permanecen intactos. No se audita todo el historial.
+
+Solo Markdown externo al catálogo DocC: no se ejecutan nuevos builds, tests,
+previews o archives, y Audit Swift/revisiones de implementación iOS no aplican.
+Tras la revisión, el propietario autoriza commit y push de la rama el
+2026-09-18. Se reutiliza la validación estática anterior, sin cambios de código
+ni configuración, y se repiten enlaces y `git diff --check` sobre el contenido
+final. El resultado del commit y push se registra en #126. PR, merge, cierre
+del issue y borrado de rama quedan fuera de esta autorización.
 
 ## C6 — Reutilización acotada de portadas — issue #124
 

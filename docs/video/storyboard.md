@@ -4,7 +4,7 @@
 La versión de entrega debe identificar su candidata y los gates aplicables. La
 excepción de Watch de SDD 06 permite mantener H02/H03/H04 documentadas como
 pendientes postentrega; no aplaza H01 ni aprueba el Deluxe Release Gate completo.
-**Última revisión:** 2026-09-11
+**Última revisión:** 2026-09-18
 **Duración objetivo:** 6–8 minutos.
 
 ## 1. Apertura — 30 s
@@ -43,8 +43,8 @@ pendientes postentrega; no aplaza H01 ni aprueba el Deluxe Release Gate completo
 ## 6. Arquitectura y calidad — 60 s
 
 - Enseñar brevemente el árbol feature-first, SDD y ADR.
-- Identificar el commit de la candidata y mostrar solo evidencia que le corresponda. DX7/PR #91 registra ReleaseGate 811/811 declaraciones y 1.160 invocaciones; A03/PR #97 registra por separado Fast 359/359, Integration 455/455 y UI 11/11, además de builds/DocC limpios. Etiquetarlos como checkpoints históricos, no como un gate final nuevo.
-- Explicar A01 (autorización de recuperación Watch), A02 (reintento exacto de caché verificada) y A03 (consulta por usuario), ya entregados por PR #93/#95/#97. Enseñar sus pruebas registradas si resulta útil, sin forzar fallos live para la grabación.
+- Identificar el commit de la candidata y mostrar solo evidencia que le corresponda. El último checkpoint de producto es C6/PR #125, del 2026-09-14: commit `0d14d6b`, merge `6dfc59d`, ReleaseGate 846 declaraciones / 1.274 invocaciones (13 UI), iPhone 17 Simulator / iOS 27, builds Debug/Release de cinco targets y DocC limpios. DX7/PR #91 (811 declaraciones / 1.160 invocaciones) y A03/PR #97 son cortes anteriores. Ninguno se presenta como una nueva ejecución ni como evidencia física obtenida al grabar.
+- Seleccionar las correcciones que ayuden al relato: autorización y caché Watch A01/A02, aislamiento de usuario A03, recuperación del catálogo y del arranque C1/C3 o reutilización acotada de portadas C6. El [outline](../presentation/outline.md) y Progress registran las PR y pruebas; no forzar fallos live ni presentar las mediciones locales como garantías de rendimiento.
 - Mencionar warnings como errores, estrategia híbrida y accesibilidad realmente verificada, con la matriz y los límites de cada entorno.
 
 ## 7. Cierre — 30 s
@@ -57,7 +57,7 @@ pendientes postentrega; no aplaza H01 ni aprueba el Deluxe Release Gate completo
 
 - [ ] Commit de la candidata y evidencia aplicable registrados en [Progress](../Progress.md); resultados históricos identificados por su corte.
 - [ ] Criterios de entrega revisados frente a [SDD 06](../specs/06-testing-quality-and-accessibility.md#entrega-del-proyecto-con-validación-física-de-watch-diferida): H01 y los demás criterios no aplazados satisfechos para el paquete final; H02/H03/H04 pueden seguir pendientes bajo la decisión documentada, sin declarar el gate completo aprobado.
-- [ ] Familias y timeline contrastadas con [ADR-0022](../adr/0022-widget-collection-projection-and-adaptive-reading.md); A01–A03 y limitaciones API coherentes con [outline](../presentation/outline.md).
+- [ ] Familias y timeline contrastadas con [ADR-0022](../adr/0022-widget-collection-projection-and-adaptive-reading.md); correcciones hasta C6 y limitaciones API coherentes con [outline](../presentation/outline.md).
 - [ ] Datos y cuenta preparados sin secretos visibles.
 - [ ] Notificaciones y material personal ocultos.
 - [ ] Barra de estado, fondo, consola y audio revisados.

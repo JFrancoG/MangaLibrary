@@ -1,9 +1,9 @@
 # ADR-0012: Repositorio privado y fuente docente saneada
 
-**Estado:** Accepted
+**Estado:** Superseded
 **Fecha:** 2026-08-25
 **Supersede:** [ADR-0008](0008-selective-docc-and-publishing-boundaries.md)
-**Superseded by:** —
+**Superseded by:** [ADR-0023](0023-temporary-public-access-for-assessment.md), acceso público temporal para la corrección; conserva los límites de fuentes y artefactos.
 
 ## Contexto
 

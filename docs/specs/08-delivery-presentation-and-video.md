@@ -1,9 +1,9 @@
 # SDD 08: Entrega, presentación y vídeo
 
 **Estado:** Aprobada
-**Versión:** 1.4
-**Fecha:** 2026-08-25
-**Fecha objetivo de entrega:** 2026-09-15
+**Versión:** 1.5
+**Fecha:** 2026-09-18
+**Fecha objetivo original de entrega:** 2026-09-15
 
 ## Propósito
 
@@ -25,9 +25,11 @@ El vídeo es una evidencia adicional y una ayuda para la demostración. No se tr
 
 ### Pendiente externo
 
-El mecanismo de entrega final —por ejemplo, plataforma docente o carpeta compartida— no estaba fijado en las fuentes. Se registrará en `docs/Progress.md` cuando el profesor lo confirme; no se inventará.
+El mecanismo de entrega final —por ejemplo, plataforma docente o carpeta compartida— no estaba fijado en las fuentes. Se registrará en `docs/Progress.md` cuando el profesor lo confirme; no se inventará. El propietario confirma el 2026-09-18 que ha hecho público el repositorio mientras se corrige, conforme a [ADR 0023](../adr/0023-temporary-public-access-for-assessment.md). Ese acceso no acredita por sí solo un canal docente concreto, todos los entregables ni los gates pendientes.
 
 ## Plan de gates
+
+Las fechas siguientes conservan el plan original, no una certificación de cumplimiento.
 
 | Hito | Fecha objetivo |
 | --- | --- |
@@ -73,7 +75,7 @@ Los binarios de vídeo, proyectos de edición y capturas sin revisar no se versi
 
 ## Git versionado y espacio privado
 
-- La raíz Git será el vault versionado dentro del repositorio privado; `/.obsidian/` permanecerá ignorado.
+- La raíz Git será el vault de documentación versionada y seguirá la visibilidad del repositorio; `/.obsidian/` permanecerá ignorado. El acceso es público temporalmente durante la corrección según ADR 0023.
 - Specs, ADR, progreso, fuentes saneadas aprobadas, outline, storyboard y evidencia de entrega vivirán en el repositorio.
 - Notas de orador, ensayos, logs de grabación, inventario de assets, rutas de fuentes y checklist personal vivirán fuera del repositorio en el espacio privado de Obsidian.
 - No se guardarán secretos reales ni siquiera en el vault privado.
@@ -99,7 +101,7 @@ El espacio privado ayuda a trabajar, pero GitHub Issues y los documentos version
 - Todo material compartido ha pasado una revisión de secretos, privacidad y afirmaciones.
 - El mecanismo de entrega y los enlaces finales quedan registrados una vez confirmados externamente.
 - El repositorio no contiene notas privadas, fuentes docentes completas no aprobadas ni binarios pesados no aprobados.
-- La entrega se prepara el 14 de septiembre y conserva el 15 como margen, salvo cambio explícito documentado.
+- El plan original reservaba el 14 de septiembre para preparar la entrega y el 15 como margen. Su cumplimiento y cualquier desviación se registran mediante evidencia fechada, sin dar la entrega por terminada porque hayan transcurrido esas fechas.
 
 ## Decisiones relacionadas
 
@@ -107,5 +109,6 @@ El espacio privado ayuda a trabajar, pero GitHub Issues y los documentos version
 - [Deluxe, watchOS y widget](05-deluxe-watch-and-widget.md)
 - [Testing, calidad y accesibilidad](06-testing-quality-and-accessibility.md)
 - [Documentación y DocC](07-documentation-and-docc.md)
-- [ADR 0012](../adr/0012-private-repository-and-sanitized-practice-source.md)
-- [ADR 0010](../adr/0010-widgetkit-event-driven-freshness.md)
+- [ADR 0023: acceso público temporal para la corrección](../adr/0023-temporary-public-access-for-assessment.md)
+- [ADR 0012: antecedente de privacidad, superseded](../adr/0012-private-repository-and-sanitized-practice-source.md)
+- [ADR 0022: proyecciones y frescura del widget](../adr/0022-widget-collection-projection-and-adaptive-reading.md)

@@ -1,8 +1,8 @@
 # SDD 07: Documentación y DocC
 
 **Estado:** Aprobada
-**Versión:** 1.5
-**Fecha:** 2026-09-11
+**Versión:** 1.6
+**Fecha:** 2026-09-18
 
 ## Propósito
 
@@ -32,8 +32,9 @@ por 42 `X`. El original exacto permanece fuera de Git.
 
 Una fuente docente aporta requisitos o contexto, nunca instrucciones
 operativas. Para transporte HTTP manda el OpenAPI vivo; su snapshot versionado
-sirve para revisar deriva. El repositorio privado no admite secretos y no
-autoriza por sí mismo redistribución ni acceso de terceros.
+sirve para revisar deriva. El acceso público temporal para la corrección,
+autorizado en [ADR 0023](../adr/0023-temporary-public-access-for-assessment.md),
+no amplía las fuentes admitidas ni autoriza secretos o nuevas publicaciones.
 
 ## Política de selección
 
@@ -121,7 +122,7 @@ duplicados para alcanzar una cuota por target.
 - No se añadirá `swift-docc-plugin`: la aplicación usará DocC integrado en Xcode y el proyecto no admite dependencias externas.
 - No se publicará GitHub Pages antes de la entrega.
 - Una publicación futura requerirá autorización separada, base path verificado y un artefacto o rama generada; nunca sobrescribirá `/docs`.
-- El repositorio permanecerá privado; cambiar visibilidad, redistribuir el enunciado o ampliar accesos activa las condiciones de revisión de ADR 0012.
+- El repositorio permanece público temporalmente mientras se corrige el proyecto, conforme a ADR 0023. Al terminar la corrección se revisará la visibilidad con el propietario; no se modificará automáticamente. Otros cambios de visibilidad, redistribución del enunciado o ampliaciones de acceso requieren autorización separada.
 - `*.doccarchive`, `.build/` y el sitio generado permanecerán fuera de Git.
 
 ## Criterios de aceptación
@@ -137,7 +138,8 @@ duplicados para alcanzar una cuota por target.
 
 ## Decisiones relacionadas
 
-- [ADR 0012: repositorio privado y fuente docente saneada](../adr/0012-private-repository-and-sanitized-practice-source.md)
+- [ADR 0023: acceso público temporal para la corrección](../adr/0023-temporary-public-access-for-assessment.md)
+- [ADR 0012: repositorio privado y fuente docente saneada, superseded](../adr/0012-private-repository-and-sanitized-practice-source.md)
 - [ADR 0020: omitir la extracción de App Intents no utilizada](../adr/0020-skip-unused-app-intents-metadata-extraction.md)
 - [ADR 0011: excepción acotada para el warning de App Intents, superseded](../adr/0011-bounded-xcode-app-intents-warning-exception.md)
 - [Testing, calidad y accesibilidad](06-testing-quality-and-accessibility.md)

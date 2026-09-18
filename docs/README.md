@@ -1,6 +1,15 @@
 # Documentación de Manga Library
 
-Este directorio contiene la documentación humana versionada dentro del repositorio privado. No es la salida de DocC ni un almacén de notas privadas.
+Este directorio contiene la documentación humana versionada. El repositorio está
+público temporalmente para la corrección académica conforme a
+[ADR 0023](adr/0023-temporary-public-access-for-assessment.md). No es la salida
+de DocC ni un almacén de notas privadas.
+
+## Para empezar
+
+- [README en inglés](../README.md) · [README en español](../README.es.md)
+- [Desarrollo, configuración local y validación](development.md)
+- [Estado y evidencia fechada](Progress.md): último checkpoint de producto C6, PR #125, del 14 de septiembre; ReleaseGate 846 declaraciones / 1.274 invocaciones. La revisión documental del 18 de septiembre no reejecuta esos gates.
 
 ## Autoridad
 
@@ -19,7 +28,7 @@ Para resolver discrepancias, consulta [AGENTS.md](../AGENTS.md). En resumen: pet
 - [06 — Testing, calidad y accesibilidad](specs/06-testing-quality-and-accessibility.md)
 - [07 — Documentación y DocC](specs/07-documentation-and-docc.md)
 - [08 — Entrega, presentación y vídeo](specs/08-delivery-presentation-and-video.md)
-- [09 — Contrato de lectura Deluxe](specs/09-deluxe-reading-contract.md) — proyección, recuperación y publicación DX1–DX3; widgets de lectura/colección DX4 y companion Watch DX5. Las matrices [DX6](dx6-integration-accessibility.md) y [DX7](dx7-deluxe-release-gate.md) separan los cortes técnicos entregados de los criterios físicos pendientes. [Progress](Progress.md) registra A01–A03 y la evidencia posterior, con 5/7 subfases plenamente entregadas.
+- [09 — Contrato de lectura Deluxe](specs/09-deluxe-reading-contract.md) — proyección, recuperación y publicación DX1–DX3; widgets de lectura/colección DX4 y companion Watch DX5 y caché acotada de portadas C6. Las matrices [DX6](dx6-integration-accessibility.md) y [DX7](dx7-deluxe-release-gate.md) separan los cortes técnicos entregados de los criterios físicos pendientes. [Progress](Progress.md) registra las correcciones posteriores hasta C6, con 5/7 subfases plenamente entregadas y la implementación técnica DX1–DX7 integrada.
 
 ### Contrato API
 

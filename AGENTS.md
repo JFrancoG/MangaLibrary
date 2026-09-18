@@ -122,7 +122,7 @@ Preservar todo trabajo ajeno o previo. No usar `stash`, `reset`, `clean`, cambio
 
 ## Herramientas y evidencia
 
-- Usar el Xcode MCP oficial para estado del proyecto, builds, tests, previews y diagnósticos. Empezar por `XcodeListWindows` y confirmar el proyecto.
+- Usar el Xcode MCP oficial para estado del proyecto, builds, tests, previews y diagnósticos. Descubrir el contrato de herramientas de la conexión actual; en Xcode Service, empezar por `XcodeListWorkspaces`, confirmar el proyecto por su ruta y usar su `workspaceIdentifier`. Si falta, abrir la ruta verificada mediante `XcodeOpenWorkspace` y respetar la autorización inicial del agente y la carpeta. No asumir que la selección de la GUI coincide con la del servicio.
 - No sustituir MCP silenciosamente por `xcodebuild` o por otro servidor. Un script reproducible versionado puede usar la CLI solo cuando la SDD/ADR lo haya aprobado y haya verificado el Xcode seleccionado.
 - Usar documentación primaria de Apple/Swift para disponibilidad y comportamiento sensible a versión.
 - Registrar herramienta, versión, destino, comando o acción, resultado y alcance excluido. No presentar una preview, simulador o build como evidencia de hardware, accesibilidad física o integración live.
@@ -130,11 +130,11 @@ Preservar todo trabajo ajeno o previo. No usar `stash`, `reset`, `clean`, cambio
 
 ## Documentación versionada y memoria privada
 
-- La raíz Git puede usarse como vault versionado de acceso privado; `/.obsidian/` permanece ignorado.
+- La raíz Git puede usarse como vault de documentación versionada; su contenido sigue la visibilidad del repositorio y `/.obsidian/` permanece ignorado.
 - Specs, ADR, progreso, fuentes saneadas expresamente aprobadas, outline, storyboard y evidencia de entrega viven en Git.
 - Notas personales, fuentes locales, ensayos, logs de grabación e inventarios privados viven fuera del repositorio.
 - Obsidian no sustituye GitHub Issues como tracker ni SDD/ADR como fuente normativa.
-- El repositorio permanece privado. Cambiar visibilidad, redistribuir material o ampliar accesos requiere autorización separada.
+- El repositorio está público temporalmente mientras se corrige el proyecto, por decisión del propietario confirmada el 2026-09-18 y registrada en [ADR 0023](docs/adr/0023-temporary-public-access-for-assessment.md). Revisar la visibilidad al terminar la corrección; no cambiarla automáticamente. Otros cambios de visibilidad, redistribución de material o ampliaciones de acceso requieren autorización separada.
 - No guardar secretos reales ni siquiera en notas privadas.
 
 ## Definition of Done
