@@ -1,7 +1,7 @@
 # Outline de presentación
 
-**Estado:** borrador versionado en repositorio privado; presentación final no generada.
-**Última revisión:** 2026-09-11
+**Estado:** relato versionado; presentaciones exportadas, notas y ensayos se gestionan fuera de Git.
+**Última revisión:** 2026-09-18
 **Objetivo:** explicar decisiones y evidencia de Manga Library sin depender de notas privadas.
 
 ## 1. Problema y alcance
@@ -54,11 +54,13 @@
 - Companion watchOS de solo lectura mediante contextos autocontenidos reemplazables de `WCSession.updateApplicationContext(_:)`. Conserva caché compatible sin convertirla en autorización vigente ni prometer entrega inmediata.
 - La app principal conserva la autoridad de edición, sincronización y publicación. [ADR-0022](../adr/0022-widget-collection-projection-and-adaptive-reading.md) y [SDD 09](../specs/09-deluxe-reading-contract.md) contienen los contratos completos.
 
-## Correcciones verificadas antes de la entrega
+## Correcciones integradas después de DX7
 
 - **A01 — PR #93:** la recuperación de contenido Watch vuelve a exigir una capacidad vigente; el reload del widget y el envío al reloj tienen fallos independientes.
 - **A02 — PR #95:** se puede reofrecer el candidato exacto tras fallar la persistencia de caché, conservando las barreras y mostrando contenido solo después de verificarlo.
 - **A03 — PR #97:** la consulta de outbox filtra por usuario autenticado en SwiftData y devuelve vacío sin sesión; conserva los estados necesarios para sincronizar y la identidad estable del shell.
+- **C1–C5 — PR #115/#117/#119/#121/#123:** recuperación del catálogo tras cancelación, tests deterministas, arranque recuperable ante fallos del almacenamiento y simplificación de Colección/formularios. Presentar estos cambios como mantenimiento posterior, sin confundir esta serie C1–C6 con los cortes originales del catálogo.
+- **C6 — PR #125:** reutilización de JPEG preparados por digest de sus bytes de origen, con caché de 2 MiB / 128 entradas por pipeline. No evita las cargas de URL ni limita la espera de una fuente lenta. Las mediciones locales y sus límites están en Progress; no equivalen a una mejora garantizada en hardware o red.
 - Explicar qué riesgo corrigió cada cambio y enlazar [sus pruebas y límites](../Progress.md); no presentar los tests deterministas como reproducción física.
 
 ## 8. Calidad
@@ -68,6 +70,7 @@
 - Español/inglés, Dynamic Type, estados y tecnologías de asistencia con evidencia por superficie y combinación; una preview no acredita VoiceOver, teclado, foco ni scroll.
 - **Checkpoint DX7, PR #91:** ReleaseGate 811/811 declaraciones y 1.160 invocaciones; builds Debug/Release y DocC sin warnings. Es el resultado histórico de ese corte.
 - **Checkpoint A03, PR #97:** Fast 359/359, Integration 455/455 y UI 11/11, con 567/630/11 invocaciones respectivamente; builds Debug/Release y DocC sin warnings. Son planes ejecutados por separado, no una nueva ejecución de ReleaseGate completo.
+- **Último checkpoint de producto — C6, 2026-09-14, PR #125:** commit `0d14d6b`, integrado en `6dfc59d`; ReleaseGate 846 declaraciones / 1.274 invocaciones, incluidos 13 tests UI, iPhone 17 Simulator / iOS 27. Builds Debug/Release de cinco targets y DocC sin warnings/errores. La revisión documental del 18 de septiembre no reejecuta estos gates ni añade evidencia física.
 - **Límites vigentes:** H01, protección anterior al primer desbloqueo del iPhone, sigue limitado/no observable y no está aplazado. H02/H03/H04 físicas de Watch se difieren a después de entregar el proyecto por decisión del 2026-09-10; pueden adelantarse con pareja compatible prestada. El gate completo sigue pendiente en #88/#77. Véanse [DX6](../dx6-integration-accessibility.md) y [la excepción acotada de SDD 06](../specs/06-testing-quality-and-accessibility.md#entrega-del-proyecto-con-validación-física-de-watch-diferida).
 
 ## 9. DocC y documentación
@@ -79,7 +82,7 @@
 ## 10. Demostración y cierre
 
 - Recorrido verificable de Básico → Medio → Avanzado → Deluxe.
-- Antes de generar la presentación final, identificar el commit de la candidata y registrar su evidencia aplicable en [Progress](../Progress.md). No renombrar los checkpoints anteriores como validación de esa candidata.
+- Antes de exportar o actualizar la presentación de entrega, identificar el commit de la candidata y registrar su evidencia aplicable en [Progress](../Progress.md). No renombrar los checkpoints anteriores como validación de esa candidata.
 - Mostrar qué se verificó, en qué entorno y qué sigue pendiente; la excepción de Watch no elimina H01 ni permite declarar el Deluxe Release Gate completo aprobado.
 - Limitaciones, riesgos, aprendizaje y siguientes pasos.
 

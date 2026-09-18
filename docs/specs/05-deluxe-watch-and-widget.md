@@ -239,8 +239,8 @@ App Group y WatchConnectivity requieren entitlements y pruebas de integración e
 ## Decisiones relacionadas
 
 - [ADR 0007: watchOS, WidgetKit y puentes de datos](../adr/0007-watchos-widgetkit-and-data-bridges.md)
-- [ADR 0021: rotación de lecturas y prioridad](../adr/0021-widget-reading-rotation-and-priority.md), que incorpora y supersede ADR-0010
-- [ADR 0018: bundle único de sesión en Keychain y logout atómico](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)
+- [ADR 0022: colección en mediano y lectura adaptable](../adr/0022-widget-collection-projection-and-adaptive-reading.md), que conserva la rotación de ADR 0021 y la frescura de ADR 0010, ambos superseded
+- [ADR 0018: bundle único de sesión en Keychain y logout atómico, superseded](../adr/0018-single-keychain-session-bundle-and-atomic-logout.md)
 - [ADR 0019: JWT único de sesión y envelope Keychain V3](../adr/0019-single-jwt-session-and-keychain-v3.md)
 - [Colección local e invariantes](03-local-collection-and-invariants.md)
 - [Autenticación y sincronización](04-authentication-and-sync.md)

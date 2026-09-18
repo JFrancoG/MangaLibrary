@@ -20,7 +20,7 @@ sus compromisos.
 | [0009](0009-native-source-owned-features-and-local-navigation.md) | Flujos nativos por fuente y navegación local | Superseded | 2026-08-17 |
 | [0010](0010-widgetkit-event-driven-freshness.md) | Frescura dirigida por eventos para WidgetKit | Superseded | 2026-08-18 |
 | [0011](0011-bounded-xcode-app-intents-warning-exception.md) | Excepción acotada para el warning de App Intents de Xcode | Superseded | 2026-08-25 |
-| [0012](0012-private-repository-and-sanitized-practice-source.md) | Repositorio privado y fuente docente saneada | Accepted | 2026-08-25 |
+| [0012](0012-private-repository-and-sanitized-practice-source.md) | Repositorio privado y fuente docente saneada | Superseded | 2026-08-25 |
 | [0013](0013-advanced-logout-and-deluxe-bridge-boundary.md) | Frontera de logout Advanced y bridge Deluxe | Superseded | 2026-08-25 |
 | [0014](0014-native-flows-live-composition-and-direct-doubles.md) | Flujos nativos, composición live y dobles directos | Superseded | 2026-08-27 |
 | [0015](0015-native-flows-live-composition-and-adaptive-navigation.md) | Flujos nativos, composición live y navegación adaptable | Superseded | 2026-08-28 |
@@ -31,6 +31,7 @@ sus compromisos.
 | [0020](0020-skip-unused-app-intents-metadata-extraction.md) | Omitir la extracción de App Intents no utilizada | Accepted | 2026-09-04 |
 | [0021](0021-widget-reading-rotation-and-priority.md) | Rotación de lecturas y prioridad de la última edición | Superseded | 2026-09-07 |
 | [0022](0022-widget-collection-projection-and-adaptive-reading.md) | Colección en mediano y lectura adaptable | Accepted | 2026-09-07 |
+| [0023](0023-temporary-public-access-for-assessment.md) | Acceso público temporal para la corrección académica | Accepted | 2026-09-18 |
 
 ## Inmutabilidad y supersesión
 

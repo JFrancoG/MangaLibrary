@@ -78,6 +78,8 @@ All notable changes to this project are documented in this file.
 
 ### Documentation
 
+- 2026-09-18 | 📝 docs: refresh bilingual README and project guidance
+
 - 2026-09-11 | 📝 docs(delivery): align D01 presentation drafts
 
 - 2026-09-11 | 📝 docs(api): clarify D03 functional acceptance
